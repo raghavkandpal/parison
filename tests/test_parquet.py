@@ -52,6 +52,7 @@ class ParquetCompatibility(unittest.TestCase):
         result = compare(self.recipe, left, right)
         self.assertEqual(result["outcome"], "PASS")
         self.assertEqual(result["counts"]["matched_within_tolerance"], 1)
+        self.assertEqual(result["runtime"]["polars"], "1.44.2")
 
     def test_nested_parquet_value_is_rejected(self):
         nested = self.root / "nested.parquet"

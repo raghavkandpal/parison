@@ -6,11 +6,13 @@ import html
 import json
 import math
 import os
+import platform
 import shutil
 import tempfile
 from collections import Counter
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from importlib import metadata
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +25,27 @@ _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp
 
 class ParityError(ValueError):
     pass
+
+
+def _runtime_info(paths: tuple[Path, Path] | None = None) -> dict[str, Any]:
+    try:
+        version = metadata.version("parity-compare")
+    except metadata.PackageNotFoundError:
+        version = "source-tree"
+    runtime = {
+        "contract": "keyed-v1",
+        "parity_version": version,
+        "python": platform.python_version(),
+        "implementation": platform.python_implementation(),
+        "platform": platform.system(),
+        "machine": platform.machine(),
+    }
+    if paths and any(path.suffix.lower() in {".parquet", ".pq"} for path in paths):
+        try:
+            runtime["polars"] = metadata.version("polars")
+        except metadata.PackageNotFoundError:
+            runtime["polars"] = "unavailable"
+    return runtime
 
 
 def _unknown(mapping: dict[str, Any], allowed: set[str], where: str) -> None:
@@ -333,6 +356,7 @@ def compare(
         "outcome": outcome,
         "complete": not problems,
         "sensitivity": recipe["output"]["sensitivity"],
+        "runtime": _runtime_info((baseline_path, candidate_path)),
         "resource_limits": {"max_input_bytes": max_input_bytes, "max_rows_per_input": max_rows},
         "scope": recipe["scope"],
         "keys": keys,
@@ -384,6 +408,7 @@ def terminal_result(outcome: str, message: str) -> dict[str, Any]:
         "outcome": outcome,
         "complete": False,
         "sensitivity": "summary",
+        "runtime": _runtime_info(),
         "resource_limits": {},
         "scope": None,
         "keys": [],
@@ -421,7 +446,14 @@ def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] |
         files = {}
         for name in names:
             files[name] = _digest(stage / name)
-        manifest = {"schema_version": 1, "complete": True, "sensitivity": result["sensitivity"], "files": files}
+        manifest = {
+            "schema_version": 1,
+            "complete": True,
+            "outcome": result["outcome"],
+            "sensitivity": result["sensitivity"],
+            "runtime": result["runtime"],
+            "files": files,
+        }
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         os.replace(stage, output)
     except Exception:

@@ -79,6 +79,10 @@ class ParityTests(unittest.TestCase):
         output = self.root / "run"
         self.assertEqual(main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output)]), 0)
         self.assertEqual({p.name for p in output.iterdir()}, {"result.json", "effective-recipe.json", "report.html", "manifest.json"})
+        manifest = json.loads((output / "manifest.json").read_text())
+        self.assertEqual(manifest["outcome"], "PASS")
+        self.assertEqual(manifest["runtime"]["contract"], "keyed-v1")
+        self.assertIn("python", manifest["runtime"])
 
     def test_summary_artifacts_do_not_contain_raw_values(self):
         left = self.csv("left.csv", [{"order_id": "secret-key", "status": "secret-old", "total": "1"}])
