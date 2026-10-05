@@ -36,6 +36,18 @@ The full CSV and Parquet suite runs in CI on Python 3.11 and 3.14.
 
 For repeatable local measurements, run `PYTHONPATH=src python benchmarks/run.py`. The seeded harness reports elapsed time and Python allocation without claiming a supported scale envelope.
 
+Generate larger accuracy/performance inputs with:
+
+```sh
+PYTHONPATH=src python benchmarks/generate_cases.py
+PYTHONPATH=src python benchmarks/run_cases.py \
+  benchmarks/generated/rows-10000 benchmarks/generated/rows-100000
+```
+
+Each generated case includes baseline and candidate CSV files, a recipe, and exact expected counts. Generated data is ignored by Git and can be recreated at larger sizes with `--rows`.
+
+The first recorded 10k/100k accuracy and performance run is in [`benchmarks/results-2026-10-05.json`](benchmarks/results-2026-10-05.json). It is a machine-specific baseline, not a supported scale guarantee.
+
 ## Documentation
 
 Start with the [research and design index](docs/README.md).

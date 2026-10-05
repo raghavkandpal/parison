@@ -1,0 +1,50 @@
+{
+  "environment": {
+    "date": "2026-10-05",
+    "machine": "arm64",
+    "platform": "Darwin",
+    "python": "3.14.7",
+    "measurement": "single local run with tracemalloc; not a supported performance claim"
+  },
+  "cases": [
+    {
+      "case": "rows-10000",
+      "accuracy": "verified",
+      "input_bytes": 2457372,
+      "elapsed_seconds": 0.491501,
+      "peak_python_bytes": 22145777,
+      "outcome": "FAIL",
+      "counts": {
+        "baseline": 10000,
+        "candidate": 9995,
+        "common_keys": 9990,
+        "baseline_only": 10,
+        "candidate_only": 5,
+        "matched_exact": 9880,
+        "matched_within_tolerance": 80,
+        "matched_with_required_difference": 30
+      },
+      "field_discrepancy_count": 110
+    },
+    {
+      "case": "rows-100000",
+      "accuracy": "verified",
+      "input_bytes": 24572194,
+      "elapsed_seconds": 6.057426,
+      "peak_python_bytes": 211127701,
+      "outcome": "FAIL",
+      "counts": {
+        "baseline": 100000,
+        "candidate": 99950,
+        "common_keys": 99900,
+        "baseline_only": 100,
+        "candidate_only": 50,
+        "matched_exact": 98800,
+        "matched_within_tolerance": 800,
+        "matched_with_required_difference": 300
+      },
+      "field_discrepancy_count": 1100
+    }
+  ]
+}
+
