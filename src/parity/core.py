@@ -136,7 +136,8 @@ def _parse(raw: Any, kind: str, column: str) -> Any:
                 raise ValueError("timestamp requires an explicit timezone")
             return value
     except (ValueError, TypeError, InvalidOperation) as exc:
-        raise ParityError(f"cannot parse {column} as {kind}: {raw!r}") from exc
+        detail = str(exc) or "invalid value"
+        raise ParityError(f"cannot parse column {column} as {kind}: {detail}") from exc
     raise AssertionError(kind)
 
 
