@@ -107,7 +107,7 @@ def generate(root: Path, rows: int) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate deterministic Parity benchmark inputs")
     parser.add_argument("--output", type=Path, default=Path("benchmarks/generated"))
-    parser.add_argument("--rows", type=int, nargs="+", default=[10_000, 100_000])
+    parser.add_argument("--rows", type=int, nargs="+", default=[10_000, 100_000, 250_000])
     args = parser.parse_args()
     if any(rows <= 0 for rows in args.rows):
         parser.error("row counts must be positive")

@@ -41,7 +41,9 @@ Generate larger accuracy/performance inputs with:
 ```sh
 PYTHONPATH=src python benchmarks/generate_cases.py
 PYTHONPATH=src python benchmarks/run_cases.py \
-  benchmarks/generated/rows-10000 benchmarks/generated/rows-100000
+  --repeats 3 --max-memory-per-row 3000 \
+  benchmarks/generated/rows-10000 benchmarks/generated/rows-100000 \
+  benchmarks/generated/rows-250000
 ```
 
 Each generated case includes baseline and candidate CSV files, a recipe, and exact expected counts. Generated data is ignored by Git and can be recreated at larger sizes with `--rows`.

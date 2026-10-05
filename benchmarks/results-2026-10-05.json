@@ -1,50 +1,83 @@
 {
+  "cases": [
+    {
+      "accuracy": "verified",
+      "baseline_rows_per_second": 18492.2,
+      "case": "rows-10000",
+      "counts": {
+        "baseline": 10000,
+        "baseline_only": 10,
+        "candidate": 9995,
+        "candidate_only": 5,
+        "common_keys": 9990,
+        "matched_exact": 9880,
+        "matched_with_required_difference": 30,
+        "matched_within_tolerance": 80
+      },
+      "field_discrepancy_count": 110,
+      "input_bytes": 2457372,
+      "max_elapsed_seconds": 0.551764,
+      "median_elapsed_seconds": 0.540769,
+      "median_peak_python_bytes": 20916133,
+      "min_elapsed_seconds": 0.494259,
+      "outcome": "FAIL",
+      "peak_python_bytes_per_baseline_row": 2091.6,
+      "repeats": 3
+    },
+    {
+      "accuracy": "verified",
+      "baseline_rows_per_second": 16163.5,
+      "case": "rows-100000",
+      "counts": {
+        "baseline": 100000,
+        "baseline_only": 100,
+        "candidate": 99950,
+        "candidate_only": 50,
+        "common_keys": 99900,
+        "matched_exact": 98800,
+        "matched_with_required_difference": 300,
+        "matched_within_tolerance": 800
+      },
+      "field_discrepancy_count": 1100,
+      "input_bytes": 24572194,
+      "max_elapsed_seconds": 6.282823,
+      "median_elapsed_seconds": 6.186796,
+      "median_peak_python_bytes": 211131845,
+      "min_elapsed_seconds": 5.870547,
+      "outcome": "FAIL",
+      "peak_python_bytes_per_baseline_row": 2111.3,
+      "repeats": 3
+    },
+    {
+      "accuracy": "verified",
+      "baseline_rows_per_second": 15402.8,
+      "case": "rows-250000",
+      "counts": {
+        "baseline": 250000,
+        "baseline_only": 250,
+        "candidate": 249875,
+        "candidate_only": 125,
+        "common_keys": 249750,
+        "matched_exact": 247000,
+        "matched_with_required_difference": 750,
+        "matched_within_tolerance": 2000
+      },
+      "field_discrepancy_count": 2750,
+      "input_bytes": 61430264,
+      "max_elapsed_seconds": 16.709288,
+      "median_elapsed_seconds": 16.230831,
+      "median_peak_python_bytes": 519019747,
+      "min_elapsed_seconds": 15.962659,
+      "outcome": "FAIL",
+      "peak_python_bytes_per_baseline_row": 2076.1,
+      "repeats": 3
+    }
+  ],
   "environment": {
     "date": "2026-10-05",
     "machine": "arm64",
+    "measurement": "median of repeated local runs with tracemalloc; not a supported performance claim",
     "platform": "Darwin",
-    "python": "3.14.7",
-    "measurement": "single local run with tracemalloc; not a supported performance claim"
-  },
-  "cases": [
-    {
-      "case": "rows-10000",
-      "accuracy": "verified",
-      "input_bytes": 2457372,
-      "elapsed_seconds": 0.491501,
-      "peak_python_bytes": 22145777,
-      "outcome": "FAIL",
-      "counts": {
-        "baseline": 10000,
-        "candidate": 9995,
-        "common_keys": 9990,
-        "baseline_only": 10,
-        "candidate_only": 5,
-        "matched_exact": 9880,
-        "matched_within_tolerance": 80,
-        "matched_with_required_difference": 30
-      },
-      "field_discrepancy_count": 110
-    },
-    {
-      "case": "rows-100000",
-      "accuracy": "verified",
-      "input_bytes": 24572194,
-      "elapsed_seconds": 6.057426,
-      "peak_python_bytes": 211127701,
-      "outcome": "FAIL",
-      "counts": {
-        "baseline": 100000,
-        "candidate": 99950,
-        "common_keys": 99900,
-        "baseline_only": 100,
-        "candidate_only": 50,
-        "matched_exact": 98800,
-        "matched_within_tolerance": 800,
-        "matched_with_required_difference": 300
-      },
-      "field_discrepancy_count": 1100
-    }
-  ]
+    "python": "3.14.7"
+  }
 }
-
