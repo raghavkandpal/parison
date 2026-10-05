@@ -1,0 +1,96 @@
+{
+  "column_policies": {
+    "order_id": {
+      "comparison": "exact",
+      "type": "string"
+    },
+    "status": {
+      "comparison": "exact",
+      "type": "string"
+    },
+    "total": {
+      "comparison": "numeric",
+      "scale": 2,
+      "tolerance": {
+        "absolute": "0.01",
+        "formula": "symmetric-v1",
+        "relative": "0"
+      },
+      "type": "decimal"
+    }
+  },
+  "complete": true,
+  "counts": {
+    "baseline": 2,
+    "baseline_only": 0,
+    "candidate": 2,
+    "candidate_only": 0,
+    "common_keys": 2,
+    "matched_exact": 1,
+    "matched_with_required_difference": 0,
+    "matched_within_tolerance": 1
+  },
+  "discrepancy_count": 1,
+  "discrepancy_sample": [],
+  "discrepancy_sample_limit": 0,
+  "excluded_columns": {},
+  "field_counts": {
+    "status": {
+      "different": 0,
+      "exact": 2,
+      "within_tolerance": 0
+    },
+    "total": {
+      "different": 0,
+      "exact": 1,
+      "within_tolerance": 1
+    }
+  },
+  "field_discrepancy_count": 1,
+  "inputs": {
+    "baseline": {
+      "bytes": 58,
+      "sha256": "300ff7b81d8053eaacefcfbdb623b0c6b8f3f03a2b42fe835ae334e7e4f6ae0b"
+    },
+    "candidate": {
+      "bytes": 58,
+      "sha256": "dca2ea212ef4bbab4dc2d4cc297e29c1e9212c1de48a4b2cdf8e46dfffd13aed"
+    }
+  },
+  "keys": [
+    "order_id"
+  ],
+  "outcome": "PASS",
+  "policy": {
+    "keys": [
+      "order_id"
+    ],
+    "nulls_equal": true,
+    "sensitivity": "summary"
+  },
+  "problems": [],
+  "recipe_sha256": "a70b918f3c438c987438d8e72b311cc0d2ed9400e2c03b0987e8154a2b69d69a",
+  "resource_limits": {
+    "max_input_bytes": 1000000000,
+    "max_rows_per_input": 5000000
+  },
+  "runtime": {
+    "contract": "keyed-v1",
+    "implementation": "CPython",
+    "machine": "arm64",
+    "parity_version": "0.1.0",
+    "platform": "Darwin",
+    "python": "3.14.7"
+  },
+  "schema_version": 1,
+  "scope": {
+    "completeness": "full",
+    "cutoff": "2026-10-01T00:00:00Z",
+    "expected_empty": false,
+    "filters": [
+      "status != 'deleted'"
+    ],
+    "snapshot": "synthetic-orders-v1"
+  },
+  "sensitivity": "summary"
+}

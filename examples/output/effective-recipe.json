@@ -1,0 +1,44 @@
+{
+  "columns": {
+    "order_id": {
+      "comparison": "exact",
+      "type": "string"
+    },
+    "status": {
+      "comparison": "exact",
+      "type": "string"
+    },
+    "total": {
+      "comparison": "numeric",
+      "scale": 2,
+      "tolerance": {
+        "absolute": "0.01",
+        "formula": "symmetric-v1",
+        "relative": "0"
+      },
+      "type": "decimal"
+    }
+  },
+  "comparison_mode": "keyed",
+  "identity": {
+    "duplicates": "reject",
+    "null_keys": "reject"
+  },
+  "keys": [
+    "order_id"
+  ],
+  "nulls_equal": true,
+  "output": {
+    "sensitivity": "summary"
+  },
+  "recipe_version": 1,
+  "scope": {
+    "completeness": "full",
+    "cutoff": "2026-10-01T00:00:00Z",
+    "expected_empty": false,
+    "filters": [
+      "status != 'deleted'"
+    ],
+    "snapshot": "synthetic-orders-v1"
+  }
+}
