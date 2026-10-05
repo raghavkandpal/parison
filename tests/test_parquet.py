@@ -60,6 +60,12 @@ class ParquetCompatibility(unittest.TestCase):
         with self.assertRaisesRegex(ParityError, "cannot parse column amount as decimal"):
             compare(self.recipe, valid, nested)
 
+    def test_row_limit_is_checked_before_parquet_materialization(self):
+        left = self.parquet("left.parquet", ["001", "002"], [Decimal("1.0000"), Decimal("2.0000")])
+        right = self.parquet("right.parquet", ["001", "002"], [Decimal("1.0000"), Decimal("2.0000")])
+        with self.assertRaisesRegex(ParityError, "row count.*exceeds limit 1"):
+            compare(self.recipe, left, right, max_rows=1)
+
 
 if __name__ == "__main__":
     unittest.main()

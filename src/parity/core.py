@@ -141,7 +141,7 @@ def _parse(raw: Any, kind: str, column: str) -> Any:
     raise AssertionError(kind)
 
 
-def _read(path: Path, recipe: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+def _read(path: Path, recipe: dict[str, Any], max_rows: int) -> tuple[list[dict[str, Any]], list[str]]:
     if path.is_symlink():
         raise ParityError(f"input must not be a symlink: {path}")
     if not path.is_file():
@@ -161,6 +161,8 @@ def _read(path: Path, recipe: dict[str, Any]) -> tuple[list[dict[str, Any]], lis
                     raise ParityError(f"duplicate column names in {path}")
                 raw_rows = []
                 for row in reader:
+                    if len(raw_rows) >= max_rows:
+                        raise ParityError(f"row count in {path} exceeds limit {max_rows}")
                     if None in row or any(value is None for value in row.values()):
                         raise ParityError(f"ragged CSV row {reader.line_num} in {path}")
                     raw_rows.append(row)
@@ -172,7 +174,12 @@ def _read(path: Path, recipe: dict[str, Any]) -> tuple[list[dict[str, Any]], lis
         except ImportError as exc:
             raise ParityError("Parquet support requires: pip install 'parity-compare[parquet]'") from exc
         try:
+            row_count = pl.scan_parquet(path).select(pl.len()).collect().item()
+            if row_count > max_rows:
+                raise ParityError(f"row count in {path} exceeds limit {max_rows}")
             frame = pl.read_parquet(path)
+        except ParityError:
+            raise
         except Exception as exc:
             raise ParityError(f"cannot read {path}: {exc}") from exc
         headers = frame.columns
@@ -247,11 +254,14 @@ def compare(
     candidate_path: str | Path,
     sample_limit: int = 100,
     max_input_bytes: int = 1_000_000_000,
+    max_rows: int = 5_000_000,
 ) -> dict[str, Any]:
     if sample_limit < 0:
         raise ParityError("sample_limit must be non-negative")
     if max_input_bytes <= 0:
         raise ParityError("max_input_bytes must be positive")
+    if max_rows <= 0:
+        raise ParityError("max_rows must be positive")
     recipe_path, baseline_path, candidate_path = map(Path, (recipe_path, baseline_path, candidate_path))
     recipe = load_recipe(recipe_path)
     try:
@@ -261,8 +271,8 @@ def compare(
     if input_bytes > max_input_bytes:
         raise ParityError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
     before = {_path: _digest(_path) for _path in (baseline_path, candidate_path)}
-    baseline, _ = _read(baseline_path, recipe)
-    candidate, _ = _read(candidate_path, recipe)
+    baseline, _ = _read(baseline_path, recipe, max_rows)
+    candidate, _ = _read(candidate_path, recipe, max_rows)
     if any(_digest(path) != digest for path, digest in before.items()):
         raise ParityError("an input changed while it was being read")
     keys = recipe["keys"]
@@ -318,7 +328,7 @@ def compare(
         "outcome": outcome,
         "complete": not problems,
         "sensitivity": recipe["output"]["sensitivity"],
-        "resource_limits": {"max_input_bytes": max_input_bytes},
+        "resource_limits": {"max_input_bytes": max_input_bytes, "max_rows_per_input": max_rows},
         "scope": recipe["scope"],
         "keys": keys,
         "problems": problems,

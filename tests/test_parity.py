@@ -173,6 +173,13 @@ class ParityTests(unittest.TestCase):
         self.assertEqual(result["outcome"], "INTERRUPTED")
         self.assertFalse(result["complete"])
 
+    def test_row_limit_stops_csv_comparison(self):
+        rows = [{"order_id": str(i), "status": "ok", "total": "1"} for i in range(2)]
+        left = self.csv("left.csv", rows)
+        right = self.csv("right.csv", rows)
+        with self.assertRaisesRegex(ParityError, "row count.*exceeds limit 1"):
+            compare(self.recipe, left, right, max_rows=1)
+
 
 if __name__ == "__main__":
     unittest.main()
