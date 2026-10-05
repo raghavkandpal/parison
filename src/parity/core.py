@@ -386,6 +386,25 @@ def _report(result: dict[str, Any]) -> str:
         return html.escape(str(value))
     counts = "".join(f"<tr><th>{esc(k.replace('_', ' '))}</th><td>{v}</td></tr>" for k, v in result["counts"].items())
     problems = "".join(f"<li>{esc(item)}</li>" for item in result["problems"]) or "<li>None</li>"
+    scope = result.get("scope") or {}
+    scope_rows = "".join(
+        f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(', '.join(value) if isinstance(value, list) else value)}</td></tr>"
+        for key, value in scope.items()
+    ) or '<tr><td colspan="2">Unavailable</td></tr>'
+    field_rows = "".join(
+        f"<tr><th>{esc(name)}</th><td>{values['exact']}</td><td>{values['within_tolerance']}</td><td>{values['different']}</td></tr>"
+        for name, values in result["field_counts"].items()
+    ) or '<tr><td colspan="4">No comparable fields</td></tr>'
+    exclusion_rows = "".join(
+        f"<tr><th>{esc(name)}</th><td>{esc(reason)}</td></tr>"
+        for name, reason in result["excluded_columns"].items()
+    ) or '<tr><td colspan="2">None</td></tr>'
+    runtime_rows = "".join(f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(value)}</td></tr>" for key, value in result["runtime"].items())
+    limit_rows = "".join(f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(value)}</td></tr>" for key, value in result["resource_limits"].items()) or '<tr><td colspan="2">Unavailable</td></tr>'
+    input_rows = "".join(
+        f"<tr><th>{esc(side)}</th><td>{esc(values['bytes'])}</td><td><code>{esc(values['sha256'])}</code></td></tr>"
+        for side, values in result["inputs"].items()
+    ) or '<tr><td colspan="3">Unavailable</td></tr>'
     if result["sensitivity"] == "raw":
         rows = "".join(
             "<tr>" + "".join(f"<td>{esc(row.get(k, ''))}</td>" for k in ("kind", "key", "field", "baseline", "candidate", "classification", "delta", "allowance")) + "</tr>"
@@ -397,8 +416,13 @@ def _report(result: dict[str, Any]) -> str:
         evidence = "<h2>Privacy</h2><p>Summary mode stores no keys or raw field values. Field and record counts are complete.</p>"
     return f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>Parity report: {esc(result['outcome'])}</title><style>body{{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#18202a}}h1{{color:{'#14733b' if result['outcome']=='PASS' else '#a22'}}}table{{border-collapse:collapse;width:100%;margin:1rem 0}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left;vertical-align:top}}th{{background:#f3f5f7}}code{{overflow-wrap:anywhere}}</style>
-<main><h1>{esc(result['outcome'])}</h1><p>Complete evaluation: <strong>{str(result['complete']).lower()}</strong></p><h2>Counts</h2><table>{counts}</table>
+<main><h1>{esc(result['outcome'])}</h1><p>Complete evaluation: <strong>{str(result['complete']).lower()}</strong></p>
+<h2>Scope</h2><table>{scope_rows}</table><h2>Record counts</h2><table>{counts}</table>
+<h2>Field summary</h2><table><thead><tr><th>Field</th><th>Exact</th><th>Within tolerance</th><th>Different</th></tr></thead><tbody>{field_rows}</tbody></table>
+<h2>Excluded columns</h2><table><thead><tr><th>Column</th><th>Rationale</th></tr></thead><tbody>{exclusion_rows}</tbody></table>
 <h2>Preflight issues</h2><ul>{problems}</ul>{evidence}
+<h2>Inputs</h2><table><thead><tr><th>Side</th><th>Bytes</th><th>SHA-256</th></tr></thead><tbody>{input_rows}</tbody></table>
+<h2>Resource limits</h2><table>{limit_rows}</table><h2>Runtime</h2><table>{runtime_rows}</table>
 <h2>Provenance</h2><p>Recipe SHA-256: <code>{esc(result.get('recipe_sha256') or 'unavailable')}</code></p></main></html>"""
 
 

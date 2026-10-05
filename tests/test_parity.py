@@ -93,6 +93,20 @@ class ParityTests(unittest.TestCase):
         self.assertNotIn("secret-old", encoded)
         self.assertNotIn("secret-new", encoded)
 
+    def test_report_surfaces_scope_fields_exclusions_limits_and_runtime(self):
+        value = dict(RECIPE, excluded_columns={"updated_at": "nondeterministic metadata"})
+        self.recipe.write_text(json.dumps(value), encoding="utf-8")
+        left = self.root / "left.csv"
+        right = self.root / "right.csv"
+        contents = "order_id,status,total,updated_at\n001,ok,1,old\n"
+        left.write_text(contents, encoding="utf-8")
+        right.write_text(contents.replace("old", "new"), encoding="utf-8")
+        output = self.root / "report-run"
+        self.assertEqual(main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output)]), 0)
+        report = (output / "report.html").read_text(encoding="utf-8")
+        for expected in ("synthetic-orders-v1", "status", "updated_at", "nondeterministic metadata", "max input bytes", "keyed-v1", "SHA-256"):
+            self.assertIn(expected, report)
+
     def test_raw_evidence_is_explicit_bounded_and_html_escaped(self):
         raw_recipe = dict(RECIPE, output={"sensitivity": "raw"})
         self.recipe.write_text(json.dumps(raw_recipe), encoding="utf-8")
