@@ -146,6 +146,49 @@ class SemanticCorpus(unittest.TestCase):
                 )
                 self.assertEqual(result["outcome"], "FAIL")
 
+    def test_boolean_tokens_are_strict(self):
+        columns = {
+            "id": {"type": "string", "comparison": "exact"},
+            "value": {"type": "boolean", "comparison": "exact"},
+        }
+        spec = recipe(columns)
+        matching = self.run_rows(spec, ["id", "value"], [{"id": "1", "value": "true"}], [{"id": "1", "value": "true"}])
+        self.assertEqual(matching["outcome"], "PASS")
+        with self.assertRaisesRegex(ParityError, "expected true or false"):
+            self.run_rows(spec, ["id", "value"], [{"id": "1", "value": "true"}], [{"id": "1", "value": "TRUE"}])
+
+    def test_dates_are_exact_calendar_dates(self):
+        columns = {
+            "id": {"type": "string", "comparison": "exact"},
+            "value": {"type": "date", "comparison": "exact"},
+        }
+        spec = recipe(columns)
+        different = self.run_rows(spec, ["id", "value"], [{"id": "1", "value": "2026-01-01"}], [{"id": "1", "value": "2026-01-02"}])
+        self.assertEqual(different["outcome"], "FAIL")
+        with self.assertRaisesRegex(ParityError, "cannot parse column value as date"):
+            self.run_rows(spec, ["id", "value"], [{"id": "1", "value": "2026-01-01"}], [{"id": "1", "value": "2026-01-01T00:00:00"}])
+
+    def test_large_integers_are_not_coerced_to_float(self):
+        columns = {
+            "id": {"type": "string", "comparison": "exact"},
+            "value": {"type": "integer", "comparison": "exact"},
+        }
+        result = self.run_rows(
+            recipe(columns), ["id", "value"],
+            [{"id": "1", "value": "9007199254740992"}],
+            [{"id": "1", "value": "9007199254740993"}],
+        )
+        self.assertEqual(result["outcome"], "FAIL")
+
+    def test_quoted_newlines_are_parsed_without_row_loss(self):
+        result = self.run_rows(
+            recipe(), ["id", "value"],
+            [{"id": "1", "value": "line one\nline two"}],
+            [{"id": "1", "value": "line one\nline two"}],
+        )
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["counts"]["baseline"], 1)
+
     def test_decimal_tolerance_boundaries_and_symmetry(self):
         columns = {
             "id": {"type": "string", "comparison": "exact"},

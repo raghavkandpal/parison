@@ -1,6 +1,6 @@
 # Parity research and proposed product design
 
-Research date: 4 October 2026. Implementation status updated 5 October 2026: an early CLI vertical slice, semantic corpus and local benchmark harness now exist; customer interviews and independent competitor trials remain incomplete.
+Research date: 4 October 2026. Implementation status updated 5 October 2026: an early CLI vertical slice, initial 40-case semantic corpus and local benchmark harness now exist; customer interviews and independent competitor trials remain incomplete.
 
 Parity would help data engineers evaluate whether a pipeline refactor or migration preserves intended output. The recommended starting point is a local CLI with a portable investigation report, not a hosted data platform. Its engine is deterministic and does not require AI.
 

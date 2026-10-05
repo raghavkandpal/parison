@@ -6,7 +6,7 @@ Parity is an independent data-engineering side project. The proposed product com
 
 ## Project status
 
-**Early vertical slice.** The repository now includes an installable Python CLI for strict keyed CSV comparison, JSON/HTML evidence bundles and CI-oriented exit codes. Parquet input is available through the optional `polars` dependency. A local benchmark harness and DataComPy compatibility spike are complete; interviews, usability studies and broader performance experiments remain planned work.
+**Early vertical slice.** The repository now includes an installable Python CLI for strict keyed CSV comparison, JSON/HTML evidence bundles and CI-oriented exit codes. Parquet input is available through the optional `polars` dependency. The initial 40-case semantic corpus, a local benchmark harness and DataComPy compatibility spike are complete; interviews, usability studies and broader performance experiments remain planned work.
 
 ## Try it
 
