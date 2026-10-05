@@ -4,7 +4,7 @@ import argparse
 import json
 import sys
 
-from .core import OUTCOME_CODES, ParityError, compare, error_result, load_recipe, publish, verify_bundle
+from .core import OUTCOME_CODES, ParityError, compare, error_result, load_recipe, publish, terminal_result, verify_bundle
 
 
 def parser() -> argparse.ArgumentParser:
@@ -20,6 +20,7 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--candidate", required=True)
     run.add_argument("--output", required=True)
     run.add_argument("--sample-limit", type=int, default=100, help="maximum raw field differences to publish")
+    run.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     return root
 
 
@@ -35,7 +36,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "validate-recipe":
             print("valid")
             return 0
-        result = compare(args.recipe, args.baseline, args.candidate, args.sample_limit)
+        result = compare(args.recipe, args.baseline, args.candidate, args.sample_limit, args.max_input_bytes)
         publish(args.output, result, recipe)
         print(json.dumps({"outcome": result["outcome"], "output": args.output}))
         return OUTCOME_CODES[result["outcome"]]
@@ -48,4 +49,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"parity: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
+        if args.command == "compare":
+            try:
+                publish(args.output, terminal_result("INTERRUPTED", "comparison interrupted by user"), recipe)
+            except ParityError:
+                pass
+        print("parity: interrupted", file=sys.stderr)
         return 130

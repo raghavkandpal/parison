@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from parity.cli import main
 from parity.core import ParityError, compare, load_recipe, verify_bundle
@@ -154,6 +155,23 @@ class ParityTests(unittest.TestCase):
         self.assertEqual(result["outcome"], "FAIL")
         self.assertFalse(result["problems"])
         self.assertEqual(result["counts"]["matched_with_required_difference"], 1)
+
+    def test_input_byte_limit_returns_error_bundle(self):
+        left = self.csv("left.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
+        right = self.csv("right.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
+        output = self.root / "limited-run"
+        code = main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output), "--max-input-bytes", "1"])
+        self.assertEqual(code, 2)
+        self.assertEqual(json.loads((output / "result.json").read_text())["outcome"], "ERROR")
+
+    def test_keyboard_interrupt_returns_130_and_publishes_bundle(self):
+        output = self.root / "interrupted-run"
+        with patch("parity.cli.compare", side_effect=KeyboardInterrupt):
+            code = main(["compare", "--recipe", str(self.recipe), "--baseline", "unused-a.csv", "--candidate", "unused-b.csv", "--output", str(output)])
+        self.assertEqual(code, 130)
+        result = json.loads((output / "result.json").read_text())
+        self.assertEqual(result["outcome"], "INTERRUPTED")
+        self.assertFalse(result["complete"])
 
 
 if __name__ == "__main__":

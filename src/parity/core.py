@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 
-OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3}
+OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPTED": 130}
 _RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "columns", "excluded_columns", "output"}
 _COLUMN_KEYS = {"type", "comparison", "tolerance"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
@@ -246,11 +246,20 @@ def compare(
     baseline_path: str | Path,
     candidate_path: str | Path,
     sample_limit: int = 100,
+    max_input_bytes: int = 1_000_000_000,
 ) -> dict[str, Any]:
     if sample_limit < 0:
         raise ParityError("sample_limit must be non-negative")
+    if max_input_bytes <= 0:
+        raise ParityError("max_input_bytes must be positive")
     recipe_path, baseline_path, candidate_path = map(Path, (recipe_path, baseline_path, candidate_path))
     recipe = load_recipe(recipe_path)
+    try:
+        input_bytes = baseline_path.stat().st_size + candidate_path.stat().st_size
+    except OSError as exc:
+        raise ParityError(f"cannot inspect inputs: {exc}") from exc
+    if input_bytes > max_input_bytes:
+        raise ParityError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
     before = {_path: _digest(_path) for _path in (baseline_path, candidate_path)}
     baseline, _ = _read(baseline_path, recipe)
     candidate, _ = _read(candidate_path, recipe)
@@ -309,6 +318,7 @@ def compare(
         "outcome": outcome,
         "complete": not problems,
         "sensitivity": recipe["output"]["sensitivity"],
+        "resource_limits": {"max_input_bytes": max_input_bytes},
         "scope": recipe["scope"],
         "keys": keys,
         "problems": problems,
@@ -353,12 +363,13 @@ def _report(result: dict[str, Any]) -> str:
 <h2>Provenance</h2><p>Recipe SHA-256: <code>{esc(result.get('recipe_sha256') or 'unavailable')}</code></p></main></html>"""
 
 
-def error_result(message: str) -> dict[str, Any]:
+def terminal_result(outcome: str, message: str) -> dict[str, Any]:
     return {
         "schema_version": 1,
-        "outcome": "ERROR",
+        "outcome": outcome,
         "complete": False,
         "sensitivity": "summary",
+        "resource_limits": {},
         "scope": None,
         "keys": [],
         "problems": [message],
@@ -372,6 +383,10 @@ def error_result(message: str) -> dict[str, Any]:
         "inputs": {},
         "recipe_sha256": None,
     }
+
+
+def error_result(message: str) -> dict[str, Any]:
+    return terminal_result("ERROR", message)
 
 
 def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] | None) -> None:
