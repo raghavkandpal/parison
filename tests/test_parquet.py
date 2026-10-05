@@ -29,6 +29,7 @@ class ParquetCompatibility(unittest.TestCase):
                 "id": {"type": "string", "comparison": "exact"},
                 "amount": {
                     "type": "decimal",
+                    "scale": 4,
                     "comparison": "numeric",
                     "tolerance": {"formula": "symmetric-v1", "absolute": "0.01", "relative": "0"},
                 },

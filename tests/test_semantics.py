@@ -151,6 +151,7 @@ class SemanticCorpus(unittest.TestCase):
             "id": {"type": "string", "comparison": "exact"},
             "value": {
                 "type": "decimal", "comparison": "numeric",
+                "scale": 2,
                 "tolerance": {"formula": "symmetric-v1", "absolute": "0.01", "relative": "0.1"},
             },
         }
@@ -170,10 +171,12 @@ class SemanticCorpus(unittest.TestCase):
                     columns = {
                         "id": {"type": "string", "comparison": "exact"},
                         "value": {
-                            "type": kind, "comparison": "numeric",
-                            "tolerance": {"formula": "symmetric-v1", "absolute": "0", "relative": "0"},
+                        "type": kind, "comparison": "numeric",
+                        "tolerance": {"formula": "symmetric-v1", "absolute": "0", "relative": "0"},
                         },
                     }
+                    if kind == "decimal":
+                        columns["value"]["scale"] = 2
                     with self.assertRaisesRegex(ParityError, "cannot parse"):
                         self.run_rows(recipe(columns), ["id", "value"], [{"id": "1", "value": "1"}], [{"id": "1", "value": token}])
 
@@ -233,6 +236,7 @@ class SemanticCorpus(unittest.TestCase):
             "id": {"type": "string", "comparison": "exact"},
             "value": {
                 "type": "decimal", "comparison": "numeric",
+                "scale": 2,
                 "tolerance": {"formula": "symmetric-v1", "absolute": "0", "relative": "0"},
             },
         }
@@ -246,6 +250,18 @@ class SemanticCorpus(unittest.TestCase):
                 mutate(value)
                 with self.assertRaisesRegex(ParityError, message):
                     load_recipe(self.write_recipe(value))
+
+    def test_decimal_scale_is_explicit_and_excess_precision_errors(self):
+        columns = {
+            "id": {"type": "string", "comparison": "exact"},
+            "value": {"type": "decimal", "scale": 2, "comparison": "exact"},
+        }
+        spec = recipe(columns)
+        with self.assertRaisesRegex(ParityError, "exceeds configured scale 2"):
+            self.run_rows(spec, ["id", "value"], [{"id": "1", "value": "1.00"}], [{"id": "1", "value": "1.001"}])
+        del columns["value"]["scale"]
+        with self.assertRaisesRegex(ParityError, "scale must be"):
+            load_recipe(self.write_recipe(recipe(columns)))
 
     def test_scope_requires_cutoff_and_declared_filters(self):
         for field in ("cutoff", "filters", "expected_empty"):

@@ -19,7 +19,7 @@ from typing import Any
 
 OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPTED": 130}
 _RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "columns", "excluded_columns", "output"}
-_COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone"}
+_COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone", "scale"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
 
 
@@ -106,6 +106,12 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
                 raise ParityError(f"columns.{name}.timezone must be 'require-aware'")
         elif timezone is not None:
             raise ParityError(f"columns.{name}.timezone is only valid for timestamps")
+        scale = policy.get("scale")
+        if policy["type"] == "decimal":
+            if not isinstance(scale, int) or isinstance(scale, bool) or scale < 0:
+                raise ParityError(f"columns.{name}.scale must be a non-negative integer")
+        elif scale is not None:
+            raise ParityError(f"columns.{name}.scale is only valid for decimals")
         if name in keys and comparison != "exact":
             raise ParityError(f"key column {name} must use exact comparison")
         tolerance = policy.get("tolerance")
@@ -136,7 +142,8 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     return recipe
 
 
-def _parse(raw: Any, kind: str, column: str) -> Any:
+def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
+    kind = policy["type"]
     if raw is None:
         return None
     if kind == "string":
@@ -150,6 +157,8 @@ def _parse(raw: Any, kind: str, column: str) -> Any:
             value = Decimal(str(raw))
             if not value.is_finite():
                 raise ValueError("non-finite decimal")
+            if max(-value.as_tuple().exponent, 0) > policy["scale"]:
+                raise ValueError(f"value exceeds configured scale {policy['scale']}")
             return value
         if kind == "float":
             value = float(raw)
@@ -233,7 +242,7 @@ def _read(path: Path, recipe: dict[str, Any], max_rows: int) -> tuple[list[dict[
             parts.append("unexpected=" + ",".join(sorted(extra)))
         raise ParityError(f"schema mismatch in {path}: {'; '.join(parts)}")
     rows = [
-        {name: _parse(row.get(name), policy["type"], name) for name, policy in recipe["columns"].items()}
+        {name: _parse(row.get(name), policy, name) for name, policy in recipe["columns"].items()}
         for row in raw_rows
     ]
     return rows, headers

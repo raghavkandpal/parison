@@ -21,6 +21,7 @@ RECIPE = {
         "status": {"type": "string", "comparison": "exact"},
         "total": {
             "type": "decimal",
+            "scale": 2,
             "comparison": "numeric",
             "tolerance": {"formula": "symmetric-v1", "absolute": "0.01", "relative": "0"},
         },
