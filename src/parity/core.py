@@ -19,7 +19,7 @@ from typing import Any
 
 OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPTED": 130}
 _RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "columns", "excluded_columns", "output"}
-_COLUMN_KEYS = {"type", "comparison", "tolerance"}
+_COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
 
 
@@ -100,6 +100,12 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         comparison = policy.get("comparison", "exact")
         if comparison not in {"exact", "numeric"}:
             raise ParityError(f"columns.{name}.comparison is unsupported")
+        timezone = policy.get("timezone")
+        if policy["type"] == "timestamp":
+            if timezone != "require-aware":
+                raise ParityError(f"columns.{name}.timezone must be 'require-aware'")
+        elif timezone is not None:
+            raise ParityError(f"columns.{name}.timezone is only valid for timestamps")
         if name in keys and comparison != "exact":
             raise ParityError(f"key column {name} must use exact comparison")
         tolerance = policy.get("tolerance")
@@ -365,6 +371,7 @@ def compare(
         "scope": recipe["scope"],
         "keys": keys,
         "policy": {"keys": keys, "nulls_equal": recipe["nulls_equal"], "sensitivity": recipe["output"]["sensitivity"]},
+        "column_policies": recipe["columns"],
         "problems": problems,
         "counts": {
             "baseline": len(baseline), "candidate": len(candidate), "common_keys": len(common),
@@ -400,6 +407,10 @@ def _report(result: dict[str, Any]) -> str:
         f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(', '.join(value) if isinstance(value, list) else value)}</td></tr>"
         for key, value in result.get("policy", {}).items()
     ) or '<tr><td colspan="2">Unavailable</td></tr>'
+    column_policy_rows = "".join(
+        f"<tr><th>{esc(name)}</th><td>{esc(policy['type'])}</td><td>{esc(policy.get('comparison', 'exact'))}</td><td>{esc(json.dumps({key: value for key, value in policy.items() if key not in {'type', 'comparison'}}, sort_keys=True))}</td></tr>"
+        for name, policy in result.get("column_policies", {}).items()
+    ) or '<tr><td colspan="4">Unavailable</td></tr>'
     field_rows = "".join(
         f"<tr><th>{esc(name)}</th><td>{values['exact']}</td><td>{values['within_tolerance']}</td><td>{values['different']}</td></tr>"
         for name, values in result["field_counts"].items()
@@ -426,7 +437,9 @@ def _report(result: dict[str, Any]) -> str:
     return f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>Parity report: {esc(result['outcome'])}</title><style>body{{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#18202a}}h1{{color:{'#14733b' if result['outcome']=='PASS' else '#a22'}}}table{{border-collapse:collapse;width:100%;margin:1rem 0}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left;vertical-align:top}}th{{background:#f3f5f7}}code{{overflow-wrap:anywhere}}</style>
 <main><h1>{esc(result['outcome'])}</h1><p>Complete evaluation: <strong>{str(result['complete']).lower()}</strong></p>
-<h2>Scope</h2><table>{scope_rows}</table><h2>Comparison policy</h2><table>{policy_rows}</table><h2>Record counts</h2><table>{counts}</table>
+<h2>Scope</h2><table>{scope_rows}</table><h2>Comparison policy</h2><table>{policy_rows}</table>
+<h2>Column policies</h2><table><thead><tr><th>Field</th><th>Type</th><th>Comparison</th><th>Additional rules</th></tr></thead><tbody>{column_policy_rows}</tbody></table>
+<h2>Record counts</h2><table>{counts}</table>
 <h2>Field summary</h2><table><thead><tr><th>Field</th><th>Exact</th><th>Within tolerance</th><th>Different</th></tr></thead><tbody>{field_rows}</tbody></table>
 <h2>Excluded columns</h2><table><thead><tr><th>Column</th><th>Rationale</th></tr></thead><tbody>{exclusion_rows}</tbody></table>
 <h2>Preflight issues</h2><ul>{problems}</ul>{evidence}
@@ -446,6 +459,7 @@ def terminal_result(outcome: str, message: str) -> dict[str, Any]:
         "scope": None,
         "keys": [],
         "policy": {},
+        "column_policies": {},
         "problems": [message],
         "counts": {},
         "field_counts": {},

@@ -105,7 +105,7 @@ class ParityTests(unittest.TestCase):
         output = self.root / "report-run"
         self.assertEqual(main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output)]), 0)
         report = (output / "report.html").read_text(encoding="utf-8")
-        for expected in ("synthetic-orders-v1", "status", "updated_at", "nondeterministic metadata", "nulls equal", "max input bytes", "keyed-v1", "SHA-256"):
+        for expected in ("synthetic-orders-v1", "status", "updated_at", "nondeterministic metadata", "nulls equal", "symmetric-v1", "max input bytes", "keyed-v1", "SHA-256"):
             self.assertIn(expected, report)
 
     def test_raw_evidence_is_explicit_bounded_and_html_escaped(self):

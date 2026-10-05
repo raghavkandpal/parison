@@ -200,7 +200,7 @@ class SemanticCorpus(unittest.TestCase):
     def test_timestamp_requires_zone_and_compares_instants(self):
         columns = {
             "id": {"type": "string", "comparison": "exact"},
-            "value": {"type": "timestamp", "comparison": "exact"},
+            "value": {"type": "timestamp", "comparison": "exact", "timezone": "require-aware"},
         }
         spec = recipe(columns)
         equal = self.run_rows(
@@ -215,6 +215,18 @@ class SemanticCorpus(unittest.TestCase):
                 [{"id": "1", "value": "2026-01-01T00:00:00"}],
                 [{"id": "1", "value": "2026-01-01T00:00:00+00:00"}],
             )
+
+    def test_timestamp_policy_must_be_explicit_and_type_specific(self):
+        value = recipe({
+            "id": {"type": "string", "comparison": "exact"},
+            "time": {"type": "timestamp", "comparison": "exact"},
+        })
+        with self.assertRaisesRegex(ParityError, "timezone must be 'require-aware'"):
+            load_recipe(self.write_recipe(value))
+        value = recipe()
+        value["columns"]["value"]["timezone"] = "require-aware"
+        with self.assertRaisesRegex(ParityError, "only valid for timestamps"):
+            load_recipe(self.write_recipe(value))
 
     def test_recipe_rejects_bad_tolerances_and_key_policies(self):
         numeric = {
