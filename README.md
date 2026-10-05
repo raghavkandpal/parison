@@ -67,6 +67,7 @@ Start with the [research and design index](docs/README.md).
 | [Validation and delivery](docs/09-validation-and-delivery.md) | Synthetic fixtures, benchmarks, discovery and build gates |
 | [Sources and evidence gaps](docs/10-sources-and-evidence.md) | Primary research sources and outstanding questions |
 | [Engine compatibility spike](docs/11-engine-compatibility-spike.md) | Executed DataComPy cases and engine decision |
+| [Performance optimization plan](docs/12-performance-optimization-plan.md) | Measured hotspots and next-session implementation sequence |
 
 Mermaid diagrams are included in the documents. [PNG alternatives](docs/diagrams/README.md) are available for viewers without Mermaid support.
 

@@ -21,6 +21,7 @@ The research supports a **bounded discovery and prototype**, not an unconditiona
 | [Validation and delivery plan](09-validation-and-delivery.md) | What evidence should determine whether we proceed? |
 | [Sources and evidence gaps](10-sources-and-evidence.md) | Which claims have primary sources, and what remains unverified? |
 | [Engine compatibility spike](11-engine-compatibility-spike.md) | Can DataComPy implement Parity's pinned comparison contract? |
+| [Performance optimization plan](12-performance-optimization-plan.md) | Which measured costs should the next implementation session remove first? |
 
 ## Recommended initial decisions
 
