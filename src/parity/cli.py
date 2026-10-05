@@ -4,11 +4,13 @@ import argparse
 import json
 import sys
 
+from . import __version__
 from .core import OUTCOME_CODES, ParityError, compare, error_result, load_recipe, publish, terminal_result, verify_bundle
 
 
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="parity", description="Compare data-pipeline outputs deterministically")
+    root.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = root.add_subparsers(dest="command", required=True)
     validate = commands.add_parser("validate-recipe", help="validate a JSON recipe")
     validate.add_argument("recipe")

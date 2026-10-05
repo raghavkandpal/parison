@@ -2,6 +2,8 @@ import csv
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -157,6 +159,12 @@ class ParityTests(unittest.TestCase):
         (output / "result.json").write_text("{}", encoding="utf-8")
         with self.assertRaisesRegex(ParityError, "failed integrity"):
             verify_bundle(output)
+
+    def test_cli_reports_package_version(self):
+        output = StringIO()
+        with self.assertRaisesRegex(SystemExit, "0"), redirect_stdout(output):
+            main(["--version"])
+        self.assertEqual(output.getvalue(), "parity 0.1.0\n")
 
     def test_raw_sample_includes_missing_keys_with_one_shared_limit(self):
         raw_recipe = dict(RECIPE, output={"sensitivity": "raw"})

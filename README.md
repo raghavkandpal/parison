@@ -14,6 +14,7 @@ Python 3.11 or newer is required.
 
 ```sh
 python -m pip install -e .
+parity --version
 parity validate-recipe examples/orders.recipe.json
 parity compare --recipe examples/orders.recipe.json \
   --baseline baseline.csv --candidate candidate.csv --output run
