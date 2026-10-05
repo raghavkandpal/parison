@@ -17,8 +17,9 @@ python -m pip install -e .
 parity --version
 parity validate-recipe examples/orders.recipe.json
 parity compare --recipe examples/orders.recipe.json \
-  --baseline baseline.csv --candidate candidate.csv --output run
-parity verify run
+  --baseline examples/baseline.csv --candidate examples/candidate.csv \
+  --output runs/orders-example
+parity verify runs/orders-example
 ```
 
 Install `.[parquet]` to compare Parquet files. Recipes are strict JSON in this first slice; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars versions without recording hostnames.
