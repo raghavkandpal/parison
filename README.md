@@ -26,6 +26,8 @@ Install `.[parquet]` to compare Parquet files. Recipes are strict JSON in this f
 
 Combined input size is limited to 1 GB by default; override it with `--max-input-bytes`. This is a byte-size guard, not an operating-system memory sandbox. Ctrl-C returns exit code `130` and publishes a summary-only INTERRUPTED bundle when possible.
 
+The full CSV and Parquet suite runs in CI on Python 3.11 and 3.14.
+
 ## Documentation
 
 Start with the [research and design index](docs/README.md).
