@@ -19,6 +19,7 @@ def recipe(columns=None, keys=None):
         "keys": keys or ["id"],
         "scope": {"snapshot": "fixture", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
         "identity": {"null_keys": "reject", "duplicates": "reject"},
+        "nulls_equal": True,
         "columns": columns,
         "output": {"sensitivity": "summary"},
     }
@@ -175,6 +176,26 @@ class SemanticCorpus(unittest.TestCase):
                     }
                     with self.assertRaisesRegex(ParityError, "cannot parse"):
                         self.run_rows(recipe(columns), ["id", "value"], [{"id": "1", "value": "1"}], [{"id": "1", "value": token}])
+
+    def test_null_equality_is_explicit_and_one_null_never_matches(self):
+        columns = {
+            "id": {"type": "string", "comparison": "exact"},
+            "value": {"type": "integer", "comparison": "exact"},
+        }
+        spec = recipe(columns)
+        both_null = [{"id": "1", "value": ""}]
+        self.assertEqual(self.run_rows(spec, ["id", "value"], both_null, both_null)["outcome"], "PASS")
+        spec["nulls_equal"] = False
+        self.assertEqual(self.run_rows(spec, ["id", "value"], both_null, both_null)["outcome"], "FAIL")
+        spec["nulls_equal"] = True
+        one_null = self.run_rows(spec, ["id", "value"], both_null, [{"id": "1", "value": "1"}])
+        self.assertEqual(one_null["outcome"], "FAIL")
+
+    def test_recipe_requires_explicit_null_policy(self):
+        value = recipe()
+        del value["nulls_equal"]
+        with self.assertRaisesRegex(ParityError, "nulls_equal"):
+            load_recipe(self.write_recipe(value))
 
     def test_timestamp_requires_zone_and_compares_instants(self):
         columns = {

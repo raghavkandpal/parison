@@ -29,6 +29,7 @@ def main():
             "keys": ["id"],
             "scope": {"snapshot": "seeded-benchmark", "cutoff": "fixed", "filters": [], "completeness": "full", "expected_empty": False},
             "identity": {"null_keys": "reject", "duplicates": "reject"},
+            "nulls_equal": True,
             "columns": {name: {"type": "string", "comparison": "exact"} for name in fields},
             "output": {"sensitivity": "summary"},
         }), encoding="utf-8")

@@ -15,6 +15,7 @@ RECIPE = {
     "keys": ["order_id"],
     "scope": {"snapshot": "synthetic-orders-v1", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
     "identity": {"null_keys": "reject", "duplicates": "reject"},
+    "nulls_equal": True,
     "columns": {
         "order_id": {"type": "string", "comparison": "exact"},
         "status": {"type": "string", "comparison": "exact"},
@@ -104,7 +105,7 @@ class ParityTests(unittest.TestCase):
         output = self.root / "report-run"
         self.assertEqual(main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output)]), 0)
         report = (output / "report.html").read_text(encoding="utf-8")
-        for expected in ("synthetic-orders-v1", "status", "updated_at", "nondeterministic metadata", "max input bytes", "keyed-v1", "SHA-256"):
+        for expected in ("synthetic-orders-v1", "status", "updated_at", "nondeterministic metadata", "nulls equal", "max input bytes", "keyed-v1", "SHA-256"):
             self.assertIn(expected, report)
 
     def test_raw_evidence_is_explicit_bounded_and_html_escaped(self):

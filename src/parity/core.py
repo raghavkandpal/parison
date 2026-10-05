@@ -18,7 +18,7 @@ from typing import Any
 
 
 OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPTED": 130}
-_RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "columns", "excluded_columns", "output"}
+_RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "columns", "excluded_columns", "output"}
 _COLUMN_KEYS = {"type", "comparison", "tolerance"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
 
@@ -84,6 +84,8 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     identity = recipe.get("identity", {})
     if identity != {"null_keys": "reject", "duplicates": "reject"}:
         raise ParityError("identity must reject null_keys and duplicates")
+    if not isinstance(recipe.get("nulls_equal"), bool):
+        raise ParityError("nulls_equal must be an explicit boolean")
     columns = recipe.get("columns")
     if not isinstance(columns, dict) or not columns:
         raise ParityError("columns must be a nonempty object")
@@ -264,7 +266,9 @@ def _index(rows: list[dict[str, Any]], keys: list[str], side: str) -> tuple[dict
     return dict(zip(values, rows)), problems
 
 
-def _classify(left: Any, right: Any, policy: dict[str, Any]) -> tuple[str, str | None, str | None]:
+def _classify(left: Any, right: Any, policy: dict[str, Any], nulls_equal: bool) -> tuple[str, str | None, str | None]:
+    if left is None and right is None:
+        return ("exact" if nulls_equal else "different"), None, None
     if left == right:
         return "exact", None, None
     if left is None or right is None or policy.get("comparison", "exact") == "exact":
@@ -327,7 +331,7 @@ def compare(
             for name, policy in recipe["columns"].items():
                 if name in keys:
                     continue
-                classification, delta, allowance = _classify(left[key][name], right[key][name], policy)
+                classification, delta, allowance = _classify(left[key][name], right[key][name], policy, recipe["nulls_equal"])
                 field_counts[name][classification] += 1
                 if classification == "different":
                     row_class = "different"
@@ -360,6 +364,7 @@ def compare(
         "resource_limits": {"max_input_bytes": max_input_bytes, "max_rows_per_input": max_rows},
         "scope": recipe["scope"],
         "keys": keys,
+        "policy": {"keys": keys, "nulls_equal": recipe["nulls_equal"], "sensitivity": recipe["output"]["sensitivity"]},
         "problems": problems,
         "counts": {
             "baseline": len(baseline), "candidate": len(candidate), "common_keys": len(common),
@@ -391,6 +396,10 @@ def _report(result: dict[str, Any]) -> str:
         f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(', '.join(value) if isinstance(value, list) else value)}</td></tr>"
         for key, value in scope.items()
     ) or '<tr><td colspan="2">Unavailable</td></tr>'
+    policy_rows = "".join(
+        f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(', '.join(value) if isinstance(value, list) else value)}</td></tr>"
+        for key, value in result.get("policy", {}).items()
+    ) or '<tr><td colspan="2">Unavailable</td></tr>'
     field_rows = "".join(
         f"<tr><th>{esc(name)}</th><td>{values['exact']}</td><td>{values['within_tolerance']}</td><td>{values['different']}</td></tr>"
         for name, values in result["field_counts"].items()
@@ -417,7 +426,7 @@ def _report(result: dict[str, Any]) -> str:
     return f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>Parity report: {esc(result['outcome'])}</title><style>body{{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#18202a}}h1{{color:{'#14733b' if result['outcome']=='PASS' else '#a22'}}}table{{border-collapse:collapse;width:100%;margin:1rem 0}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left;vertical-align:top}}th{{background:#f3f5f7}}code{{overflow-wrap:anywhere}}</style>
 <main><h1>{esc(result['outcome'])}</h1><p>Complete evaluation: <strong>{str(result['complete']).lower()}</strong></p>
-<h2>Scope</h2><table>{scope_rows}</table><h2>Record counts</h2><table>{counts}</table>
+<h2>Scope</h2><table>{scope_rows}</table><h2>Comparison policy</h2><table>{policy_rows}</table><h2>Record counts</h2><table>{counts}</table>
 <h2>Field summary</h2><table><thead><tr><th>Field</th><th>Exact</th><th>Within tolerance</th><th>Different</th></tr></thead><tbody>{field_rows}</tbody></table>
 <h2>Excluded columns</h2><table><thead><tr><th>Column</th><th>Rationale</th></tr></thead><tbody>{exclusion_rows}</tbody></table>
 <h2>Preflight issues</h2><ul>{problems}</ul>{evidence}
@@ -436,6 +445,7 @@ def terminal_result(outcome: str, message: str) -> dict[str, Any]:
         "resource_limits": {},
         "scope": None,
         "keys": [],
+        "policy": {},
         "problems": [message],
         "counts": {},
         "field_counts": {},

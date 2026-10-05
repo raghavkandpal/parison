@@ -24,6 +24,7 @@ class ParquetCompatibility(unittest.TestCase):
             "keys": ["id"],
             "scope": {"snapshot": "parquet-fixture", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
             "identity": {"null_keys": "reject", "duplicates": "reject"},
+            "nulls_equal": True,
             "columns": {
                 "id": {"type": "string", "comparison": "exact"},
                 "amount": {
