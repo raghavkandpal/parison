@@ -9,11 +9,10 @@ description = "Local, deterministic comparison of data-pipeline outputs"
 requires-python = ">=3.11"
 
 [project.optional-dependencies]
-parquet = ["polars>=1.0"]
+parquet = ["polars==1.44.2"]
 
 [project.scripts]
 parity = "parity.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
