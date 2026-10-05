@@ -6,7 +6,23 @@ Parity is an independent data-engineering side project. The proposed product com
 
 ## Project status
 
-**Research and design stage.** There is no installable application or implemented comparison engine yet. Commands and configurations in the documents are illustrative, not supported APIs. Interviews, competitor trials, usability studies and performance benchmarks remain planned work.
+**Early vertical slice.** The repository now includes an installable Python CLI for strict keyed CSV comparison, JSON/HTML evidence bundles and CI-oriented exit codes. Parquet input is available through the optional `polars` dependency. Interviews, competitor trials, usability studies and performance benchmarks remain planned work.
+
+## Try it
+
+Python 3.11 or newer is required.
+
+```sh
+python -m pip install -e .
+parity validate-recipe examples/orders.recipe.json
+parity compare --recipe examples/orders.recipe.json \
+  --baseline baseline.csv --candidate candidate.csv --output run
+parity verify run
+```
+
+Install `.[parquet]` to compare Parquet files. Recipes are strict JSON in this first slice; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest.
+
+`output.sensitivity` defaults to `summary`, which stores no source keys or values. Set it explicitly to `raw` to include a bounded discrepancy sample, and protect that output as sensitive data. `--sample-limit` controls the maximum number of raw field differences written. Comparison errors also publish a summary-only diagnostic bundle when the output destination is available.
 
 ## Documentation
 
@@ -27,7 +43,7 @@ Start with the [research and design index](docs/README.md).
 
 Mermaid diagrams are included in the documents. [PNG alternatives](docs/diagrams/README.md) are available for viewers without Mermaid support.
 
-## Proposed first build
+## Build direction
 
 1. Establish a synthetic test corpus and an explicit comparison contract.
 2. Evaluate a pinned DataComPy adapter before writing a custom Polars kernel.

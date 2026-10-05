@@ -1,0 +1,17 @@
+{
+  "recipe_version": 1,
+  "comparison_mode": "keyed",
+  "keys": ["order_id"],
+  "scope": {"snapshot": "synthetic-orders-v1", "completeness": "full"},
+  "identity": {"null_keys": "reject", "duplicates": "reject"},
+  "columns": {
+    "order_id": {"type": "string", "comparison": "exact"},
+    "status": {"type": "string", "comparison": "exact"},
+    "total": {
+      "type": "decimal",
+      "comparison": "numeric",
+      "tolerance": {"formula": "symmetric-v1", "absolute": "0.01", "relative": "0"}
+    }
+  },
+  "output": {"sensitivity": "summary"}
+}
