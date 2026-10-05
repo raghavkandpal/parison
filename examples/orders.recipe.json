@@ -6,7 +6,8 @@
     "snapshot": "synthetic-orders-v1",
     "cutoff": "2026-10-01T00:00:00Z",
     "filters": ["status != 'deleted'"],
-    "completeness": "full"
+    "completeness": "full",
+    "expected_empty": false
   },
   "identity": {"null_keys": "reject", "duplicates": "reject"},
   "columns": {

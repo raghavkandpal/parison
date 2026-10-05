@@ -47,8 +47,8 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     if not isinstance(keys, list) or not keys or not all(isinstance(k, str) and k for k in keys) or len(keys) != len(set(keys)):
         raise ParityError("keys must be a nonempty list of unique column names")
     scope = recipe.get("scope")
-    if not isinstance(scope, dict) or set(scope) != {"snapshot", "cutoff", "filters", "completeness"}:
-        raise ParityError("scope must contain exactly snapshot, cutoff, filters and completeness")
+    if not isinstance(scope, dict) or set(scope) != {"snapshot", "cutoff", "filters", "completeness", "expected_empty"}:
+        raise ParityError("scope must contain exactly snapshot, cutoff, filters, completeness and expected_empty")
     for field in ("snapshot", "cutoff"):
         if not isinstance(scope[field], str) or not scope[field]:
             raise ParityError(f"scope.{field} must be a nonempty string")
@@ -56,6 +56,8 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         raise ParityError("scope.filters must be a list of nonempty strings")
     if scope["completeness"] != "full":
         raise ParityError("MVP comparisons require scope.completeness='full'")
+    if not isinstance(scope["expected_empty"], bool):
+        raise ParityError("scope.expected_empty must be a boolean")
     identity = recipe.get("identity", {})
     if identity != {"null_keys": "reject", "duplicates": "reject"}:
         raise ParityError("identity must reject null_keys and duplicates")
@@ -323,7 +325,7 @@ def compare(
                         })
             row_counts[row_class] += 1
     empty = not baseline or not candidate
-    if empty:
+    if empty and not recipe["scope"]["expected_empty"]:
         problems.append("nonempty comparable inputs are required")
     outcome = "INCONCLUSIVE" if problems else ("FAIL" if baseline_only or candidate_only or row_counts["different"] else "PASS")
     return {

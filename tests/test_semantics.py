@@ -17,7 +17,7 @@ def recipe(columns=None, keys=None):
         "recipe_version": 1,
         "comparison_mode": "keyed",
         "keys": keys or ["id"],
-        "scope": {"snapshot": "fixture", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full"},
+        "scope": {"snapshot": "fixture", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
         "identity": {"null_keys": "reject", "duplicates": "reject"},
         "columns": columns,
         "output": {"sensitivity": "summary"},
@@ -93,6 +93,16 @@ class SemanticCorpus(unittest.TestCase):
         result = self.run_rows(recipe(), ["id", "value"], [], [])
         self.assertEqual(result["outcome"], "INCONCLUSIVE")
         self.assertFalse(result["complete"])
+
+    def test_declared_empty_scope_passes_only_when_both_inputs_are_empty(self):
+        spec = recipe()
+        spec["scope"]["expected_empty"] = True
+        empty = self.run_rows(spec, ["id", "value"], [], [])
+        self.assertEqual(empty["outcome"], "PASS")
+        self.assertTrue(empty["complete"])
+        one_sided = self.run_rows(spec, ["id", "value"], [], [{"id": "1", "value": "unexpected"}])
+        self.assertEqual(one_sided["outcome"], "FAIL")
+        self.assertEqual(one_sided["counts"]["candidate_only"], 1)
 
     def test_missing_unexpected_and_duplicate_columns_are_errors(self):
         spec = self.write_recipe(recipe())
@@ -205,7 +215,7 @@ class SemanticCorpus(unittest.TestCase):
                     load_recipe(self.write_recipe(value))
 
     def test_scope_requires_cutoff_and_declared_filters(self):
-        for field in ("cutoff", "filters"):
+        for field in ("cutoff", "filters", "expected_empty"):
             with self.subTest(field=field):
                 value = recipe()
                 del value["scope"][field]
@@ -214,6 +224,10 @@ class SemanticCorpus(unittest.TestCase):
         value = recipe()
         value["scope"]["filters"] = "status = active"
         with self.assertRaisesRegex(ParityError, "scope.filters"):
+            load_recipe(self.write_recipe(value))
+        value = recipe()
+        value["scope"]["expected_empty"] = "false"
+        with self.assertRaisesRegex(ParityError, "scope.expected_empty"):
             load_recipe(self.write_recipe(value))
 
 

@@ -13,7 +13,7 @@ RECIPE = {
     "recipe_version": 1,
     "comparison_mode": "keyed",
     "keys": ["order_id"],
-    "scope": {"snapshot": "synthetic-orders-v1", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full"},
+    "scope": {"snapshot": "synthetic-orders-v1", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
     "identity": {"null_keys": "reject", "duplicates": "reject"},
     "columns": {
         "order_id": {"type": "string", "comparison": "exact"},

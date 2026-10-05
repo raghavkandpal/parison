@@ -27,7 +27,7 @@ def main():
             "recipe_version": 1,
             "comparison_mode": "keyed",
             "keys": ["id"],
-            "scope": {"snapshot": "seeded-benchmark", "cutoff": "fixed", "filters": [], "completeness": "full"},
+            "scope": {"snapshot": "seeded-benchmark", "cutoff": "fixed", "filters": [], "completeness": "full", "expected_empty": False},
             "identity": {"null_keys": "reject", "duplicates": "reject"},
             "columns": {name: {"type": "string", "comparison": "exact"} for name in fields},
             "output": {"sensitivity": "summary"},

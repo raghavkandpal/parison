@@ -22,7 +22,7 @@ class ParquetCompatibility(unittest.TestCase):
             "recipe_version": 1,
             "comparison_mode": "keyed",
             "keys": ["id"],
-            "scope": {"snapshot": "parquet-fixture", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full"},
+            "scope": {"snapshot": "parquet-fixture", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
             "identity": {"null_keys": "reject", "duplicates": "reject"},
             "columns": {
                 "id": {"type": "string", "comparison": "exact"},
