@@ -17,7 +17,7 @@ def recipe(columns=None, keys=None):
         "recipe_version": 1,
         "comparison_mode": "keyed",
         "keys": keys or ["id"],
-        "scope": {"snapshot": "fixture", "completeness": "full"},
+        "scope": {"snapshot": "fixture", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full"},
         "identity": {"null_keys": "reject", "duplicates": "reject"},
         "columns": columns,
         "output": {"sensitivity": "summary"},
@@ -203,6 +203,18 @@ class SemanticCorpus(unittest.TestCase):
                 mutate(value)
                 with self.assertRaisesRegex(ParityError, message):
                     load_recipe(self.write_recipe(value))
+
+    def test_scope_requires_cutoff_and_declared_filters(self):
+        for field in ("cutoff", "filters"):
+            with self.subTest(field=field):
+                value = recipe()
+                del value["scope"][field]
+                with self.assertRaisesRegex(ParityError, "scope must contain exactly"):
+                    load_recipe(self.write_recipe(value))
+        value = recipe()
+        value["scope"]["filters"] = "status = active"
+        with self.assertRaisesRegex(ParityError, "scope.filters"):
+            load_recipe(self.write_recipe(value))
 
 
 if __name__ == "__main__":

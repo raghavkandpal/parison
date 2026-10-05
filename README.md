@@ -24,6 +24,8 @@ Install `.[parquet]` to compare Parquet files. Recipes are strict JSON in this f
 
 `output.sensitivity` defaults to `summary`, which stores no source keys or values. Set it explicitly to `raw` to include a bounded discrepancy sample, and protect that output as sensitive data. `--sample-limit` controls the maximum number of raw field differences written. Comparison errors also publish a summary-only diagnostic bundle when the output destination is available.
 
+Every recipe must declare a source snapshot, extraction cutoff, intended filters and full-scope completeness. These are recorded provenance assertions; Parity cannot independently prove that upstream pipelines honored them.
+
 Combined input size is limited to 1 GB by default and each input to 5 million rows; override these with `--max-input-bytes` and `--max-rows`. These are processing guards, not an operating-system memory sandbox. Ctrl-C returns exit code `130` and publishes a summary-only INTERRUPTED bundle when possible.
 
 The full CSV and Parquet suite runs in CI on Python 3.11 and 3.14.

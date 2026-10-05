@@ -47,10 +47,13 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     if not isinstance(keys, list) or not keys or not all(isinstance(k, str) and k for k in keys) or len(keys) != len(set(keys)):
         raise ParityError("keys must be a nonempty list of unique column names")
     scope = recipe.get("scope")
-    if not isinstance(scope, dict) or set(scope) != {"snapshot", "completeness"}:
-        raise ParityError("scope must contain exactly snapshot and completeness")
-    if not isinstance(scope["snapshot"], str) or not scope["snapshot"]:
-        raise ParityError("scope.snapshot must be a nonempty string")
+    if not isinstance(scope, dict) or set(scope) != {"snapshot", "cutoff", "filters", "completeness"}:
+        raise ParityError("scope must contain exactly snapshot, cutoff, filters and completeness")
+    for field in ("snapshot", "cutoff"):
+        if not isinstance(scope[field], str) or not scope[field]:
+            raise ParityError(f"scope.{field} must be a nonempty string")
+    if not isinstance(scope["filters"], list) or not all(isinstance(item, str) and item for item in scope["filters"]):
+        raise ParityError("scope.filters must be a list of nonempty strings")
     if scope["completeness"] != "full":
         raise ParityError("MVP comparisons require scope.completeness='full'")
     identity = recipe.get("identity", {})
