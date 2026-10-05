@@ -30,6 +30,8 @@ Combined input size is limited to 1 GB by default and each input to 5 million ro
 
 The full CSV and Parquet suite runs in CI on Python 3.11 and 3.14.
 
+For repeatable local measurements, run `PYTHONPATH=src python benchmarks/run.py`. The seeded harness reports elapsed time and Python allocation without claiming a supported scale envelope.
+
 ## Documentation
 
 Start with the [research and design index](docs/README.md).
