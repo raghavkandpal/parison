@@ -6,7 +6,7 @@ Parity is an independent data-engineering side project. The proposed product com
 
 ## Project status
 
-**Early vertical slice.** The repository now includes an installable Python CLI for strict keyed CSV comparison, JSON/HTML evidence bundles and CI-oriented exit codes. Parquet input is available through the optional `polars` dependency. Interviews, competitor trials, usability studies and performance benchmarks remain planned work.
+**Early vertical slice.** The repository now includes an installable Python CLI for strict keyed CSV comparison, JSON/HTML evidence bundles and CI-oriented exit codes. Parquet input is available through the optional `polars` dependency. A local benchmark harness and DataComPy compatibility spike are complete; interviews, usability studies and broader performance experiments remain planned work.
 
 ## Try it
 
@@ -48,15 +48,16 @@ Start with the [research and design index](docs/README.md).
 | [AI resilience and optional AI](docs/08-ai-development-and-optional-ai.md) | Competition from generated scripts; separate optional AI research |
 | [Validation and delivery](docs/09-validation-and-delivery.md) | Synthetic fixtures, benchmarks, discovery and build gates |
 | [Sources and evidence gaps](docs/10-sources-and-evidence.md) | Primary research sources and outstanding questions |
+| [Engine compatibility spike](docs/11-engine-compatibility-spike.md) | Executed DataComPy cases and engine decision |
 
 Mermaid diagrams are included in the documents. [PNG alternatives](docs/diagrams/README.md) are available for viewers without Mermaid support.
 
 ## Build direction
 
-1. Establish a synthetic test corpus and an explicit comparison contract.
-2. Evaluate a pinned DataComPy adapter before writing a custom Polars kernel.
-3. Build a vertical slice: local CSV/Parquet inputs, strict recipe validation, keyed comparison, JSON results and self-contained HTML reports.
-4. Verify correctness, privacy, resource limits and CI exit-code behavior before distributing a packaged alpha.
+1. Continue expanding the synthetic corpus around false-PASS risks.
+2. Keep the contract-specific engine; the pinned DataComPy spike found incompatible identity, tolerance and Decimal evidence semantics.
+3. Harden packaging and validate the CLI with unfamiliar users before distributing an alpha.
+4. Expand performance measurements across row widths, mismatch rates and constrained resources.
 5. Add a localhost visual interface only if usability evidence justifies it.
 
 The initial application would execute on a user's laptop or customer-owned CI runner. Hosted collaboration, database connectors and optional AI features are deferred. Market demand and differentiation must be tested against existing tools and AI-generated scripts.

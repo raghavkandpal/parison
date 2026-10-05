@@ -2,7 +2,7 @@
 
 ## Architectural recommendation
 
-Begin with a Python package, CLI and static report generator. Use one deterministic result model across all interfaces. Evaluate a pinned DataComPy adapter before building a custom Polars kernel; choose based on required semantics and evidence access, not preference for writing an engine.
+Begin with a Python package, CLI and static report generator. Use one deterministic result model across all interfaces. The pinned DataComPy 1.1.0 spike found incompatible duplicate-key, tolerance and Decimal-evidence semantics, so keyed-v1 uses a small contract-specific engine and keeps external libraries as differential references only.
 
 The default runtime is the user's laptop or CI runner. No cloud backend, account, database service, queue or orchestration platform is necessary for the first product. A side project should not acquire enterprise infrastructure before it has repeat users.
 
@@ -39,7 +39,7 @@ Names indicate suggested responsibilities, not an existing repository structure.
 
 ## Core dependency decision
 
-Run a short compatibility spike using existing-library results on the proposed edge-case corpus. Check duplicate handling, schema reporting, tolerance formula, decimal behavior, masking and access to full discrepancies versus samples. If the adapter meets the contract, reuse it. If not, preserve it as a differential baseline on overlapping semantics and implement only the documented gap.
+The compatibility spike checked duplicate handling, tolerance direction, Decimal behavior and evidence access. DataComPy remains useful as a differential baseline on exact, unique-key cases, but is not a runtime adapter for keyed-v1. The executed cases and decision are recorded in [the engine compatibility spike](11-engine-compatibility-spike.md).
 
 A custom implementation should use Polars initially for its fit with the founder's experience and local columnar processing. Official lazy CSV documentation supports projection/predicate pushdown and explicit schemas; streaming execution is available. Neither fact guarantees that our full join, uniqueness check and report plan will stay within memory. [CSV scans](https://docs.pola.rs/api/python/stable/reference/api/polars.scan_csv.html), [streaming](https://docs.pola.rs/user-guide/concepts/streaming/).
 
@@ -139,4 +139,4 @@ The control plane would require authentication, authorization, tenant isolation,
 
 ## Decision register
 
-Adopt CLI-first, file-first, deterministic semantics and one result schema now. Conditionally reuse an existing comparison library. Defer DuckDB fallback, connectors, web service, hosted collaboration and agent-specific protocol adapters. Revisit only with a failing technical requirement or observed user demand.
+Adopt CLI-first, file-first, deterministic semantics and one result schema now. Keep the contract-specific engine following the DataComPy spike. Defer DuckDB fallback, connectors, web service, hosted collaboration and agent-specific protocol adapters. Revisit only with a failing technical requirement or observed user demand.

@@ -1,6 +1,6 @@
 # Parity research and proposed product design
 
-Research date: 4 October 2026. Status: independent side-project proposal; no implementation, customer interviews, competitor trials or performance benchmarks have been completed.
+Research date: 4 October 2026. Implementation status updated 5 October 2026: an early CLI vertical slice, semantic corpus and local benchmark harness now exist; customer interviews and independent competitor trials remain incomplete.
 
 Parity would help data engineers evaluate whether a pipeline refactor or migration preserves intended output. The recommended starting point is a local CLI with a portable investigation report, not a hosted data platform. Its engine is deterministic and does not require AI.
 
@@ -20,6 +20,7 @@ The research supports a **bounded discovery and prototype**, not an unconditiona
 | [AI development and optional AI research](08-ai-development-and-optional-ai.md) | Can the product survive AI-generated alternatives without using AI itself? |
 | [Validation and delivery plan](09-validation-and-delivery.md) | What evidence should determine whether we proceed? |
 | [Sources and evidence gaps](10-sources-and-evidence.md) | Which claims have primary sources, and what remains unverified? |
+| [Engine compatibility spike](11-engine-compatibility-spike.md) | Can DataComPy implement Parity's pinned comparison contract? |
 
 ## Recommended initial decisions
 
@@ -30,7 +31,7 @@ The eight Mermaid diagrams have been parsed, rendered and visually checked. [PNG
 - Start with keyed record comparison; reject ambiguous identity rather than guessing.
 - Produce machine-readable results and self-contained HTML from one result model.
 - Keep recipes in Git and datasets outside Git. Freeze the recipe used by each run.
-- Assess an existing comparison library before committing to a new kernel.
+- Keep the contract-specific engine after the DataComPy compatibility spike; use external engines only as differential references where semantics overlap.
 - Keep the engine, evidence format and test corpus usable without any model subscription.
 - Do not build hosted collaboration until recurring team demand and security requirements are established.
 

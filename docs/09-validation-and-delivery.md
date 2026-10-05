@@ -80,4 +80,4 @@ Narrow to a report/recipe layer if existing engines already satisfy the computat
 
 ## Outstanding choices
 
-Decide library adapter versus custom kernel after the spike; choose initial OS/Python support; confirm finite-number/decimal rules; select the distribution license; decide whether a static report is sufficient; clear the working name; then agree the first prototype scope. No hosted service or optional AI integration is needed to answer these questions.
+The spike selected the contract-specific engine over a DataComPy runtime adapter, and keyed-v1 now rejects non-finite numbers while preserving Decimal arithmetic. Remaining choices are the initial OS/Python support, distribution license, whether a static report is sufficient, and clearance of the working name. No hosted service or optional AI integration is needed to answer these questions.
