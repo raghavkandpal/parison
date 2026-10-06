@@ -79,6 +79,7 @@ Start with the [research and design index](docs/README.md).
 | [Performance optimization plan](docs/12-performance-optimization-plan.md) | Measured hotspots and next-session implementation sequence |
 | [Tested support envelope](docs/13-tested-support-envelope.md) | Measured input shapes, sizes, memory use and explicit boundaries |
 | [Built evidence review](docs/14-built-evidence-review.md) | Questions resolved by the implementation versus questions that still require human or external evidence |
+| [Unfamiliar-user test 01](docs/15-unfamiliar-user-test.md) | Participant protocol, scoring rubric, rehearsal observations and decision rule |
 
 Release preparation is tracked in [`RELEASING.md`](RELEASING.md); name clearance and unfamiliar-user validation remain explicit blockers.
 

@@ -1,0 +1,4 @@
+order_id,status,total
+001,shipped,10.00
+002,pending,20.00
+003,shipped,30.00
