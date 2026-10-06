@@ -24,7 +24,7 @@ Do not publish while any hard blocker remains open.
 
 ## GitHub release
 
-- [ ] Tag the verified commit with the exact package version.
-- [ ] Create a GitHub Release from that tag and attach the immutable wheel, source archive and SHA-256 checksums. Do not publish to PyPI for this alpha.
-- [ ] Download the wheel from the GitHub Release into an empty environment and repeat the CLI smoke test.
-- [ ] Record the release date and move the changelog entries out of `Unreleased`.
+- [x] Tag verified commit `8b3448f7a0b5789f8f82b72923d2653f9f833229` as `0.1.0`.
+- [x] Create the [GitHub prerelease](https://github.com/raghavkandpal/parison/releases/tag/0.1.0) and attach the immutable wheel, source archive and SHA-256 checksums. PyPI was not used.
+- [x] Download both archives from the GitHub Release, verify their checksums, install the wheel with its Parquet extra into an empty environment and repeat the CLI smoke test.
+- [x] Record the 6 October 2026 release date and move the changelog entries out of `Unreleased`.

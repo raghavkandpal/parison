@@ -1,8 +1,10 @@
 # Release candidate verification: 0.1.0
 
-**Date:** 6 October 2026  
-**Source commit:** `db6397035561fd33e02cf55ece7249990f058995`  
-**Result:** **PASS for a bounded 0.1.0 release candidate. No tag or package publication was performed.**
+**Date:** 6 October 2026
+
+**Release commit:** `8b3448f7a0b5789f8f82b72923d2653f9f833229`
+
+**Result:** **PASS and published as the verified [0.1.0 GitHub prerelease](https://github.com/raghavkandpal/parison/releases/tag/0.1.0).**
 
 ## Clean local rehearsal
 
@@ -10,8 +12,8 @@ The repository was exported with `git archive` into a fresh temporary directory.
 
 `python -m build` produced:
 
-- `parison-0.1.0-py3-none-any.whl` — 15,551 bytes;
-- `parison-0.1.0.tar.gz` — 24,399 bytes.
+- `parison-0.1.0-py3-none-any.whl` — 15,730 bytes, SHA-256 `91bf3dc9ec8497ffbb0c819f88dbaf92b902da570d4f0467322b300d790ed117`;
+- `parison-0.1.0.tar.gz` — 24,719 bytes, SHA-256 `86afcad5c7c9919b0cfab45c4f53169ed15a0cb8f346c1c411bf3b6e6a07e99f`.
 
 The wheel was installed into an empty environment with the `parquet` extra. It installed Parison 0.1.0, Polars 1.44.2 and `polars-runtime-32` 1.44.2.
 
@@ -29,7 +31,7 @@ The wheel contains only the four `parison` Python modules plus standard distribu
 
 ## Supported matrix
 
-The merged `main` workflow passed at the source commit on 6 October 2026: [GitHub Actions run 37436739580](https://github.com/raghavkandpal/parison/actions/runs/37436739580).
+The merged `main` workflow passed at the tagged release commit on 6 October 2026: [GitHub Actions run 37438338132](https://github.com/raghavkandpal/parison/actions/runs/37438338132).
 
 That workflow builds and tests the wheel with Polars on Ubuntu for Python 3.11, 3.12, 3.13 and 3.14, and runs Python 3.14 optional-Polars smoke tests on macOS and Windows. The local rehearsal independently covered Python 3.14 on arm64 macOS. This remains functional compatibility evidence, not cross-platform performance evidence.
 
@@ -39,12 +41,8 @@ The code and benchmark evidence underlying `docs/13-tested-support-envelope.md` 
 
 `src/parison/__init__.py` declares `0.1.0`. `CHANGELOG.md` retains the `Unreleased` heading until publication, consistent with the publish step in `RELEASING.md`; its entries describe the candidate contents.
 
-## Remaining actions
+## Published-asset verification
 
-- Review and merge the name-screen and verification documentation.
-- Create the immutable `0.1.0` tag only from the final verified commit.
-- Create a GitHub Release from that tag and attach the wheel, source archive and SHA-256 checksums; do not publish this alpha to PyPI.
-- Download the wheel from the GitHub Release into an empty environment and repeat the smoke test.
-- Add the release date and move changelog entries out of `Unreleased`.
+After publication, both archives were downloaded from the GitHub Release and matched `SHA256SUMS.txt`. The published wheel was installed with its Parquet extra into another empty Python 3.14 environment. `parison --version`, recipe validation, the documented example comparison and bundle verification all passed. The release is marked as a prerelease, and no PyPI package was published.
 
 The preliminary name screen supports bounded alpha use but is not a legal opinion or formal trademark clearance. Qualified counsel remains appropriate before material commercial investment or a trademark filing.
