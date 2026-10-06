@@ -30,7 +30,7 @@ This roadmap separates work an agent can complete and verify independently from 
 
 ### Additional local inputs
 
-- [ ] Specify JSON Lines mapping and rejection behavior against keyed-v1, including scalar types, missing fields, duplicates, limits and cancellation.
+- [x] Specify JSON Lines mapping and rejection behavior against keyed-v1, including scalar types, missing fields, duplicates, limits and cancellation.
 - [ ] Implement JSON Lines through the existing comparison result model and add oracle-based mixed-input tests.
 - [ ] Document JSON Lines use without introducing format-specific recipes.
 - [ ] Specify a read-only SQLite input locator, type mapping, query/table scope, limits and cancellation without introducing a connector abstraction.
