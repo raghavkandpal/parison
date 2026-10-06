@@ -234,6 +234,7 @@ class ParisonTests(unittest.TestCase):
         result = json.loads((output / "result.json").read_text())
         self.assertEqual(result["outcome"], "INTERRUPTED")
         self.assertFalse(result["complete"])
+        self.assertEqual(verify_bundle(output)["outcome"], "INTERRUPTED")
         self.assertIn("Parison INTERRUPTED", stderr.getvalue())
         self.assertIn(f"Bundle: {output}", stderr.getvalue())
 

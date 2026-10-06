@@ -10,7 +10,7 @@ This roadmap separates work an agent can complete and verify independently from 
 
 - [x] Add safe terminal summaries and a copyable GitHub Actions workflow.
 - [x] Exercise PASS, FAIL, ERROR and INCONCLUSIVE through the workflow's capture/upload/restore contract; verify every produced bundle.
-- [ ] Exercise deterministic interruption handling and document the result.
+- [x] Exercise deterministic interruption handling and verify its published bundle.
 - [ ] Record a CI checkpoint covering artifact retrieval, verification and public-fork safety.
 
 ### Recipe generation
