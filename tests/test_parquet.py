@@ -78,6 +78,8 @@ class ParquetCompatibility(unittest.TestCase):
         self.assertEqual(result["outcome"], expected["outcome"])
         self.assertEqual(result["counts"], expected["counts"])
         self.assertEqual(result["field_discrepancy_count"], expected["field_discrepancy_count"])
+        mixed = compare(case / "recipe.json", case / "baseline.csv", case / "candidate.parquet")
+        self.assertEqual(mixed["counts"], expected["counts"])
 
 
 if __name__ == "__main__":

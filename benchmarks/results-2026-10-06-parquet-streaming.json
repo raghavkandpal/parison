@@ -1,0 +1,96 @@
+{
+  "cases": [
+    {
+      "accuracy": "verified",
+      "baseline_rows_per_second": 16519.4,
+      "case": "rows-10000",
+      "counts": {
+        "baseline": 10000,
+        "baseline_only": 10,
+        "candidate": 9995,
+        "candidate_only": 5,
+        "common_keys": 9990,
+        "matched_exact": 9880,
+        "matched_with_required_difference": 30,
+        "matched_within_tolerance": 80
+      },
+      "field_discrepancy_count": 110,
+      "format": "parquet",
+      "input_bytes": 31704,
+      "max_elapsed_seconds": 0.622233,
+      "max_peak_rss_bytes": 117850112,
+      "median_elapsed_seconds": 0.605348,
+      "median_peak_python_bytes": 25732182,
+      "median_peak_rss_bytes": 117522432,
+      "min_elapsed_seconds": 0.604443,
+      "min_peak_rss_bytes": 117407744,
+      "outcome": "FAIL",
+      "peak_python_bytes_per_baseline_row": 2573.2,
+      "repeats": 5
+    },
+    {
+      "accuracy": "verified",
+      "baseline_rows_per_second": 22896.8,
+      "case": "rows-100000",
+      "counts": {
+        "baseline": 100000,
+        "baseline_only": 100,
+        "candidate": 99950,
+        "candidate_only": 50,
+        "common_keys": 99900,
+        "matched_exact": 98800,
+        "matched_with_required_difference": 300,
+        "matched_within_tolerance": 800
+      },
+      "field_discrepancy_count": 1100,
+      "format": "parquet",
+      "input_bytes": 243433,
+      "max_elapsed_seconds": 4.442547,
+      "max_peak_rss_bytes": 381157376,
+      "median_elapsed_seconds": 4.367425,
+      "median_peak_python_bytes": 126881336,
+      "median_peak_rss_bytes": 377585664,
+      "min_elapsed_seconds": 4.336588,
+      "min_peak_rss_bytes": 368295936,
+      "outcome": "FAIL",
+      "peak_python_bytes_per_baseline_row": 1268.8,
+      "repeats": 5
+    },
+    {
+      "accuracy": "verified",
+      "baseline_rows_per_second": 22922.0,
+      "case": "rows-250000",
+      "counts": {
+        "baseline": 250000,
+        "baseline_only": 250,
+        "candidate": 249875,
+        "candidate_only": 125,
+        "common_keys": 249750,
+        "matched_exact": 247000,
+        "matched_with_required_difference": 750,
+        "matched_within_tolerance": 2000
+      },
+      "field_discrepancy_count": 2750,
+      "format": "parquet",
+      "input_bytes": 488879,
+      "max_elapsed_seconds": 10.924214,
+      "max_peak_rss_bytes": 774340608,
+      "median_elapsed_seconds": 10.90654,
+      "median_peak_python_bytes": 291420872,
+      "median_peak_rss_bytes": 772636672,
+      "min_elapsed_seconds": 10.871986,
+      "min_peak_rss_bytes": 759791616,
+      "outcome": "FAIL",
+      "peak_python_bytes_per_baseline_row": 1165.7,
+      "repeats": 5
+    }
+  ],
+  "environment": {
+    "date": "2026-10-06",
+    "machine": "arm64",
+    "measurement": "median of fresh subprocess runs after one warm-up; tracemalloc and process peak RSS; not a supported performance claim",
+    "parity": "0.1.0",
+    "platform": "Darwin",
+    "python": "3.14.7"
+  }
+}

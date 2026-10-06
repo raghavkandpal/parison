@@ -151,3 +151,15 @@ Equivalent generated Parquet inputs now use the same recipes and exact-count ora
 These are medians of five fresh subprocesses after one warm-up. Every repetition passed the same accuracy oracle. The 250k case demonstrates the cost of retaining the Polars frame, `to_dicts()` rows, typed rows and indexes in one process.
 
 For the next Parquet change, require at least a 25% reduction in both traced Python allocation and 250k peak RSS, no more than a 10% throughput regression, and no change to the result schema or semantic corpus. This means no more than 1,665.6 Python bytes per row and 984.7 MB RSS at 250k on this machine.
+
+## Accepted Parquet streaming optimization
+
+CSV and Parquet now provide validated rows through the same internal seam. Summary comparisons build only the baseline index and stream the candidate through aggregation. Raw-evidence comparisons retain the established two-index path because they must preserve bounded source-value samples.
+
+| Rows | Baseline median | Streaming median | Baseline bytes/row | Streaming bytes/row | Baseline RSS | Streaming RSS |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 10,000 | 0.710 s | 0.605 s | 3,606.7 | 2,573.2 | 144.7 MB | 117.5 MB |
+| 100,000 | 5.303 s | 4.367 s | 2,316.0 | 1,268.8 | 623.9 MB | 377.6 MB |
+| 250,000 | 13.335 s | 10.907 s | 2,220.8 | 1,165.7 | 1,312.9 MB | 772.6 MB |
+
+At 250k, traced allocation falls 47.5%, RSS falls 41.2%, and median runtime improves 18.2%. Five fresh subprocess runs passed the exact-count oracle at every size. The semantic suite also covers CSV-to-Parquet comparison through the shared seam.

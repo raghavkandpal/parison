@@ -57,7 +57,7 @@ PYTHONPATH=src python benchmarks/run_cases.py --format parquet \
   benchmarks/generated/rows-250000
 ```
 
-The first recorded 10k/100k/250k accuracy and performance run is in [`benchmarks/results-2026-10-05.json`](benchmarks/results-2026-10-05.json). The accepted one-sided streaming result is in [`benchmarks/results-2026-10-06-streaming.json`](benchmarks/results-2026-10-06-streaming.json), and the equivalent Parquet baseline is in [`benchmarks/results-2026-10-06-parquet-baseline.json`](benchmarks/results-2026-10-06-parquet-baseline.json). These are machine-specific engineering measurements, not supported scale guarantees.
+The first recorded 10k/100k/250k accuracy and performance run is in [`benchmarks/results-2026-10-05.json`](benchmarks/results-2026-10-05.json). Accepted streaming results are recorded for [CSV](benchmarks/results-2026-10-06-streaming.json) and [Parquet](benchmarks/results-2026-10-06-parquet-streaming.json), with the pre-optimization [Parquet baseline](benchmarks/results-2026-10-06-parquet-baseline.json) retained for comparison. These are machine-specific engineering measurements, not supported scale guarantees.
 
 ## Documentation
 
