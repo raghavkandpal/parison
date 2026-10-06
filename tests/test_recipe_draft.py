@@ -62,6 +62,46 @@ class RecipeDraft(unittest.TestCase):
             draft_path.write_text(json.dumps(draft), encoding="utf-8")
             self.assertEqual(load_recipe(draft_path), draft)
 
+    def test_header_only_draft_is_deterministic_and_does_not_infer_types(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            baseline, candidate = root / "baseline.csv", root / "candidate.csv"
+            baseline.write_text("id,value\n", encoding="utf-8")
+            candidate.write_text("value,id\n", encoding="utf-8")
+            first = draft_recipe(baseline, candidate)
+            second = draft_recipe(baseline, candidate)
+            self.assertEqual(first, second)
+            self.assertEqual(first["columns"], {
+                "id": {"type": "REVIEW_REQUIRED", "comparison": "exact"},
+                "value": {"type": "REVIEW_REQUIRED", "comparison": "exact"},
+            })
+
+    def test_draft_rejects_duplicate_headers_symlinks_and_size_overruns(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            duplicate, good = root / "duplicate.csv", root / "good.csv"
+            duplicate.write_text("id,id\n1,2\n", encoding="utf-8")
+            good.write_text("id\n1\n", encoding="utf-8")
+            with self.assertRaisesRegex(ParisonError, "duplicate column"):
+                draft_recipe(duplicate, good)
+            with self.assertRaisesRegex(ParisonError, "exceeds limit"):
+                draft_recipe(good, good, max_input_bytes=1)
+            link = root / "link.csv"
+            link.symlink_to(good)
+            with self.assertRaisesRegex(ParisonError, "symlink"):
+                draft_recipe(link, good)
+
+    def test_cli_does_not_overwrite_an_existing_draft(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, output = root / "input.csv", root / "draft.json"
+            source.write_text("id\n1\n", encoding="utf-8")
+            output.write_text("keep me", encoding="utf-8")
+            with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                code = main(["draft-recipe", "--baseline", str(source), "--candidate", str(source), "--output", str(output)])
+            self.assertEqual(code, 2)
+            self.assertEqual(output.read_text(encoding="utf-8"), "keep me")
+
 
 if __name__ == "__main__":
     unittest.main()
