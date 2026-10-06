@@ -9,6 +9,7 @@ try:
 except ImportError:
     pl = None
 
+from benchmarks.generate_cases import generate
 from parity.core import ParityError, compare
 
 
@@ -68,6 +69,15 @@ class ParquetCompatibility(unittest.TestCase):
         right = self.parquet("right.parquet", ["001", "002"], [Decimal("1.0000"), Decimal("2.0000")])
         with self.assertRaisesRegex(ParityError, "row count.*exceeds limit 1"):
             compare(self.recipe, left, right, max_rows=1)
+
+    def test_generated_parquet_matches_accuracy_oracle(self):
+        generate(self.root, 1_000, parquet=True)
+        case = self.root / "rows-1000"
+        expected = json.loads((case / "expected.json").read_text(encoding="utf-8"))
+        result = compare(case / "recipe.json", case / "baseline.parquet", case / "candidate.parquet")
+        self.assertEqual(result["outcome"], expected["outcome"])
+        self.assertEqual(result["counts"], expected["counts"])
+        self.assertEqual(result["field_discrepancy_count"], expected["field_discrepancy_count"])
 
 
 if __name__ == "__main__":

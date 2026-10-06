@@ -23,7 +23,7 @@ def source_row(index: int) -> dict[str, str]:
     }
 
 
-def generate(root: Path, rows: int) -> None:
+def generate(root: Path, rows: int, parquet: bool = False) -> None:
     case = root / f"rows-{rows}"
     case.mkdir(parents=True, exist_ok=True)
     baseline = case / "baseline.csv"
@@ -102,17 +102,26 @@ def generate(root: Path, rows: int) -> None:
         "field_discrepancy_count": different + tolerated,
     }
     (case / "expected.json").write_text(json.dumps(expected, indent=2) + "\n", encoding="utf-8")
+    if parquet:
+        try:
+            import polars as pl
+        except ImportError as exc:
+            raise SystemExit("Parquet generation requires: pip install 'parity-compare[parquet]'") from exc
+        schema = {name: pl.String for name in FIELDS}
+        pl.read_csv(baseline, schema_overrides=schema).write_parquet(case / "baseline.parquet")
+        pl.read_csv(candidate, schema_overrides=schema).write_parquet(case / "candidate.parquet")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate deterministic Parity benchmark inputs")
     parser.add_argument("--output", type=Path, default=Path("benchmarks/generated"))
     parser.add_argument("--rows", type=int, nargs="+", default=[10_000, 100_000, 250_000])
+    parser.add_argument("--parquet", action="store_true", help="also write equivalent Parquet inputs (requires Polars)")
     args = parser.parse_args()
     if any(rows <= 0 for rows in args.rows):
         parser.error("row counts must be positive")
     for rows in args.rows:
-        generate(args.output, rows)
+        generate(args.output, rows, args.parquet)
         print(args.output / f"rows-{rows}")
 
 

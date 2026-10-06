@@ -14,11 +14,12 @@ from pathlib import Path
 from parity.core import compare
 
 
-def measure(case: Path) -> dict:
+def measure(case: Path, input_format: str = "csv") -> dict:
     expected = json.loads((case / "expected.json").read_text(encoding="utf-8"))
+    suffix = ".parquet" if input_format == "parquet" else ".csv"
     tracemalloc.start()
     started = time.perf_counter()
-    result = compare(case / "recipe.json", case / "baseline.csv", case / "candidate.csv")
+    result = compare(case / "recipe.json", case / f"baseline{suffix}", case / f"candidate{suffix}")
     elapsed = time.perf_counter() - started
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
@@ -33,9 +34,9 @@ def measure(case: Path) -> dict:
     return {"elapsed_seconds": elapsed, "peak_python_bytes": peak, "peak_rss_bytes": rss_bytes}
 
 
-def child_measurement(case: Path) -> dict:
+def child_measurement(case: Path, input_format: str) -> dict:
     completed = subprocess.run(
-        [sys.executable, str(Path(__file__).resolve()), "--worker", str(case.resolve())],
+        [sys.executable, str(Path(__file__).resolve()), "--worker", "--format", input_format, str(case.resolve())],
         check=True,
         capture_output=True,
         text=True,
@@ -56,22 +57,23 @@ def main() -> None:
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--max-memory-per-row", type=float, help="fail when median peak Python bytes per baseline row exceeds this value")
     parser.add_argument("--json-output", type=Path)
+    parser.add_argument("--format", choices=("csv", "parquet"), default="csv")
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.worker:
         if len(args.cases) != 1:
             parser.error("worker requires exactly one case")
-        print(json.dumps(measure(args.cases[0])))
+        print(json.dumps(measure(args.cases[0], args.format)))
         return
     if args.repeats <= 0:
         parser.error("repeats must be positive")
     measurements = []
     for case in args.cases:
         expected = json.loads((case / "expected.json").read_text(encoding="utf-8"))
-        child_measurement(case)  # Unmeasured warm-up verifies the case and primes filesystem caches.
+        child_measurement(case, args.format)  # Unmeasured warm-up verifies the case and primes filesystem caches.
         runs = []
         for _ in range(args.repeats):
-            runs.append(child_measurement(case))
+            runs.append(child_measurement(case, args.format))
         elapsed_runs = [run["elapsed_seconds"] for run in runs]
         peak_runs = [run["peak_python_bytes"] for run in runs]
         rss_runs = [run["peak_rss_bytes"] for run in runs if run["peak_rss_bytes"] is not None]
@@ -83,6 +85,7 @@ def main() -> None:
             raise SystemExit(f"memory regression for {case}: {memory_per_row:.1f} > {args.max_memory_per_row:.1f} bytes/row")
         measurements.append({
             "case": case.name,
+            "format": args.format,
             "accuracy": "verified",
             "repeats": args.repeats,
             "median_elapsed_seconds": round(elapsed, 6),
@@ -94,7 +97,7 @@ def main() -> None:
             "median_peak_rss_bytes": statistics.median(rss_runs) if rss_runs else None,
             "min_peak_rss_bytes": min(rss_runs) if rss_runs else None,
             "max_peak_rss_bytes": max(rss_runs) if rss_runs else None,
-            "input_bytes": sum((case / name).stat().st_size for name in ("baseline.csv", "candidate.csv")),
+            "input_bytes": sum((case / f"{name}.{'parquet' if args.format == 'parquet' else 'csv'}").stat().st_size for name in ("baseline", "candidate")),
             **expected,
         })
     payload = {

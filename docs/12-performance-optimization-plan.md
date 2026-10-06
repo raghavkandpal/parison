@@ -137,3 +137,17 @@ The one-sided streaming design passed its gates for summary CSV comparisons. The
 | 250,000 | 16.231 s | 16.219 s | 2,076.1 | 1,110.1 | 636.6 MB | 46.5% |
 
 Each accepted figure is the median of five fresh subprocess runs after one discarded warm-up, with exact expected counts checked on every repetition. The result clears the 1,200-byte target at 100k and 250k without a throughput regression. RSS includes the interpreter and all native allocations, so it must not be compared directly with the narrower `tracemalloc` figure. These remain machine-specific engineering measurements, not a supported scale claim.
+
+## Parquet baseline
+
+Equivalent generated Parquet inputs now use the same recipes and exact-count oracle as CSV. The inputs intentionally store the benchmark columns as strings so the comparison policies, rather than Parquet inference, remain the source of type semantics.
+
+| Rows | Median | Python bytes/row | Peak RSS | Rows/s |
+| ---: | ---: | ---: | ---: | ---: |
+| 10,000 | 0.710 s | 3,606.7 | 144.7 MB | 14,078 |
+| 100,000 | 5.303 s | 2,316.0 | 623.9 MB | 18,857 |
+| 250,000 | 13.335 s | 2,220.8 | 1,312.9 MB | 18,747 |
+
+These are medians of five fresh subprocesses after one warm-up. Every repetition passed the same accuracy oracle. The 250k case demonstrates the cost of retaining the Polars frame, `to_dicts()` rows, typed rows and indexes in one process.
+
+For the next Parquet change, require at least a 25% reduction in both traced Python allocation and 250k peak RSS, no more than a 10% throughput regression, and no change to the result schema or semantic corpus. This means no more than 1,665.6 Python bytes per row and 984.7 MB RSS at 250k on this machine.

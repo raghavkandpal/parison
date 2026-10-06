@@ -48,7 +48,16 @@ PYTHONPATH=src python benchmarks/run_cases.py \
 
 Each generated case includes baseline and candidate CSV files, a recipe, and exact expected counts. Generated data is ignored by Git and can be recreated at larger sizes with `--rows`.
 
-The first recorded 10k/100k/250k accuracy and performance run is in [`benchmarks/results-2026-10-05.json`](benchmarks/results-2026-10-05.json). The accepted one-sided streaming result is in [`benchmarks/results-2026-10-06-streaming.json`](benchmarks/results-2026-10-06-streaming.json). These are machine-specific engineering measurements, not supported scale guarantees.
+To generate and measure equivalent Parquet inputs:
+
+```sh
+PYTHONPATH=src python benchmarks/generate_cases.py --parquet
+PYTHONPATH=src python benchmarks/run_cases.py --format parquet \
+  benchmarks/generated/rows-10000 benchmarks/generated/rows-100000 \
+  benchmarks/generated/rows-250000
+```
+
+The first recorded 10k/100k/250k accuracy and performance run is in [`benchmarks/results-2026-10-05.json`](benchmarks/results-2026-10-05.json). The accepted one-sided streaming result is in [`benchmarks/results-2026-10-06-streaming.json`](benchmarks/results-2026-10-06-streaming.json), and the equivalent Parquet baseline is in [`benchmarks/results-2026-10-06-parquet-baseline.json`](benchmarks/results-2026-10-06-parquet-baseline.json). These are machine-specific engineering measurements, not supported scale guarantees.
 
 ## Documentation
 
