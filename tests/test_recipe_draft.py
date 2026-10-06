@@ -5,7 +5,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 
-from parison.cli import main
+from parison.cli import main, parser
 from parison.core import ParisonError, draft_recipe, load_recipe
 
 
@@ -24,6 +24,7 @@ class RecipeDraft(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(json.loads(stdout.getvalue()), {"output": str(output)})
             self.assertIn("unresolved", stderr.getvalue())
+            self.assertIn("validate-recipe", stderr.getvalue())
             draft = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(list(draft["columns"]), ["id", "amount"])
             self.assertEqual(draft["excluded_columns"], {"baseline_note": "", "candidate_note": ""})
@@ -33,6 +34,14 @@ class RecipeDraft(unittest.TestCase):
             self.assertNotIn("private", output.read_text(encoding="utf-8"))
             with self.assertRaises(ParisonError):
                 load_recipe(output)
+
+    def test_draft_help_lists_required_review_choices(self):
+        stdout = StringIO()
+        with self.assertRaises(SystemExit), redirect_stdout(stdout):
+            parser().parse_args(["draft-recipe", "--help"])
+        help_text = stdout.getvalue()
+        for expected in ("choose keys", "completeness='full'", "REVIEW_REQUIRED", "symmetric-v1", "validate-recipe"):
+            self.assertIn(expected, help_text)
 
     def test_draft_refuses_no_shared_columns(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -35,7 +35,19 @@ def parser() -> argparse.ArgumentParser:
     commands = root.add_subparsers(dest="command", required=True)
     validate = commands.add_parser("validate-recipe", help="validate a JSON recipe")
     validate.add_argument("recipe")
-    draft = commands.add_parser("draft-recipe", help="draft an intentionally incomplete JSON recipe")
+    draft = commands.add_parser(
+        "draft-recipe",
+        help="draft an intentionally incomplete JSON recipe",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Review the generated JSON before comparison:
+  choose keys; fill scope snapshot, cutoff, completeness='full' and expected_empty;
+  choose nulls_equal; replace each REVIEW_REQUIRED type with string, integer,
+  decimal, float, boolean, date or timestamp; explain every excluded column.
+Then run: parison validate-recipe DRAFT.json
+
+Numeric comparison requires integer, decimal or float plus an explicit
+symmetric-v1 tolerance. Drafting never approves inferred policy.""",
+    )
     draft.add_argument("--baseline", required=True)
     draft.add_argument("--candidate", required=True)
     draft.add_argument("--output", required=True)
@@ -79,6 +91,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise ParisonError(f"cannot write draft recipe: {exc}") from exc
             print(json.dumps({"output": args.output}))
             print(f"Drafted unresolved recipe: {args.output}", file=sys.stderr)
+            print("Next: resolve every review choice, then run parison validate-recipe on the draft.", file=sys.stderr)
             return 0
         recipe = load_recipe(args.recipe)
         if args.command == "validate-recipe":
