@@ -34,7 +34,7 @@ For perspective only: 100 paying users at USD 10/month would produce USD 1,000 m
 
 ## Packaging experiments
 
-**Recommended first:** a free local runner and portable report. Choose an explicit license after dependency review. The CLI, result schema and correctness tests should be inspectable; trust and adoption matter more than restricting basic comparison.
+**Implemented foundation:** a free local runner and portable report under the MIT License. The CLI, result schema and correctness tests are inspectable; trust and adoption matter more than restricting basic comparison.
 
 **Potential paid local workbench:** saved investigation views, local run history, batch organization and convenient recipe editing. Test an annual license rather than assuming a perpetual license funds ongoing support. Free evidence must remain useful; do not make reproducibility or accurate comparisons a premium feature.
 

@@ -45,15 +45,17 @@ They do not establish competitor market share, revenues, customer satisfaction, 
 
 | Claim or decision | Current evidence level | Needed next |
 | --- | --- | --- |
-| Basic file comparison is already served | Primary documentation | Hands-on baseline with pinned releases |
+| Basic file comparison is already served | Primary documentation plus a pinned DataComPy spike | Broader hands-on workflow comparison |
 | Recurring investigation friction exists for our target users | Hypothesis | Independent task observations/interviews |
 | Parison saves time without increasing false passes | Unverified | Counterbalanced comparative study |
-| An existing engine meets our semantics | Unverified | Adapter spike and adversarial corpus |
-| Local mode has no unintended network egress | Design requirement | Offline/network-denied tests |
-| Sensitive data stays out of reports/logs by default | Design requirement | Canary tests and byte-level inspection |
+| DataComPy meets keyed-v1 semantics as a runtime adapter | Resolved: no | Revisit only if its semantics or keyed-v1 change |
+| Local mode has no unintended network egress | Partially supported by implementation inspection | Offline/network-denied tests |
+| Sensitive data stays out of reports/logs by default | Partially tested | Byte-level canaries across every artifact and log path |
 | A paid local/team product is viable | Hypothesis | Purchase, recurrence and cost evidence |
 | AI-generated alternatives are inferior for repeated use | Not established | Fair substitution benchmark |
-| Parison naming/package rights are available | Not established | Package/domain/name due diligence |
+| Parison naming/package rights are available | Preliminary screen only | Formal trademark clearance and final channel checks |
+
+The current implementation answers and remaining limits behind these status changes are recorded in the [built evidence review](14-built-evidence-review.md).
 
 ## Retrieval limitations
 

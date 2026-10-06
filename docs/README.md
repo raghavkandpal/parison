@@ -1,6 +1,6 @@
 # Parison research and proposed product design
 
-Research date: 4 October 2026. Implementation status updated 5 October 2026: an early CLI vertical slice, initial 40-case semantic corpus and local benchmark harness now exist; customer interviews and independent competitor trials remain incomplete.
+Research date: 4 October 2026. Implementation evidence reviewed 6 October 2026: the CLI vertical slice, semantic corpus, benchmark matrix, release packaging and cross-platform CI now exist; customer interviews and independent workflow trials remain incomplete.
 
 Parison would help data engineers evaluate whether a pipeline refactor or migration preserves intended output. The recommended starting point is a local CLI with a portable investigation report, not a hosted data platform. Its engine is deterministic and does not require AI.
 
@@ -23,6 +23,7 @@ The research supports a **bounded discovery and prototype**, not an unconditiona
 | [Engine compatibility spike](11-engine-compatibility-spike.md) | Can DataComPy implement Parison's pinned comparison contract? |
 | [Performance optimization plan](12-performance-optimization-plan.md) | Which measured costs should the next implementation session remove first? |
 | [Tested support envelope](13-tested-support-envelope.md) | Which input shapes and sizes have actually been measured? |
+| [Built evidence review](14-built-evidence-review.md) | Which earlier questions can the current implementation answer, and which still require humans or external evidence? |
 
 ## Recommended initial decisions
 

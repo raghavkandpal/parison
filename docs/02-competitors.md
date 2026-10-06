@@ -17,7 +17,7 @@ The observations below are from official documentation/repositories accessed on 
 | **JuxtAPPose** | Commercial/local comparison offering for files and database queries, including Excel/CSV/text. [Vendor page](https://www.juxtappose.com/) | Is the proposed visual workbench genuinely easier or more reproducible than existing desktop tools? |
 | **Beyond Compare** | Table comparison for CSV, tab-delimited data, HTML tables and Excel worksheets. [Vendor feature matrix](https://beyond-compare.com/kb/feature_compare) | Why would an engineer install Parison rather than use an existing desktop comparison application? |
 
-DataComPy's repository documents typed report access and identifies an Apache-2.0 license. It is a candidate for an implementation adapter and differential test oracle, not merely something to outperform. [Repository](https://github.com/capitalone/datacompy). Verify the exact selected release and dependency licenses before distribution.
+DataComPy's repository documents typed report access and identifies an Apache-2.0 license. The pinned 1.1.0 spike rejected it as the keyed-v1 runtime adapter because duplicate-key, tolerance and Decimal-evidence semantics differ; it remains a possible differential reference where semantics overlap. [Repository](https://github.com/capitalone/datacompy), [executed spike](11-engine-compatibility-spike.md).
 
 The former Datafold open-source `data-diff` repository was archived on 17 May 2024. This does **not** mean Datafold's commercial product was discontinued. Avoid basing a new dependency strategy on an archived project without a maintenance plan. [Archived repository](https://github.com/datafold/data-diff).
 
