@@ -42,7 +42,7 @@ This roadmap separates work an agent can complete and verify independently from 
 - [x] Run the full supported Python/optional-Parquet suite and build artifacts.
 - [x] Verify 0.1 example bundles with 0.2 code and record compatibility evidence.
 - [x] Update current documentation, changelog/release notes and the GitHub-hosted installation reference.
-- [ ] Run a clean-environment release rehearsal and produce a go/fix/stop engineering checkpoint.
+- [x] Run a clean-environment release rehearsal and produce a go/fix/stop engineering checkpoint.
 
 ## Human-only gates
 

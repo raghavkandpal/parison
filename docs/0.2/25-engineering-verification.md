@@ -21,3 +21,18 @@ Status: **engineering go; release decision pending human gates**.
 - After those gates, build from a clean archive at the chosen release commit, inspect both archives and repeat the installed-wheel smoke test before tagging.
 
 No customer datasets, credentials or production schemas were used for this verification.
+
+## Clean-archive rehearsal
+
+Commit `f6606a5` was exported with `git archive` to a new temporary directory containing no working-tree build products. A Python 3.14 environment built and inspected:
+
+- wheel SHA-256 `e4d911562026cd12f285489a6a7274d67cdecde67132c4e98f352168d4b9bf99`;
+- source archive SHA-256 `a8ed726ea7899f97ef1c531b28385a13fa2f449e462c1818fcaf779092f80af5`.
+
+The wheel contained only the four package modules, license and distribution metadata. The source archive contained those sources plus README, build metadata and tests. A second empty Python 3.14 environment installed the wheel and exercised:
+
+- draft generation followed by the expected validation refusal for unresolved keys;
+- CSV-to-JSONL comparison with the expected FAIL counts (`176` exact, `20` tolerated, `3` violating, one missing and one extra key) and a valid bundle;
+- CSV-to-SQLite comparison with 200 exact records, PASS and a valid bundle.
+
+Decision: **GO to human validation**. No autonomous engineering blocker remains. Do not tag or publish 0.2.0 until the human-only gates in the roadmap are completed and the final candidate is rebuilt from its chosen commit.
