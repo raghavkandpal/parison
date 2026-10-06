@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from parison import __version__
 from parison.cli import main
-from parison.core import ParisonError, compare, load_recipe, verify_bundle
+from parison.core import ParisonError, compare, load_recipe, publish, verify_bundle
 
 
 RECIPE = {
@@ -111,6 +111,9 @@ class ParisonTests(unittest.TestCase):
         report = (output / "report.html").read_text(encoding="utf-8")
         for expected in ("synthetic-orders-v1", "status", "updated_at", "nondeterministic metadata", "nulls equal", "symmetric-v1", "max input bytes", "keyed-v1", "SHA-256"):
             self.assertIn(expected, report)
+        self.assertIn('id="field-class"', report)
+        self.assertIn('id="field-summary"', report)
+        self.assertNotIn('id="raw-evidence"', report)
 
     def test_raw_evidence_is_explicit_bounded_and_html_escaped(self):
         raw_recipe = dict(RECIPE, output={"sensitivity": "raw"})
@@ -125,7 +128,20 @@ class ParisonTests(unittest.TestCase):
         report = (output / "report.html").read_text(encoding="utf-8")
         self.assertNotIn("<script>old</script>", report)
         self.assertIn("&lt;script&gt;old&lt;/script&gt;", report)
+        for hook in ('id="raw-key"', 'id="raw-field"', 'id="raw-class"', 'id="raw-evidence"', 'data-class="different"'):
+            self.assertIn(hook, report)
         self.assertEqual(json.loads((output / "manifest.json").read_text())["sensitivity"], "raw")
+
+    def test_report_controls_do_not_change_canonical_result(self):
+        left = self.csv("left.csv", [{"order_id": "001", "status": "old", "total": "1"}])
+        right = self.csv("right.csv", [{"order_id": "001", "status": "new", "total": "1"}])
+        result = compare(self.recipe, left, right)
+        output = self.root / "filter-run"
+        publish(output, result, load_recipe(self.recipe))
+        self.assertEqual(json.loads((output / "result.json").read_text()), result)
+        report = (output / "report.html").read_text(encoding="utf-8")
+        self.assertIn("<th>status</th>", report)
+        self.assertIn("<th>total</th>", report)
 
     def test_ragged_csv_and_symlinks_are_rejected_as_errors(self):
         good = self.csv("good.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
