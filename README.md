@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**Early vertical slice.** The repository now includes an installable Python CLI for strict keyed CSV comparison, JSON/HTML evidence bundles and CI-oriented exit codes. Parquet input is available through the optional `polars` dependency. The semantic corpus, local benchmark harness, adversarial performance matrix and DataComPy compatibility spike are complete; interviews and usability studies remain planned work.
+**Early vertical slice.** The repository now includes an installable Python CLI for strict keyed CSV comparison, JSON/HTML evidence bundles and CI-oriented exit codes. Parquet input is available through the optional `polars` dependency. The semantic corpus, local benchmark harness, adversarial performance matrix and DataComPy compatibility spike are complete. Two blinded agent-execution trials and one human review of agent-produced evidence are recorded; interviews and direct, unassisted human CLI studies remain planned work.
 
 ## Try it
 
@@ -81,7 +81,7 @@ Start with the [research and design index](docs/README.md).
 | [Built evidence review](docs/14-built-evidence-review.md) | Questions resolved by the implementation versus questions that still require human or external evidence |
 | [Unfamiliar-user test 01](docs/15-unfamiliar-user-test.md) | Participant protocol, scoring rubric, rehearsal observations and decision rule |
 
-Release preparation is tracked in [`RELEASING.md`](RELEASING.md); name clearance and unfamiliar-user validation remain explicit blockers.
+Release preparation is tracked in [`RELEASING.md`](RELEASING.md); formal name clearance remains the open hard blocker.
 
 Parison is released under the [MIT License](LICENSE).
 
@@ -91,7 +91,7 @@ Mermaid diagrams are included in the documents. [PNG alternatives](docs/diagrams
 
 1. Continue expanding the synthetic corpus around false-PASS risks.
 2. Keep the contract-specific engine; the pinned DataComPy spike found incompatible identity, tolerance and Decimal evidence semantics.
-3. Harden packaging and validate the CLI with unfamiliar users before distributing an alpha.
+3. Harden packaging and continue direct-human CLI validation while preparing a bounded alpha.
 4. Expand performance measurements across row widths, mismatch rates and constrained resources.
 5. Add a localhost visual interface only if usability evidence justifies it.
 

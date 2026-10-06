@@ -101,3 +101,18 @@ Observed:
 - Its stated fallback was a custom keyed Python/pandas merge with duplicate checks, explicit tolerance and manually preserved output.
 
 Decision: **GO for the agent-execution half of an agent-mediated workflow.** The unfamiliar agent completed the core task and produced a correct, reviewable recommendation. Next, give its result bundle and recommendation to an unfamiliar engineer and test whether they can approve or challenge it without rerunning the work. Supply a built wheel in future execution trials. Release validation remains blocked until the human-review half is recorded.
+
+## Agent-mediated workflow trial 02 and human review — 6 October 2026
+
+A separate fresh agent authored a new cold-storage calibration dataset, recipe, task and sealed answer key under `studies/unfamiliar-user-02/`. A second fresh agent, without access to the answer key or first scenario, ran the task and published two verified evidence bundles plus a recommendation.
+
+The evaluator matched every expected issue class and decision:
+
+- accepted the initial six-record candidate under composite typed identity, explicit null equality, timezone-aware instant comparison and a `0.05` decimal tolerance;
+- rejected the replacement after finding a missing identity, an unexpected identity, an exact-text trailing-space change and a `0.07` out-of-tolerance difference;
+- distinguished successful bundle-integrity verification from the failed semantic comparison;
+- stated that it would reuse the workflow.
+
+The human reviewer then inspected the agent-produced report and recommendation and responded: **“good, accepted.”** No challenge, missing evidence or blocking usability finding was reported. This records acceptance of the recommendation and completes the human-review half of the agent-mediated workflow gate. It does not claim direct, unassisted human CLI usability or comparative time savings.
+
+Decision: **GO for the bounded agent-mediated workflow.** Keep direct-human CLI evaluation as follow-up research; proceed to name clearance and release-candidate verification before publishing an alpha.

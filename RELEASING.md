@@ -4,7 +4,7 @@
 
 - [ ] Clear the `Parison` and `parison` names for the intended distribution channels.
 - [x] Choose a distribution license, add its `LICENSE` file, and declare it in `pyproject.toml` (MIT).
-- [ ] Complete an unfamiliar workflow end to end: direct human execution, or unfamiliar-agent execution followed by human review of its evidence and recommendation. Record blocking usability findings.
+- [x] Complete an unfamiliar workflow end to end: two blinded unfamiliar-agent executions completed, followed by human acceptance of the second trial's evidence and recommendation; no blocking usability finding was reported.
 
 Do not publish while any hard blocker remains open.
 
