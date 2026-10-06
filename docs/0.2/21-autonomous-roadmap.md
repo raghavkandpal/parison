@@ -56,6 +56,8 @@ These cannot be honestly completed by an implementation agent acting as the prod
 
 Agent-proxy trials may improve instructions and catch mechanical failures, but they are recorded separately and never counted as these human gates.
 
+Run and record these gates using the short [human-results checklist](26-human-results-checklist.md).
+
 ## Stop conditions
 
 Stop autonomous implementation and request direction if a change would alter PASS semantics, approve inferred policy, require customer data, require a hosted service, or introduce a backend-specific exception into the canonical result model. Reject JSON Lines or SQLite if their semantics cannot map cleanly to keyed-v1.
