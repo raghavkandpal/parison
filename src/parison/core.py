@@ -257,6 +257,8 @@ def _sqlite_rows(source: str | Path, max_rows: int):
     except sqlite3.Error as exc:
         raise ParisonError(f"cannot read SQLite table {table} from {path}: {exc}") from exc
     finally:
+        if "cursor" in locals():
+            cursor.close()
         if "connection" in locals():
             connection.close()
 
@@ -384,8 +386,12 @@ def _digest(path: Path) -> str:
 
 def _input_columns(path: str | Path) -> list[str]:
     if _sqlite_source(path):
-        columns, _ = next(_sqlite_rows(path, 1))
-        return columns
+        rows = _sqlite_rows(path, 1)
+        try:
+            columns, _ = next(rows)
+            return columns
+        finally:
+            rows.close()
     path = Path(path)
     if path.is_symlink():
         raise ParisonError(f"input must not be a symlink: {path}")
