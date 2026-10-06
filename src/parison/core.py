@@ -8,6 +8,7 @@ import math
 import os
 import platform
 import shutil
+import sqlite3
 import tempfile
 from collections import Counter
 from datetime import date, datetime
@@ -27,7 +28,7 @@ class ParisonError(ValueError):
     pass
 
 
-def _runtime_info(paths: tuple[Path, Path] | None = None) -> dict[str, Any]:
+def _runtime_info(paths: tuple[Any, Any] | None = None) -> dict[str, Any]:
     try:
         version = metadata.version("parison")
     except metadata.PackageNotFoundError:
@@ -40,7 +41,7 @@ def _runtime_info(paths: tuple[Path, Path] | None = None) -> dict[str, Any]:
         "platform": platform.system(),
         "machine": platform.machine(),
     }
-    if paths and any(path.suffix.lower() in {".parquet", ".pq"} for path in paths):
+    if paths and any(_source_path(path).suffix.lower() in {".parquet", ".pq"} for path in paths):
         try:
             runtime["polars"] = metadata.version("polars")
         except metadata.PackageNotFoundError:
@@ -200,6 +201,66 @@ def _validate_headers(path: Path, headers: list[str], recipe: dict[str, Any]) ->
         raise ParisonError(f"schema mismatch in {path}: {'; '.join(parts)}")
 
 
+def _sqlite_source(source: str | Path) -> tuple[Path, str] | None:
+    text = str(source)
+    if not text.startswith("sqlite:"):
+        return None
+    locator = text.removeprefix("sqlite:")
+    if "?" in locator or "#" not in locator:
+        raise ParisonError("SQLite locator must be sqlite:path#table without parameters")
+    path_text, table = locator.rsplit("#", 1)
+    if not path_text or not table:
+        raise ParisonError("SQLite locator requires a database path and table")
+    return Path(path_text), table
+
+
+def _source_path(source: str | Path) -> Path:
+    sqlite_source = _sqlite_source(source)
+    return sqlite_source[0] if sqlite_source else Path(source)
+
+
+def _source_metadata(source: str | Path, digest: str) -> dict[str, Any]:
+    path = _source_path(source)
+    metadata = {"sha256": digest, "bytes": path.stat().st_size, "format": path.suffix.lower().lstrip(".")}
+    sqlite_source = _sqlite_source(source)
+    if sqlite_source:
+        metadata.update(format="sqlite", table=sqlite_source[1])
+    return metadata
+
+
+def _sqlite_rows(source: str | Path, max_rows: int):
+    path, table = _sqlite_source(source) or (None, None)
+    assert path is not None and table is not None
+    if path.is_symlink() or not path.is_file():
+        raise ParisonError(f"SQLite database must be a regular non-symlink file: {path}")
+    if any(Path(str(path) + suffix).exists() for suffix in ("-wal", "-journal")):
+        raise ParisonError(f"SQLite database has an active journal sidecar: {path}")
+    try:
+        connection = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)
+        connection.execute("PRAGMA query_only=ON")
+        found = connection.execute("SELECT type FROM sqlite_schema WHERE name=?", (table,)).fetchone()
+        if found != ("table",):
+            raise ParisonError(f"SQLite object is not an ordinary table: {table}")
+        cursor = connection.execute(f'SELECT * FROM "{table.replace(chr(34), chr(34) * 2)}"')
+        headers = [item[0] for item in cursor.description or []]
+        if not headers or any(not name for name in headers) or len(headers) != len(set(headers)):
+            raise ParisonError(f"SQLite table has empty or duplicate columns: {table}")
+        yield headers, None
+        for row_count, values in enumerate(cursor):
+            if row_count >= max_rows:
+                raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
+            if any(isinstance(value, bytes) for value in values):
+                raise ParisonError(f"SQLite table contains an unsupported BLOB value: {table}")
+            yield headers, dict(zip(headers, values))
+    except ParisonError:
+        raise
+    except sqlite3.Error as exc:
+        raise ParisonError(f"cannot read SQLite table {table} from {path}: {exc}") from exc
+    finally:
+        if "connection" in locals():
+            connection.close()
+
+
 def _jsonl_record(line: str, path: Path, line_number: int) -> dict[str, Any]:
     if not line.strip():
         raise ParisonError(f"blank JSON Lines record at line {line_number} in {path}")
@@ -249,7 +310,14 @@ def _iter_jsonl(path: Path, max_rows: int):
             raise ParisonError(f"input has no schema: {path}")
 
 
-def _read(path: Path, recipe: dict[str, Any], max_rows: int) -> tuple[list[dict[str, Any]], list[str]]:
+def _read(path: str | Path, recipe: dict[str, Any], max_rows: int) -> tuple[list[dict[str, Any]], list[str]]:
+    if _sqlite_source(path):
+        stream = _sqlite_rows(path, max_rows)
+        headers, _ = next(stream)
+        _validate_headers(Path(str(path)), headers, recipe)
+        raw_rows = [row for _, row in stream]
+        return ([{name: _parse(row.get(name), policy, name) for name, policy in recipe["columns"].items()} for row in raw_rows], headers)
+    path = Path(path)
     if path.is_symlink():
         raise ParisonError(f"input must not be a symlink: {path}")
     if not path.is_file():
@@ -314,7 +382,11 @@ def _digest(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _input_columns(path: Path) -> list[str]:
+def _input_columns(path: str | Path) -> list[str]:
+    if _sqlite_source(path):
+        columns, _ = next(_sqlite_rows(path, 1))
+        return columns
+    path = Path(path)
     if path.is_symlink():
         raise ParisonError(f"input must not be a symlink: {path}")
     if not path.is_file():
@@ -353,21 +425,21 @@ def _input_columns(path: Path) -> list[str]:
 def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: int = 1_000_000_000) -> dict[str, Any]:
     if max_input_bytes <= 0:
         raise ParisonError("max_input_bytes must be positive")
-    baseline, candidate = Path(baseline), Path(candidate)
-    for path in (baseline, candidate):
+    for source in (baseline, candidate):
+        path = _source_path(source)
         if path.is_symlink():
             raise ParisonError(f"input must not be a symlink: {path}")
         if not path.is_file():
             raise ParisonError(f"input is not a regular file: {path}")
     try:
-        input_bytes = baseline.stat().st_size + candidate.stat().st_size
+        input_bytes = _source_path(baseline).stat().st_size + _source_path(candidate).stat().st_size
     except OSError as exc:
         raise ParisonError(f"cannot inspect inputs: {exc}") from exc
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
-    before = {path: _digest(path) for path in (baseline, candidate)}
+    before = {str(source): _digest(_source_path(source)) for source in (baseline, candidate)}
     baseline_columns, candidate_columns = _input_columns(baseline), _input_columns(candidate)
-    if any(_digest(path) != digest for path, digest in before.items()):
+    if any(_digest(_source_path(source)) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being inspected")
     candidate_names = set(candidate_columns)
     shared = [name for name in baseline_columns if name in candidate_names]
@@ -410,7 +482,15 @@ def _index(rows: list[dict[str, Any]], keys: list[str], side: str) -> tuple[dict
     return dict(zip(values, rows)), problems
 
 
-def _iter_input_rows(path: Path, recipe: dict[str, Any], max_rows: int):
+def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int):
+    if _sqlite_source(path):
+        stream = _sqlite_rows(path, max_rows)
+        headers, _ = next(stream)
+        _validate_headers(Path(str(path)), headers, recipe)
+        for _, row in stream:
+            yield row
+        return
+    path = Path(path)
     if path.is_symlink():
         raise ParisonError(f"input must not be a symlink: {path}")
     if not path.is_file():
@@ -570,15 +650,15 @@ def compare(
         raise ParisonError("max_input_bytes must be positive")
     if max_rows <= 0:
         raise ParisonError("max_rows must be positive")
-    recipe_path, baseline_path, candidate_path = map(Path, (recipe_path, baseline_path, candidate_path))
+    recipe_path = Path(recipe_path)
     recipe = load_recipe(recipe_path)
     try:
-        input_bytes = baseline_path.stat().st_size + candidate_path.stat().st_size
+        input_bytes = _source_path(baseline_path).stat().st_size + _source_path(candidate_path).stat().st_size
     except OSError as exc:
         raise ParisonError(f"cannot inspect inputs: {exc}") from exc
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
-    before = {_path: _digest(_path) for _path in (baseline_path, candidate_path)}
+    before = {str(source): _digest(_source_path(source)) for source in (baseline_path, candidate_path)}
     keys = recipe["keys"]
     raw_output = recipe["output"]["sensitivity"] == "raw"
     streaming = not raw_output
@@ -646,7 +726,7 @@ def compare(
                             "allowance": allowance,
                         })
             row_counts[row_class] += 1
-    if any(_digest(path) != digest for path, digest in before.items()):
+    if any(_digest(_source_path(source)) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being read")
     empty = not baseline_count or not candidate_count
     if empty and not recipe["scope"]["expected_empty"]:
@@ -677,8 +757,8 @@ def compare(
         "discrepancy_sample_limit": sample_limit if raw_output else 0,
         "excluded_columns": recipe.get("excluded_columns", {}),
         "inputs": {
-            "baseline": {"sha256": before[baseline_path], "bytes": baseline_path.stat().st_size},
-            "candidate": {"sha256": before[candidate_path], "bytes": candidate_path.stat().st_size},
+            "baseline": _source_metadata(baseline_path, before[str(baseline_path)]),
+            "candidate": _source_metadata(candidate_path, before[str(candidate_path)]),
         },
         "recipe_sha256": _digest(recipe_path),
     }
