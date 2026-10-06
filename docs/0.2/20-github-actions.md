@@ -23,3 +23,15 @@ The reference job refuses recipes whose output sensitivity is not `summary`. Sum
 Do not weaken this guard for workflows triggered by pull requests from forks. Fork-authored code can alter extraction and logging behavior, and uploaded raw artifacts can expose production data to anyone with artifact access. If raw evidence is necessary, use a separately reviewed workflow with trusted inputs, restricted permissions and an explicit retention policy.
 
 GitHub stores the uploaded bundle as a repository Actions artifact. That is customer-controlled storage, not Parison custody; the repository owner remains responsible for access and retention.
+
+## Engineering checkpoint — 6 October 2026
+
+Status: **go** for recipe-generation work; human adoption evidence remains open.
+
+- The CLI contract test at commit `c4aec9c` produced and verified bundles for PASS (`0`), FAIL (`1`), ERROR (`2`) and INCONCLUSIVE (`3`).
+- Deterministic interruption at commit `70b7431` returned `130`, published an INTERRUPTED bundle and passed manifest verification.
+- [Hosted run 37470340232](https://github.com/raghavkandpal/parison/actions/runs/37470340232) passed on Python 3.11–3.14, macOS and Windows. Its Python 3.14 Linux job uploaded `parison-smoke-37470340232`.
+- The downloaded artifact passed `verify_bundle` on `develop`; it recorded keyed-v1, Parison 0.2.0.dev0, PASS and summary sensitivity.
+- The reference uses `pull_request`, read-only repository permissions and an explicit summary-sensitivity check. It does not use the privileged `pull_request_target` event or upload raw evidence.
+
+This proves the mechanics and artifact round trip. It does not replace the release gate requiring an unfamiliar user to integrate and review the workflow.
