@@ -27,6 +27,14 @@ jobs:
       - run: parison validate-recipe examples/orders.recipe.json
       - run: parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke
       - run: parison verify /tmp/parison-smoke
+      - name: Upload smoke evidence
+        if: matrix.python-version == '3.14'
+        uses: actions/upload-artifact@v6
+        with:
+          name: parison-smoke-${{ github.run_id }}
+          path: /tmp/parison-smoke
+          if-no-files-found: error
+          retention-days: 14
       - run: python -m unittest discover -s tests -v
       - run: python benchmarks/generate_cases.py --output /tmp/parison-bench --rows 1000
       - run: python benchmarks/run_cases.py --repeats 1 --max-memory-per-row 6000 /tmp/parison-bench/rows-1000
