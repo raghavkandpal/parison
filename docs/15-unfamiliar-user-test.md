@@ -104,7 +104,7 @@ Decision: **GO for the agent-execution half of an agent-mediated workflow.** The
 
 ## Agent-mediated workflow trial 02 and human review — 6 October 2026
 
-A separate fresh agent authored a new cold-storage calibration dataset, recipe, task and sealed answer key under `studies/unfamiliar-user-02/`. A second fresh agent, without access to the answer key or first scenario, ran the task and published two verified evidence bundles plus a recommendation.
+A separate fresh agent authored a new cold-storage calibration dataset, recipe, task and sealed answer key under `studies/unfamiliar-user-02/`. A second fresh agent, without access to the answer key or first scenario, ran the task and generated two verified evidence bundles plus a recommendation. The reproducible bundles were inspected during review and are intentionally not retained in the repository.
 
 The evaluator matched every expected issue class and decision:
 

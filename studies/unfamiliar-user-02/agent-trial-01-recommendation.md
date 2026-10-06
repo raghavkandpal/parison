@@ -25,4 +25,4 @@ No wheel was supplied. I used a fresh temporary virtual environment with the rep
 
 I would use this workflow again: the exit codes, canonical JSON, effective recipe, and independently verifiable manifest make the release decision auditable.
 
-Bundles: `agent-trial-01/initial/` and `agent-trial-01/problematic/`.
+The initial and problematic bundles were generated and verified during the trial. They are reproducible from the committed fixtures and recipe and are intentionally not retained in the repository.

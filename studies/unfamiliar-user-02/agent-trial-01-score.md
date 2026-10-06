@@ -17,6 +17,6 @@ The evaluator completed this trial without access to `answer-key.md`. The fixtur
 | Distinguished bundle verification from semantic outcome | pass |
 | Would reuse the workflow | yes |
 
-The evaluator matched every expected issue class and both expected decisions. Both generated bundles pass integrity verification. The only execution deviation was using `PYTHONPATH=src` because no wheel was supplied.
+The evaluator matched every expected issue class and both expected decisions. Both generated bundles passed integrity verification; the reproducible outputs are intentionally not retained in the repository. The only execution deviation was using `PYTHONPATH=src` because no wheel was supplied.
 
 Decision: **GO for unfamiliar-agent execution on a second domain and new recipe.** The remaining release evidence is human acceptance or challenge of the agent's recommendation and evidence, not another agent execution trial.

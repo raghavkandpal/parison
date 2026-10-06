@@ -1,6 +1,6 @@
 # Human review task
 
-Review `agent-trial-01-recommendation.md` and the `agent-trial-01` evidence bundle. You do not need to install Parison or rerun the comparison.
+Review `agent-trial-01-recommendation.md` and the freshly generated evidence bundle supplied by the facilitator. Generated bundles are intentionally not committed. You do not need to install Parison or rerun the comparison.
 
 Please answer:
 
