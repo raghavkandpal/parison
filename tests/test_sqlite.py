@@ -3,6 +3,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 from parison.core import ParisonError, compare, draft_recipe
@@ -24,9 +25,10 @@ class SqliteInput(unittest.TestCase):
         self.recipe = self.root / "recipe.json"
         self.recipe.write_text(json.dumps(RECIPE), encoding="utf-8")
         self.database = self.root / "data.db"
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection:
             connection.execute("CREATE TABLE records (id TEXT, value INTEGER)")
             connection.executemany("INSERT INTO records VALUES (?, ?)", [("001", 10), ("002", 20)])
+            connection.commit()
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -56,10 +58,11 @@ class SqliteInput(unittest.TestCase):
     def test_jsonl_sqlite_failure_matches_oracle(self):
         baseline = self.root / "baseline.jsonl"
         baseline.write_text('{"id":"001","value":10}\n{"id":"002","value":20}\n', encoding="utf-8")
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection:
             connection.execute("UPDATE records SET value=11 WHERE id='001'")
             connection.execute("DELETE FROM records WHERE id='002'")
             connection.execute("INSERT INTO records VALUES ('003', 30)")
+            connection.commit()
         result = compare(self.recipe, baseline, self.source)
         self.assertEqual(result["outcome"], "FAIL")
         self.assertEqual(result["counts"], {
@@ -70,10 +73,11 @@ class SqliteInput(unittest.TestCase):
         })
 
     def test_sqlite_rejects_views_blobs_journals_and_row_overruns(self):
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection:
             connection.execute("CREATE VIEW record_view AS SELECT * FROM records")
             connection.execute("CREATE TABLE blobs (id TEXT, value BLOB)")
             connection.execute("INSERT INTO blobs VALUES ('001', x'00')")
+            connection.commit()
         with self.assertRaisesRegex(ParisonError, "ordinary table"):
             compare(self.recipe, self.source.replace("#records", "#record_view"), self.source)
         with self.assertRaisesRegex(ParisonError, "BLOB"):
