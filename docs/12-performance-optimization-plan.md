@@ -106,3 +106,22 @@ DuckDB, partitioning and spill-backed execution remain later options for demonst
 4. Commit only if the 20% memory target is met with no semantic drift.
 5. If the target is not met, retain the measurements, revert the optimization and proceed to the compact `InputIndex` prototype in a separate commit.
 
+## 6 October 2026 experiment results
+
+Neither attempted change met its acceptance gate, so both were reverted and the production implementation remains unchanged.
+
+| Experiment | Rows | Repeats | Peak Python bytes/row | Rows/s | Decision |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Direct typed CSV conversion | 10,000 | 5 | 2,091.5 | not retained after the memory gate failed | Revert |
+| Compact tuple index | 10,000 | 1 | 1,909.3 | 15,473 | Continue diagnosis |
+| Compact tuple index | 100,000 | 1 | 1,807.4 | 12,683 | Below memory and throughput targets |
+| Compact tuple index | 250,000 | 1 | 1,755.5 | 12,457 | Revert |
+| Tuple index without summary key sets | 10,000 | 1 | 1,847.9 | 15,655 | Insufficient additional gain; revert |
+
+The first result disproves the assumption that simultaneous raw and typed CSV rows determine peak allocation. The tuple index confirms that row dictionaries and secondary key collections matter, but removing them saves only about 15% at 250k and makes the measured path roughly 19% slower than the 15,403 rows/s baseline. The dominant peak is retaining fully parsed values for both inputs at once.
+
+### Recommended next experiment
+
+Retain a typed index for the baseline only, then stream the candidate through comparison in summary mode. Track baseline keys seen, candidate keys seen, identity problems, candidate-only counts and aggregate field/row counts. If either side has identity problems, discard the provisional comparison aggregates so current `INCONCLUSIVE` semantics remain unchanged. Keep the existing two-index path for raw evidence until a bounded deterministic sampler is designed.
+
+This is a deeper change than tuple substitution, but it attacks the measured peak directly: one full typed side instead of two. Prototype it without changing the public `compare` interface or result schema. Gate it with the full semantic suite and five-run 10k/100k/250k benchmark. Keep it only if 100k and 250k are below 1,200 Python bytes per baseline row and throughput is no worse than 10% below baseline.
