@@ -84,6 +84,7 @@ Start with the [research and design index](docs/README.md).
 | [Name-clearance screen](docs/16-name-clearance-screen.md) | Preliminary package, registry and trademark screen for Parison / `parison` |
 | [Release candidate verification](docs/17-release-candidate-verification.md) | Clean 0.1.0 build, installation, test, smoke and archive evidence |
 | [0.2 product research](docs/18-0.2-product-research.md) | Ranked next-release options, recommended CI theme and evidence gates |
+| [0.2 agenda](docs/19-0.2-agenda.md) | Selected workstreams, sequence, acceptance gates and non-goals |
 
 Release preparation is tracked in [`RELEASING.md`](RELEASING.md). The preliminary alpha name screen and release-candidate rehearsal passed; the name screen is not a legal opinion or formal trademark clearance.
 
