@@ -6,7 +6,7 @@ from pathlib import Path
 from benchmarks.generate_cases import generate
 from benchmarks.generate_matrix import PROFILES, generate as generate_profile
 from benchmarks.run_cases import measure
-from parity.core import compare
+from parison.core import compare
 
 
 class GeneratedBenchmarks(unittest.TestCase):

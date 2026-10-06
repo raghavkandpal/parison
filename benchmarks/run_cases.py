@@ -11,7 +11,7 @@ from datetime import date
 from importlib import metadata
 from pathlib import Path
 
-from parity.core import compare
+from parison.core import compare
 
 
 def measure(case: Path, input_format: str = "csv") -> dict:
@@ -46,13 +46,13 @@ def child_measurement(case: Path, input_format: str) -> dict:
 
 def package_version() -> str:
     try:
-        return metadata.version("parity-compare")
+        return metadata.version("parison")
     except metadata.PackageNotFoundError:
         return "source-tree"
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Measure generated Parity cases and verify accuracy")
+    parser = argparse.ArgumentParser(description="Measure generated Parison cases and verify accuracy")
     parser.add_argument("cases", type=Path, nargs="+", help="directories created by generate_cases.py")
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--max-memory-per-row", type=float, help="fail when median peak Python bytes per baseline row exceeds this value")
@@ -106,7 +106,7 @@ def main() -> None:
             "machine": platform.machine(),
             "platform": platform.system(),
             "python": platform.python_version(),
-            "parity": package_version(),
+            "parison": package_version(),
             "measurement": "median of fresh subprocess runs after one warm-up; tracemalloc and process peak RSS; not a supported performance claim",
         },
         "cases": measurements,

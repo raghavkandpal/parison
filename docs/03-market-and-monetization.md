@@ -1,8 +1,8 @@
-# Parity market and monetization research
+# Parison market and monetization research
 
 ## Conclusion
 
-There is observable supply for data comparison and validation, but no evidence yet of unmet demand for Parity. The presence of existing products establishes a category; it does not establish a market gap, willingness to pay or a large addressable market.
+There is observable supply for data comparison and validation, but no evidence yet of unmet demand for Parison. The presence of existing products establishes a category; it does not establish a market gap, willingness to pay or a large addressable market.
 
 Start globally with developers who can install a local Python tool. India can be a convenient discovery market, not an imposed product limitation. Avoid industry-specific branding and do not infer demand from the founder's employer.
 
@@ -22,11 +22,11 @@ Prioritize the first two for usefulness testing. Consultants may be a good paid-
 
 Datafold's pricing path redirected toward contact rather than providing a usable numerical price in the fetched page. No price is quoted here. JuxtAPPose's public pricing text describes a free tier and a single-payment perpetual Standard license; numerical prices were not exposed in the fetched text and require direct verification. Great Expectations lists a free Developer option and Team/Enterprise upgrades without numerical amounts in the accessible page. [Datafold pricing path](https://www.datafold.com/pricing/), [JuxtAPPose pricing](https://www.juxtappose.com/pricing), [GX pricing](https://greatexpectations.io/pricing/).
 
-These signals suggest multiple viable packaging models exist in the category; they do not indicate which model suits Parity. Do not invent competitor seat prices or use the absence of a fetched price to claim a vendor is expensive.
+These signals suggest multiple viable packaging models exist in the category; they do not indicate which model suits Parison. Do not invent competitor seat prices or use the absence of a fetched price to claim a vendor is expensive.
 
 ## Market sizing method
 
-Do not use total data-engineer employment or the entire data-quality-software market as Parity's TAM. Relevant buyers need recurring paired-output validation, an adoption-compatible environment and a reason to prefer Parity over substitutes.
+Do not use total data-engineer employment or the entire data-quality-software market as Parison's TAM. Relevant buyers need recurring paired-output validation, an adoption-compatible environment and a reason to prefer Parison over substitutes.
 
 An eventual bottom-up model should be: reachable qualifying teams × observed purchase conversion × realized annual revenue per team. Keep active individual users, purchasing accounts and seats separate. Collect evidence for each multiplier before publishing a market-size claim.
 

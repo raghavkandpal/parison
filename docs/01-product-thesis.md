@@ -1,8 +1,8 @@
-# Parity product thesis
+# Parison product thesis
 
 ## Recommendation
 
-Explore Parity as a developer tool for **repeatable output-parity testing and difference investigation**. Do not market it as a novel diff algorithm, a universal data-quality platform or a certificate that a migration is correct.
+Explore Parison as a developer tool for **repeatable output-parity testing and difference investigation**. Do not market it as a novel diff algorithm, a universal data-quality platform or a certificate that a migration is correct.
 
 The starting promise is: “Define how two outputs should agree, run the comparison locally, and inspect reproducible evidence of where they do not.” A user should be able to bring two files without adopting a warehouse, orchestration framework or subscription.
 
@@ -10,7 +10,7 @@ The starting promise is: “Define how two outputs should agree, run the compari
 
 A transformation changes from implementation A to implementation B. Both run on the same controlled input snapshot. The engineer needs to establish which output differences are expected, which require investigation and which cannot be evaluated because the matching assumptions are invalid.
 
-This is distinct from tracking yesterday versus today, when real-world changes may explain differences. It is also distinct from checking whether an individual table satisfies an expectation. Parity can complement those checks, but should not absorb them all.
+This is distinct from tracking yesterday versus today, when real-world changes may explain differences. It is also distinct from checking whether an individual table satisfies an expectation. Parison can complement those checks, but should not absorb them all.
 
 Illustrative use cases include a pandas-to-Polars refactor, an SQL rewrite, a new parser replacing a legacy parser, an export-format change and a batch pipeline migration. The tool compares outputs; it does not execute untrusted transformation code or prove equivalence for every possible input.
 
@@ -38,7 +38,7 @@ Avoid targeting large enterprise warehouse migrations initially. They often invo
 
 The proposed value is a consistent procedure rather than a script for one dataset: explicit parse decisions, visible identity assumptions, inspectable rules, stable results and evidence that can be rerun. These are design goals, not unique capabilities demonstrated by this research.
 
-The closest competition already covers substantial functionality. See [the competitor assessment](02-competitors.md). The market question is whether Parity reduces total work enough to justify its installation and continued use. A beautiful report over an existing library may be useful, but should not be confused with a durable business.
+The closest competition already covers substantial functionality. See [the competitor assessment](02-competitors.md). The market question is whether Parison reduces total work enough to justify its installation and continued use. A beautiful report over an existing library may be useful, but should not be confused with a durable business.
 
 ## What a user should understand after a run
 

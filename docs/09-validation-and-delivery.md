@@ -1,4 +1,4 @@
-# Parity validation and delivery plan
+# Parison validation and delivery plan
 
 ## Decision before implementation
 
@@ -48,7 +48,7 @@ Use small independent reference logic with Python Decimal and explicit typed-key
 
 Test 10,000, 100,000 and 1,000,000 rows, then extend toward the measured practical envelope. Cross row counts with 10/100/500 columns, short/long string keys, decimal/string-heavy fields and mismatch rates from zero to widespread differences. Add intentionally duplicate keys to confirm cheap preflight failure before an expensive join.
 
-Record input bytes, compression, row widths, hardware, OS, Python/package versions, thread settings, elapsed time, peak memory, scratch usage and report size. Test cold/warm runs separately. Compare equivalent full-check semantics, not a sampled rival against a full Parity run or vice versa.
+Record input bytes, compression, row widths, hardware, OS, Python/package versions, thread settings, elapsed time, peak memory, scratch usage and report size. Test cold/warm runs separately. Compare equivalent full-check semantics, not a sampled rival against a full Parison run or vice versa.
 
 Do not claim million-row or out-of-core support until full comparison, report generation, cancellation and constrained-resource behavior have been measured. Publish failed runs as well as favorable results. A maximum row count is not a reliable universal size guarantee.
 

@@ -3,7 +3,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "parity-compare"
+name = "parison"
 dynamic = ["version"]
 description = "Local, deterministic comparison of data-pipeline outputs"
 readme = "README.md"
@@ -15,10 +15,10 @@ requires-python = ">=3.11"
 parquet = ["polars==1.44.2"]
 
 [project.scripts]
-parity = "parity.cli:main"
+parison = "parison.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.dynamic]
-version = {attr = "parity.__version__"}
+version = {attr = "parison.__version__"}

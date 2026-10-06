@@ -86,7 +86,7 @@
     "date": "2026-10-06",
     "machine": "arm64",
     "measurement": "median of fresh subprocess runs after one warm-up; tracemalloc and process peak RSS; not a supported performance claim",
-    "parity": "0.1.0",
+    "parison": "0.1.0",
     "platform": "Darwin",
     "python": "3.14.7"
   }

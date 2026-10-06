@@ -5,7 +5,7 @@ import unittest
 from copy import deepcopy
 from pathlib import Path
 
-from parity.core import ParityError, compare, load_recipe
+from parison.core import ParisonError, compare, load_recipe
 
 
 def recipe(columns=None, keys=None):
@@ -116,7 +116,7 @@ class SemanticCorpus(unittest.TestCase):
             with self.subTest(name=name):
                 path = self.root / name
                 path.write_text(contents, encoding="utf-8")
-                with self.assertRaisesRegex(ParityError, message):
+                with self.assertRaisesRegex(ParisonError, message):
                     compare(spec, valid, path)
 
     def test_declared_exclusion_allows_extra_column(self):
@@ -134,7 +134,7 @@ class SemanticCorpus(unittest.TestCase):
         valid = self.write_csv("valid.csv", ["id", "value"], [{"id": "1", "value": "a"}])
         invalid = self.root / "invalid.csv"
         invalid.write_bytes(b"id,value\n1,\xff\n")
-        with self.assertRaisesRegex(ParityError, "cannot parse"):
+        with self.assertRaisesRegex(ParisonError, "cannot parse"):
             compare(spec, valid, invalid)
 
     def test_unicode_and_whitespace_are_exact(self):
@@ -154,7 +154,7 @@ class SemanticCorpus(unittest.TestCase):
         spec = recipe(columns)
         matching = self.run_rows(spec, ["id", "value"], [{"id": "1", "value": "true"}], [{"id": "1", "value": "true"}])
         self.assertEqual(matching["outcome"], "PASS")
-        with self.assertRaisesRegex(ParityError, "expected true or false"):
+        with self.assertRaisesRegex(ParisonError, "expected true or false"):
             self.run_rows(spec, ["id", "value"], [{"id": "1", "value": "true"}], [{"id": "1", "value": "TRUE"}])
 
     def test_dates_are_exact_calendar_dates(self):
@@ -165,7 +165,7 @@ class SemanticCorpus(unittest.TestCase):
         spec = recipe(columns)
         different = self.run_rows(spec, ["id", "value"], [{"id": "1", "value": "2026-01-01"}], [{"id": "1", "value": "2026-01-02"}])
         self.assertEqual(different["outcome"], "FAIL")
-        with self.assertRaisesRegex(ParityError, "cannot parse column value as date"):
+        with self.assertRaisesRegex(ParisonError, "cannot parse column value as date"):
             self.run_rows(spec, ["id", "value"], [{"id": "1", "value": "2026-01-01"}], [{"id": "1", "value": "2026-01-01T00:00:00"}])
 
     def test_large_integers_are_not_coerced_to_float(self):
@@ -220,7 +220,7 @@ class SemanticCorpus(unittest.TestCase):
                     }
                     if kind == "decimal":
                         columns["value"]["scale"] = 2
-                    with self.assertRaisesRegex(ParityError, "cannot parse"):
+                    with self.assertRaisesRegex(ParisonError, "cannot parse"):
                         self.run_rows(recipe(columns), ["id", "value"], [{"id": "1", "value": "1"}], [{"id": "1", "value": token}])
 
     def test_null_equality_is_explicit_and_one_null_never_matches(self):
@@ -240,7 +240,7 @@ class SemanticCorpus(unittest.TestCase):
     def test_recipe_requires_explicit_null_policy(self):
         value = recipe()
         del value["nulls_equal"]
-        with self.assertRaisesRegex(ParityError, "nulls_equal"):
+        with self.assertRaisesRegex(ParisonError, "nulls_equal"):
             load_recipe(self.write_recipe(value))
 
     def test_timestamp_requires_zone_and_compares_instants(self):
@@ -255,7 +255,7 @@ class SemanticCorpus(unittest.TestCase):
             [{"id": "1", "value": "2026-01-01T05:30:00+05:30"}],
         )
         self.assertEqual(equal["outcome"], "PASS")
-        with self.assertRaisesRegex(ParityError, "explicit timezone"):
+        with self.assertRaisesRegex(ParisonError, "explicit timezone"):
             self.run_rows(
                 spec, ["id", "value"],
                 [{"id": "1", "value": "2026-01-01T00:00:00"}],
@@ -267,11 +267,11 @@ class SemanticCorpus(unittest.TestCase):
             "id": {"type": "string", "comparison": "exact"},
             "time": {"type": "timestamp", "comparison": "exact"},
         })
-        with self.assertRaisesRegex(ParityError, "timezone must be 'require-aware'"):
+        with self.assertRaisesRegex(ParisonError, "timezone must be 'require-aware'"):
             load_recipe(self.write_recipe(value))
         value = recipe()
         value["columns"]["value"]["timezone"] = "require-aware"
-        with self.assertRaisesRegex(ParityError, "only valid for timestamps"):
+        with self.assertRaisesRegex(ParisonError, "only valid for timestamps"):
             load_recipe(self.write_recipe(value))
 
     def test_recipe_rejects_bad_tolerances_and_key_policies(self):
@@ -291,7 +291,7 @@ class SemanticCorpus(unittest.TestCase):
             with self.subTest(message=message):
                 value = recipe(deepcopy(numeric))
                 mutate(value)
-                with self.assertRaisesRegex(ParityError, message):
+                with self.assertRaisesRegex(ParisonError, message):
                     load_recipe(self.write_recipe(value))
 
     def test_decimal_scale_is_explicit_and_excess_precision_errors(self):
@@ -300,10 +300,10 @@ class SemanticCorpus(unittest.TestCase):
             "value": {"type": "decimal", "scale": 2, "comparison": "exact"},
         }
         spec = recipe(columns)
-        with self.assertRaisesRegex(ParityError, "exceeds configured scale 2"):
+        with self.assertRaisesRegex(ParisonError, "exceeds configured scale 2"):
             self.run_rows(spec, ["id", "value"], [{"id": "1", "value": "1.00"}], [{"id": "1", "value": "1.001"}])
         del columns["value"]["scale"]
-        with self.assertRaisesRegex(ParityError, "scale must be"):
+        with self.assertRaisesRegex(ParisonError, "scale must be"):
             load_recipe(self.write_recipe(recipe(columns)))
 
     def test_scope_requires_cutoff_and_declared_filters(self):
@@ -311,15 +311,15 @@ class SemanticCorpus(unittest.TestCase):
             with self.subTest(field=field):
                 value = recipe()
                 del value["scope"][field]
-                with self.assertRaisesRegex(ParityError, "scope must contain exactly"):
+                with self.assertRaisesRegex(ParisonError, "scope must contain exactly"):
                     load_recipe(self.write_recipe(value))
         value = recipe()
         value["scope"]["filters"] = "status = active"
-        with self.assertRaisesRegex(ParityError, "scope.filters"):
+        with self.assertRaisesRegex(ParisonError, "scope.filters"):
             load_recipe(self.write_recipe(value))
         value = recipe()
         value["scope"]["expected_empty"] = "false"
-        with self.assertRaisesRegex(ParityError, "scope.expected_empty"):
+        with self.assertRaisesRegex(ParisonError, "scope.expected_empty"):
             load_recipe(self.write_recipe(value))
 
 

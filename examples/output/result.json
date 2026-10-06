@@ -78,7 +78,7 @@
     "contract": "keyed-v1",
     "implementation": "CPython",
     "machine": "arm64",
-    "parity_version": "0.1.0",
+    "parison_version": "0.1.0",
     "platform": "Darwin",
     "python": "3.14.7"
   },

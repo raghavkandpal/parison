@@ -1,4 +1,4 @@
-# Parity comparison semantics
+# Parison comparison semantics
 
 This document is a proposed behavioral contract. It is the most important implementation prerequisite: a reliable-looking report with ambiguous semantics can be worse than an explicit error.
 

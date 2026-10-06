@@ -23,18 +23,18 @@ _COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone", "scale"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
 
 
-class ParityError(ValueError):
+class ParisonError(ValueError):
     pass
 
 
 def _runtime_info(paths: tuple[Path, Path] | None = None) -> dict[str, Any]:
     try:
-        version = metadata.version("parity-compare")
+        version = metadata.version("parison")
     except metadata.PackageNotFoundError:
         version = "source-tree"
     runtime = {
         "contract": "keyed-v1",
-        "parity_version": version,
+        "parison_version": version,
         "python": platform.python_version(),
         "implementation": platform.python_implementation(),
         "platform": platform.system(),
@@ -51,94 +51,94 @@ def _runtime_info(paths: tuple[Path, Path] | None = None) -> dict[str, Any]:
 def _unknown(mapping: dict[str, Any], allowed: set[str], where: str) -> None:
     extras = set(mapping) - allowed
     if extras:
-        raise ParityError(f"unknown {where} field(s): {', '.join(sorted(extras))}")
+        raise ParisonError(f"unknown {where} field(s): {', '.join(sorted(extras))}")
 
 
 def load_recipe(path: str | Path) -> dict[str, Any]:
     try:
         recipe = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise ParityError(f"cannot read recipe: {exc}") from exc
+        raise ParisonError(f"cannot read recipe: {exc}") from exc
     if not isinstance(recipe, dict):
-        raise ParityError("recipe must be a JSON object")
+        raise ParisonError("recipe must be a JSON object")
     _unknown(recipe, _RECIPE_KEYS, "recipe")
     if recipe.get("recipe_version") != 1:
-        raise ParityError("recipe_version must be 1")
+        raise ParisonError("recipe_version must be 1")
     if recipe.get("comparison_mode") != "keyed":
-        raise ParityError("comparison_mode must be 'keyed'")
+        raise ParisonError("comparison_mode must be 'keyed'")
     keys = recipe.get("keys")
     if not isinstance(keys, list) or not keys or not all(isinstance(k, str) and k for k in keys) or len(keys) != len(set(keys)):
-        raise ParityError("keys must be a nonempty list of unique column names")
+        raise ParisonError("keys must be a nonempty list of unique column names")
     scope = recipe.get("scope")
     if not isinstance(scope, dict) or set(scope) != {"snapshot", "cutoff", "filters", "completeness", "expected_empty"}:
-        raise ParityError("scope must contain exactly snapshot, cutoff, filters, completeness and expected_empty")
+        raise ParisonError("scope must contain exactly snapshot, cutoff, filters, completeness and expected_empty")
     for field in ("snapshot", "cutoff"):
         if not isinstance(scope[field], str) or not scope[field]:
-            raise ParityError(f"scope.{field} must be a nonempty string")
+            raise ParisonError(f"scope.{field} must be a nonempty string")
     if not isinstance(scope["filters"], list) or not all(isinstance(item, str) and item for item in scope["filters"]):
-        raise ParityError("scope.filters must be a list of nonempty strings")
+        raise ParisonError("scope.filters must be a list of nonempty strings")
     if scope["completeness"] != "full":
-        raise ParityError("MVP comparisons require scope.completeness='full'")
+        raise ParisonError("MVP comparisons require scope.completeness='full'")
     if not isinstance(scope["expected_empty"], bool):
-        raise ParityError("scope.expected_empty must be a boolean")
+        raise ParisonError("scope.expected_empty must be a boolean")
     identity = recipe.get("identity", {})
     if identity != {"null_keys": "reject", "duplicates": "reject"}:
-        raise ParityError("identity must reject null_keys and duplicates")
+        raise ParisonError("identity must reject null_keys and duplicates")
     if not isinstance(recipe.get("nulls_equal"), bool):
-        raise ParityError("nulls_equal must be an explicit boolean")
+        raise ParisonError("nulls_equal must be an explicit boolean")
     columns = recipe.get("columns")
     if not isinstance(columns, dict) or not columns:
-        raise ParityError("columns must be a nonempty object")
+        raise ParisonError("columns must be a nonempty object")
     if not set(keys) <= set(columns):
-        raise ParityError("every key must have a column policy")
+        raise ParisonError("every key must have a column policy")
     for name, policy in columns.items():
         if not isinstance(policy, dict):
-            raise ParityError(f"columns.{name} must be an object")
+            raise ParisonError(f"columns.{name} must be an object")
         _unknown(policy, _COLUMN_KEYS, f"columns.{name}")
         if policy.get("type") not in _TYPES:
-            raise ParityError(f"columns.{name}.type is unsupported")
+            raise ParisonError(f"columns.{name}.type is unsupported")
         comparison = policy.get("comparison", "exact")
         if comparison not in {"exact", "numeric"}:
-            raise ParityError(f"columns.{name}.comparison is unsupported")
+            raise ParisonError(f"columns.{name}.comparison is unsupported")
         timezone = policy.get("timezone")
         if policy["type"] == "timestamp":
             if timezone != "require-aware":
-                raise ParityError(f"columns.{name}.timezone must be 'require-aware'")
+                raise ParisonError(f"columns.{name}.timezone must be 'require-aware'")
         elif timezone is not None:
-            raise ParityError(f"columns.{name}.timezone is only valid for timestamps")
+            raise ParisonError(f"columns.{name}.timezone is only valid for timestamps")
         scale = policy.get("scale")
         if policy["type"] == "decimal":
             if not isinstance(scale, int) or isinstance(scale, bool) or scale < 0:
-                raise ParityError(f"columns.{name}.scale must be a non-negative integer")
+                raise ParisonError(f"columns.{name}.scale must be a non-negative integer")
         elif scale is not None:
-            raise ParityError(f"columns.{name}.scale is only valid for decimals")
+            raise ParisonError(f"columns.{name}.scale is only valid for decimals")
         if name in keys and comparison != "exact":
-            raise ParityError(f"key column {name} must use exact comparison")
+            raise ParisonError(f"key column {name} must use exact comparison")
         tolerance = policy.get("tolerance")
         if comparison == "numeric":
             if policy["type"] not in {"integer", "decimal", "float"}:
-                raise ParityError(f"numeric comparison requires a numeric type for {name}")
+                raise ParisonError(f"numeric comparison requires a numeric type for {name}")
             if not isinstance(tolerance, dict) or set(tolerance) != {"formula", "absolute", "relative"}:
-                raise ParityError(f"columns.{name}.tolerance must define formula, absolute and relative")
+                raise ParisonError(f"columns.{name}.tolerance must define formula, absolute and relative")
             if tolerance["formula"] != "symmetric-v1":
-                raise ParityError(f"columns.{name} requires symmetric-v1 tolerance")
+                raise ParisonError(f"columns.{name} requires symmetric-v1 tolerance")
             try:
                 values = [Decimal(str(tolerance[k])) for k in ("absolute", "relative")]
             except InvalidOperation as exc:
-                raise ParityError(f"columns.{name} tolerance is not numeric") from exc
+                raise ParisonError(f"columns.{name} tolerance is not numeric") from exc
             if any(not v.is_finite() or v < 0 for v in values):
-                raise ParityError(f"columns.{name} tolerances must be finite and non-negative")
+                raise ParisonError(f"columns.{name} tolerances must be finite and non-negative")
         elif tolerance is not None:
-            raise ParityError(f"columns.{name}.tolerance requires numeric comparison")
+            raise ParisonError(f"columns.{name}.tolerance requires numeric comparison")
     excluded = recipe.get("excluded_columns", {})
     if not isinstance(excluded, dict) or not all(isinstance(k, str) and isinstance(v, str) and v for k, v in excluded.items()):
-        raise ParityError("excluded_columns must map column names to nonempty rationales")
+        raise ParisonError("excluded_columns must map column names to nonempty rationales")
     overlap = set(columns) & set(excluded)
     if overlap:
-        raise ParityError(f"columns cannot also be excluded: {', '.join(sorted(overlap))}")
+        raise ParisonError(f"columns cannot also be excluded: {', '.join(sorted(overlap))}")
     output = recipe.get("output", {"sensitivity": "summary"})
     if not isinstance(output, dict) or set(output) != {"sensitivity"} or output["sensitivity"] not in {"summary", "raw"}:
-        raise ParityError("output must contain sensitivity='summary' or sensitivity='raw'")
+        raise ParisonError("output must contain sensitivity='summary' or sensitivity='raw'")
     return recipe
 
 
@@ -182,13 +182,13 @@ def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
             return value
     except (ValueError, TypeError, InvalidOperation) as exc:
         detail = str(exc) or "invalid value"
-        raise ParityError(f"cannot parse column {column} as {kind}: {detail}") from exc
+        raise ParisonError(f"cannot parse column {column} as {kind}: {detail}") from exc
     raise AssertionError(kind)
 
 
 def _validate_headers(path: Path, headers: list[str], recipe: dict[str, Any]) -> None:
     if len(headers) != len(set(headers)):
-        raise ParityError(f"duplicate column names in {path}")
+        raise ParisonError(f"duplicate column names in {path}")
     missing = set(recipe["columns"]) - set(headers)
     extra = set(headers) - set(recipe["columns"]) - set(recipe.get("excluded_columns", {}))
     if missing or extra:
@@ -197,52 +197,52 @@ def _validate_headers(path: Path, headers: list[str], recipe: dict[str, Any]) ->
             parts.append("missing=" + ",".join(sorted(missing)))
         if extra:
             parts.append("unexpected=" + ",".join(sorted(extra)))
-        raise ParityError(f"schema mismatch in {path}: {'; '.join(parts)}")
+        raise ParisonError(f"schema mismatch in {path}: {'; '.join(parts)}")
 
 
 def _read(path: Path, recipe: dict[str, Any], max_rows: int) -> tuple[list[dict[str, Any]], list[str]]:
     if path.is_symlink():
-        raise ParityError(f"input must not be a symlink: {path}")
+        raise ParisonError(f"input must not be a symlink: {path}")
     if not path.is_file():
-        raise ParityError(f"input is not a regular file: {path}")
+        raise ParisonError(f"input is not a regular file: {path}")
     if path.suffix.lower() == ".csv":
         try:
             handle = path.open("r", encoding="utf-8", newline="")
         except OSError as exc:
-            raise ParityError(f"cannot read {path}: {exc}") from exc
+            raise ParisonError(f"cannot read {path}: {exc}") from exc
         with handle:
             try:
                 reader = csv.DictReader(handle, strict=True)
                 headers = reader.fieldnames or []
                 if len(headers) != len(set(headers)):
-                    raise ParityError(f"duplicate column names in {path}")
+                    raise ParisonError(f"duplicate column names in {path}")
                 raw_rows = []
                 for row in reader:
                     if len(raw_rows) >= max_rows:
-                        raise ParityError(f"row count in {path} exceeds limit {max_rows}")
+                        raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
                     if None in row or any(value is None for value in row.values()):
-                        raise ParityError(f"ragged CSV row {reader.line_num} in {path}")
+                        raise ParisonError(f"ragged CSV row {reader.line_num} in {path}")
                     raw_rows.append(row)
             except (csv.Error, UnicodeDecodeError) as exc:
-                raise ParityError(f"cannot parse {path}: {exc}") from exc
+                raise ParisonError(f"cannot parse {path}: {exc}") from exc
     elif path.suffix.lower() in {".parquet", ".pq"}:
         try:
             import polars as pl
         except ImportError as exc:
-            raise ParityError("Parquet support requires: pip install 'parity-compare[parquet]'") from exc
+            raise ParisonError("Parquet support requires: pip install 'parison[parquet]'") from exc
         try:
             row_count = pl.scan_parquet(path).select(pl.len()).collect().item()
             if row_count > max_rows:
-                raise ParityError(f"row count in {path} exceeds limit {max_rows}")
+                raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
             frame = pl.read_parquet(path)
-        except ParityError:
+        except ParisonError:
             raise
         except Exception as exc:
-            raise ParityError(f"cannot read {path}: {exc}") from exc
+            raise ParisonError(f"cannot read {path}: {exc}") from exc
         headers = frame.columns
         raw_rows = frame.to_dicts()
     else:
-        raise ParityError(f"unsupported input format for {path}; use .csv or .parquet")
+        raise ParisonError(f"unsupported input format for {path}; use .csv or .parquet")
     _validate_headers(path, headers, recipe)
     rows = [
         {name: _parse(row.get(name), policy, name) for name, policy in recipe["columns"].items()}
@@ -258,7 +258,7 @@ def _digest(path: Path) -> str:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):
                 digest.update(chunk)
     except OSError as exc:
-        raise ParityError(f"cannot read {path}: {exc}") from exc
+        raise ParisonError(f"cannot read {path}: {exc}") from exc
     return digest.hexdigest()
 
 
@@ -286,44 +286,44 @@ def _index(rows: list[dict[str, Any]], keys: list[str], side: str) -> tuple[dict
 
 def _iter_input_rows(path: Path, recipe: dict[str, Any], max_rows: int):
     if path.is_symlink():
-        raise ParityError(f"input must not be a symlink: {path}")
+        raise ParisonError(f"input must not be a symlink: {path}")
     if not path.is_file():
-        raise ParityError(f"input is not a regular file: {path}")
+        raise ParisonError(f"input is not a regular file: {path}")
     if path.suffix.lower() == ".csv":
         try:
             handle = path.open("r", encoding="utf-8", newline="")
         except OSError as exc:
-            raise ParityError(f"cannot read {path}: {exc}") from exc
+            raise ParisonError(f"cannot read {path}: {exc}") from exc
         with handle:
             try:
                 reader = csv.DictReader(handle, strict=True)
                 _validate_headers(path, reader.fieldnames or [], recipe)
                 for row_count, raw in enumerate(reader):
                     if row_count >= max_rows:
-                        raise ParityError(f"row count in {path} exceeds limit {max_rows}")
+                        raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
                     if None in raw or any(value is None for value in raw.values()):
-                        raise ParityError(f"ragged CSV row {reader.line_num} in {path}")
+                        raise ParisonError(f"ragged CSV row {reader.line_num} in {path}")
                     yield raw
             except (csv.Error, UnicodeDecodeError) as exc:
-                raise ParityError(f"cannot parse {path}: {exc}") from exc
+                raise ParisonError(f"cannot parse {path}: {exc}") from exc
     elif path.suffix.lower() in {".parquet", ".pq"}:
         try:
             import polars as pl
         except ImportError as exc:
-            raise ParityError("Parquet support requires: pip install 'parity-compare[parquet]'") from exc
+            raise ParisonError("Parquet support requires: pip install 'parison[parquet]'") from exc
         try:
             row_count = pl.scan_parquet(path).select(pl.len()).collect().item()
             if row_count > max_rows:
-                raise ParityError(f"row count in {path} exceeds limit {max_rows}")
+                raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
             frame = pl.read_parquet(path)
-        except ParityError:
+        except ParisonError:
             raise
         except Exception as exc:
-            raise ParityError(f"cannot read {path}: {exc}") from exc
+            raise ParisonError(f"cannot read {path}: {exc}") from exc
         _validate_headers(path, frame.columns, recipe)
         yield from frame.iter_rows(named=True)
     else:
-        raise ParityError(f"unsupported input format for {path}; use .csv or .parquet")
+        raise ParisonError(f"unsupported input format for {path}; use .csv or .parquet")
 
 
 def _read_stream_index(
@@ -430,19 +430,19 @@ def compare(
     max_rows: int = 5_000_000,
 ) -> dict[str, Any]:
     if sample_limit < 0:
-        raise ParityError("sample_limit must be non-negative")
+        raise ParisonError("sample_limit must be non-negative")
     if max_input_bytes <= 0:
-        raise ParityError("max_input_bytes must be positive")
+        raise ParisonError("max_input_bytes must be positive")
     if max_rows <= 0:
-        raise ParityError("max_rows must be positive")
+        raise ParisonError("max_rows must be positive")
     recipe_path, baseline_path, candidate_path = map(Path, (recipe_path, baseline_path, candidate_path))
     recipe = load_recipe(recipe_path)
     try:
         input_bytes = baseline_path.stat().st_size + candidate_path.stat().st_size
     except OSError as exc:
-        raise ParityError(f"cannot inspect inputs: {exc}") from exc
+        raise ParisonError(f"cannot inspect inputs: {exc}") from exc
     if input_bytes > max_input_bytes:
-        raise ParityError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
+        raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
     before = {_path: _digest(_path) for _path in (baseline_path, candidate_path)}
     keys = recipe["keys"]
     raw_output = recipe["output"]["sensitivity"] == "raw"
@@ -512,7 +512,7 @@ def compare(
                         })
             row_counts[row_class] += 1
     if any(_digest(path) != digest for path, digest in before.items()):
-        raise ParityError("an input changed while it was being read")
+        raise ParisonError("an input changed while it was being read")
     empty = not baseline_count or not candidate_count
     if empty and not recipe["scope"]["expected_empty"]:
         problems.append("nonempty comparable inputs are required")
@@ -591,7 +591,7 @@ def _report(result: dict[str, Any]) -> str:
     else:
         evidence = "<h2>Privacy</h2><p>Summary mode stores no keys or raw field values. Field and record counts are complete.</p>"
     return f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<title>Parity report: {esc(result['outcome'])}</title><style>body{{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#18202a}}h1{{color:{'#14733b' if result['outcome']=='PASS' else '#a22'}}}table{{border-collapse:collapse;width:100%;margin:1rem 0}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left;vertical-align:top}}th{{background:#f3f5f7}}code{{overflow-wrap:anywhere}}</style>
+<title>Parison report: {esc(result['outcome'])}</title><style>body{{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#18202a}}h1{{color:{'#14733b' if result['outcome']=='PASS' else '#a22'}}}table{{border-collapse:collapse;width:100%;margin:1rem 0}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left;vertical-align:top}}th{{background:#f3f5f7}}code{{overflow-wrap:anywhere}}</style>
 <main><h1>{esc(result['outcome'])}</h1><p>Complete evaluation: <strong>{str(result['complete']).lower()}</strong></p>
 <h2>Scope</h2><table>{scope_rows}</table><h2>Comparison policy</h2><table>{policy_rows}</table>
 <h2>Column policies</h2><table><thead><tr><th>Field</th><th>Type</th><th>Comparison</th><th>Additional rules</th></tr></thead><tbody>{column_policy_rows}</tbody></table>
@@ -636,7 +636,7 @@ def error_result(message: str) -> dict[str, Any]:
 def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] | None) -> None:
     output = Path(output)
     if output.exists():
-        raise ParityError(f"output already exists: {output}")
+        raise ParisonError(f"output already exists: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
     os.chmod(stage, 0o700)
@@ -669,22 +669,22 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
     directory = Path(directory)
     manifest_path = directory / "manifest.json"
     if directory.is_symlink() or not directory.is_dir():
-        raise ParityError(f"run is not a regular directory: {directory}")
+        raise ParisonError(f"run is not a regular directory: {directory}")
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise ParityError(f"cannot read manifest: {exc}") from exc
+        raise ParisonError(f"cannot read manifest: {exc}") from exc
     if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
-        raise ParityError("manifest is incomplete or unsupported")
+        raise ParisonError("manifest is incomplete or unsupported")
     files = manifest.get("files")
     if not isinstance(files, dict) or not files:
-        raise ParityError("manifest has no files")
+        raise ParisonError("manifest has no files")
     for name, expected in files.items():
         if not isinstance(name, str) or Path(name).name != name or not isinstance(expected, str):
-            raise ParityError("manifest contains an invalid file entry")
+            raise ParisonError("manifest contains an invalid file entry")
         path = directory / name
         if path.is_symlink() or not path.is_file():
-            raise ParityError(f"bundle file is missing or unsafe: {name}")
+            raise ParisonError(f"bundle file is missing or unsafe: {name}")
         if _digest(path) != expected:
-            raise ParityError(f"bundle file failed integrity check: {name}")
+            raise ParisonError(f"bundle file failed integrity check: {name}")
     return manifest

@@ -4,13 +4,13 @@ Date: 5 October 2026. Tested package: DataComPy 1.1.0 with its Polars backend in
 
 ## Decision
 
-Do not add DataComPy as a Parity runtime dependency for the keyed-v1 contract. Keep the current contract-specific implementation and use DataComPy only as an optional differential reference where semantics overlap.
+Do not add DataComPy as a Parison runtime dependency for the keyed-v1 contract. Keep the current contract-specific implementation and use DataComPy only as an optional differential reference where semantics overlap.
 
-This is a semantic decision, not a claim that DataComPy is incorrect. Its documented behavior is useful for general dataframe comparison but differs from Parity's deliberately stricter identity and tolerance rules.
+This is a semantic decision, not a claim that DataComPy is incorrect. Its documented behavior is useful for general dataframe comparison but differs from Parison's deliberately stricter identity and tolerance rules.
 
 ## Executed cases
 
-| Case | DataComPy 1.1.0 observation | Parity requirement | Compatibility |
+| Case | DataComPy 1.1.0 observation | Parison requirement | Compatibility |
 | --- | --- | --- | --- |
 | Duplicate join keys | Reported duplicates, paired the rows and returned a match | Reject duplicate keys before joining and return INCONCLUSIVE | No |
 | Relative tolerance, inputs `100` and `111` at `0.1` | Matched in one input direction and failed after swapping inputs | Symmetric allowance based on the larger magnitude | No |
@@ -26,5 +26,5 @@ The directional tolerance result agrees with the maintained API documentation, w
 - Keep Polars optional for Parquet parsing; CSV comparison remains standard-library-only.
 - Retain independent Decimal and typed-key tests as the source of truth.
 - A future differential test may compare exact, unique-key cases with zero tolerance. It must not treat disagreement outside that overlap as an implementation defect.
-- Revisit an adapter only if DataComPy adds configurable duplicate rejection, symmetric tolerance and Decimal-preserving evidence, or if Parity changes its contract.
+- Revisit an adapter only if DataComPy adds configurable duplicate rejection, symmetric tolerance and Decimal-preserving evidence, or if Parison changes its contract.
 

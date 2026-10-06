@@ -1,8 +1,8 @@
-# Parity
+# Parison
 
 Local-first, deterministic output comparison for data pipeline refactors and migrations.
 
-Parity is an independent data-engineering side project. The proposed product compares baseline and candidate outputs under a reviewed, reusable recipe, then produces machine-readable results and a portable investigation report. It does not require an AI model or upload datasets to a hosted service.
+Parison is an independent data-engineering side project. The proposed product compares baseline and candidate outputs under a reviewed, reusable recipe, then produces machine-readable results and a portable investigation report. It does not require an AI model or upload datasets to a hosted service.
 
 ## Project status
 
@@ -14,12 +14,12 @@ Python 3.11 or newer is required.
 
 ```sh
 python -m pip install -e .
-parity --version
-parity validate-recipe examples/orders.recipe.json
-parity compare --recipe examples/orders.recipe.json \
+parison --version
+parison validate-recipe examples/orders.recipe.json
+parison compare --recipe examples/orders.recipe.json \
   --baseline examples/baseline.csv --candidate examples/candidate.csv \
   --output runs/orders-example
-parity verify runs/orders-example
+parison verify runs/orders-example
 ```
 
 A generated PASS bundle is checked in under [`examples/output`](examples/output), containing [`result.json`](examples/output/result.json), [`effective-recipe.json`](examples/output/effective-recipe.json), [`report.html`](examples/output/report.html), and [`manifest.json`](examples/output/manifest.json). It is summary-only and contains no source keys or raw values.
@@ -28,7 +28,7 @@ Install `.[parquet]` to compare Parquet files. Recipes are strict JSON in this f
 
 `output.sensitivity` defaults to `summary`, which stores no source keys or values. Set it explicitly to `raw` to include a bounded discrepancy sample, and protect that output as sensitive data. `--sample-limit` controls the maximum number of raw field differences written. Comparison errors also publish a summary-only diagnostic bundle when the output destination is available.
 
-Every recipe must declare a source snapshot, extraction cutoff, intended filters, full-scope completeness, whether an empty scope is expected, and whether two non-key null values are equal. These are recorded provenance assertions; Parity cannot independently prove that upstream pipelines honored them.
+Every recipe must declare a source snapshot, extraction cutoff, intended filters, full-scope completeness, whether an empty scope is expected, and whether two non-key null values are equal. These are recorded provenance assertions; Parison cannot independently prove that upstream pipelines honored them.
 
 Combined input size is limited to 1 GB by default and each input to 5 million rows; override these with `--max-input-bytes` and `--max-rows`. These are processing guards, not an operating-system memory sandbox. Ctrl-C returns exit code `130` and publishes a summary-only INTERRUPTED bundle when possible.
 
@@ -81,7 +81,7 @@ Start with the [research and design index](docs/README.md).
 
 Release preparation is tracked in [`RELEASING.md`](RELEASING.md); name clearance and unfamiliar-user validation remain explicit blockers.
 
-Parity is released under the [MIT License](LICENSE).
+Parison is released under the [MIT License](LICENSE).
 
 Mermaid diagrams are included in the documents. [PNG alternatives](docs/diagrams/README.md) are available for viewers without Mermaid support.
 
@@ -99,4 +99,4 @@ The initial application would execute on a user's laptop or customer-owned CI ru
 
 Do not commit real datasets, credentials or sensitive comparison artifacts. Local execution alone is not a security guarantee; proposed controls and acceptance criteria are detailed in the security document.
 
-Research was assembled on 4 October 2026. Vendor documentation is not an independent product evaluation. Proposed pricing and adoption targets are hypotheses, not forecasts. The Parity name and distribution license have not yet been cleared or selected.
+Research was assembled on 4 October 2026. Vendor documentation is not an independent product evaluation. Proposed pricing and adoption targets are hypotheses, not forecasts. Parison has passed only a preliminary name screen; formal trademark clearance remains outstanding. The project uses the MIT License.

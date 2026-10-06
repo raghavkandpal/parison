@@ -7,11 +7,11 @@ import time
 import tracemalloc
 from pathlib import Path
 
-from parity.core import compare, load_recipe, publish
+from parison.core import compare, load_recipe, publish
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run a seeded Parity CSV benchmark")
+    parser = argparse.ArgumentParser(description="Run a seeded Parison CSV benchmark")
     parser.add_argument("--rows", type=int, default=10_000)
     parser.add_argument("--columns", type=int, default=10)
     parser.add_argument("--mismatch-every", type=int, default=100)

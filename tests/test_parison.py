@@ -7,8 +7,8 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from parity.cli import main
-from parity.core import ParityError, compare, load_recipe, verify_bundle
+from parison.cli import main
+from parison.core import ParisonError, compare, load_recipe, verify_bundle
 
 
 RECIPE = {
@@ -32,7 +32,7 @@ RECIPE = {
 }
 
 
-class ParityTests(unittest.TestCase):
+class ParisonTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
@@ -75,7 +75,7 @@ class ParityTests(unittest.TestCase):
     def test_strict_recipe_and_atomic_bundle(self):
         invalid = dict(RECIPE, surprise=True)
         self.recipe.write_text(json.dumps(invalid), encoding="utf-8")
-        with self.assertRaisesRegex(ParityError, "unknown recipe"):
+        with self.assertRaisesRegex(ParisonError, "unknown recipe"):
             load_recipe(self.recipe)
         self.recipe.write_text(json.dumps(RECIPE), encoding="utf-8")
         left = self.csv("left.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
@@ -130,13 +130,13 @@ class ParityTests(unittest.TestCase):
         good = self.csv("good.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
         ragged = self.root / "ragged.csv"
         ragged.write_text("order_id,status,total\n001,ok,1,unexpected\n", encoding="utf-8")
-        with self.assertRaisesRegex(ParityError, "ragged CSV row"):
+        with self.assertRaisesRegex(ParisonError, "ragged CSV row"):
             compare(self.recipe, good, ragged)
         link = self.root / "linked.csv"
         link.symlink_to(good)
-        with self.assertRaisesRegex(ParityError, "must not be a symlink"):
+        with self.assertRaisesRegex(ParisonError, "must not be a symlink"):
             compare(self.recipe, link, good)
-        with self.assertRaisesRegex(ParityError, "must not be a symlink"):
+        with self.assertRaisesRegex(ParisonError, "must not be a symlink"):
             compare(self.recipe, good, link)
 
     def test_cli_publishes_safe_error_bundle(self):
@@ -159,14 +159,14 @@ class ParityTests(unittest.TestCase):
         self.assertEqual(main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output)]), 0)
         self.assertTrue(verify_bundle(output)["complete"])
         (output / "result.json").write_text("{}", encoding="utf-8")
-        with self.assertRaisesRegex(ParityError, "failed integrity"):
+        with self.assertRaisesRegex(ParisonError, "failed integrity"):
             verify_bundle(output)
 
     def test_cli_reports_package_version(self):
         output = StringIO()
         with self.assertRaisesRegex(SystemExit, "0"), redirect_stdout(output):
             main(["--version"])
-        self.assertEqual(output.getvalue(), "parity 0.1.0\n")
+        self.assertEqual(output.getvalue(), "parison 0.1.0\n")
 
     def test_raw_sample_includes_missing_keys_with_one_shared_limit(self):
         raw_recipe = dict(RECIPE, output={"sensitivity": "raw"})
@@ -196,7 +196,7 @@ class ParityTests(unittest.TestCase):
 
     def test_keyboard_interrupt_returns_130_and_publishes_bundle(self):
         output = self.root / "interrupted-run"
-        with patch("parity.cli.compare", side_effect=KeyboardInterrupt):
+        with patch("parison.cli.compare", side_effect=KeyboardInterrupt):
             code = main(["compare", "--recipe", str(self.recipe), "--baseline", "unused-a.csv", "--candidate", "unused-b.csv", "--output", str(output)])
         self.assertEqual(code, 130)
         result = json.loads((output / "result.json").read_text())
@@ -207,7 +207,7 @@ class ParityTests(unittest.TestCase):
         rows = [{"order_id": str(i), "status": "ok", "total": "1"} for i in range(2)]
         left = self.csv("left.csv", rows)
         right = self.csv("right.csv", rows)
-        with self.assertRaisesRegex(ParityError, "row count.*exceeds limit 1"):
+        with self.assertRaisesRegex(ParisonError, "row count.*exceeds limit 1"):
             compare(self.recipe, left, right, max_rows=1)
 
 

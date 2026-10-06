@@ -1,4 +1,4 @@
-# Parity workflows and usability
+# Parison workflows and usability
 
 All commands, screens and flows are proposed. No executable product exists yet. Diagrams use compact, standard Mermaid flowcharts, with explanations outside the nodes.
 
@@ -62,19 +62,19 @@ flowchart LR
     A --> C[Candidate pipeline]
     B --> D[Baseline output]
     C --> E[Candidate output]
-    D --> F[Parity pinned recipe]
+    D --> F[Parison pinned recipe]
     E --> F
     F --> G[JSON result and exit code]
     G --> H[CI gate and protected artifacts]
 ```
 
-The pipeline is responsible for generating and freezing the input snapshot. Parity evaluates supplied outputs and declared provenance. A secure CI wrapper binds the protected recipe to the candidate commit; it should not let an untrusted pull request widen tolerances and approve itself.
+The pipeline is responsible for generating and freezing the input snapshot. Parison evaluates supplied outputs and declared provenance. A secure CI wrapper binds the protected recipe to the candidate commit; it should not let an untrusted pull request widen tolerances and approve itself.
 
 Proposed usage:
 
 ```sh
-parity validate-recipe recipes/orders.yaml
-parity compare --recipe recipes/orders.yaml \
+parison validate-recipe recipes/orders.yaml
+parison compare --recipe recipes/orders.yaml \
   --baseline baseline/orders.parquet \
   --candidate candidate/orders.parquet \
   --output runs/orders-check

@@ -1,4 +1,4 @@
-# Parity security and data handling
+# Parison security and data handling
 
 ## Security position
 
@@ -43,7 +43,7 @@ Offer two clearly different exports: exact-value structured evidence such as JSO
 
 Use per-run scratch directories with restrictive permissions and cleanup on success/cancellation where possible. Detect abandoned task-owned scratch at startup and ask or apply the published cleanup policy. Never delete user source paths or broad directories during cleanup.
 
-Evidence bundles are retained only in destinations the user selects. Show their sensitivity mode and sizes. Disk encryption is the user's OS responsibility unless we later implement reviewed artifact encryption; do not claim that Parity encrypts local files by default.
+Evidence bundles are retained only in destinations the user selects. Show their sensitivity mode and sizes. Disk encryption is the user's OS responsibility unless we later implement reviewed artifact encryption; do not claim that Parison encrypts local files by default.
 
 Deleting a file is not guaranteed secure erasure on SSDs or replicated backups. Document that limitation. Do not retain source copies merely to make reruns convenient without explicit permission.
 

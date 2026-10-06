@@ -5,11 +5,11 @@ import json
 import sys
 
 from . import __version__
-from .core import OUTCOME_CODES, ParityError, compare, error_result, load_recipe, publish, terminal_result, verify_bundle
+from .core import OUTCOME_CODES, ParisonError, compare, error_result, load_recipe, publish, terminal_result, verify_bundle
 
 
 def parser() -> argparse.ArgumentParser:
-    root = argparse.ArgumentParser(prog="parity", description="Compare data-pipeline outputs deterministically")
+    root = argparse.ArgumentParser(prog="parison", description="Compare data-pipeline outputs deterministically")
     root.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = root.add_subparsers(dest="command", required=True)
     validate = commands.add_parser("validate-recipe", help="validate a JSON recipe")
@@ -43,19 +43,19 @@ def main(argv: list[str] | None = None) -> int:
         publish(args.output, result, recipe)
         print(json.dumps({"outcome": result["outcome"], "output": args.output}))
         return OUTCOME_CODES[result["outcome"]]
-    except ParityError as exc:
+    except ParisonError as exc:
         if args.command == "compare":
             try:
                 publish(args.output, error_result(str(exc)), recipe)
-            except ParityError:
+            except ParisonError:
                 pass
-        print(f"parity: {exc}", file=sys.stderr)
+        print(f"parison: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
         if args.command == "compare":
             try:
                 publish(args.output, terminal_result("INTERRUPTED", "comparison interrupted by user"), recipe)
-            except ParityError:
+            except ParisonError:
                 pass
-        print("parity: interrupted", file=sys.stderr)
+        print("parison: interrupted", file=sys.stderr)
         return 130

@@ -10,7 +10,7 @@ except ImportError:
     pl = None
 
 from benchmarks.generate_cases import generate
-from parity.core import ParityError, compare
+from parison.core import ParisonError, compare
 
 
 @unittest.skipUnless(pl, "Polars optional dependency is not installed")
@@ -61,13 +61,13 @@ class ParquetCompatibility(unittest.TestCase):
         nested = self.root / "nested.parquet"
         pl.DataFrame({"id": ["001"], "amount": [{"value": 1}]}).write_parquet(nested)
         valid = self.parquet("valid.parquet", ["001"], [Decimal("1.0000")])
-        with self.assertRaisesRegex(ParityError, "cannot parse column amount as decimal"):
+        with self.assertRaisesRegex(ParisonError, "cannot parse column amount as decimal"):
             compare(self.recipe, valid, nested)
 
     def test_row_limit_is_checked_before_parquet_materialization(self):
         left = self.parquet("left.parquet", ["001", "002"], [Decimal("1.0000"), Decimal("2.0000")])
         right = self.parquet("right.parquet", ["001", "002"], [Decimal("1.0000"), Decimal("2.0000")])
-        with self.assertRaisesRegex(ParityError, "row count.*exceeds limit 1"):
+        with self.assertRaisesRegex(ParisonError, "row count.*exceeds limit 1"):
             compare(self.recipe, left, right, max_rows=1)
 
     def test_generated_parquet_matches_accuracy_oracle(self):

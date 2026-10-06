@@ -1,4 +1,4 @@
-# Parity proposed architecture
+# Parison proposed architecture
 
 ## Architectural recommendation
 

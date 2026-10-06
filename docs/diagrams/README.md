@@ -1,4 +1,4 @@
-# Parity diagram image versions
+# Parison diagram image versions
 
 These images reproduce the Mermaid diagrams in the research documents. They are proposed workflows and architecture, not diagrams of an implemented system.
 

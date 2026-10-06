@@ -2,7 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
-from parity.core import compare, verify_bundle
+from parison.core import compare, verify_bundle
 
 
 class CheckedInExamples(unittest.TestCase):

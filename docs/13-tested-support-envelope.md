@@ -4,9 +4,9 @@ Date: 6 October 2026. This document defines what the current alpha candidate has
 
 ## Environment
 
-Performance evidence was collected on arm64 macOS with Python 3.14.7 and Parity 0.1.0. Every reported value is the median of five fresh subprocesses after one discarded warm-up. Each repetition verified the complete expected result before its measurements were accepted.
+Performance evidence was collected on arm64 macOS with Python 3.14.7 and Parison 0.1.0. Every reported value is the median of five fresh subprocesses after one discarded warm-up. Each repetition verified the complete expected result before its measurements were accepted.
 
-Use at least 2 GB of available process memory for the largest standard-profile case below. Parity's `--max-input-bytes` and `--max-rows` options are processing guards, not memory reservations or proof that inputs below those limits will fit.
+Use at least 2 GB of available process memory for the largest standard-profile case below. Parison's `--max-input-bytes` and `--max-rows` options are processing guards, not memory reservations or proof that inputs below those limits will fit.
 
 ## Tested summary-mode envelope
 

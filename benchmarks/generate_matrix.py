@@ -109,7 +109,7 @@ def generate(root: Path, profile: str, rows: int, parquet: bool = False) -> Path
         try:
             import polars as pl
         except ImportError as exc:
-            raise SystemExit("Parquet generation requires: pip install 'parity-compare[parquet]'") from exc
+            raise SystemExit("Parquet generation requires: pip install 'parison[parquet]'") from exc
         schema = {name: pl.String for name in fields}
         pl.read_csv(baseline_path, schema_overrides=schema).write_parquet(case / "baseline.parquet")
         pl.read_csv(candidate_path, schema_overrides=schema).write_parquet(case / "candidate.parquet")
@@ -117,7 +117,7 @@ def generate(root: Path, profile: str, rows: int, parquet: bool = False) -> Path
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate adversarial Parity benchmark inputs")
+    parser = argparse.ArgumentParser(description="Generate adversarial Parison benchmark inputs")
     parser.add_argument("--output", type=Path, default=Path("benchmarks/generated"))
     parser.add_argument("--rows", type=int, default=10_000)
     parser.add_argument("--profiles", nargs="+", choices=PROFILES, default=list(PROFILES))

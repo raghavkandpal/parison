@@ -95,7 +95,7 @@ DuckDB, partitioning and spill-backed execution remain later options for demonst
 - Record median and range, never only the fastest run.
 - Add process peak RSS to `tracemalloc`; Python allocation alone misses Polars/native memory.
 - Keep the CI guard memory-based and generous. Do not add wall-clock CI thresholds.
-- Record hardware, Python, Parity and optional Polars versions with every result.
+- Record hardware, Python, Parison and optional Polars versions with every result.
 - Compare changes against the committed `results-2026-10-05.json` baseline using identical generated inputs.
 
 ## Next-session checklist

@@ -1,6 +1,6 @@
-# Parity sources and evidence gaps
+# Parison sources and evidence gaps
 
-Research accessed on 4 October 2026. Sources below are primary maintainer/vendor pages. Versions and public pricing can change. The dossier paraphrases capabilities briefly and separates them from our proposed design. No vendor performance claims are adopted as Parity benchmarks.
+Research accessed on 4 October 2026. Sources below are primary maintainer/vendor pages. Versions and public pricing can change. The dossier paraphrases capabilities briefly and separates them from our proposed design. No vendor performance claims are adopted as Parison benchmarks.
 
 ## Source register
 
@@ -37,7 +37,7 @@ Research accessed on 4 October 2026. Sources below are primary maintainer/vendor
 
 ## What this research establishes
 
-The public sources establish substantial competitive overlap and plausible technical building blocks. They support comparing Parity against libraries, commercial platforms and local desktop tools—not claiming the category is new.
+The public sources establish substantial competitive overlap and plausible technical building blocks. They support comparing Parison against libraries, commercial platforms and local desktop tools—not claiming the category is new.
 
 They do not establish competitor market share, revenues, customer satisfaction, performance under our workload or lack of unlisted features. Documentation version numbers are observed page context, not a guarantee that a locally installed package behaves identically.
 
@@ -47,13 +47,13 @@ They do not establish competitor market share, revenues, customer satisfaction, 
 | --- | --- | --- |
 | Basic file comparison is already served | Primary documentation | Hands-on baseline with pinned releases |
 | Recurring investigation friction exists for our target users | Hypothesis | Independent task observations/interviews |
-| Parity saves time without increasing false passes | Unverified | Counterbalanced comparative study |
+| Parison saves time without increasing false passes | Unverified | Counterbalanced comparative study |
 | An existing engine meets our semantics | Unverified | Adapter spike and adversarial corpus |
 | Local mode has no unintended network egress | Design requirement | Offline/network-denied tests |
 | Sensitive data stays out of reports/logs by default | Design requirement | Canary tests and byte-level inspection |
 | A paid local/team product is viable | Hypothesis | Purchase, recurrence and cost evidence |
 | AI-generated alternatives are inferior for repeated use | Not established | Fair substitution benchmark |
-| Parity naming/package rights are available | Not established | Package/domain/name due diligence |
+| Parison naming/package rights are available | Not established | Package/domain/name due diligence |
 
 ## Retrieval limitations
 

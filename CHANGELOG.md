@@ -4,6 +4,10 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- Renamed the project, Python package and CLI from Parity to Parison.
+
 ### Added
 
 - Strict keyed CSV, Parquet and mixed-format comparison from reviewed JSON recipes.

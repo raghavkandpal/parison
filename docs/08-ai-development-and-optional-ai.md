@@ -1,10 +1,10 @@
-# Parity in an AI development market
+# Parison in an AI development market
 
 This document separates market resilience from optional AI features. The baseline architecture remains deterministic and model-free. A customer needs neither a model subscription nor permission to upload data to an AI service.
 
 ## Honest conclusion
 
-Parity is not AI-proof. An assistant can generate joins, assertions, recipes and HTML reports. Coding ability alone is not a defensible advantage. Strong existing libraries also make one-off comparisons inexpensive without AI.
+Parison is not AI-proof. An assistant can generate joins, assertions, recipes and HTML reports. Coding ability alone is not a defensible advantage. Strong existing libraries also make one-off comparisons inexpensive without AI.
 
 The opportunity is to become a trusted, maintained execution-and-evidence layer that developers or agents invoke instead of repeatedly constructing and checking one-off scripts. That can be valuable, but is already a competitive direction: Datafold markets AI migration/code-review workflows, and its product page exposes data-diff tools through MCP. These are vendor offerings, not independent evidence that AI makes comparison correct. [AI workflows](https://www.datafold.com/ai-agents/), [product capabilities](https://www.datafold.com/).
 
@@ -41,7 +41,7 @@ Pin protected recipes separately from the code under review. Permit proposed pol
 
 The initial CLI and versioned JSON result are enough for tool-using agents. A script can invoke a comparison and consume bounded structured output. Keep source data and execution customer-side. Protocol-specific wrappers are optional future distribution adapters, not the core product.
 
-An adapter should restrict paths, forbid arbitrary code, bound concurrency and return counts plus safe references by default. Detailed evidence access requires an explicit policy. Raw rows reaching an agent's context may leave the local machine depending on the agent/provider configuration; a local Parity process does not prevent that.
+An adapter should restrict paths, forbid arbitrary code, bound concurrency and return counts plus safe references by default. Detailed evidence access requires an explicit policy. Raw rows reaching an agent's context may leave the local machine depending on the agent/provider configuration; a local Parison process does not prevent that.
 
 ## Optional AI applications, only after the baseline
 
@@ -55,11 +55,11 @@ Report text and column names are untrusted input. Prompt injection tests should 
 
 ## A practical AI-substitution benchmark
 
-Give independent engineers the same synthetic tasks. Compare current scripts/DataComPy, their chosen coding assistant generating a solution, and Parity. Include all setup, debugging, rule review, rerun and sharing effort. Do not deliberately cripple the AI baseline or use an outdated model to make Parity look good.
+Give independent engineers the same synthetic tasks. Compare current scripts/DataComPy, their chosen coding assistant generating a solution, and Parison. Include all setup, debugging, rule review, rerun and sharing effort. Do not deliberately cripple the AI baseline or use an outdated model to make Parison look good.
 
 Hide some injected defects from task descriptions: duplicate-key multiplication, null-to-zero conversion, decimal precision loss, time-zone shifts, a renamed required field and incomplete processing. Measure false passes, correct defect explanations, reproducibility, resource use and maintenance after a new input variation.
 
-Generated scripts may win. If they consistently provide equally understandable and reproducible results with less total effort, narrow Parity toward a reusable evidence format/report viewer or stop pursuing a paid standalone product.
+Generated scripts may win. If they consistently provide equally understandable and reproducible results with less total effort, narrow Parison toward a reusable evidence format/report viewer or stop pursuing a paid standalone product.
 
 ## Long-term survival strategy
 
