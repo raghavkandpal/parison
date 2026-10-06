@@ -71,3 +71,31 @@ Observed:
 - `docs/04-workflows-and-usability.md` still described all flows as proposed and said no executable product existed, despite the implemented vertical slice.
 
 Decision: **FIX before counting a human session.** Correct the stale workflow statement and use the participant pack in a genuine unfamiliar-user session. Do not build a UI or expand the engine based on this rehearsal alone.
+
+## Blinded AI proxy session — 6 October 2026
+
+This session used a fresh agent with no conversation history. It was told not to read this answer key and initially received only the repository README and participant task. It is useful workflow evidence, but it is not a human usability session and does not count toward the release gate.
+
+Environment: fresh Python 3.14 temporary environment and output directory. No wheel was supplied, so the agent ran the checkout with `PYTHONPATH=src`; this installation deviation must be avoided in the human session.
+
+| Measure | Result |
+| --- | --- |
+| Installed and produced first result without help | deviation: no wheel supplied; first result completed without help |
+| Correctly explained offsetting row errors | pass |
+| Correctly explained duplicate identity | pass |
+| Correctly explained tolerance PASS | pass |
+| Found and used the HTML report | pass |
+| Verified and identified the evidence bundle | pass |
+| Help requests | would have requested the missing wheel |
+| Blocking usability findings | none after the execution-path deviation |
+| Would use Parison for a second comparison | yes |
+
+Observed:
+
+- The agent correctly classified the three runs as `FAIL` (exit 1), `INCONCLUSIVE` (exit 3) and `PASS` (exit 0).
+- It explained that unchanged aggregate totals hid two keyed differences, duplicate identity prevented an equivalence decision, and a tolerance PASS did not make the files identical.
+- It chose `report.html` for initial investigation, retained all four bundle files and noted that raw-sensitivity artifacts require protection.
+- The only interpretive pause was `discrepancy_count: 2` in a passing result; `matched_within_tolerance` and the sample classification resolved it.
+- Its stated fallback was a custom keyed Python/pandas merge with duplicate checks, explicit tolerance and manually preserved output.
+
+Decision: **GO to a genuine human session.** The study materials exercise the intended semantics and were understandable to the blinded proxy. Supply a built wheel and continue to treat report discovery and the meaning of tolerated discrepancies as observation points. Release validation remains blocked until an unfamiliar human completes the protocol.
