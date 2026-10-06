@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.1.0 - 2026-10-06
+
 ### Changed
 
 - Renamed the project, Python package and CLI from Parity to Parison.
