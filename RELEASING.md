@@ -22,9 +22,9 @@ Do not publish while any hard blocker remains open.
 - [x] Confirm the tested support envelope still matches the committed benchmark evidence.
 - [x] Confirm CI passes from source commit `db6397035561fd33e02cf55ece7249990f058995` ([run 37436739580](https://github.com/raghavkandpal/parison/actions/runs/37436739580)).
 
-## Publish
+## GitHub release
 
 - [ ] Tag the verified commit with the exact package version.
-- [ ] Publish the immutable wheel and source archive from that tag.
-- [ ] Install once from the distribution channel and repeat the CLI smoke test.
+- [ ] Create a GitHub Release from that tag and attach the immutable wheel, source archive and SHA-256 checksums. Do not publish to PyPI for this alpha.
+- [ ] Download the wheel from the GitHub Release into an empty environment and repeat the CLI smoke test.
 - [ ] Record the release date and move the changelog entries out of `Unreleased`.

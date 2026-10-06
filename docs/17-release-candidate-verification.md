@@ -43,8 +43,8 @@ The code and benchmark evidence underlying `docs/13-tested-support-envelope.md` 
 
 - Review and merge the name-screen and verification documentation.
 - Create the immutable `0.1.0` tag only from the final verified commit.
-- Publish wheel and source archive from that tag.
-- Install once from the distribution channel and repeat the smoke test.
+- Create a GitHub Release from that tag and attach the wheel, source archive and SHA-256 checksums; do not publish this alpha to PyPI.
+- Download the wheel from the GitHub Release into an empty environment and repeat the smoke test.
 - Add the release date and move changelog entries out of `Unreleased`.
 
 The preliminary name screen supports bounded alpha use but is not a legal opinion or formal trademark clearance. Qualified counsel remains appropriate before material commercial investment or a trademark filing.

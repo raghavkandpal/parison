@@ -105,7 +105,7 @@ Before investing materially in the brand, offering paid services, or filing an a
 1. have qualified trademark counsel run a comprehensive search in the intended launch jurisdictions, including common-law and similar-mark analysis;
 2. rerun the official UK IPO and WIPO searches directly, and review all live Class 9/42 contains and phonetic hits in USPTO/TMview rather than only the visible first page;
 3. define the actual goods/services wording before assessing class overlap;
-4. publish or reserve the PyPI distribution promptly if the alpha will ship there, because today's 404 does not reserve the name;
+4. if a later release moves from GitHub-hosted artifacts to PyPI, repeat the namespace check and publish or reserve the distribution then, because today's 404 does not reserve the name;
 5. avoid claims such as “trademark cleared” or use of the ® symbol unless and until legally justified.
 
 This screen resolves the repository's **preliminary naming-risk gate** sufficiently for an alpha; it does **not** constitute formal trademark clearance.
