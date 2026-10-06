@@ -1,0 +1,119 @@
+{
+  "column_policies": {
+    "order_id": {
+      "comparison": "exact",
+      "type": "string"
+    },
+    "status": {
+      "comparison": "exact",
+      "type": "string"
+    },
+    "total": {
+      "comparison": "numeric",
+      "scale": 2,
+      "tolerance": {
+        "absolute": "1.00",
+        "formula": "symmetric-v1",
+        "relative": "0"
+      },
+      "type": "decimal"
+    }
+  },
+  "complete": true,
+  "counts": {
+    "baseline": 3,
+    "baseline_only": 0,
+    "candidate": 3,
+    "candidate_only": 0,
+    "common_keys": 3,
+    "matched_exact": 1,
+    "matched_with_required_difference": 0,
+    "matched_within_tolerance": 2
+  },
+  "discrepancy_count": 2,
+  "discrepancy_sample": [
+    {
+      "allowance": "1.00",
+      "baseline": "10.00",
+      "candidate": "11.00",
+      "classification": "within_tolerance",
+      "delta": "1.00",
+      "field": "total",
+      "key": [
+        "001"
+      ],
+      "kind": "field"
+    },
+    {
+      "allowance": "1.00",
+      "baseline": "20.00",
+      "candidate": "19.00",
+      "classification": "within_tolerance",
+      "delta": "1.00",
+      "field": "total",
+      "key": [
+        "002"
+      ],
+      "kind": "field"
+    }
+  ],
+  "discrepancy_sample_limit": 100,
+  "excluded_columns": {},
+  "field_counts": {
+    "status": {
+      "different": 0,
+      "exact": 3,
+      "within_tolerance": 0
+    },
+    "total": {
+      "different": 0,
+      "exact": 1,
+      "within_tolerance": 2
+    }
+  },
+  "field_discrepancy_count": 2,
+  "inputs": {
+    "baseline": {
+      "bytes": 76,
+      "sha256": "2f23ba848e9c9a07dde5d80da1bb82d29261fc99a364a49af0a42e65b5d1f51b"
+    },
+    "candidate": {
+      "bytes": 76,
+      "sha256": "ac90348e692dd2942ba46bb3736987df5dfce5d326a7fcabc5e788cd53ffb731"
+    }
+  },
+  "keys": [
+    "order_id"
+  ],
+  "outcome": "PASS",
+  "policy": {
+    "keys": [
+      "order_id"
+    ],
+    "nulls_equal": true,
+    "sensitivity": "raw"
+  },
+  "problems": [],
+  "recipe_sha256": "69b4863a4ae424145bd85722f170820cc0cf222a50c8bd5fbc2625cb04584d5e",
+  "resource_limits": {
+    "max_input_bytes": 1000000000,
+    "max_rows_per_input": 5000000
+  },
+  "runtime": {
+    "contract": "keyed-v1",
+    "implementation": "CPython",
+    "machine": "arm64",
+    "parison_version": "0.1.0",
+    "platform": "Darwin",
+    "python": "3.14.7"
+  },
+  "schema_version": 1,
+  "scope": {
+    "completeness": "full",
+    "cutoff": "2026-10-06T00:00:00Z",
+    "expected_empty": false,
+    "filters": [],
+    "snapshot": "synthetic-orders-usability-01"
+  },
+  "sensitivity": "raw"
+}
