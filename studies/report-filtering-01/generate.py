@@ -1,6 +1,6 @@
+import argparse
 import csv
 import json
-import sys
 from pathlib import Path
 
 
@@ -31,7 +31,9 @@ def write_csv(path, values):
 
 
 def main():
-    output = Path(sys.argv[1] if len(sys.argv) > 1 else "/tmp/parison-report-filtering-01")
+    parser = argparse.ArgumentParser(description="Generate deterministic inputs for the report-filtering study")
+    parser.add_argument("output", nargs="?", default="/tmp/parison-report-filtering-01")
+    output = Path(parser.parse_args().output)
     output.mkdir(parents=True, exist_ok=True)
     baseline, candidate_a = rows({"0042", "0137"}, "0088", "0077", "9001")
     _, candidate_b = rows({"0053", "0148"}, "0099", "0066", "9002")
