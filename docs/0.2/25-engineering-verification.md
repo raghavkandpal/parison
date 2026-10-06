@@ -22,6 +22,8 @@ Status: **engineering go; release decision pending human gates**.
 
 No customer datasets, credentials or production schemas were used for this verification.
 
+The later [blind 0.2 agent-proxy trial](../../studies/unfamiliar-user-03/agent-trial-01-score.md) completed drafting and evidence interpretation correctly. Interactive filtering remained untested because its browser could not open local files, so the human filtering gate remains open.
+
 ## Clean-archive rehearsal
 
 Commit `f6606a5` was exported with `git archive` to a new temporary directory containing no working-tree build products. A Python 3.14 environment built and inspected:
