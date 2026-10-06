@@ -2,13 +2,52 @@
 import argparse
 import json
 import platform
+import subprocess
 import statistics
+import sys
 import time
 import tracemalloc
 from datetime import date
+from importlib import metadata
 from pathlib import Path
 
 from parity.core import compare
+
+
+def measure(case: Path) -> dict:
+    expected = json.loads((case / "expected.json").read_text(encoding="utf-8"))
+    tracemalloc.start()
+    started = time.perf_counter()
+    result = compare(case / "recipe.json", case / "baseline.csv", case / "candidate.csv")
+    elapsed = time.perf_counter() - started
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    if result["outcome"] != expected["outcome"] or result["counts"] != expected["counts"] or result["field_discrepancy_count"] != expected["field_discrepancy_count"]:
+        raise SystemExit(f"accuracy check failed for {case}")
+    try:
+        import resource
+        rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        rss_bytes = rss if platform.system() == "Darwin" else rss * 1024
+    except ImportError:
+        rss_bytes = None
+    return {"elapsed_seconds": elapsed, "peak_python_bytes": peak, "peak_rss_bytes": rss_bytes}
+
+
+def child_measurement(case: Path) -> dict:
+    completed = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve()), "--worker", str(case.resolve())],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return json.loads(completed.stdout)
+
+
+def package_version() -> str:
+    try:
+        return metadata.version("parity-compare")
+    except metadata.PackageNotFoundError:
+        return "source-tree"
 
 
 def main() -> None:
@@ -17,24 +56,25 @@ def main() -> None:
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--max-memory-per-row", type=float, help="fail when median peak Python bytes per baseline row exceeds this value")
     parser.add_argument("--json-output", type=Path)
+    parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.worker:
+        if len(args.cases) != 1:
+            parser.error("worker requires exactly one case")
+        print(json.dumps(measure(args.cases[0])))
+        return
     if args.repeats <= 0:
         parser.error("repeats must be positive")
     measurements = []
     for case in args.cases:
         expected = json.loads((case / "expected.json").read_text(encoding="utf-8"))
-        elapsed_runs = []
-        peak_runs = []
+        child_measurement(case)  # Unmeasured warm-up verifies the case and primes filesystem caches.
+        runs = []
         for _ in range(args.repeats):
-            tracemalloc.start()
-            started = time.perf_counter()
-            result = compare(case / "recipe.json", case / "baseline.csv", case / "candidate.csv")
-            elapsed_runs.append(time.perf_counter() - started)
-            _, peak = tracemalloc.get_traced_memory()
-            tracemalloc.stop()
-            peak_runs.append(peak)
-            if result["outcome"] != expected["outcome"] or result["counts"] != expected["counts"] or result["field_discrepancy_count"] != expected["field_discrepancy_count"]:
-                raise SystemExit(f"accuracy check failed for {case}")
+            runs.append(child_measurement(case))
+        elapsed_runs = [run["elapsed_seconds"] for run in runs]
+        peak_runs = [run["peak_python_bytes"] for run in runs]
+        rss_runs = [run["peak_rss_bytes"] for run in runs if run["peak_rss_bytes"] is not None]
         elapsed = statistics.median(elapsed_runs)
         peak = statistics.median(peak_runs)
         baseline_rows = expected["counts"]["baseline"]
@@ -51,6 +91,9 @@ def main() -> None:
             "baseline_rows_per_second": round(baseline_rows / elapsed, 1),
             "median_peak_python_bytes": peak,
             "peak_python_bytes_per_baseline_row": round(memory_per_row, 1),
+            "median_peak_rss_bytes": statistics.median(rss_runs) if rss_runs else None,
+            "min_peak_rss_bytes": min(rss_runs) if rss_runs else None,
+            "max_peak_rss_bytes": max(rss_runs) if rss_runs else None,
             "input_bytes": sum((case / name).stat().st_size for name in ("baseline.csv", "candidate.csv")),
             **expected,
         })
@@ -60,7 +103,8 @@ def main() -> None:
             "machine": platform.machine(),
             "platform": platform.system(),
             "python": platform.python_version(),
-            "measurement": "median of repeated local runs with tracemalloc; not a supported performance claim",
+            "parity": package_version(),
+            "measurement": "median of fresh subprocess runs after one warm-up; tracemalloc and process peak RSS; not a supported performance claim",
         },
         "cases": measurements,
     }

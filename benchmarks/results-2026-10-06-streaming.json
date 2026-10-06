@@ -2,7 +2,7 @@
   "cases": [
     {
       "accuracy": "verified",
-      "baseline_rows_per_second": 22947.4,
+      "baseline_rows_per_second": 21311.4,
       "case": "rows-10000",
       "counts": {
         "baseline": 10000,
@@ -16,17 +16,20 @@
       },
       "field_discrepancy_count": 110,
       "input_bytes": 2457372,
-      "max_elapsed_seconds": 0.51098,
-      "median_elapsed_seconds": 0.435779,
-      "median_peak_python_bytes": 11753398,
-      "min_elapsed_seconds": 0.433896,
+      "max_elapsed_seconds": 0.472183,
+      "max_peak_rss_bytes": 60129280,
+      "median_elapsed_seconds": 0.469233,
+      "median_peak_python_bytes": 11939448,
+      "median_peak_rss_bytes": 59899904,
+      "min_elapsed_seconds": 0.465628,
+      "min_peak_rss_bytes": 59817984,
       "outcome": "FAIL",
-      "peak_python_bytes_per_baseline_row": 1175.3,
+      "peak_python_bytes_per_baseline_row": 1193.9,
       "repeats": 5
     },
     {
       "accuracy": "verified",
-      "baseline_rows_per_second": 16653.4,
+      "baseline_rows_per_second": 16218.4,
       "case": "rows-100000",
       "counts": {
         "baseline": 100000,
@@ -40,17 +43,20 @@
       },
       "field_discrepancy_count": 1100,
       "input_bytes": 24572194,
-      "max_elapsed_seconds": 6.02073,
-      "median_elapsed_seconds": 6.004771,
-      "median_peak_python_bytes": 112894283,
-      "min_elapsed_seconds": 5.866011,
+      "max_elapsed_seconds": 6.180944,
+      "max_peak_rss_bytes": 287473664,
+      "median_elapsed_seconds": 6.165828,
+      "median_peak_python_bytes": 113007773,
+      "median_peak_rss_bytes": 287293440,
+      "min_elapsed_seconds": 6.138113,
+      "min_peak_rss_bytes": 287227904,
       "outcome": "FAIL",
-      "peak_python_bytes_per_baseline_row": 1128.9,
+      "peak_python_bytes_per_baseline_row": 1130.1,
       "repeats": 5
     },
     {
       "accuracy": "verified",
-      "baseline_rows_per_second": 16057.2,
+      "baseline_rows_per_second": 15414.5,
       "case": "rows-250000",
       "counts": {
         "baseline": 250000,
@@ -64,19 +70,23 @@
       },
       "field_discrepancy_count": 2750,
       "input_bytes": 61430264,
-      "max_elapsed_seconds": 15.619862,
-      "median_elapsed_seconds": 15.569361,
-      "median_peak_python_bytes": 277423495,
-      "min_elapsed_seconds": 15.460066,
+      "max_elapsed_seconds": 16.890641,
+      "max_peak_rss_bytes": 636960768,
+      "median_elapsed_seconds": 16.2185,
+      "median_peak_python_bytes": 277536351,
+      "median_peak_rss_bytes": 636600320,
+      "min_elapsed_seconds": 16.084869,
+      "min_peak_rss_bytes": 636551168,
       "outcome": "FAIL",
-      "peak_python_bytes_per_baseline_row": 1109.7,
+      "peak_python_bytes_per_baseline_row": 1110.1,
       "repeats": 5
     }
   ],
   "environment": {
     "date": "2026-10-06",
     "machine": "arm64",
-    "measurement": "median of repeated local runs with tracemalloc; not a supported performance claim",
+    "measurement": "median of fresh subprocess runs after one warm-up; tracemalloc and process peak RSS; not a supported performance claim",
+    "parity": "0.1.0",
     "platform": "Darwin",
     "python": "3.14.7"
   }

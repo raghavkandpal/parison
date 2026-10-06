@@ -130,10 +130,10 @@ This is a deeper change than tuple substitution, but it attacks the measured pea
 
 The one-sided streaming design passed its gates for summary CSV comparisons. The implementation builds the baseline index directly from typed CSV rows, streams candidate rows through comparison, and retains only candidate keys needed for identity and missing-row checks. Raw evidence and Parquet retain the established two-index path.
 
-| Rows | Baseline median | Streaming median | Baseline bytes/row | Streaming bytes/row | Peak reduction |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 10,000 | 0.541 s | 0.436 s | 2,091.6 | 1,175.3 | 43.8% |
-| 100,000 | 6.187 s | 6.005 s | 2,111.3 | 1,128.9 | 46.5% |
-| 250,000 | 16.231 s | 15.569 s | 2,076.1 | 1,109.7 | 46.5% |
+| Rows | Baseline median | Streaming median | Baseline bytes/row | Streaming bytes/row | Peak RSS | Python allocation reduction |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 10,000 | 0.541 s | 0.469 s | 2,091.6 | 1,193.9 | 59.9 MB | 42.9% |
+| 100,000 | 6.187 s | 6.166 s | 2,111.3 | 1,130.1 | 287.3 MB | 46.5% |
+| 250,000 | 16.231 s | 16.219 s | 2,076.1 | 1,110.1 | 636.6 MB | 46.5% |
 
-Each accepted figure is the median of five runs with exact expected counts checked on every repetition. The result clears the 1,200-byte target at 100k and 250k without a throughput regression. These remain machine-specific engineering measurements, not a supported scale claim.
+Each accepted figure is the median of five fresh subprocess runs after one discarded warm-up, with exact expected counts checked on every repetition. The result clears the 1,200-byte target at 100k and 250k without a throughput regression. RSS includes the interpreter and all native allocations, so it must not be compared directly with the narrower `tracemalloc` figure. These remain machine-specific engineering measurements, not a supported scale claim.

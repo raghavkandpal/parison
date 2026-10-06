@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from benchmarks.generate_cases import generate
+from benchmarks.run_cases import measure
 from parity.core import compare
 
 
@@ -19,7 +20,16 @@ class GeneratedBenchmarks(unittest.TestCase):
             self.assertEqual(result["counts"], expected["counts"])
             self.assertEqual(result["field_discrepancy_count"], expected["field_discrepancy_count"])
 
+    def test_measurement_includes_python_and_process_memory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            generate(root, 10)
+            measurement = measure(root / "rows-10")
+            self.assertGreater(measurement["peak_python_bytes"], 0)
+            self.assertGreater(measurement["elapsed_seconds"], 0)
+            if measurement["peak_rss_bytes"] is not None:
+                self.assertGreater(measurement["peak_rss_bytes"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
-
