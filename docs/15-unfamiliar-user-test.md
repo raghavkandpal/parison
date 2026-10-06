@@ -6,6 +6,8 @@ Determine whether an engineer who has not seen Parison can install it, run a com
 
 This is a usability test, not a product demonstration. Do not explain recipes, outcomes or report fields unless the participant asks. Record every intervention.
 
+The expected workflow may be agent-mediated: an engineer delegates installation, execution and first-pass interpretation to a coding agent, then reviews the recipe, evidence and recommendation. Evaluate agent execution and human acceptance separately; neither should be presented as evidence for the other.
+
 ## Participant and setup
 
 - Recruit a data engineer or software engineer who has not used Parison and has not read this repository's design documents.
@@ -56,7 +58,7 @@ Core-task success requires the first six measures to pass without outcome-relate
 - **FIX:** the task is completable, but setup, terminology, report discovery or interpretation causes a failure or material help request. Fix only the observed blockers, then repeat with a new participant.
 - **STOP:** the participant cannot obtain trustworthy evidence, the workflow encourages a false conclusion, or the current approach is clearly worse than their normal method without a narrow fix.
 
-Do not count the maintainer rehearsal below toward the release gate. After five genuine sessions, advance only if at least four participants complete the core task unassisted and at least three say they would use Parison for a second comparison.
+Do not count the maintainer rehearsal below toward the release gate. For direct use, advance after at least four of five unfamiliar engineers complete the core task unassisted and at least three would reuse Parison. For agent-mediated use, require successful execution by an unfamiliar agent plus human review that confirms the recommendation is understandable, trustworthy and preferable to the reviewer’s alternative workflow.
 
 ## Maintainer rehearsal — 6 October 2026
 
@@ -72,9 +74,9 @@ Observed:
 
 Decision: **FIX before counting a human session.** Correct the stale workflow statement and use the participant pack in a genuine unfamiliar-user session. Do not build a UI or expand the engine based on this rehearsal alone.
 
-## Blinded AI proxy session — 6 October 2026
+## Agent-mediated workflow trial 01 — 6 October 2026
 
-This session used a fresh agent with no conversation history. It was told not to read this answer key and initially received only the repository README and participant task. It is useful workflow evidence, but it is not a human usability session and does not count toward the release gate.
+This session used a fresh agent with no conversation history. It was told not to read this answer key and initially received only the repository README and participant task. Because the intended user may delegate this work to an agent, this is direct evidence that Parison is agent-legible: its CLI contract, artifacts and semantics supported correct independent execution and interpretation. It does not establish the separate human-review half of that workflow.
 
 Environment: fresh Python 3.14 temporary environment and output directory. No wheel was supplied, so the agent ran the checkout with `PYTHONPATH=src`; this installation deviation must be avoided in the human session.
 
@@ -98,4 +100,4 @@ Observed:
 - The only interpretive pause was `discrepancy_count: 2` in a passing result; `matched_within_tolerance` and the sample classification resolved it.
 - Its stated fallback was a custom keyed Python/pandas merge with duplicate checks, explicit tolerance and manually preserved output.
 
-Decision: **GO to a genuine human session.** The study materials exercise the intended semantics and were understandable to the blinded proxy. Supply a built wheel and continue to treat report discovery and the meaning of tolerated discrepancies as observation points. Release validation remains blocked until an unfamiliar human completes the protocol.
+Decision: **GO for the agent-execution half of an agent-mediated workflow.** The unfamiliar agent completed the core task and produced a correct, reviewable recommendation. Next, give its result bundle and recommendation to an unfamiliar engineer and test whether they can approve or challenge it without rerunning the work. Supply a built wheel in future execution trials. Release validation remains blocked until the human-review half is recorded.
