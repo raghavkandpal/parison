@@ -32,6 +32,24 @@ The database file counts toward `--max-input-bytes`; selected rows count toward 
 
 The recipe's snapshot, cutoff, filters and full-completeness fields remain user assertions. Parison can prove which database bytes and table it read, not that an upstream export is complete. The table locator is local execution input; credentials and network databases are outside 0.2.
 
+## Usage and data handling
+
+Quote locators in the shell and use them anywhere a baseline or candidate path is accepted:
+
+```sh
+parison draft-recipe \
+  --baseline baseline.jsonl \
+  --candidate 'sqlite:exports/candidate.db#orders' \
+  --output orders.recipe.json
+# review, complete and validate the draft
+parison compare --recipe orders.recipe.json \
+  --baseline baseline.jsonl \
+  --candidate 'sqlite:exports/candidate.db#orders' \
+  --output runs/orders
+```
+
+The database is opened locally with no credential mechanism and no network transport. Parison does not copy it into the bundle. Evidence contains its byte count, SHA-256 digest, source kind and selected table name; it omits the local path. Table and column names may still be sensitive, so protect bundles according to repository visibility and output sensitivity.
+
 ## Rejections
 
 Reject malformed locators, missing/unsafe databases, active journal sidecars, nonexistent or non-table objects, duplicate/empty columns, BLOB or unsupported values, size/row overruns, input changes and SQLite read errors. These conditions cannot produce PASS.

@@ -53,6 +53,22 @@ class SqliteInput(unittest.TestCase):
         self.assertEqual(list(draft["columns"]), ["id", "value"])
         self.assertEqual(draft["columns"]["value"]["type"], "REVIEW_REQUIRED")
 
+    def test_jsonl_sqlite_failure_matches_oracle(self):
+        baseline = self.root / "baseline.jsonl"
+        baseline.write_text('{"id":"001","value":10}\n{"id":"002","value":20}\n', encoding="utf-8")
+        with sqlite3.connect(self.database) as connection:
+            connection.execute("UPDATE records SET value=11 WHERE id='001'")
+            connection.execute("DELETE FROM records WHERE id='002'")
+            connection.execute("INSERT INTO records VALUES ('003', 30)")
+        result = compare(self.recipe, baseline, self.source)
+        self.assertEqual(result["outcome"], "FAIL")
+        self.assertEqual(result["counts"], {
+            "baseline": 2, "candidate": 2, "common_keys": 1,
+            "baseline_only": 1, "candidate_only": 1,
+            "matched_exact": 0, "matched_within_tolerance": 0,
+            "matched_with_required_difference": 1,
+        })
+
     def test_sqlite_rejects_views_blobs_journals_and_row_overruns(self):
         with sqlite3.connect(self.database) as connection:
             connection.execute("CREATE VIEW record_view AS SELECT * FROM records")

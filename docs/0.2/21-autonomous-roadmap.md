@@ -35,7 +35,7 @@ This roadmap separates work an agent can complete and verify independently from 
 - [x] Document JSON Lines use without introducing format-specific recipes.
 - [x] Specify a read-only SQLite input locator, type mapping, query/table scope, limits and cancellation without introducing a connector abstraction.
 - [x] Implement SQLite with the standard library, read-only connections and the existing comparison result model.
-- [ ] Add oracle-based CSV/JSONL/SQLite compatibility tests and document local credential/data handling.
+- [x] Add oracle-based CSV/JSONL/SQLite compatibility tests and document local credential/data handling.
 
 ### Release integration
 
