@@ -11,7 +11,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 - [Product thesis](0.1/01-product-thesis.md)
 - [Competitors and existing tools](0.1/02-competitors.md)
-- [Market and monetization](0.1/03-market-and-monetization.md)
+- [Historical market and monetization research](0.1/03-market-and-monetization.md)
 - [Workflows and usability](0.1/04-workflows-and-usability.md)
 - [Comparison semantics](0.1/05-comparison-semantics.md)
 - [Architecture](0.1/06-proposed-architecture.md)
