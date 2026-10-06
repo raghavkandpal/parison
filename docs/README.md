@@ -27,6 +27,7 @@ The research supports a **bounded discovery and prototype**, not an unconditiona
 | [Unfamiliar-user test 01](15-unfamiliar-user-test.md) | Can a new user install Parison and correctly interpret failure, ambiguous identity and tolerance behavior? |
 | [Name-clearance screen](16-name-clearance-screen.md) | Is Parison / `parison` suitable for a bounded alpha, and what naming risks remain? |
 | [Release candidate verification](17-release-candidate-verification.md) | Does 0.1.0 build, install, test and package cleanly from an isolated source export? |
+| [0.2 product research](18-0.2-product-research.md) | Which smallest next-release theme could turn correct one-off comparisons into repeat use? |
 
 ## Recommended initial decisions
 
