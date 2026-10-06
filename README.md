@@ -68,6 +68,7 @@ The first recorded 10k/100k/250k accuracy and performance run is in [`benchmarks
 
 Start with the [documentation index](docs/README.md).
 
+- Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - Current development: [0.2 agenda](docs/0.2/19-0.2-agenda.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
 - Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)

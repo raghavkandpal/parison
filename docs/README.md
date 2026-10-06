@@ -4,6 +4,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 ## 0.2 — current development
 
+- [Step-by-step user guide](0.2/27-user-guide.md)
 - [Product research](0.2/18-0.2-product-research.md)
 - [Implementation agenda](0.2/19-0.2-agenda.md)
 - [GitHub Actions reference](0.2/20-github-actions.md)
@@ -12,6 +13,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [JSON Lines input contract](0.2/23-json-lines-contract.md)
 - [SQLite read-only input contract](0.2/24-sqlite-contract.md)
 - [Engineering verification](0.2/25-engineering-verification.md)
+- [Human-results checklist](0.2/26-human-results-checklist.md)
 
 ## 0.1 — released record
 
