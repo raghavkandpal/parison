@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from benchmarks.generate_cases import generate
+from benchmarks.generate_matrix import PROFILES, generate as generate_profile
 from benchmarks.run_cases import measure
 from parity.core import compare
 
@@ -29,6 +30,16 @@ class GeneratedBenchmarks(unittest.TestCase):
             self.assertGreater(measurement["elapsed_seconds"], 0)
             if measurement["peak_rss_bytes"] is not None:
                 self.assertGreater(measurement["peak_rss_bytes"], 0)
+
+    def test_adversarial_profiles_match_their_oracles(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for profile in PROFILES:
+                case = generate_profile(root, profile, 100)
+                expected = json.loads((case / "expected.json").read_text(encoding="utf-8"))
+                result = compare(case / "recipe.json", case / "baseline.csv", case / "candidate.csv")
+                self.assertEqual(result["counts"], expected["counts"], profile)
+                self.assertEqual(result["field_discrepancy_count"], expected["field_discrepancy_count"], profile)
 
 
 if __name__ == "__main__":

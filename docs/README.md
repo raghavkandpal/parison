@@ -22,6 +22,7 @@ The research supports a **bounded discovery and prototype**, not an unconditiona
 | [Sources and evidence gaps](10-sources-and-evidence.md) | Which claims have primary sources, and what remains unverified? |
 | [Engine compatibility spike](11-engine-compatibility-spike.md) | Can DataComPy implement Parity's pinned comparison contract? |
 | [Performance optimization plan](12-performance-optimization-plan.md) | Which measured costs should the next implementation session remove first? |
+| [Tested support envelope](13-tested-support-envelope.md) | Which input shapes and sizes have actually been measured? |
 
 ## Recommended initial decisions
 

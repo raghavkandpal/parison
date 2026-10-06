@@ -6,7 +6,7 @@ Parity is an independent data-engineering side project. The proposed product com
 
 ## Project status
 
-**Early vertical slice.** The repository now includes an installable Python CLI for strict keyed CSV comparison, JSON/HTML evidence bundles and CI-oriented exit codes. Parquet input is available through the optional `polars` dependency. The initial 40-case semantic corpus, a local benchmark harness and DataComPy compatibility spike are complete; interviews, usability studies and broader performance experiments remain planned work.
+**Early vertical slice.** The repository now includes an installable Python CLI for strict keyed CSV comparison, JSON/HTML evidence bundles and CI-oriented exit codes. Parquet input is available through the optional `polars` dependency. The semantic corpus, local benchmark harness, adversarial performance matrix and DataComPy compatibility spike are complete; interviews and usability studies remain planned work.
 
 ## Try it
 
@@ -77,6 +77,7 @@ Start with the [research and design index](docs/README.md).
 | [Sources and evidence gaps](docs/10-sources-and-evidence.md) | Primary research sources and outstanding questions |
 | [Engine compatibility spike](docs/11-engine-compatibility-spike.md) | Executed DataComPy cases and engine decision |
 | [Performance optimization plan](docs/12-performance-optimization-plan.md) | Measured hotspots and next-session implementation sequence |
+| [Tested support envelope](docs/13-tested-support-envelope.md) | Measured input shapes, sizes, memory use and explicit boundaries |
 
 Mermaid diagrams are included in the documents. [PNG alternatives](docs/diagrams/README.md) are available for viewers without Mermaid support.
 
