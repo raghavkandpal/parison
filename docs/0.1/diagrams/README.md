@@ -19,4 +19,4 @@ These images reproduce the Mermaid diagrams in the research documents. They are 
 
 - [Independent validation of agent-produced changes](08-ai-development-and-optional-ai-1.png)
 
-[Return to the research index](../README.md).
+[Return to the research index](../../README.md).

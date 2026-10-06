@@ -62,29 +62,13 @@ The first recorded 10k/100k/250k accuracy and performance run is in [`benchmarks
 
 ## Documentation
 
-Start with the [research and design index](docs/README.md).
+Start with the [documentation index](docs/README.md).
 
-| Document | Contents |
-| --- | --- |
-| [Product thesis](docs/01-product-thesis.md) | Target users, problem, differentiation and non-goals |
-| [Competitors](docs/02-competitors.md) | Existing libraries, developer tools and commercial alternatives |
-| [Market and monetization](docs/03-market-and-monetization.md) | Adoption hypotheses, commercial experiments and operating costs |
-| [Workflows and usability](docs/04-workflows-and-usability.md) | Recipe lifecycle, comparison, investigation and CI workflows |
-| [Comparison semantics](docs/05-comparison-semantics.md) | Keys, types, tolerances, completeness and result meanings |
-| [Proposed architecture](docs/06-proposed-architecture.md) | Python CLI, comparison engine, artifacts and optional local UI |
-| [Security](docs/07-security-and-data-handling.md) | Threat model, data handling and security release gates |
-| [AI resilience and optional AI](docs/08-ai-development-and-optional-ai.md) | Competition from generated scripts; separate optional AI research |
-| [Validation and delivery](docs/09-validation-and-delivery.md) | Synthetic fixtures, benchmarks, discovery and build gates |
-| [Sources and evidence gaps](docs/10-sources-and-evidence.md) | Primary research sources and outstanding questions |
-| [Engine compatibility spike](docs/11-engine-compatibility-spike.md) | Executed DataComPy cases and engine decision |
-| [Performance optimization plan](docs/12-performance-optimization-plan.md) | Measured hotspots and next-session implementation sequence |
-| [Tested support envelope](docs/13-tested-support-envelope.md) | Measured input shapes, sizes, memory use and explicit boundaries |
-| [Built evidence review](docs/14-built-evidence-review.md) | Questions resolved by the implementation versus questions that still require human or external evidence |
-| [Unfamiliar-user test 01](docs/15-unfamiliar-user-test.md) | Participant protocol, scoring rubric, rehearsal observations and decision rule |
-| [Name-clearance screen](docs/16-name-clearance-screen.md) | Preliminary package, registry and trademark screen for Parison / `parison` |
-| [Release candidate verification](docs/17-release-candidate-verification.md) | Clean 0.1.0 build, installation, test, smoke and archive evidence |
-| [0.2 product research](docs/18-0.2-product-research.md) | Ranked next-release options, recommended CI theme and evidence gates |
-| [0.2 agenda](docs/19-0.2-agenda.md) | Selected workstreams, sequence, acceptance gates and non-goals |
+- Current development: [0.2 agenda](docs/0.2/19-0.2-agenda.md)
+- Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)
+- Safety model: [0.1 security and data handling](docs/0.1/07-security-and-data-handling.md)
+- Measured limits: [0.1 tested support envelope](docs/0.1/13-tested-support-envelope.md)
+- Released evidence: [0.1 release verification](docs/0.1/17-release-candidate-verification.md)
 
 Release preparation is tracked in [`RELEASING.md`](RELEASING.md). The preliminary alpha name screen and release-candidate rehearsal passed; the name screen is not a legal opinion or formal trademark clearance.
 
@@ -92,20 +76,8 @@ The bounded alpha will be distributed as wheel and source-archive assets on a ta
 
 Parison is released under the [MIT License](LICENSE).
 
-Mermaid diagrams are included in the documents. [PNG alternatives](docs/diagrams/README.md) are available for viewers without Mermaid support.
-
-## Build direction
-
-1. Continue expanding the synthetic corpus around false-PASS risks.
-2. Keep the contract-specific engine; the pinned DataComPy spike found incompatible identity, tolerance and Decimal evidence semantics.
-3. Harden packaging and continue direct-human CLI validation while preparing a bounded alpha.
-4. Expand performance measurements across row widths, mismatch rates and constrained resources.
-5. Add a localhost visual interface only if usability evidence justifies it.
-
-The initial application would execute on a user's laptop or customer-owned CI runner. Hosted collaboration, database connectors and optional AI features are deferred. Market demand and differentiation must be tested against existing tools and AI-generated scripts.
-
 ## Security and evidence
 
 Do not commit real datasets, credentials or sensitive comparison artifacts. Local execution alone is not a security guarantee; proposed controls and acceptance criteria are detailed in the security document.
 
-Research was assembled on 4 October 2026. Vendor documentation is not an independent product evaluation. Proposed pricing and adoption targets are hypotheses, not forecasts. Parison has passed only a preliminary name screen; formal trademark clearance remains outstanding. The project uses the MIT License.
+Parison has passed only a preliminary name screen; formal trademark clearance remains outstanding.

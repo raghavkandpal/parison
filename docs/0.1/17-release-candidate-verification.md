@@ -35,7 +35,7 @@ The merged `main` workflow passed at the tagged release commit on 6 October 2026
 
 That workflow builds and tests the wheel with Polars on Ubuntu for Python 3.11, 3.12, 3.13 and 3.14, and runs Python 3.14 optional-Polars smoke tests on macOS and Windows. The local rehearsal independently covered Python 3.14 on arm64 macOS. This remains functional compatibility evidence, not cross-platform performance evidence.
 
-The code and benchmark evidence underlying `docs/13-tested-support-envelope.md` did not change after the recorded benchmark runs; only documentation and synthetic usability-study fixtures changed before this verification. The documented performance envelope therefore remains the claimed measured envelope.
+The code and benchmark evidence underlying `docs/0.1/13-tested-support-envelope.md` did not change after the recorded benchmark runs; only documentation and synthetic usability-study fixtures changed before this verification. The documented performance envelope therefore remains the claimed measured envelope.
 
 ## Version and changelog
 
