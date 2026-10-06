@@ -32,5 +32,6 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Unfamiliar-user test](0.1/15-unfamiliar-user-test.md)
 - [Name-clearance screen](0.1/16-name-clearance-screen.md)
 - [Release verification](0.1/17-release-candidate-verification.md)
+- [Human-results checklist](0.1/18-human-results-checklist.md)
 
 The 0.1 Mermaid diagrams have [PNG versions](0.1/diagrams/README.md) for viewers without Mermaid support.
