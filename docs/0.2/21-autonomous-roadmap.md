@@ -17,7 +17,7 @@ This roadmap separates work an agent can complete and verify independently from 
 
 - [x] Specify the draft format and unresolved-choice behavior using the existing recipe schema.
 - [x] Add a `draft-recipe` command that reads two local inputs, includes exact shared columns and emits reviewable JSON.
-- [ ] Require explicit keys, snapshot, cutoff, filters, completeness, empty-scope policy, exclusions and tolerances before validation can succeed; do not infer trusted policy.
+- [x] Require explicit keys, snapshot, cutoff, filters, completeness, empty-scope policy, exclusions and tolerances before validation can succeed; do not infer trusted policy.
 - [ ] Cover mismatched columns, ambiguous types, empty inputs, unsafe paths and deterministic output.
 - [ ] Document the shortest draft-review-validate-compare workflow.
 
