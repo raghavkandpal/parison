@@ -7,6 +7,7 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
+from parison import __version__
 from parison.cli import main
 from parison.core import ParisonError, compare, load_recipe, verify_bundle
 
@@ -166,7 +167,7 @@ class ParisonTests(unittest.TestCase):
         output = StringIO()
         with self.assertRaisesRegex(SystemExit, "0"), redirect_stdout(output):
             main(["--version"])
-        self.assertEqual(output.getvalue(), "parison 0.1.0\n")
+        self.assertEqual(output.getvalue(), f"parison {__version__}\n")
 
     def test_raw_sample_includes_missing_keys_with_one_shared_limit(self):
         raw_recipe = dict(RECIPE, output={"sensitivity": "raw"})
