@@ -11,6 +11,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Recipe draft contract](0.2/22-recipe-draft-contract.md)
 - [JSON Lines input contract](0.2/23-json-lines-contract.md)
 - [SQLite read-only input contract](0.2/24-sqlite-contract.md)
+- [Engineering verification](0.2/25-engineering-verification.md)
 
 ## 0.1 — released record
 

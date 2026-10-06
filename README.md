@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**Early vertical slice.** The repository now includes an installable Python CLI for strict keyed CSV comparison, JSON/HTML evidence bundles and CI-oriented exit codes. Parquet input is available through the optional `polars` dependency. The semantic corpus, local benchmark harness, adversarial performance matrix and DataComPy compatibility spike are complete. Two blinded agent-execution trials and one human review of agent-produced evidence are recorded; interviews and direct, unassisted human CLI studies remain planned work.
+**0.2 development.** The released 0.1 CLI provides strict keyed CSV/Parquet comparison, JSON/HTML evidence bundles and CI-oriented exit codes. The `develop` branch adds unresolved recipe drafting, static report filtering, JSON Lines, read-only SQLite tables and a GitHub Actions reference. Two blinded agent-execution trials and one human review of agent-produced evidence are recorded; direct human validation of 0.2 recipe drafting and report filtering remains required.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
