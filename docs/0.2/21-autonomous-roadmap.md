@@ -26,7 +26,7 @@ This roadmap separates work an agent can complete and verify independently from 
 - [x] Add dependency-free controls for field classification and bounded raw-sample field, class and key-text filtering.
 - [x] Preserve the complete no-JavaScript report, escaping, keyboard operation and summary-mode privacy.
 - [x] Add report-level regression checks for filtering hooks, raw/summary separation and canonical JSON immutability.
-- [ ] Record a seeded investigation benchmark that can later be repeated by a human.
+- [x] Record a seeded investigation benchmark that can later be repeated by a human.
 
 ### Additional local inputs
 
