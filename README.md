@@ -79,7 +79,9 @@ Start with the [research and design index](docs/README.md).
 | [Performance optimization plan](docs/12-performance-optimization-plan.md) | Measured hotspots and next-session implementation sequence |
 | [Tested support envelope](docs/13-tested-support-envelope.md) | Measured input shapes, sizes, memory use and explicit boundaries |
 
-Release preparation is tracked in [`RELEASING.md`](RELEASING.md); name clearance, license selection and unfamiliar-user validation remain explicit blockers.
+Release preparation is tracked in [`RELEASING.md`](RELEASING.md); name clearance and unfamiliar-user validation remain explicit blockers.
+
+Parity is released under the [MIT License](LICENSE).
 
 Mermaid diagrams are included in the documents. [PNG alternatives](docs/diagrams/README.md) are available for viewers without Mermaid support.
 

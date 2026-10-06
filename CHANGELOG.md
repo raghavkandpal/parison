@@ -11,6 +11,7 @@ All notable changes will be documented in this file.
 - Summary-only or bounded raw-evidence JSON and self-contained HTML result bundles.
 - Bundle integrity manifests, verification, deterministic exit codes and safe error/interruption bundles.
 - Input byte and row guards, generated semantic fixtures and accuracy-checked performance benchmarks.
+- MIT license.
 
 ### Performance
 

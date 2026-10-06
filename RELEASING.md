@@ -3,7 +3,7 @@
 ## Hard blockers
 
 - [ ] Clear the `Parity` and `parity-compare` names for the intended distribution channels.
-- [ ] Choose a distribution license, add its `LICENSE` file, and declare it in `pyproject.toml`.
+- [x] Choose a distribution license, add its `LICENSE` file, and declare it in `pyproject.toml` (MIT).
 - [ ] Complete at least one unfamiliar-user comparison session and record blocking usability findings.
 
 Do not publish while any hard blocker remains open.
