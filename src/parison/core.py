@@ -200,6 +200,55 @@ def _validate_headers(path: Path, headers: list[str], recipe: dict[str, Any]) ->
         raise ParisonError(f"schema mismatch in {path}: {'; '.join(parts)}")
 
 
+def _jsonl_record(line: str, path: Path, line_number: int) -> dict[str, Any]:
+    if not line.strip():
+        raise ParisonError(f"blank JSON Lines record at line {line_number} in {path}")
+
+    def object_pairs(pairs):
+        value = dict(pairs)
+        if len(value) != len(pairs):
+            raise ParisonError(f"duplicate JSON key at line {line_number} in {path}")
+        return value
+
+    try:
+        value = json.loads(
+            line, object_pairs_hook=object_pairs, parse_int=str, parse_float=str,
+            parse_constant=lambda token: (_ for _ in ()).throw(ValueError(token)),
+        )
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ParisonError(f"cannot parse JSON at line {line_number} in {path}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise ParisonError(f"JSON Lines record {line_number} in {path} must be an object")
+    if any(not isinstance(name, str) or not name for name in value):
+        raise ParisonError(f"JSON Lines record {line_number} in {path} has an empty or invalid field name")
+    if any(isinstance(item, (dict, list)) for item in value.values()):
+        raise ParisonError(f"JSON Lines record {line_number} in {path} contains a nested value")
+    return {name: ("true" if item is True else "false" if item is False else item) for name, item in value.items()}
+
+
+def _iter_jsonl(path: Path, max_rows: int):
+    try:
+        handle = path.open("r", encoding="utf-8")
+    except OSError as exc:
+        raise ParisonError(f"cannot read {path}: {exc}") from exc
+    with handle:
+        headers = None
+        try:
+            for line_number, line in enumerate(handle, 1):
+                if line_number > max_rows:
+                    raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
+                row = _jsonl_record(line, path, line_number)
+                if headers is None:
+                    headers = list(row)
+                elif set(row) != set(headers):
+                    raise ParisonError(f"inconsistent JSON Lines fields at line {line_number} in {path}")
+                yield row
+        except UnicodeDecodeError as exc:
+            raise ParisonError(f"cannot parse {path}: {exc}") from exc
+        if headers is None:
+            raise ParisonError(f"input has no schema: {path}")
+
+
 def _read(path: Path, recipe: dict[str, Any], max_rows: int) -> tuple[list[dict[str, Any]], list[str]]:
     if path.is_symlink():
         raise ParisonError(f"input must not be a symlink: {path}")
@@ -241,8 +290,11 @@ def _read(path: Path, recipe: dict[str, Any], max_rows: int) -> tuple[list[dict[
             raise ParisonError(f"cannot read {path}: {exc}") from exc
         headers = frame.columns
         raw_rows = frame.to_dicts()
+    elif path.suffix.lower() in {".jsonl", ".ndjson"}:
+        raw_rows = list(_iter_jsonl(path, max_rows))
+        headers = list(raw_rows[0])
     else:
-        raise ParisonError(f"unsupported input format for {path}; use .csv or .parquet")
+        raise ParisonError(f"unsupported input format for {path}; use .csv, .jsonl or .parquet")
     _validate_headers(path, headers, recipe)
     rows = [
         {name: _parse(row.get(name), policy, name) for name, policy in recipe["columns"].items()}
@@ -273,6 +325,13 @@ def _input_columns(path: Path) -> list[str]:
                 columns = next(csv.reader(handle, strict=True), [])
         except (OSError, csv.Error, UnicodeDecodeError) as exc:
             raise ParisonError(f"cannot read schema from {path}: {exc}") from exc
+    elif path.suffix.lower() in {".jsonl", ".ndjson"}:
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                line = next(handle, "")
+            columns = list(_jsonl_record(line, path, 1)) if line else []
+        except (OSError, UnicodeDecodeError) as exc:
+            raise ParisonError(f"cannot read schema from {path}: {exc}") from exc
     elif path.suffix.lower() in {".parquet", ".pq"}:
         try:
             import polars as pl
@@ -283,7 +342,7 @@ def _input_columns(path: Path) -> list[str]:
         except Exception as exc:
             raise ParisonError(f"cannot read schema from {path}: {exc}") from exc
     else:
-        raise ParisonError(f"unsupported input format for {path}; use .csv or .parquet")
+        raise ParisonError(f"unsupported input format for {path}; use .csv, .jsonl or .parquet")
     if not columns:
         raise ParisonError(f"input has no schema: {path}")
     if any(not isinstance(name, str) or not name for name in columns) or len(columns) != len(set(columns)):
@@ -389,8 +448,17 @@ def _iter_input_rows(path: Path, recipe: dict[str, Any], max_rows: int):
             raise ParisonError(f"cannot read {path}: {exc}") from exc
         _validate_headers(path, frame.columns, recipe)
         yield from frame.iter_rows(named=True)
+    elif path.suffix.lower() in {".jsonl", ".ndjson"}:
+        rows = _iter_jsonl(path, max_rows)
+        try:
+            first = next(rows)
+        except StopIteration:
+            return
+        _validate_headers(path, list(first), recipe)
+        yield first
+        yield from rows
     else:
-        raise ParisonError(f"unsupported input format for {path}; use .csv or .parquet")
+        raise ParisonError(f"unsupported input format for {path}; use .csv, .jsonl or .parquet")
 
 
 def _read_stream_index(
