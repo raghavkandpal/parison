@@ -235,13 +235,17 @@ def _sqlite_rows(source: str | Path, max_rows: int):
         raise ParisonError(f"SQLite database must be a regular non-symlink file: {path}")
     if any(Path(str(path) + suffix).exists() for suffix in ("-wal", "-journal")):
         raise ParisonError(f"SQLite database has an active journal sidecar: {path}")
+    cursors = []
     try:
         connection = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)
-        connection.execute("PRAGMA query_only=ON")
-        found = connection.execute("SELECT type FROM sqlite_schema WHERE name=?", (table,)).fetchone()
+        cursors.append(connection.execute("PRAGMA query_only=ON"))
+        lookup = connection.execute("SELECT type FROM sqlite_schema WHERE name=?", (table,))
+        cursors.append(lookup)
+        found = lookup.fetchone()
         if found != ("table",):
             raise ParisonError(f"SQLite object is not an ordinary table: {table}")
         cursor = connection.execute(f'SELECT * FROM "{table.replace(chr(34), chr(34) * 2)}"')
+        cursors.append(cursor)
         headers = [item[0] for item in cursor.description or []]
         if not headers or any(not name for name in headers) or len(headers) != len(set(headers)):
             raise ParisonError(f"SQLite table has empty or duplicate columns: {table}")
@@ -257,8 +261,8 @@ def _sqlite_rows(source: str | Path, max_rows: int):
     except sqlite3.Error as exc:
         raise ParisonError(f"cannot read SQLite table {table} from {path}: {exc}") from exc
     finally:
-        if "cursor" in locals():
-            cursor.close()
+        for opened_cursor in reversed(cursors):
+            opened_cursor.close()
         if "connection" in locals():
             connection.close()
 
