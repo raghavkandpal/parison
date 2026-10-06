@@ -25,6 +25,8 @@ parison compare --recipe examples/orders.recipe.json \
 parison verify runs/orders-example
 ```
 
+On `develop`, `draft-recipe` writes an intentionally invalid checklist: it copies shared column names but does not infer keys, types, scope, exclusions or tolerances. Review every unresolved choice, then use `validate-recipe` as the gate. See the [recipe draft contract and workflow](docs/0.2/22-recipe-draft-contract.md).
+
 A generated PASS bundle is checked in under [`examples/output`](examples/output), containing [`result.json`](examples/output/result.json), [`effective-recipe.json`](examples/output/effective-recipe.json), [`report.html`](examples/output/report.html), and [`manifest.json`](examples/output/manifest.json). It is summary-only and contains no source keys or raw values.
 
 To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/0.1.0/parison-0.1.0-py3-none-any.whl"`. Recipes are strict JSON in this first slice; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars versions without recording hostnames.

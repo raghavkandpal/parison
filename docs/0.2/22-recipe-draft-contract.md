@@ -39,6 +39,19 @@ Drafting fails without writing output when either schema cannot be read, a colum
 
 The command never guesses key candidates, treats a unique observed column as identity, infers tolerances, approves exclusions, or claims the two datasets have comparable scope.
 
+## Review workflow
+
+1. Run `draft-recipe` once. It refuses to overwrite an existing file.
+2. Review the exact shared-column list and reconcile unintended one-sided columns.
+3. Choose the key columns. Set their types and keep their comparison exact.
+4. Record the snapshot, extraction cutoff, actual filters, full-scope assertion and whether an empty scope is expected.
+5. Choose null equality and a type for every compared column. Add decimal scale, timestamp awareness or numeric tolerance only where the policy needs it.
+6. Supply a nonempty rationale for every intentional exclusion.
+7. Run `parison validate-recipe comparison.recipe.json`. Fix every reported sentinel until it prints `valid`.
+8. Run `parison compare` with the reviewed recipe. Drafting alone never authorizes comparison.
+
+The generated file is the checklist: searching it for `REVIEW_REQUIRED`, empty strings, `null` and an empty `keys` list reveals the unresolved starting points. Validation, not that search, is the final authority.
+
 ## Compatibility
 
 The draft is ordinary JSON shaped like recipe v1; no second recipe model or permissive parser is introduced. Existing validation remains the authority. `compare` continues to accept only a valid recipe, so an unresolved draft cannot produce PASS.
