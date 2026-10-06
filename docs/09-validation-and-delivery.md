@@ -4,7 +4,7 @@
 
 Build a bounded proof of usefulness, not an enterprise platform. The first milestone is a small synthetic comparison corpus and a baseline report produced with existing tools. Implementation should follow a written semantics contract and measured gaps.
 
-The targets below remain the delivery gates. Stages 1 and 2 now have repository evidence, including the compatibility spike, semantic suite, CLI, artifacts and performance benchmarks. No interviews, task studies or paid offers have been conducted; see the [built evidence review](14-built-evidence-review.md).
+The targets below remain the delivery gates. Stages 1 and 2 now have repository evidence, including the compatibility spike, semantic suite, CLI, artifacts and performance benchmarks. Two blinded agent-execution trials and one human review of agent-produced evidence have been completed; no interviews, direct-human task comparison or paid offers have been conducted. See the [built evidence review](14-built-evidence-review.md).
 
 ## Gate-based delivery
 
@@ -80,4 +80,4 @@ Narrow to a report/recipe layer if existing engines already satisfy the computat
 
 ## Outstanding choices
 
-The spike selected the contract-specific engine over a DataComPy runtime adapter, and keyed-v1 now rejects non-finite numbers while preserving Decimal arithmetic. MIT is selected. Functional CI covers Python 3.11–3.14 on Ubuntu plus Python 3.14 smoke tests on macOS and Windows; this is not cross-platform performance evidence. The remaining choices are whether the static report is sufficient for unfamiliar users and formal clearance of the Parison name. No hosted service or optional AI integration is needed to answer them.
+The spike selected the contract-specific engine over a DataComPy runtime adapter, and keyed-v1 now rejects non-finite numbers while preserving Decimal arithmetic. MIT is selected. Functional CI covers Python 3.11–3.14 on Ubuntu plus Python 3.14 smoke tests on macOS and Windows; this is not cross-platform performance evidence. An agent-mediated workflow using the static report was accepted in the first recorded human review, but direct-human CLI usability remains untested. Formal clearance of the Parison name remains open. No hosted service or optional AI integration is needed to answer these questions.

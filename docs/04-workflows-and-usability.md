@@ -1,6 +1,6 @@
 # Parison workflows and usability
 
-All commands, screens and flows are proposed. No executable product exists yet. Diagrams use compact, standard Mermaid flowcharts, with explanations outside the nodes.
+The CLI and static report described below now exist as an early vertical slice; browser-workbench flows remain proposed. Diagrams use compact, standard Mermaid flowcharts, with explanations outside the nodes.
 
 ## End-to-end comparison
 

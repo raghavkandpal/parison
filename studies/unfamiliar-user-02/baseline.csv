@@ -1,0 +1,7 @@
+site_code,sensor_slot,location_label,calibration_offset_c,checked_at,technician_note
+007,1,Freezer A,0.10,2026-09-30T23:30:00Z,
+007,2,Freezer B,-0.20,2026-09-30T23:45:00Z,replaced probe
+12,1,Chiller East,0.00,2026-10-01T00:00:00+00:00,
+12,2,Chiller West,0.35,2026-10-01T00:15:00Z,monitor
+12,10,Loading Bay,-0.05,2026-10-01T00:30:00Z,
+120,1,Archive Room,0.15,2026-10-01T00:45:00Z,annual check

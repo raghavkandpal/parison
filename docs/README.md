@@ -24,6 +24,7 @@ The research supports a **bounded discovery and prototype**, not an unconditiona
 | [Performance optimization plan](12-performance-optimization-plan.md) | Which measured costs should the next implementation session remove first? |
 | [Tested support envelope](13-tested-support-envelope.md) | Which input shapes and sizes have actually been measured? |
 | [Built evidence review](14-built-evidence-review.md) | Which earlier questions can the current implementation answer, and which still require humans or external evidence? |
+| [Unfamiliar-user test 01](15-unfamiliar-user-test.md) | Can a new user install Parison and correctly interpret failure, ambiguous identity and tolerance behavior? |
 
 ## Recommended initial decisions
 

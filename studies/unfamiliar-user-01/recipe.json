@@ -1,0 +1,25 @@
+{
+  "recipe_version": 1,
+  "comparison_mode": "keyed",
+  "keys": ["order_id"],
+  "scope": {
+    "snapshot": "synthetic-orders-usability-01",
+    "cutoff": "2026-10-06T00:00:00Z",
+    "filters": [],
+    "completeness": "full",
+    "expected_empty": false
+  },
+  "identity": {"null_keys": "reject", "duplicates": "reject"},
+  "nulls_equal": true,
+  "columns": {
+    "order_id": {"type": "string", "comparison": "exact"},
+    "status": {"type": "string", "comparison": "exact"},
+    "total": {
+      "type": "decimal",
+      "scale": 2,
+      "comparison": "numeric",
+      "tolerance": {"formula": "symmetric-v1", "absolute": "0.01", "relative": "0"}
+    }
+  },
+  "output": {"sensitivity": "raw"}
+}

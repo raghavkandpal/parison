@@ -1,0 +1,53 @@
+{
+  "recipe_version": 1,
+  "comparison_mode": "keyed",
+  "keys": ["site_code", "sensor_slot"],
+  "scope": {
+    "snapshot": "cold-storage-calibration-2026-10-01",
+    "cutoff": "2026-10-01T01:00:00Z",
+    "filters": ["active_sensor = true", "checked_at < cutoff"],
+    "completeness": "full",
+    "expected_empty": false
+  },
+  "identity": {
+    "null_keys": "reject",
+    "duplicates": "reject"
+  },
+  "nulls_equal": true,
+  "columns": {
+    "site_code": {
+      "type": "string",
+      "comparison": "exact"
+    },
+    "sensor_slot": {
+      "type": "integer",
+      "comparison": "exact"
+    },
+    "location_label": {
+      "type": "string",
+      "comparison": "exact"
+    },
+    "calibration_offset_c": {
+      "type": "decimal",
+      "scale": 2,
+      "comparison": "numeric",
+      "tolerance": {
+        "formula": "symmetric-v1",
+        "absolute": "0.05",
+        "relative": "0"
+      }
+    },
+    "checked_at": {
+      "type": "timestamp",
+      "comparison": "exact",
+      "timezone": "require-aware"
+    },
+    "technician_note": {
+      "type": "string",
+      "comparison": "exact"
+    }
+  },
+  "output": {
+    "sensitivity": "raw"
+  }
+}
