@@ -198,7 +198,7 @@ class ParisonTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(json.loads(stdout.getvalue()), {"outcome": "FAIL", "output": str(output)})
         summary = stderr.getvalue()
-        for expected in ("Parison FAIL", "Rows:", "Matches:", "Sensitivity: summary", f"Bundle: {output}"):
+        for expected in ("Parison FAIL", "Rows:", "Matches:", "Sensitivity: summary", f"Bundle: {output}", "Exit 1 means the comparison completed"):
             self.assertIn(expected, summary)
         for secret in ("secret-key", "old-secret", "new-secret"):
             self.assertNotIn(secret, summary)

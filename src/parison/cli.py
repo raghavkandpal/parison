@@ -27,6 +27,8 @@ def _print_summary(result: dict, output: str) -> None:
         )
     print(f"Sensitivity: {result['sensitivity']}", file=sys.stderr)
     print(f"Bundle: {output}", file=sys.stderr)
+    if result["outcome"] == "FAIL":
+        print("Exit 1 means the comparison completed and found required differences.", file=sys.stderr)
 
 
 def parser() -> argparse.ArgumentParser:
