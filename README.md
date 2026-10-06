@@ -80,8 +80,12 @@ Start with the [research and design index](docs/README.md).
 | [Tested support envelope](docs/13-tested-support-envelope.md) | Measured input shapes, sizes, memory use and explicit boundaries |
 | [Built evidence review](docs/14-built-evidence-review.md) | Questions resolved by the implementation versus questions that still require human or external evidence |
 | [Unfamiliar-user test 01](docs/15-unfamiliar-user-test.md) | Participant protocol, scoring rubric, rehearsal observations and decision rule |
+| [Name-clearance screen](docs/16-name-clearance-screen.md) | Preliminary package, registry and trademark screen for Parison / `parison` |
+| [Release candidate verification](docs/17-release-candidate-verification.md) | Clean 0.1.0 build, installation, test, smoke and archive evidence |
 
-Release preparation is tracked in [`RELEASING.md`](RELEASING.md); formal name clearance remains the open hard blocker.
+Release preparation is tracked in [`RELEASING.md`](RELEASING.md). The preliminary alpha name screen and release-candidate rehearsal passed; the name screen is not a legal opinion or formal trademark clearance.
+
+The bounded alpha will be distributed as wheel and source-archive assets on a tagged GitHub Release. PyPI publication is intentionally deferred.
 
 Parison is released under the [MIT License](LICENSE).
 

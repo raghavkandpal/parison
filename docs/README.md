@@ -25,6 +25,8 @@ The research supports a **bounded discovery and prototype**, not an unconditiona
 | [Tested support envelope](13-tested-support-envelope.md) | Which input shapes and sizes have actually been measured? |
 | [Built evidence review](14-built-evidence-review.md) | Which earlier questions can the current implementation answer, and which still require humans or external evidence? |
 | [Unfamiliar-user test 01](15-unfamiliar-user-test.md) | Can a new user install Parison and correctly interpret failure, ambiguous identity and tolerance behavior? |
+| [Name-clearance screen](16-name-clearance-screen.md) | Is Parison / `parison` suitable for a bounded alpha, and what naming risks remain? |
+| [Release candidate verification](17-release-candidate-verification.md) | Does 0.1.0 build, install, test and package cleanly from an isolated source export? |
 
 ## Recommended initial decisions
 
