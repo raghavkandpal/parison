@@ -112,6 +112,8 @@ class ParisonTests(unittest.TestCase):
         for expected in ("synthetic-orders-v1", "status", "updated_at", "nondeterministic metadata", "nulls equal", "symmetric-v1", "max input bytes", "keyed-v1", "SHA-256"):
             self.assertIn(expected, report)
         self.assertIn('id="field-class"', report)
+        self.assertIn('id="field-count" role="status"', report)
+        self.assertIn("Showing 2 of 2 fields", report)
         self.assertIn('id="field-summary"', report)
         self.assertNotIn('id="raw-evidence"', report)
 
@@ -128,7 +130,7 @@ class ParisonTests(unittest.TestCase):
         report = (output / "report.html").read_text(encoding="utf-8")
         self.assertNotIn("<script>old</script>", report)
         self.assertIn("&lt;script&gt;old&lt;/script&gt;", report)
-        for hook in ('id="raw-key"', 'id="raw-field"', 'id="raw-class"', 'id="raw-evidence"', 'data-class="different"'):
+        for hook in ('id="raw-key"', 'id="raw-field"', 'id="raw-class"', 'id="raw-count" role="status"', 'id="raw-evidence"', 'data-class="different"', "Showing 1 of 1 sampled items"):
             self.assertIn(hook, report)
         self.assertEqual(json.loads((output / "manifest.json").read_text())["sensitivity"], "raw")
 

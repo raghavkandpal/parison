@@ -35,3 +35,7 @@ Independent scoring verified both manifests, the completed recipe and canonical 
 - **GO** for agent-mediated recipe draft, validation, comparison and bundle verification.
 - **FIX/RETEST** interactive report filtering: add a visible match count and run the committed counterbalanced protocol with a real browser and human reviewer.
 - **STOP** is not warranted; no correctness, privacy or evidence-integrity failure occurred.
+
+## Engineering follow-up
+
+The report now shows live visible-row counts for field-summary and raw-evidence filters. A browser retest against this trial's 200-row dataset confirmed `2 of 3` fields for required differences, `2 of 25` sampled items for the `status` field, and `1 of 25` for `baseline_only`, with no browser console errors. This closes the agent-proxy filtering defect; the human-reviewer gate remains open.
