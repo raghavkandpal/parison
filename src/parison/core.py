@@ -262,6 +262,73 @@ def _digest(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _input_columns(path: Path) -> list[str]:
+    if path.is_symlink():
+        raise ParisonError(f"input must not be a symlink: {path}")
+    if not path.is_file():
+        raise ParisonError(f"input is not a regular file: {path}")
+    if path.suffix.lower() == ".csv":
+        try:
+            with path.open("r", encoding="utf-8", newline="") as handle:
+                columns = next(csv.reader(handle, strict=True), [])
+        except (OSError, csv.Error, UnicodeDecodeError) as exc:
+            raise ParisonError(f"cannot read schema from {path}: {exc}") from exc
+    elif path.suffix.lower() in {".parquet", ".pq"}:
+        try:
+            import polars as pl
+        except ImportError as exc:
+            raise ParisonError("Parquet support requires: pip install 'parison[parquet]'") from exc
+        try:
+            columns = pl.scan_parquet(path).collect_schema().names()
+        except Exception as exc:
+            raise ParisonError(f"cannot read schema from {path}: {exc}") from exc
+    else:
+        raise ParisonError(f"unsupported input format for {path}; use .csv or .parquet")
+    if not columns:
+        raise ParisonError(f"input has no schema: {path}")
+    if any(not isinstance(name, str) or not name for name in columns) or len(columns) != len(set(columns)):
+        raise ParisonError(f"input has empty or duplicate column names: {path}")
+    return columns
+
+
+def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: int = 1_000_000_000) -> dict[str, Any]:
+    if max_input_bytes <= 0:
+        raise ParisonError("max_input_bytes must be positive")
+    baseline, candidate = Path(baseline), Path(candidate)
+    for path in (baseline, candidate):
+        if path.is_symlink():
+            raise ParisonError(f"input must not be a symlink: {path}")
+        if not path.is_file():
+            raise ParisonError(f"input is not a regular file: {path}")
+    try:
+        input_bytes = baseline.stat().st_size + candidate.stat().st_size
+    except OSError as exc:
+        raise ParisonError(f"cannot inspect inputs: {exc}") from exc
+    if input_bytes > max_input_bytes:
+        raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
+    before = {path: _digest(path) for path in (baseline, candidate)}
+    baseline_columns, candidate_columns = _input_columns(baseline), _input_columns(candidate)
+    if any(_digest(path) != digest for path, digest in before.items()):
+        raise ParisonError("an input changed while it was being inspected")
+    candidate_names = set(candidate_columns)
+    shared = [name for name in baseline_columns if name in candidate_names]
+    if not shared:
+        raise ParisonError("inputs have no shared columns")
+    shared_names = set(shared)
+    excluded = [name for name in baseline_columns + candidate_columns if name not in shared_names]
+    return {
+        "recipe_version": 1,
+        "comparison_mode": "keyed",
+        "keys": [],
+        "scope": {"snapshot": "", "cutoff": "", "filters": [], "completeness": "REVIEW_REQUIRED", "expected_empty": None},
+        "identity": {"null_keys": "reject", "duplicates": "reject"},
+        "nulls_equal": None,
+        "columns": {name: {"type": "REVIEW_REQUIRED", "comparison": "exact"} for name in shared},
+        "excluded_columns": dict.fromkeys(excluded, ""),
+        "output": {"sensitivity": "summary"},
+    }
+
+
 def _json_value(value: Any) -> Any:
     if isinstance(value, (Decimal, date, datetime)):
         return str(value)

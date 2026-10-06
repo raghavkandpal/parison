@@ -3,9 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
 from . import __version__
-from .core import OUTCOME_CODES, ParisonError, compare, error_result, load_recipe, publish, terminal_result, verify_bundle
+from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, load_recipe, publish, terminal_result, verify_bundle
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -34,6 +35,11 @@ def parser() -> argparse.ArgumentParser:
     commands = root.add_subparsers(dest="command", required=True)
     validate = commands.add_parser("validate-recipe", help="validate a JSON recipe")
     validate.add_argument("recipe")
+    draft = commands.add_parser("draft-recipe", help="draft an intentionally incomplete JSON recipe")
+    draft.add_argument("--baseline", required=True)
+    draft.add_argument("--candidate", required=True)
+    draft.add_argument("--output", required=True)
+    draft.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     verify = commands.add_parser("verify", help="verify a published run bundle")
     verify.add_argument("run_directory")
     run = commands.add_parser("compare", help="compare baseline and candidate files")
@@ -60,6 +66,19 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
             print("Integrity verification does not change the recorded comparison outcome.", file=sys.stderr)
+            return 0
+        if args.command == "draft-recipe":
+            draft = draft_recipe(args.baseline, args.candidate, args.max_input_bytes)
+            output = Path(args.output)
+            try:
+                output.parent.mkdir(parents=True, exist_ok=True)
+                with output.open("x", encoding="utf-8") as handle:
+                    json.dump(draft, handle, indent=2)
+                    handle.write("\n")
+            except OSError as exc:
+                raise ParisonError(f"cannot write draft recipe: {exc}") from exc
+            print(json.dumps({"output": args.output}))
+            print(f"Drafted unresolved recipe: {args.output}", file=sys.stderr)
             return 0
         recipe = load_recipe(args.recipe)
         if args.command == "validate-recipe":
