@@ -186,13 +186,25 @@ def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
     raise AssertionError(kind)
 
 
+def _validate_headers(path: Path, headers: list[str], recipe: dict[str, Any]) -> None:
+    if len(headers) != len(set(headers)):
+        raise ParityError(f"duplicate column names in {path}")
+    missing = set(recipe["columns"]) - set(headers)
+    extra = set(headers) - set(recipe["columns"]) - set(recipe.get("excluded_columns", {}))
+    if missing or extra:
+        parts = []
+        if missing:
+            parts.append("missing=" + ",".join(sorted(missing)))
+        if extra:
+            parts.append("unexpected=" + ",".join(sorted(extra)))
+        raise ParityError(f"schema mismatch in {path}: {'; '.join(parts)}")
+
+
 def _read(path: Path, recipe: dict[str, Any], max_rows: int) -> tuple[list[dict[str, Any]], list[str]]:
     if path.is_symlink():
         raise ParityError(f"input must not be a symlink: {path}")
     if not path.is_file():
         raise ParityError(f"input is not a regular file: {path}")
-    expected = set(recipe["columns"])
-    excluded = set(recipe.get("excluded_columns", {}))
     if path.suffix.lower() == ".csv":
         try:
             handle = path.open("r", encoding="utf-8", newline="")
@@ -231,16 +243,7 @@ def _read(path: Path, recipe: dict[str, Any], max_rows: int) -> tuple[list[dict[
         raw_rows = frame.to_dicts()
     else:
         raise ParityError(f"unsupported input format for {path}; use .csv or .parquet")
-    actual = set(headers)
-    missing = expected - actual
-    extra = actual - expected - excluded
-    if missing or extra:
-        parts = []
-        if missing:
-            parts.append("missing=" + ",".join(sorted(missing)))
-        if extra:
-            parts.append("unexpected=" + ",".join(sorted(extra)))
-        raise ParityError(f"schema mismatch in {path}: {'; '.join(parts)}")
+    _validate_headers(path, headers, recipe)
     rows = [
         {name: _parse(row.get(name), policy, name) for name, policy in recipe["columns"].items()}
         for row in raw_rows
@@ -281,6 +284,46 @@ def _index(rows: list[dict[str, Any]], keys: list[str], side: str) -> tuple[dict
     return dict(zip(values, rows)), problems
 
 
+def _read_csv_index(
+    path: Path, recipe: dict[str, Any], max_rows: int, side: str
+) -> tuple[dict[tuple[Any, ...], dict[str, Any]], int, list[str]]:
+    if path.is_symlink():
+        raise ParityError(f"input must not be a symlink: {path}")
+    if not path.is_file():
+        raise ParityError(f"input is not a regular file: {path}")
+    try:
+        handle = path.open("r", encoding="utf-8", newline="")
+    except OSError as exc:
+        raise ParityError(f"cannot read {path}: {exc}") from exc
+    rows: dict[tuple[Any, ...], dict[str, Any]] = {}
+    duplicates: set[tuple[Any, ...]] = set()
+    null_count = row_count = 0
+    with handle:
+        try:
+            reader = csv.DictReader(handle, strict=True)
+            _validate_headers(path, reader.fieldnames or [], recipe)
+            for raw in reader:
+                if row_count >= max_rows:
+                    raise ParityError(f"row count in {path} exceeds limit {max_rows}")
+                if None in raw or any(value is None for value in raw.values()):
+                    raise ParityError(f"ragged CSV row {reader.line_num} in {path}")
+                row_count += 1
+                row = {name: _parse(raw.get(name), policy, name) for name, policy in recipe["columns"].items()}
+                key = tuple(row[name] for name in recipe["keys"])
+                null_count += any(value is None for value in key)
+                if key in rows:
+                    duplicates.add(key)
+                rows[key] = row
+        except (csv.Error, UnicodeDecodeError) as exc:
+            raise ParityError(f"cannot parse {path}: {exc}") from exc
+    problems = []
+    if null_count:
+        problems.append(f"{side} has {null_count} row(s) with null key components")
+    if duplicates:
+        problems.append(f"{side} has {len(duplicates)} duplicate key(s)")
+    return rows, row_count, problems
+
+
 def _classify(left: Any, right: Any, policy: dict[str, Any], nulls_equal: bool) -> tuple[str, str | None, str | None]:
     if left is None and right is None:
         return ("exact" if nulls_equal else "different"), None, None
@@ -293,6 +336,84 @@ def _classify(left: Any, right: Any, policy: dict[str, Any], nulls_equal: bool) 
     delta = abs(rval - lval)
     allowance = Decimal(str(tolerance["absolute"])) + Decimal(str(tolerance["relative"])) * max(abs(lval), abs(rval))
     return ("within_tolerance" if delta <= allowance else "different"), str(delta), str(allowance)
+
+
+def _compare_csv_summary(
+    path: Path,
+    recipe: dict[str, Any],
+    max_rows: int,
+    left: dict[tuple[Any, ...], dict[str, Any]],
+    prior_problems: list[str],
+) -> dict[str, Any]:
+    if path.is_symlink():
+        raise ParityError(f"input must not be a symlink: {path}")
+    if not path.is_file():
+        raise ParityError(f"input is not a regular file: {path}")
+    try:
+        handle = path.open("r", encoding="utf-8", newline="")
+    except OSError as exc:
+        raise ParityError(f"cannot read {path}: {exc}") from exc
+    keys = recipe["keys"]
+    compared = [name for name in recipe["columns"] if name not in keys]
+    field_counts = {name: {"exact": 0, "within_tolerance": 0, "different": 0} for name in compared}
+    row_counts = {"exact": 0, "within_tolerance": 0, "different": 0}
+    seen: set[tuple[Any, ...]] = set()
+    duplicates: set[tuple[Any, ...]] = set()
+    null_count = candidate_only = discrepancy_count = row_count = 0
+    with handle:
+        try:
+            reader = csv.DictReader(handle, strict=True)
+            headers = reader.fieldnames or []
+            _validate_headers(path, headers, recipe)
+            for raw in reader:
+                if row_count >= max_rows:
+                    raise ParityError(f"row count in {path} exceeds limit {max_rows}")
+                if None in raw or any(value is None for value in raw.values()):
+                    raise ParityError(f"ragged CSV row {reader.line_num} in {path}")
+                row_count += 1
+                row = {name: _parse(raw.get(name), policy, name) for name, policy in recipe["columns"].items()}
+                key = tuple(row[name] for name in keys)
+                if any(value is None for value in key):
+                    null_count += 1
+                if key in seen:
+                    duplicates.add(key)
+                    continue
+                seen.add(key)
+                if key not in left:
+                    candidate_only += 1
+                    continue
+                row_class = "exact"
+                for name in compared:
+                    classification, _, _ = _classify(left[key][name], row[name], recipe["columns"][name], recipe["nulls_equal"])
+                    field_counts[name][classification] += 1
+                    if classification == "different":
+                        row_class = "different"
+                    elif classification == "within_tolerance" and row_class == "exact":
+                        row_class = "within_tolerance"
+                    discrepancy_count += classification != "exact"
+                row_counts[row_class] += 1
+        except (csv.Error, UnicodeDecodeError) as exc:
+            raise ParityError(f"cannot parse {path}: {exc}") from exc
+    problems = list(prior_problems)
+    if null_count:
+        problems.append(f"candidate has {null_count} row(s) with null key components")
+    if duplicates:
+        problems.append(f"candidate has {len(duplicates)} duplicate key(s)")
+    if problems:
+        field_counts = {name: {"exact": 0, "within_tolerance": 0, "different": 0} for name in compared}
+        row_counts = {"exact": 0, "within_tolerance": 0, "different": 0}
+        discrepancy_count = 0
+    baseline_only = sum(key not in seen for key in left)
+    return {
+        "candidate": row_count,
+        "common": len(left) - baseline_only,
+        "baseline_only": baseline_only,
+        "candidate_only": candidate_only,
+        "field_counts": field_counts,
+        "row_counts": row_counts,
+        "field_discrepancy_count": discrepancy_count,
+        "problems": problems,
+    }
 
 
 def compare(
@@ -318,29 +439,48 @@ def compare(
     if input_bytes > max_input_bytes:
         raise ParityError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
     before = {_path: _digest(_path) for _path in (baseline_path, candidate_path)}
-    baseline, _ = _read(baseline_path, recipe, max_rows)
-    candidate, _ = _read(candidate_path, recipe, max_rows)
-    if any(_digest(path) != digest for path, digest in before.items()):
-        raise ParityError("an input changed while it was being read")
     keys = recipe["keys"]
-    left, left_problems = _index(baseline, keys, "baseline")
-    right, right_problems = _index(candidate, keys, "candidate")
-    problems = left_problems + right_problems
-    common = set(left) & set(right)
-    baseline_only = set(left) - set(right)
-    candidate_only = set(right) - set(left)
-    field_counts = {name: {"exact": 0, "within_tolerance": 0, "different": 0} for name in recipe["columns"] if name not in keys}
-    row_counts = {"exact": 0, "within_tolerance": 0, "different": 0}
-    discrepancies: list[dict[str, Any]] = []
-    discrepancy_count = 0
     raw_output = recipe["output"]["sensitivity"] == "raw"
-    if raw_output:
-        for classification, missing_keys in (("baseline_only", baseline_only), ("candidate_only", candidate_only)):
-            for key in sorted(missing_keys, key=lambda item: tuple(str(v) for v in item)):
-                if len(discrepancies) >= sample_limit:
-                    break
-                discrepancies.append({"kind": "record", "key": _key_text(key), "classification": classification})
-    if not problems:
+    streaming = not raw_output and baseline_path.suffix.lower() == candidate_path.suffix.lower() == ".csv"
+    if streaming:
+        left, baseline_count, left_problems = _read_csv_index(baseline_path, recipe, max_rows, "baseline")
+    else:
+        baseline, _ = _read(baseline_path, recipe, max_rows)
+        baseline_count = len(baseline)
+        left, left_problems = _index(baseline, keys, "baseline")
+        del baseline
+    discrepancies: list[dict[str, Any]] = []
+    if streaming:
+        summary = _compare_csv_summary(candidate_path, recipe, max_rows, left, left_problems)
+        candidate_count = summary["candidate"]
+        common_count = summary["common"]
+        baseline_only_count = summary["baseline_only"]
+        candidate_only_count = summary["candidate_only"]
+        field_counts = summary["field_counts"]
+        row_counts = summary["row_counts"]
+        discrepancy_count = summary["field_discrepancy_count"]
+        problems = summary["problems"]
+    else:
+        candidate, _ = _read(candidate_path, recipe, max_rows)
+        right, right_problems = _index(candidate, keys, "candidate")
+        problems = left_problems + right_problems
+        common = set(left) & set(right)
+        baseline_only = set(left) - set(right)
+        candidate_only = set(right) - set(left)
+        candidate_count = len(candidate)
+        common_count = len(common)
+        baseline_only_count = len(baseline_only)
+        candidate_only_count = len(candidate_only)
+        field_counts = {name: {"exact": 0, "within_tolerance": 0, "different": 0} for name in recipe["columns"] if name not in keys}
+        row_counts = {"exact": 0, "within_tolerance": 0, "different": 0}
+        discrepancy_count = 0
+        if raw_output:
+            for classification, missing_keys in (("baseline_only", baseline_only), ("candidate_only", candidate_only)):
+                for key in sorted(missing_keys, key=lambda item: tuple(str(v) for v in item)):
+                    if len(discrepancies) >= sample_limit:
+                        break
+                    discrepancies.append({"kind": "record", "key": _key_text(key), "classification": classification})
+    if not streaming and not problems:
         for key in sorted(common, key=lambda item: tuple(str(v) for v in item)):
             row_class = "exact"
             for name, policy in recipe["columns"].items():
@@ -366,10 +506,12 @@ def compare(
                             "allowance": allowance,
                         })
             row_counts[row_class] += 1
-    empty = not baseline or not candidate
+    if any(_digest(path) != digest for path, digest in before.items()):
+        raise ParityError("an input changed while it was being read")
+    empty = not baseline_count or not candidate_count
     if empty and not recipe["scope"]["expected_empty"]:
         problems.append("nonempty comparable inputs are required")
-    outcome = "INCONCLUSIVE" if problems else ("FAIL" if baseline_only or candidate_only or row_counts["different"] else "PASS")
+    outcome = "INCONCLUSIVE" if problems else ("FAIL" if baseline_only_count or candidate_only_count or row_counts["different"] else "PASS")
     return {
         "schema_version": 1,
         "outcome": outcome,
@@ -383,14 +525,14 @@ def compare(
         "column_policies": recipe["columns"],
         "problems": problems,
         "counts": {
-            "baseline": len(baseline), "candidate": len(candidate), "common_keys": len(common),
-            "baseline_only": len(baseline_only), "candidate_only": len(candidate_only),
+            "baseline": baseline_count, "candidate": candidate_count, "common_keys": common_count,
+            "baseline_only": baseline_only_count, "candidate_only": candidate_only_count,
             "matched_exact": row_counts["exact"], "matched_within_tolerance": row_counts["within_tolerance"],
             "matched_with_required_difference": row_counts["different"],
         },
         "field_counts": field_counts,
         "field_discrepancy_count": discrepancy_count,
-        "discrepancy_count": discrepancy_count + len(baseline_only) + len(candidate_only),
+        "discrepancy_count": discrepancy_count + baseline_only_count + candidate_only_count,
         "discrepancy_sample": discrepancies,
         "discrepancy_sample_limit": sample_limit if raw_output else 0,
         "excluded_columns": recipe.get("excluded_columns", {}),

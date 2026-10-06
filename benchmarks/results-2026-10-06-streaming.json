@@ -1,0 +1,83 @@
+{
+  "cases": [
+    {
+      "accuracy": "verified",
+      "baseline_rows_per_second": 22947.4,
+      "case": "rows-10000",
+      "counts": {
+        "baseline": 10000,
+        "baseline_only": 10,
+        "candidate": 9995,
+        "candidate_only": 5,
+        "common_keys": 9990,
+        "matched_exact": 9880,
+        "matched_with_required_difference": 30,
+        "matched_within_tolerance": 80
+      },
+      "field_discrepancy_count": 110,
+      "input_bytes": 2457372,
+      "max_elapsed_seconds": 0.51098,
+      "median_elapsed_seconds": 0.435779,
+      "median_peak_python_bytes": 11753398,
+      "min_elapsed_seconds": 0.433896,
+      "outcome": "FAIL",
+      "peak_python_bytes_per_baseline_row": 1175.3,
+      "repeats": 5
+    },
+    {
+      "accuracy": "verified",
+      "baseline_rows_per_second": 16653.4,
+      "case": "rows-100000",
+      "counts": {
+        "baseline": 100000,
+        "baseline_only": 100,
+        "candidate": 99950,
+        "candidate_only": 50,
+        "common_keys": 99900,
+        "matched_exact": 98800,
+        "matched_with_required_difference": 300,
+        "matched_within_tolerance": 800
+      },
+      "field_discrepancy_count": 1100,
+      "input_bytes": 24572194,
+      "max_elapsed_seconds": 6.02073,
+      "median_elapsed_seconds": 6.004771,
+      "median_peak_python_bytes": 112894283,
+      "min_elapsed_seconds": 5.866011,
+      "outcome": "FAIL",
+      "peak_python_bytes_per_baseline_row": 1128.9,
+      "repeats": 5
+    },
+    {
+      "accuracy": "verified",
+      "baseline_rows_per_second": 16057.2,
+      "case": "rows-250000",
+      "counts": {
+        "baseline": 250000,
+        "baseline_only": 250,
+        "candidate": 249875,
+        "candidate_only": 125,
+        "common_keys": 249750,
+        "matched_exact": 247000,
+        "matched_with_required_difference": 750,
+        "matched_within_tolerance": 2000
+      },
+      "field_discrepancy_count": 2750,
+      "input_bytes": 61430264,
+      "max_elapsed_seconds": 15.619862,
+      "median_elapsed_seconds": 15.569361,
+      "median_peak_python_bytes": 277423495,
+      "min_elapsed_seconds": 15.460066,
+      "outcome": "FAIL",
+      "peak_python_bytes_per_baseline_row": 1109.7,
+      "repeats": 5
+    }
+  ],
+  "environment": {
+    "date": "2026-10-06",
+    "machine": "arm64",
+    "measurement": "median of repeated local runs with tracemalloc; not a supported performance claim",
+    "platform": "Darwin",
+    "python": "3.14.7"
+  }
+}

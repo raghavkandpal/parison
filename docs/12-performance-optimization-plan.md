@@ -125,3 +125,15 @@ The first result disproves the assumption that simultaneous raw and typed CSV ro
 Retain a typed index for the baseline only, then stream the candidate through comparison in summary mode. Track baseline keys seen, candidate keys seen, identity problems, candidate-only counts and aggregate field/row counts. If either side has identity problems, discard the provisional comparison aggregates so current `INCONCLUSIVE` semantics remain unchanged. Keep the existing two-index path for raw evidence until a bounded deterministic sampler is designed.
 
 This is a deeper change than tuple substitution, but it attacks the measured peak directly: one full typed side instead of two. Prototype it without changing the public `compare` interface or result schema. Gate it with the full semantic suite and five-run 10k/100k/250k benchmark. Keep it only if 100k and 250k are below 1,200 Python bytes per baseline row and throughput is no worse than 10% below baseline.
+
+## 6 October 2026 accepted optimization
+
+The one-sided streaming design passed its gates for summary CSV comparisons. The implementation builds the baseline index directly from typed CSV rows, streams candidate rows through comparison, and retains only candidate keys needed for identity and missing-row checks. Raw evidence and Parquet retain the established two-index path.
+
+| Rows | Baseline median | Streaming median | Baseline bytes/row | Streaming bytes/row | Peak reduction |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 10,000 | 0.541 s | 0.436 s | 2,091.6 | 1,175.3 | 43.8% |
+| 100,000 | 6.187 s | 6.005 s | 2,111.3 | 1,128.9 | 46.5% |
+| 250,000 | 16.231 s | 15.569 s | 2,076.1 | 1,109.7 | 46.5% |
+
+Each accepted figure is the median of five runs with exact expected counts checked on every repetition. The result clears the 1,200-byte target at 100k and 250k without a throughput regression. These remain machine-specific engineering measurements, not a supported scale claim.

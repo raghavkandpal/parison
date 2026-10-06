@@ -136,6 +136,8 @@ class ParityTests(unittest.TestCase):
         link.symlink_to(good)
         with self.assertRaisesRegex(ParityError, "must not be a symlink"):
             compare(self.recipe, link, good)
+        with self.assertRaisesRegex(ParityError, "must not be a symlink"):
+            compare(self.recipe, good, link)
 
     def test_cli_publishes_safe_error_bundle(self):
         good = self.csv("good.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
