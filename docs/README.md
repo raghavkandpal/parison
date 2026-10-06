@@ -8,6 +8,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Implementation agenda](0.2/19-0.2-agenda.md)
 - [GitHub Actions reference](0.2/20-github-actions.md)
 - [Autonomous implementation roadmap](0.2/21-autonomous-roadmap.md)
+- [Recipe draft contract](0.2/22-recipe-draft-contract.md)
 
 ## 0.1 — released record
 
