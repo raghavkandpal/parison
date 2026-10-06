@@ -8,6 +8,26 @@ from . import __version__
 from .core import OUTCOME_CODES, ParisonError, compare, error_result, load_recipe, publish, terminal_result, verify_bundle
 
 
+def _print_summary(result: dict, output: str) -> None:
+    counts = result["counts"]
+    print(f"Parison {result['outcome']} (complete: {str(result['complete']).lower()})", file=sys.stderr)
+    if counts:
+        print(
+            "Rows: "
+            f"baseline {counts['baseline']}, candidate {counts['candidate']}, common {counts['common_keys']}, "
+            f"baseline-only {counts['baseline_only']}, candidate-only {counts['candidate_only']}",
+            file=sys.stderr,
+        )
+        print(
+            "Matches: "
+            f"exact {counts['matched_exact']}, within tolerance {counts['matched_within_tolerance']}, "
+            f"different {counts['matched_with_required_difference']}",
+            file=sys.stderr,
+        )
+    print(f"Sensitivity: {result['sensitivity']}", file=sys.stderr)
+    print(f"Bundle: {output}", file=sys.stderr)
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="parison", description="Compare data-pipeline outputs deterministically")
     root.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -32,29 +52,41 @@ def main(argv: list[str] | None = None) -> int:
     recipe = None
     try:
         if args.command == "verify":
-            verify_bundle(args.run_directory)
+            manifest = verify_bundle(args.run_directory)
             print("valid")
+            print(
+                f"Verified bundle integrity: {args.run_directory} "
+                f"(recorded outcome: {manifest['outcome']}, sensitivity: {manifest['sensitivity']})",
+                file=sys.stderr,
+            )
+            print("Integrity verification does not change the recorded comparison outcome.", file=sys.stderr)
             return 0
         recipe = load_recipe(args.recipe)
         if args.command == "validate-recipe":
             print("valid")
+            print(f"Validated recipe: {args.recipe}", file=sys.stderr)
             return 0
         result = compare(args.recipe, args.baseline, args.candidate, args.sample_limit, args.max_input_bytes, args.max_rows)
         publish(args.output, result, recipe)
         print(json.dumps({"outcome": result["outcome"], "output": args.output}))
+        _print_summary(result, args.output)
         return OUTCOME_CODES[result["outcome"]]
     except ParisonError as exc:
         if args.command == "compare":
+            result = error_result(str(exc))
             try:
-                publish(args.output, error_result(str(exc)), recipe)
+                publish(args.output, result, recipe)
+                _print_summary(result, args.output)
             except ParisonError:
                 pass
         print(f"parison: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
         if args.command == "compare":
+            result = terminal_result("INTERRUPTED", "comparison interrupted by user")
             try:
-                publish(args.output, terminal_result("INTERRUPTED", "comparison interrupted by user"), recipe)
+                publish(args.output, result, recipe)
+                _print_summary(result, args.output)
             except ParisonError:
                 pass
         print("parison: interrupted", file=sys.stderr)
