@@ -7,6 +7,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Product research](0.2/18-0.2-product-research.md)
 - [Implementation agenda](0.2/19-0.2-agenda.md)
 - [GitHub Actions reference](0.2/20-github-actions.md)
+- [Autonomous implementation roadmap](0.2/21-autonomous-roadmap.md)
 
 ## 0.1 — released record
 
