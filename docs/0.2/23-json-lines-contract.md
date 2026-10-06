@@ -26,6 +26,20 @@ The existing regular-file and symlink refusal applies. Combined input bytes are 
 
 Drafting reads only enough JSON Lines content to establish and validate the schema; it never infers types, keys or policy from values. An empty JSON Lines file cannot supply a schema and is rejected.
 
+## Usage
+
+No format flag or JSONL-specific recipe is needed. File suffixes select the reader, so mixed inputs use the normal commands:
+
+```sh
+parison draft-recipe --baseline baseline.csv --candidate candidate.jsonl --output comparison.recipe.json
+# review and complete the draft
+parison validate-recipe comparison.recipe.json
+parison compare --recipe comparison.recipe.json \
+  --baseline baseline.csv --candidate candidate.jsonl --output runs/mixed-input
+```
+
+Use `.jsonl` or `.ndjson`; a generic `.json` file is not assumed to be record-delimited. The resulting `result.json`, report and manifest have the same schema as CSV/Parquet comparisons.
+
 ## Rejections
 
 Reject malformed UTF-8/JSON, duplicate keys, blank lines, non-object records, empty keys, inconsistent field sets, nested values, unsupported suffixes, changing inputs and resource-limit overruns. None of these conditions may be converted into an empty comparison or PASS.
