@@ -2,7 +2,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import closing, redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 
@@ -82,11 +82,12 @@ class InputValidation(unittest.TestCase):
 
     def test_sqlite_schema_is_inspected_read_only(self):
         database = self.root / "input.sqlite"
-        with sqlite3.connect(database) as connection:
+        with closing(sqlite3.connect(database)) as connection:
             connection.execute("CREATE TABLE baseline (id TEXT, old_value INTEGER, note TEXT)")
             connection.execute("INSERT INTO baseline VALUES ('secret', 10, 'private')")
             connection.execute("CREATE TABLE candidate (id TEXT, value INTEGER, note TEXT)")
             connection.execute("INSERT INTO candidate VALUES ('secret', 10, 'private')")
+            connection.commit()
         result = validate_inputs(self.recipe, f"sqlite:{database}#baseline", f"sqlite:{database}#candidate")
         self.assertEqual(result["inputs"]["baseline"]["format"], "sqlite")
         self.assertEqual(result["inputs"]["candidate"]["table"], "candidate")
