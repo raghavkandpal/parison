@@ -17,6 +17,17 @@ class CheckedInExamples(unittest.TestCase):
         self.assertEqual(result["counts"]["matched_exact"], 1)
         self.assertEqual(result["counts"]["matched_within_tolerance"], 1)
 
+    def test_0_3_migration_example_combines_new_capabilities(self):
+        root = Path(__file__).parents[1]
+        result = compare(
+            root / "examples/0.3/migration.recipe.json",
+            root / "examples/0.3/baseline",
+            root / "examples/0.3/candidate.jsonl",
+        )
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["counts"]["matched_exact"], 2)
+        self.assertEqual(result["inputs"]["baseline"]["partitions"], 2)
+
     def test_committed_output_bundle_is_complete_and_verified(self):
         root = Path(__file__).parents[1]
         output = root / "examples/output"

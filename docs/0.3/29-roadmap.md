@@ -40,10 +40,10 @@ Each slice is independently shippable and lands as a focused commit only after t
 
 ### 5. Release integration
 
-- [ ] Verify old recipes and bundles remain readable.
+- [x] Verify old recipes and bundles remain readable.
 - [ ] Run the full Python 3.11–3.14 and optional-Parquet CI matrix.
-- [ ] Update the user guide, examples, support envelope and changelog.
-- [ ] Build and smoke-test release artifacts from a clean archive before any 0.3 tag.
+- [x] Update the user guide, examples, support envelope and changelog.
+- [x] Build and smoke-test release artifacts from a clean archive before any 0.3 tag.
 
 ## Stop conditions
 

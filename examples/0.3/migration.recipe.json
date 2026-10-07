@@ -1,0 +1,26 @@
+{
+  "recipe_version": 1,
+  "comparison_mode": "keyed",
+  "keys": ["order_id"],
+  "scope": {
+    "snapshot": "0.3-migration-example",
+    "cutoff": "2026-10-07T00:00:00Z",
+    "filters": [],
+    "completeness": "full",
+    "expected_empty": false
+  },
+  "identity": {"null_keys": "reject", "duplicates": "reject"},
+  "nulls_equal": true,
+  "columns": {
+    "order_id": {"type": "string", "comparison": "exact", "normalize": ["trim", "casefold"]},
+    "status": {"type": "string", "comparison": "exact", "normalize": ["trim", "casefold"]},
+    "total": {"type": "decimal", "scale": 2, "comparison": "exact"}
+  },
+  "column_mappings": {
+    "order_id": {"baseline": "legacy_order_id", "candidate": "order_id"},
+    "status": {"baseline": "legacy_status", "candidate": "status"},
+    "total": {"baseline": "legacy_total", "candidate": "total"}
+  },
+  "excluded_columns": {},
+  "output": {"sensitivity": "summary"}
+}
