@@ -52,6 +52,12 @@ class InputValidation(unittest.TestCase):
         self.assertEqual(result["inputs"]["baseline"]["format"], "csv")
         self.assertEqual(result["inputs"]["candidate"]["format"], "jsonl")
         self.assertEqual(result["canonical_columns"], 2)
+        self.assertEqual(result["inputs"]["baseline"]["schema"], {
+            "missing": [],
+            "unexpected": [],
+            "mapped": {"value": "old_value"},
+            "excluded_present": ["note"],
+        })
         self.assertNotIn("secret", json.dumps(result))
         self.assertNotIn("private", json.dumps(result))
 
@@ -60,10 +66,25 @@ class InputValidation(unittest.TestCase):
         candidate = self.root / "candidate.csv"
         baseline.write_text("id,wrong\n1,10\n", encoding="utf-8")
         candidate.write_text("id,value\n1,10\n", encoding="utf-8")
-        with self.assertRaisesRegex(ParisonError, "schema mismatch"):
-            validate_inputs(self.recipe, baseline, candidate)
+        result = validate_inputs(self.recipe, baseline, candidate)
+        self.assertEqual(result["status"], "invalid")
+        self.assertEqual(result["inputs"]["baseline"]["schema"]["missing"], ["old_value"])
+        self.assertEqual(result["inputs"]["baseline"]["schema"]["unexpected"], ["wrong"])
+        self.assertEqual(result["inputs"]["candidate"]["schema"]["missing"], [])
         with self.assertRaisesRegex(ParisonError, "exceeds limit"):
             validate_inputs(self.recipe, baseline, candidate, max_input_bytes=1)
+
+    def test_cli_emits_json_for_invalid_schemas(self):
+        baseline = self.root / "baseline.csv"
+        candidate = self.root / "candidate.csv"
+        baseline.write_text("id,wrong\n1,10\n", encoding="utf-8")
+        candidate.write_text("id,value\n1,10\n", encoding="utf-8")
+        stdout, stderr = StringIO(), StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            code = main(["validate-inputs", "--recipe", str(self.recipe), "--baseline", str(baseline), "--candidate", str(candidate)])
+        self.assertEqual(code, 2)
+        self.assertEqual(json.loads(stdout.getvalue())["status"], "invalid")
+        self.assertIn("JSON diagnostics", stderr.getvalue())
 
     def test_cli_reports_partition_metadata(self):
         baseline = self.root / "baseline"

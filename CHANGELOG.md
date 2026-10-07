@@ -4,6 +4,10 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Machine-readable missing, unexpected, mapped and excluded-column diagnostics from `validate-inputs`.
+
 ## 0.3.0 - 2026-10-07
 
 ### Added

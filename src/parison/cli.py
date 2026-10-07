@@ -102,12 +102,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "validate-inputs":
             result = validate_inputs(args.recipe, args.baseline, args.candidate, args.max_input_bytes)
             print(json.dumps(result, sort_keys=True))
-            print(
-                f"Validated input schemas: {result['inputs']['baseline']['columns']} baseline and "
-                f"{result['inputs']['candidate']['columns']} candidate columns.",
-                file=sys.stderr,
-            )
-            return 0
+            if result["status"] == "valid":
+                print(
+                    f"Validated input schemas: {result['inputs']['baseline']['columns']} baseline and "
+                    f"{result['inputs']['candidate']['columns']} candidate columns.",
+                    file=sys.stderr,
+                )
+                return 0
+            print("Input schemas do not match the recipe; inspect the JSON diagnostics.", file=sys.stderr)
+            return 2
         recipe = load_recipe(args.recipe)
         if args.command == "validate-recipe":
             print("valid")

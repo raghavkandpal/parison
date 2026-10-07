@@ -5,6 +5,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 ## 0.4 — current development
 
 - [0.4 roadmap](0.4/36-roadmap.md)
+- [Structured preflight diagnostics](0.4/37-structured-preflight-diagnostics.md)
 
 ## 0.3 — released record
 

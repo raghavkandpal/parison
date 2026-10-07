@@ -249,16 +249,28 @@ def _raw_value(row: dict[Any, Any], name: str) -> Any:
 def _validate_headers(path: Path, headers: list[str], recipe: dict[str, Any], side: str) -> None:
     if len(headers) != len(set(headers)):
         raise ParisonError(f"duplicate column names in {path}")
-    expected = {_source_name(recipe, name, side) for name in recipe["columns"]}
-    missing = expected - set(headers)
-    extra = set(headers) - expected - set(recipe.get("excluded_columns", {}))
+    details = _schema_details(headers, recipe, side)
+    missing, extra = details["missing"], details["unexpected"]
     if missing or extra:
         parts = []
         if missing:
-            parts.append("missing=" + ",".join(sorted(missing)))
+            parts.append("missing=" + ",".join(missing))
         if extra:
-            parts.append("unexpected=" + ",".join(sorted(extra)))
+            parts.append("unexpected=" + ",".join(extra))
         raise ParisonError(f"schema mismatch in {path}: {'; '.join(parts)}")
+
+
+def _schema_details(headers: list[str], recipe: dict[str, Any], side: str) -> dict[str, Any]:
+    physical = {name: _source_name(recipe, name, side) for name in recipe["columns"]}
+    header_names = set(headers)
+    expected = set(physical.values())
+    excluded = set(recipe.get("excluded_columns", {}))
+    return {
+        "missing": sorted(expected - header_names),
+        "unexpected": sorted(header_names - expected - excluded),
+        "mapped": {name: source for name, source in physical.items() if source != name},
+        "excluded_present": sorted(header_names & excluded),
+    }
 
 
 def _sqlite_source(source: str | Path) -> tuple[Path, str] | None:
@@ -503,9 +515,12 @@ def validate_inputs(
     if sum(sizes.values()) > max_input_bytes:
         raise ParisonError(f"combined input size {sum(sizes.values())} exceeds limit {max_input_bytes} bytes")
     inputs = {}
+    status = "valid"
     for side, source in (("baseline", baseline), ("candidate", candidate)):
         columns = _input_columns(source)
-        _validate_headers(_source_path(source), columns, recipe, side)
+        schema = _schema_details(columns, recipe, side)
+        if schema["missing"] or schema["unexpected"]:
+            status = "invalid"
         paths = _source_paths(source)
         sqlite_source = _sqlite_source(source)
         inputs[side] = {
@@ -513,11 +528,12 @@ def validate_inputs(
             "bytes": sizes[side],
             "columns": len(columns),
             "partitions": len(paths),
+            "schema": schema,
         }
         if sqlite_source:
             inputs[side]["table"] = sqlite_source[1]
     return {
-        "status": "valid",
+        "status": status,
         "comparison_mode": recipe["comparison_mode"],
         "keys": recipe["keys"],
         "canonical_columns": len(recipe["columns"]),
