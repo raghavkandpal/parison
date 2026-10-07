@@ -5,6 +5,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 ## 0.3 — current development
 
 - [Explicit column-mapping contract](0.3/28-column-mapping-contract.md)
+- [Autonomous roadmap](0.3/29-roadmap.md)
 
 ## 0.2 — released record
 
