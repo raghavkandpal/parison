@@ -2,13 +2,14 @@ import csv
 import json
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
+from parison import __version__
 from parison.cli import main
-from parison.core import ParisonError, compare, load_recipe, verify_bundle
+from parison.core import ParisonError, compare, load_recipe, publish, verify_bundle
 
 
 RECIPE = {
@@ -110,6 +111,11 @@ class ParisonTests(unittest.TestCase):
         report = (output / "report.html").read_text(encoding="utf-8")
         for expected in ("synthetic-orders-v1", "status", "updated_at", "nondeterministic metadata", "nulls equal", "symmetric-v1", "max input bytes", "keyed-v1", "SHA-256"):
             self.assertIn(expected, report)
+        self.assertIn('id="field-class"', report)
+        self.assertIn('id="field-count" role="status"', report)
+        self.assertIn("Showing 2 of 2 fields", report)
+        self.assertIn('id="field-summary"', report)
+        self.assertNotIn('id="raw-evidence"', report)
 
     def test_raw_evidence_is_explicit_bounded_and_html_escaped(self):
         raw_recipe = dict(RECIPE, output={"sensitivity": "raw"})
@@ -124,7 +130,20 @@ class ParisonTests(unittest.TestCase):
         report = (output / "report.html").read_text(encoding="utf-8")
         self.assertNotIn("<script>old</script>", report)
         self.assertIn("&lt;script&gt;old&lt;/script&gt;", report)
+        for hook in ('id="raw-key"', 'id="raw-field"', 'id="raw-class"', 'id="raw-count" role="status"', 'id="raw-evidence"', 'data-class="different"', "Showing 1 of 1 sampled items"):
+            self.assertIn(hook, report)
         self.assertEqual(json.loads((output / "manifest.json").read_text())["sensitivity"], "raw")
+
+    def test_report_controls_do_not_change_canonical_result(self):
+        left = self.csv("left.csv", [{"order_id": "001", "status": "old", "total": "1"}])
+        right = self.csv("right.csv", [{"order_id": "001", "status": "new", "total": "1"}])
+        result = compare(self.recipe, left, right)
+        output = self.root / "filter-run"
+        publish(output, result, load_recipe(self.recipe))
+        self.assertEqual(json.loads((output / "result.json").read_text()), result)
+        report = (output / "report.html").read_text(encoding="utf-8")
+        self.assertIn("<th>status</th>", report)
+        self.assertIn("<th>total</th>", report)
 
     def test_ragged_csv_and_symlinks_are_rejected_as_errors(self):
         good = self.csv("good.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
@@ -166,7 +185,37 @@ class ParisonTests(unittest.TestCase):
         output = StringIO()
         with self.assertRaisesRegex(SystemExit, "0"), redirect_stdout(output):
             main(["--version"])
-        self.assertEqual(output.getvalue(), "parison 0.1.0\n")
+        self.assertEqual(output.getvalue(), f"parison {__version__}\n")
+
+    def test_cli_preserves_json_stdout_and_prints_safe_summary(self):
+        left = self.csv("left.csv", [{"order_id": "secret-key", "status": "old-secret", "total": "10.00"}])
+        right = self.csv("right.csv", [{"order_id": "secret-key", "status": "new-secret", "total": "10.00"}])
+        output = self.root / "summary-run"
+        stdout = StringIO()
+        stderr = StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            code = main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output)])
+        self.assertEqual(code, 1)
+        self.assertEqual(json.loads(stdout.getvalue()), {"outcome": "FAIL", "output": str(output)})
+        summary = stderr.getvalue()
+        for expected in ("Parison FAIL", "Rows:", "Matches:", "Sensitivity: summary", f"Bundle: {output}", "Exit 1 means the comparison completed"):
+            self.assertIn(expected, summary)
+        for secret in ("secret-key", "old-secret", "new-secret"):
+            self.assertNotIn(secret, summary)
+
+    def test_verify_keeps_valid_stdout_and_explains_integrity(self):
+        left = self.csv("left.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
+        output = self.root / "verify-run"
+        self.assertEqual(main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(left), "--output", str(output)]), 0)
+        stdout = StringIO()
+        stderr = StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            code = main(["verify", str(output)])
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.getvalue(), "valid\n")
+        self.assertIn("Verified bundle integrity", stderr.getvalue())
+        self.assertIn("recorded outcome: PASS", stderr.getvalue())
+        self.assertIn("does not change", stderr.getvalue())
 
     def test_raw_sample_includes_missing_keys_with_one_shared_limit(self):
         raw_recipe = dict(RECIPE, output={"sensitivity": "raw"})
@@ -196,12 +245,16 @@ class ParisonTests(unittest.TestCase):
 
     def test_keyboard_interrupt_returns_130_and_publishes_bundle(self):
         output = self.root / "interrupted-run"
-        with patch("parison.cli.compare", side_effect=KeyboardInterrupt):
+        stderr = StringIO()
+        with patch("parison.cli.compare", side_effect=KeyboardInterrupt), redirect_stderr(stderr):
             code = main(["compare", "--recipe", str(self.recipe), "--baseline", "unused-a.csv", "--candidate", "unused-b.csv", "--output", str(output)])
         self.assertEqual(code, 130)
         result = json.loads((output / "result.json").read_text())
         self.assertEqual(result["outcome"], "INTERRUPTED")
         self.assertFalse(result["complete"])
+        self.assertEqual(verify_bundle(output)["outcome"], "INTERRUPTED")
+        self.assertIn("Parison INTERRUPTED", stderr.getvalue())
+        self.assertIn(f"Bundle: {output}", stderr.getvalue())
 
     def test_row_limit_stops_csv_comparison(self):
         rows = [{"order_id": str(i), "status": "ok", "total": "1"} for i in range(2)]

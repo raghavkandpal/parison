@@ -1,48 +1,39 @@
-# Parison research and proposed product design
+# Parison documentation
 
-Research date: 4 October 2026. Implementation evidence reviewed 6 October 2026: the CLI vertical slice, semantic corpus, benchmark matrix, release packaging and cross-platform CI now exist; customer interviews and independent workflow trials remain incomplete.
+Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-Parison would help data engineers evaluate whether a pipeline refactor or migration preserves intended output. The recommended starting point is a local CLI with a portable investigation report, not a hosted data platform. Its engine is deterministic and does not require AI.
+## 0.2 — current development
 
-The research supports a **bounded discovery and prototype**, not an unconditional business launch. Basic comparison is already well served. The potential opening is reducing the effort between configuring a trustworthy comparison, understanding its exceptions and rerunning the same procedure in CI. That opening must be demonstrated against existing tools and AI-generated scripts.
+- [Step-by-step user guide](0.2/27-user-guide.md)
+- [Product research](0.2/18-0.2-product-research.md)
+- [Implementation agenda](0.2/19-0.2-agenda.md)
+- [GitHub Actions reference](0.2/20-github-actions.md)
+- [Autonomous implementation roadmap](0.2/21-autonomous-roadmap.md)
+- [Recipe draft contract](0.2/22-recipe-draft-contract.md)
+- [JSON Lines input contract](0.2/23-json-lines-contract.md)
+- [SQLite read-only input contract](0.2/24-sqlite-contract.md)
+- [Engineering verification](0.2/25-engineering-verification.md)
+- [Human-results checklist](0.2/26-human-results-checklist.md)
 
-## Reading guide
+## 0.1 — released record
 
-| Document | Main question |
-| --- | --- |
-| [Product thesis](01-product-thesis.md) | Who is this for, and what should we deliberately not build? |
-| [Competitors and existing tools](02-competitors.md) | What already solves this problem, and where might Parison fit? |
-| [Market and monetization](03-market-and-monetization.md) | How could it attract users and sustain an independent business? |
-| [Workflows and usability](04-workflows-and-usability.md) | How do configuration, execution, investigation and CI connect? |
-| [Comparison semantics](05-comparison-semantics.md) | Exactly what does a result mean, including difficult data cases? |
-| [Proposed architecture](06-proposed-architecture.md) | What is the smallest credible implementation and how can it grow? |
-| [Security and data handling](07-security-and-data-handling.md) | What can leak or be corrupted even in a local application? |
-| [AI development and optional AI research](08-ai-development-and-optional-ai.md) | Can the product survive AI-generated alternatives without using AI itself? |
-| [Validation and delivery plan](09-validation-and-delivery.md) | What evidence should determine whether we proceed? |
-| [Sources and evidence gaps](10-sources-and-evidence.md) | Which claims have primary sources, and what remains unverified? |
-| [Engine compatibility spike](11-engine-compatibility-spike.md) | Can DataComPy implement Parison's pinned comparison contract? |
-| [Performance optimization plan](12-performance-optimization-plan.md) | Which measured costs should the next implementation session remove first? |
-| [Tested support envelope](13-tested-support-envelope.md) | Which input shapes and sizes have actually been measured? |
-| [Built evidence review](14-built-evidence-review.md) | Which earlier questions can the current implementation answer, and which still require humans or external evidence? |
-| [Unfamiliar-user test 01](15-unfamiliar-user-test.md) | Can a new user install Parison and correctly interpret failure, ambiguous identity and tolerance behavior? |
-| [Name-clearance screen](16-name-clearance-screen.md) | Is Parison / `parison` suitable for a bounded alpha, and what naming risks remain? |
-| [Release candidate verification](17-release-candidate-verification.md) | Does 0.1.0 build, install, test and package cleanly from an isolated source export? |
+- [Product thesis](0.1/01-product-thesis.md)
+- [Competitors and existing tools](0.1/02-competitors.md)
+- [Historical market and monetization research](0.1/03-market-and-monetization.md)
+- [Workflows and usability](0.1/04-workflows-and-usability.md)
+- [Comparison semantics](0.1/05-comparison-semantics.md)
+- [Architecture](0.1/06-proposed-architecture.md)
+- [Security and data handling](0.1/07-security-and-data-handling.md)
+- [AI resilience research](0.1/08-ai-development-and-optional-ai.md)
+- [Validation and delivery](0.1/09-validation-and-delivery.md)
+- [Sources and evidence gaps](0.1/10-sources-and-evidence.md)
+- [Engine compatibility spike](0.1/11-engine-compatibility-spike.md)
+- [Performance optimization](0.1/12-performance-optimization-plan.md)
+- [Tested support envelope](0.1/13-tested-support-envelope.md)
+- [Built evidence review](0.1/14-built-evidence-review.md)
+- [Unfamiliar-user test](0.1/15-unfamiliar-user-test.md)
+- [Name-clearance screen](0.1/16-name-clearance-screen.md)
+- [Release verification](0.1/17-release-candidate-verification.md)
+- [Human-results checklist](0.1/18-human-results-checklist.md)
 
-## Recommended initial decisions
-
-The eight Mermaid diagrams have been parsed, rendered and visually checked. [PNG versions](diagrams/README.md) are included for readers whose Markdown viewer does not support Mermaid.
-
-- Target engineers comparing exported outputs for the same input snapshot and scope.
-- Support local CSV and Parquet first; no database credentials or cloud storage connectors.
-- Start with keyed record comparison; reject ambiguous identity rather than guessing.
-- Produce machine-readable results and self-contained HTML from one result model.
-- Keep recipes in Git and datasets outside Git. Freeze the recipe used by each run.
-- Keep the contract-specific engine after the DataComPy compatibility spike; use external engines only as differential references where semantics overlap.
-- Keep the engine, evidence format and test corpus usable without any model subscription.
-- Do not build hosted collaboration until recurring team demand and security requirements are established.
-
-## How to read the evidence
-
-“Observed” means documented by the linked maintainer/vendor at research time, not independently verified by execution. “Proposed” means our design. “Hypothesis” means a market or usability assumption. Prices and commercial scenarios in this dossier are experiments, not forecasts or competitor quotes. Public marketing does not establish adoption, profitability, accuracy or comparative performance.
-
-No employer data, code, configurations or internal requirements are used. No actuarial positioning, personal-workout-app reference or enterprise workflow analogy is part of the design. Parison has passed a preliminary package, domain and trademark screen; formal trademark clearance has not been performed.
+The 0.1 Mermaid diagrams have [PNG versions](0.1/diagrams/README.md) for viewers without Mermaid support.

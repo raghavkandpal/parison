@@ -31,9 +31,9 @@ CSV-to-Parquet mixed comparison is covered by the semantic suite. The large perf
 
 ## Evidence
 
-- [`results-2026-10-06-streaming.json`](../benchmarks/results-2026-10-06-streaming.json): standard CSV.
-- [`results-2026-10-06-parquet-streaming.json`](../benchmarks/results-2026-10-06-parquet-streaming.json): standard Parquet.
-- [`results-2026-10-06-adversarial.csv.json`](../benchmarks/results-2026-10-06-adversarial.csv.json): adversarial CSV matrix.
-- [`results-2026-10-06-adversarial.parquet.json`](../benchmarks/results-2026-10-06-adversarial.parquet.json): adversarial Parquet matrix.
+- [`results-2026-10-06-streaming.json`](../../benchmarks/results-2026-10-06-streaming.json): standard CSV.
+- [`results-2026-10-06-parquet-streaming.json`](../../benchmarks/results-2026-10-06-parquet-streaming.json): standard Parquet.
+- [`results-2026-10-06-adversarial.csv.json`](../../benchmarks/results-2026-10-06-adversarial.csv.json): adversarial CSV matrix.
+- [`results-2026-10-06-adversarial.parquet.json`](../../benchmarks/results-2026-10-06-adversarial.parquet.json): adversarial Parquet matrix.
 
 Clean wheel installation and the CLI now pass CI on Python 3.11–3.14 under Ubuntu, with Python 3.14 smoke coverage on macOS and Windows. That establishes functional compatibility, not a performance envelope on those platforms. Expand this envelope only from recorded measurements, not from configured resource limits.

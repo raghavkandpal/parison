@@ -70,7 +70,7 @@ Observed:
 - The example returned `PASS` with one within-tolerance record, as expected.
 - The comparison command printed only the outcome and output directory. A participant must discover and open `report.html` themselves; the real session should test whether that is sufficient.
 - `validate-recipe` and `verify` both printed only `valid`, which provides little orientation but did not block the rehearsal.
-- `docs/04-workflows-and-usability.md` still described all flows as proposed and said no executable product existed, despite the implemented vertical slice.
+- `docs/0.1/04-workflows-and-usability.md` still described all flows as proposed and said no executable product existed, despite the implemented vertical slice.
 
 Decision: **FIX before counting a human session.** Correct the stale workflow statement and use the participant pack in a genuine unfamiliar-user session. Do not build a UI or expand the engine based on this rehearsal alone.
 
