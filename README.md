@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**0.2.0.** The current CLI provides strict keyed comparison, reviewable recipe generation, JSON/HTML evidence bundles, static report filtering, CI-oriented exit codes, and local CSV, Parquet, JSON Lines and read-only SQLite inputs. The project owner explicitly waived the planned direct-human validation gates for this release; the recorded engineering and agent-proxy evidence does not establish broad usability or adoption.
+**0.3 development.** The released 0.2.0 CLI provides strict keyed comparison, reviewable recipe generation, JSON/HTML evidence bundles, static report filtering, CI-oriented exit codes, and local CSV, Parquet, JSON Lines and read-only SQLite inputs. No 0.3 capabilities have been selected yet.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
