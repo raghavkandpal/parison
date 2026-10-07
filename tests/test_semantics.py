@@ -81,6 +81,37 @@ class SemanticCorpus(unittest.TestCase):
         result = compare(self.write_recipe(spec), left, right)
         self.assertEqual(result["outcome"], "PASS")
 
+    def test_explicit_column_mappings_cover_keys_values_and_raw_evidence(self):
+        spec = recipe()
+        spec["column_mappings"] = {
+            "id": {"baseline": "legacy_id", "candidate": "id"},
+            "value": {"baseline": "legacy_value", "candidate": "value"},
+        }
+        left = self.write_csv("left.csv", ["legacy_id", "legacy_value"], [{"legacy_id": "001", "legacy_value": "same"}])
+        right = self.write_csv("right.csv", ["value", "id"], [{"id": "001", "value": "same"}])
+        result = compare(self.write_recipe(spec), left, right)
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["column_mappings"], spec["column_mappings"])
+
+        spec["output"]["sensitivity"] = "raw"
+        right = self.write_csv("different.csv", ["id", "value"], [{"id": "001", "value": "different"}])
+        result = compare(self.write_recipe(spec), left, right)
+        self.assertEqual(result["outcome"], "FAIL")
+        self.assertEqual(result["discrepancy_sample"][0]["field"], "value")
+
+    def test_column_mappings_reject_ambiguous_or_invalid_sources(self):
+        invalid = (
+            ({"missing": {"baseline": "a", "candidate": "b"}}, "canonical column"),
+            ({"id": {"baseline": "legacy_id"}}, "exactly baseline and candidate"),
+            ({"id": {"baseline": "same", "candidate": "id"}, "value": {"baseline": "same", "candidate": "value"}}, "unique baseline"),
+        )
+        for mappings, message in invalid:
+            with self.subTest(message=message):
+                spec = recipe()
+                spec["column_mappings"] = mappings
+                with self.assertRaisesRegex(ParisonError, message):
+                    load_recipe(self.write_recipe(spec))
+
     def test_swapping_inputs_swaps_only_missing_sides(self):
         spec = self.write_recipe(recipe())
         left = self.write_csv("left.csv", ["id", "value"], [{"id": "1", "value": "a"}])
@@ -145,6 +176,51 @@ class SemanticCorpus(unittest.TestCase):
                     [{"id": "1", "value": left_value}], [{"id": "1", "value": right_value}],
                 )
                 self.assertEqual(result["outcome"], "FAIL")
+
+    def test_explicit_string_normalization_applies_to_keys_and_values(self):
+        columns = {
+            "id": {"type": "string", "comparison": "exact", "normalize": ["trim", "casefold"]},
+            "value": {"type": "string", "comparison": "exact", "normalize": ["unicode_nfc"]},
+        }
+        result = self.run_rows(
+            recipe(columns), ["id", "value"],
+            [{"id": " ABC ", "value": "e\u0301"}],
+            [{"id": "abc", "value": "é"}],
+        )
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["counts"]["common_keys"], 1)
+
+    def test_raw_evidence_retains_values_before_normalization(self):
+        columns = {
+            "id": {"type": "string", "comparison": "exact", "normalize": ["trim"]},
+            "value": {"type": "string", "comparison": "exact", "normalize": ["trim", "casefold"]},
+        }
+        spec = recipe(columns)
+        spec["output"]["sensitivity"] = "raw"
+        result = self.run_rows(
+            spec, ["id", "value"],
+            [{"id": " 1 ", "value": " LEFT "}],
+            [{"id": "1", "value": "right"}],
+        )
+        self.assertEqual(result["outcome"], "FAIL")
+        self.assertEqual(result["discrepancy_sample"][0]["baseline"], " LEFT ")
+        self.assertEqual(result["discrepancy_sample"][0]["candidate"], "right")
+
+    def test_normalization_rules_are_strict_and_string_only(self):
+        invalid = (
+            (["trim", "trim"], "unique supported"),
+            (["unknown"], "unique supported"),
+            ([{"trim": True}], "unique supported"),
+        )
+        for rules, message in invalid:
+            with self.subTest(rules=rules):
+                spec = recipe()
+                spec["columns"]["value"]["normalize"] = rules
+                with self.assertRaisesRegex(ParisonError, message):
+                    load_recipe(self.write_recipe(spec))
+        spec = recipe({"id": {"type": "integer", "comparison": "exact", "normalize": ["trim"]}})
+        with self.assertRaisesRegex(ParisonError, "only valid for strings"):
+            load_recipe(self.write_recipe(spec))
 
     def test_boolean_tokens_are_strict(self):
         columns = {

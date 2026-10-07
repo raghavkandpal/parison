@@ -10,6 +10,7 @@ import platform
 import shutil
 import sqlite3
 import tempfile
+import unicodedata
 from collections import Counter
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -19,9 +20,12 @@ from typing import Any
 
 
 OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPTED": 130}
-_RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "columns", "excluded_columns", "output"}
-_COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone", "scale"}
+_RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "columns", "column_mappings", "excluded_columns", "output"}
+_COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone", "scale", "normalize"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
+_NORMALIZATIONS = {"trim", "casefold", "unicode_nfc"}
+_RAW_VALUE = object()
+_FILE_FORMATS = {".csv": "csv", ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".pq": "parquet"}
 
 
 class ParisonError(ValueError):
@@ -131,12 +135,36 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
                 raise ParisonError(f"columns.{name} tolerances must be finite and non-negative")
         elif tolerance is not None:
             raise ParisonError(f"columns.{name}.tolerance requires numeric comparison")
+        normalize = policy.get("normalize", [])
+        if not isinstance(normalize, list) or not all(isinstance(rule, str) for rule in normalize):
+            raise ParisonError(f"columns.{name}.normalize must be a list of unique supported rules")
+        if len(normalize) != len(set(normalize)) or not all(rule in _NORMALIZATIONS for rule in normalize):
+            raise ParisonError(f"columns.{name}.normalize must be a list of unique supported rules")
+        if normalize and policy["type"] != "string":
+            raise ParisonError(f"columns.{name}.normalize is only valid for strings")
     excluded = recipe.get("excluded_columns", {})
     if not isinstance(excluded, dict) or not all(isinstance(k, str) and isinstance(v, str) and v for k, v in excluded.items()):
         raise ParisonError("excluded_columns must map column names to nonempty rationales")
     overlap = set(columns) & set(excluded)
     if overlap:
         raise ParisonError(f"columns cannot also be excluded: {', '.join(sorted(overlap))}")
+    mappings = recipe.get("column_mappings", {})
+    if not isinstance(mappings, dict):
+        raise ParisonError("column_mappings must be an object")
+    if not set(mappings) <= set(columns):
+        raise ParisonError("every column mapping must name a canonical column")
+    for name, mapping in mappings.items():
+        if not isinstance(mapping, dict) or set(mapping) != {"baseline", "candidate"}:
+            raise ParisonError(f"column_mappings.{name} must contain exactly baseline and candidate")
+        if not all(isinstance(value, str) and value for value in mapping.values()):
+            raise ParisonError(f"column_mappings.{name} source names must be nonempty strings")
+    for side in ("baseline", "candidate"):
+        source_names = [mappings.get(name, {}).get(side, name) for name in columns]
+        if len(source_names) != len(set(source_names)):
+            raise ParisonError(f"column_mappings must use unique {side} source columns")
+        mapped_exclusions = set(source_names) & set(excluded)
+        if mapped_exclusions:
+            raise ParisonError(f"mapped source columns cannot also be excluded: {', '.join(sorted(mapped_exclusions))}")
     output = recipe.get("output", {"sensitivity": "summary"})
     if not isinstance(output, dict) or set(output) != {"sensitivity"} or output["sensitivity"] not in {"summary", "raw"}:
         raise ParisonError("output must contain sensitivity='summary' or sensitivity='raw'")
@@ -187,11 +215,43 @@ def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
     raise AssertionError(kind)
 
 
-def _validate_headers(path: Path, headers: list[str], recipe: dict[str, Any]) -> None:
+def _source_name(recipe: dict[str, Any], name: str, side: str) -> str:
+    return recipe.get("column_mappings", {}).get(name, {}).get(side, name)
+
+
+def _normalize(value: Any, policy: dict[str, Any]) -> Any:
+    if value is None:
+        return None
+    for rule in policy.get("normalize", []):
+        if rule == "trim":
+            value = value.strip()
+        elif rule == "casefold":
+            value = value.casefold()
+        elif rule == "unicode_nfc":
+            value = unicodedata.normalize("NFC", value)
+    return value
+
+
+def _parse_row(raw: dict[str, Any], recipe: dict[str, Any], side: str, preserve_raw: bool = False) -> dict[Any, Any]:
+    row: dict[Any, Any] = {}
+    for name, policy in recipe["columns"].items():
+        parsed = _parse(raw.get(_source_name(recipe, name, side)), policy, name)
+        row[name] = _normalize(parsed, policy)
+        if preserve_raw:
+            row[(_RAW_VALUE, name)] = parsed
+    return row
+
+
+def _raw_value(row: dict[Any, Any], name: str) -> Any:
+    return _json_value(row.get((_RAW_VALUE, name), row[name]))
+
+
+def _validate_headers(path: Path, headers: list[str], recipe: dict[str, Any], side: str) -> None:
     if len(headers) != len(set(headers)):
         raise ParisonError(f"duplicate column names in {path}")
-    missing = set(recipe["columns"]) - set(headers)
-    extra = set(headers) - set(recipe["columns"]) - set(recipe.get("excluded_columns", {}))
+    expected = {_source_name(recipe, name, side) for name in recipe["columns"]}
+    missing = expected - set(headers)
+    extra = set(headers) - expected - set(recipe.get("excluded_columns", {}))
     if missing or extra:
         parts = []
         if missing:
@@ -219,12 +279,55 @@ def _source_path(source: str | Path) -> Path:
     return sqlite_source[0] if sqlite_source else Path(source)
 
 
+def _source_paths(source: str | Path) -> tuple[Path, ...]:
+    path = _source_path(source)
+    if _sqlite_source(source) or not path.is_dir():
+        return (path,)
+    if path.is_symlink():
+        raise ParisonError(f"partitioned input must not be a symlink: {path}")
+    try:
+        paths = tuple(sorted((item for item in path.iterdir() if not item.name.startswith(".")), key=lambda item: item.name))
+    except OSError as exc:
+        raise ParisonError(f"cannot inspect partitioned input {path}: {exc}") from exc
+    if not paths:
+        raise ParisonError(f"partitioned input has no files: {path}")
+    if any(item.is_symlink() or not item.is_file() for item in paths):
+        raise ParisonError(f"partitioned input must contain only regular non-symlink files: {path}")
+    formats = {_FILE_FORMATS.get(item.suffix.lower()) for item in paths}
+    if None in formats or len(formats) != 1:
+        raise ParisonError(f"partitioned input must contain one supported file format: {path}")
+    return paths
+
+
+def _source_digest(source: str | Path) -> str:
+    paths = _source_paths(source)
+    if len(paths) == 1 and not _source_path(source).is_dir():
+        return _digest(paths[0])
+    digest = hashlib.sha256()
+    for path in paths:
+        digest.update(path.name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(bytes.fromhex(_digest(path)))
+    return digest.hexdigest()
+
+
+def _source_bytes(source: str | Path) -> int:
+    try:
+        return sum(path.stat().st_size for path in _source_paths(source))
+    except OSError as exc:
+        raise ParisonError(f"cannot inspect inputs: {exc}") from exc
+
+
 def _source_metadata(source: str | Path, digest: str) -> dict[str, Any]:
     path = _source_path(source)
-    metadata = {"sha256": digest, "bytes": path.stat().st_size, "format": path.suffix.lower().lstrip(".")}
+    paths = _source_paths(source)
+    format_name = "sqlite" if _sqlite_source(source) else _FILE_FORMATS.get(paths[0].suffix.lower(), path.suffix.lower().lstrip("."))
+    metadata = {"sha256": digest, "bytes": _source_bytes(source), "format": format_name}
     sqlite_source = _sqlite_source(source)
     if sqlite_source:
         metadata.update(format="sqlite", table=sqlite_source[1])
+    elif path.is_dir():
+        metadata["partitions"] = len(paths)
     return metadata
 
 
@@ -316,65 +419,13 @@ def _iter_jsonl(path: Path, max_rows: int):
             raise ParisonError(f"input has no schema: {path}")
 
 
-def _read(path: str | Path, recipe: dict[str, Any], max_rows: int) -> tuple[list[dict[str, Any]], list[str]]:
-    if _sqlite_source(path):
-        stream = _sqlite_rows(path, max_rows)
-        headers, _ = next(stream)
-        _validate_headers(Path(str(path)), headers, recipe)
-        raw_rows = [row for _, row in stream]
-        return ([{name: _parse(row.get(name), policy, name) for name, policy in recipe["columns"].items()} for row in raw_rows], headers)
-    path = Path(path)
-    if path.is_symlink():
-        raise ParisonError(f"input must not be a symlink: {path}")
-    if not path.is_file():
-        raise ParisonError(f"input is not a regular file: {path}")
-    if path.suffix.lower() == ".csv":
-        try:
-            handle = path.open("r", encoding="utf-8", newline="")
-        except OSError as exc:
-            raise ParisonError(f"cannot read {path}: {exc}") from exc
-        with handle:
-            try:
-                reader = csv.DictReader(handle, strict=True)
-                headers = reader.fieldnames or []
-                if len(headers) != len(set(headers)):
-                    raise ParisonError(f"duplicate column names in {path}")
-                raw_rows = []
-                for row in reader:
-                    if len(raw_rows) >= max_rows:
-                        raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
-                    if None in row or any(value is None for value in row.values()):
-                        raise ParisonError(f"ragged CSV row {reader.line_num} in {path}")
-                    raw_rows.append(row)
-            except (csv.Error, UnicodeDecodeError) as exc:
-                raise ParisonError(f"cannot parse {path}: {exc}") from exc
-    elif path.suffix.lower() in {".parquet", ".pq"}:
-        try:
-            import polars as pl
-        except ImportError as exc:
-            raise ParisonError("Parquet support requires: pip install 'parison[parquet]'") from exc
-        try:
-            row_count = pl.scan_parquet(path).select(pl.len()).collect().item()
-            if row_count > max_rows:
-                raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
-            frame = pl.read_parquet(path)
-        except ParisonError:
-            raise
-        except Exception as exc:
-            raise ParisonError(f"cannot read {path}: {exc}") from exc
-        headers = frame.columns
-        raw_rows = frame.to_dicts()
-    elif path.suffix.lower() in {".jsonl", ".ndjson"}:
-        raw_rows = list(_iter_jsonl(path, max_rows))
-        headers = list(raw_rows[0])
-    else:
-        raise ParisonError(f"unsupported input format for {path}; use .csv, .jsonl or .parquet")
-    _validate_headers(path, headers, recipe)
+def _read(path: str | Path, recipe: dict[str, Any], max_rows: int, side: str) -> tuple[list[dict[str, Any]], list[str]]:
+    raw_rows = list(_iter_input_rows(path, recipe, max_rows, side))
     rows = [
-        {name: _parse(row.get(name), policy, name) for name, policy in recipe["columns"].items()}
+        _parse_row(row, recipe, side, recipe.get("output", {}).get("sensitivity") == "raw")
         for row in raw_rows
     ]
-    return rows, headers
+    return rows, []
 
 
 def _digest(path: Path) -> str:
@@ -389,6 +440,12 @@ def _digest(path: Path) -> str:
 
 
 def _input_columns(path: str | Path) -> list[str]:
+    source_path = _source_path(path)
+    if source_path.is_dir():
+        schemas = [_input_columns(partition) for partition in _source_paths(path)]
+        if any(set(schema) != set(schemas[0]) for schema in schemas[1:]):
+            raise ParisonError(f"partitioned input has inconsistent schemas: {source_path}")
+        return schemas[0]
     if _sqlite_source(path):
         rows = _sqlite_rows(path, 1)
         try:
@@ -430,6 +487,42 @@ def _input_columns(path: str | Path) -> list[str]:
     if any(not isinstance(name, str) or not name for name in columns) or len(columns) != len(set(columns)):
         raise ParisonError(f"input has empty or duplicate column names: {path}")
     return columns
+
+
+def validate_inputs(
+    recipe_path: str | Path,
+    baseline: str | Path,
+    candidate: str | Path,
+    max_input_bytes: int = 1_000_000_000,
+) -> dict[str, Any]:
+    """Validate input schemas against a recipe without comparing records."""
+    if max_input_bytes <= 0:
+        raise ParisonError("max_input_bytes must be positive")
+    recipe = load_recipe(recipe_path)
+    sizes = {side: _source_bytes(source) for side, source in (("baseline", baseline), ("candidate", candidate))}
+    if sum(sizes.values()) > max_input_bytes:
+        raise ParisonError(f"combined input size {sum(sizes.values())} exceeds limit {max_input_bytes} bytes")
+    inputs = {}
+    for side, source in (("baseline", baseline), ("candidate", candidate)):
+        columns = _input_columns(source)
+        _validate_headers(_source_path(source), columns, recipe, side)
+        paths = _source_paths(source)
+        sqlite_source = _sqlite_source(source)
+        inputs[side] = {
+            "format": "sqlite" if sqlite_source else _FILE_FORMATS[paths[0].suffix.lower()],
+            "bytes": sizes[side],
+            "columns": len(columns),
+            "partitions": len(paths),
+        }
+        if sqlite_source:
+            inputs[side]["table"] = sqlite_source[1]
+    return {
+        "status": "valid",
+        "comparison_mode": recipe["comparison_mode"],
+        "keys": recipe["keys"],
+        "canonical_columns": len(recipe["columns"]),
+        "inputs": inputs,
+    }
 
 
 def _suggest_type(values: list[Any]) -> dict[str, Any]:
@@ -495,17 +588,15 @@ def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: i
         path = _source_path(source)
         if path.is_symlink():
             raise ParisonError(f"input must not be a symlink: {path}")
-        if not path.is_file():
-            raise ParisonError(f"input is not a regular file: {path}")
-    try:
-        input_bytes = _source_path(baseline).stat().st_size + _source_path(candidate).stat().st_size
-    except OSError as exc:
-        raise ParisonError(f"cannot inspect inputs: {exc}") from exc
+        if not path.is_file() and not path.is_dir():
+            raise ParisonError(f"input is not a regular file or partition directory: {path}")
+        _source_paths(source)
+    input_bytes = _source_bytes(baseline) + _source_bytes(candidate)
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
-    before = {str(source): _digest(_source_path(source)) for source in (baseline, candidate)}
+    before = {str(source): _source_digest(source) for source in (baseline, candidate)}
     baseline_columns, candidate_columns = _input_columns(baseline), _input_columns(candidate)
-    if any(_digest(_source_path(source)) != digest for source, digest in before.items()):
+    if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being inspected")
     candidate_names = set(candidate_columns)
     shared = [name for name in baseline_columns if name in candidate_names]
@@ -517,10 +608,10 @@ def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: i
         "columns": {name: {"type": "string", "comparison": "exact"} for name in shared},
         "excluded_columns": {name: "inspection" for name in excluded},
     }
-    baseline_rows, _ = _read(baseline, inspection_recipe, 5_000_000)
-    candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000)
+    baseline_rows, _ = _read(baseline, inspection_recipe, 5_000_000, "baseline")
+    candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000, "candidate")
     cutoff = datetime.fromtimestamp(
-        max(_source_path(baseline).stat().st_mtime, _source_path(candidate).stat().st_mtime), timezone.utc
+        max(path.stat().st_mtime for source in (baseline, candidate) for path in _source_paths(source)), timezone.utc
     ).isoformat().replace("+00:00", "Z")
     return {
         "recipe_version": 1,
@@ -536,6 +627,7 @@ def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: i
         "identity": {"null_keys": "reject", "duplicates": "reject"},
         "nulls_equal": True,
         "columns": {name: _suggest_type([row[name] for row in baseline_rows + candidate_rows]) for name in shared},
+        "column_mappings": {},
         "excluded_columns": {
             name: "present only in baseline" if name in baseline_columns else "present only in candidate"
             for name in excluded
@@ -566,11 +658,21 @@ def _index(rows: list[dict[str, Any]], keys: list[str], side: str) -> tuple[dict
     return dict(zip(values, rows)), problems
 
 
-def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int):
+def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int, side: str):
+    source_path = _source_path(path)
+    if source_path.is_dir():
+        row_count = 0
+        for partition in _source_paths(path):
+            for row in _iter_input_rows(partition, recipe, max_rows, side):
+                if row_count >= max_rows:
+                    raise ParisonError(f"row count in {source_path} exceeds limit {max_rows}")
+                row_count += 1
+                yield row
+        return
     if _sqlite_source(path):
         stream = _sqlite_rows(path, max_rows)
         headers, _ = next(stream)
-        _validate_headers(Path(str(path)), headers, recipe)
+        _validate_headers(Path(str(path)), headers, recipe, side)
         for _, row in stream:
             yield row
         return
@@ -587,7 +689,7 @@ def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int):
         with handle:
             try:
                 reader = csv.DictReader(handle, strict=True)
-                _validate_headers(path, reader.fieldnames or [], recipe)
+                _validate_headers(path, reader.fieldnames or [], recipe, side)
                 for row_count, raw in enumerate(reader):
                     if row_count >= max_rows:
                         raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
@@ -610,7 +712,7 @@ def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int):
             raise
         except Exception as exc:
             raise ParisonError(f"cannot read {path}: {exc}") from exc
-        _validate_headers(path, frame.columns, recipe)
+        _validate_headers(path, frame.columns, recipe, side)
         yield from frame.iter_rows(named=True)
     elif path.suffix.lower() in {".jsonl", ".ndjson"}:
         rows = _iter_jsonl(path, max_rows)
@@ -618,7 +720,7 @@ def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int):
             first = next(rows)
         except StopIteration:
             return
-        _validate_headers(path, list(first), recipe)
+        _validate_headers(path, list(first), recipe, side)
         yield first
         yield from rows
     else:
@@ -631,9 +733,9 @@ def _read_stream_index(
     rows: dict[tuple[Any, ...], dict[str, Any]] = {}
     duplicates: set[tuple[Any, ...]] = set()
     null_count = row_count = 0
-    for raw in _iter_input_rows(path, recipe, max_rows):
+    for raw in _iter_input_rows(path, recipe, max_rows, side):
         row_count += 1
-        row = {name: _parse(raw.get(name), policy, name) for name, policy in recipe["columns"].items()}
+        row = _parse_row(raw, recipe, side)
         key = tuple(row[name] for name in recipe["keys"])
         null_count += any(value is None for value in key)
         if key in rows:
@@ -675,9 +777,9 @@ def _compare_stream_summary(
     seen: set[tuple[Any, ...]] = set()
     duplicates: set[tuple[Any, ...]] = set()
     null_count = candidate_only = discrepancy_count = row_count = 0
-    for raw in _iter_input_rows(path, recipe, max_rows):
+    for raw in _iter_input_rows(path, recipe, max_rows, "candidate"):
         row_count += 1
-        row = {name: _parse(raw.get(name), policy, name) for name, policy in recipe["columns"].items()}
+        row = _parse_row(raw, recipe, "candidate")
         key = tuple(row[name] for name in keys)
         if any(value is None for value in key):
             null_count += 1
@@ -736,20 +838,17 @@ def compare(
         raise ParisonError("max_rows must be positive")
     recipe_path = Path(recipe_path)
     recipe = load_recipe(recipe_path)
-    try:
-        input_bytes = _source_path(baseline_path).stat().st_size + _source_path(candidate_path).stat().st_size
-    except OSError as exc:
-        raise ParisonError(f"cannot inspect inputs: {exc}") from exc
+    input_bytes = _source_bytes(baseline_path) + _source_bytes(candidate_path)
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
-    before = {str(source): _digest(_source_path(source)) for source in (baseline_path, candidate_path)}
+    before = {str(source): _source_digest(source) for source in (baseline_path, candidate_path)}
     keys = recipe["keys"]
     raw_output = recipe["output"]["sensitivity"] == "raw"
     streaming = not raw_output
     if streaming:
         left, baseline_count, left_problems = _read_stream_index(baseline_path, recipe, max_rows, "baseline")
     else:
-        baseline, _ = _read(baseline_path, recipe, max_rows)
+        baseline, _ = _read(baseline_path, recipe, max_rows, "baseline")
         baseline_count = len(baseline)
         left, left_problems = _index(baseline, keys, "baseline")
         del baseline
@@ -765,7 +864,7 @@ def compare(
         discrepancy_count = summary["field_discrepancy_count"]
         problems = summary["problems"]
     else:
-        candidate, _ = _read(candidate_path, recipe, max_rows)
+        candidate, _ = _read(candidate_path, recipe, max_rows, "candidate")
         right, right_problems = _index(candidate, keys, "candidate")
         problems = left_problems + right_problems
         common = set(left) & set(right)
@@ -783,7 +882,8 @@ def compare(
                 for key in sorted(missing_keys, key=lambda item: tuple(str(v) for v in item)):
                     if len(discrepancies) >= sample_limit:
                         break
-                    discrepancies.append({"kind": "record", "key": _key_text(key), "classification": classification})
+                    source = left if classification == "baseline_only" else right
+                    discrepancies.append({"kind": "record", "key": [_raw_value(source[key], name) for name in keys], "classification": classification})
     if not streaming and not problems:
         for key in sorted(common, key=lambda item: tuple(str(v) for v in item)):
             row_class = "exact"
@@ -803,14 +903,14 @@ def compare(
                             "kind": "field",
                             "key": _key_text(key),
                             "field": name,
-                            "baseline": _json_value(left[key][name]),
-                            "candidate": _json_value(right[key][name]),
+                            "baseline": _raw_value(left[key], name),
+                            "candidate": _raw_value(right[key], name),
                             "classification": classification,
                             "delta": delta,
                             "allowance": allowance,
                         })
             row_counts[row_class] += 1
-    if any(_digest(_source_path(source)) != digest for source, digest in before.items()):
+    if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being read")
     empty = not baseline_count or not candidate_count
     if empty and not recipe["scope"]["expected_empty"]:
@@ -827,6 +927,7 @@ def compare(
         "keys": keys,
         "policy": {"keys": keys, "nulls_equal": recipe["nulls_equal"], "sensitivity": recipe["output"]["sensitivity"]},
         "column_policies": recipe["columns"],
+        "column_mappings": recipe.get("column_mappings", {}),
         "problems": problems,
         "counts": {
             "baseline": baseline_count, "candidate": candidate_count, "common_keys": common_count,
@@ -863,9 +964,9 @@ def _report(result: dict[str, Any]) -> str:
         for key, value in result.get("policy", {}).items()
     ) or '<tr><td colspan="2">Unavailable</td></tr>'
     column_policy_rows = "".join(
-        f"<tr><th>{esc(name)}</th><td>{esc(policy['type'])}</td><td>{esc(policy.get('comparison', 'exact'))}</td><td>{esc(json.dumps({key: value for key, value in policy.items() if key not in {'type', 'comparison'}}, sort_keys=True))}</td></tr>"
+        f"<tr><th>{esc(name)}</th><td>{esc(result.get('column_mappings', {}).get(name, {}).get('baseline', name))}</td><td>{esc(result.get('column_mappings', {}).get(name, {}).get('candidate', name))}</td><td>{esc(policy['type'])}</td><td>{esc(policy.get('comparison', 'exact'))}</td><td>{esc(json.dumps({key: value for key, value in policy.items() if key not in {'type', 'comparison'}}, sort_keys=True))}</td></tr>"
         for name, policy in result.get("column_policies", {}).items()
-    ) or '<tr><td colspan="4">Unavailable</td></tr>'
+    ) or '<tr><td colspan="6">Unavailable</td></tr>'
     field_rows = "".join(
         f"<tr data-exact=\"{values['exact']}\" data-within_tolerance=\"{values['within_tolerance']}\" data-different=\"{values['different']}\"><th>{esc(name)}</th><td>{values['exact']}</td><td>{values['within_tolerance']}</td><td>{values['different']}</td></tr>"
         for name, values in result["field_counts"].items()
@@ -894,7 +995,7 @@ def _report(result: dict[str, Any]) -> str:
 <title>Parison report: {esc(result['outcome'])}</title><style>body{{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#18202a}}h1{{color:{'#14733b' if result['outcome']=='PASS' else '#a22'}}}table{{border-collapse:collapse;width:100%;margin:1rem 0}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left;vertical-align:top}}th{{background:#f3f5f7}}code{{overflow-wrap:anywhere}}.filters{{display:flex;gap:1rem;flex-wrap:wrap}}label{{display:grid;gap:.25rem}}input,select{{font:inherit;padding:.35rem}}</style>
 <main><h1>{esc(result['outcome'])}</h1><p>Complete evaluation: <strong>{str(result['complete']).lower()}</strong></p>
 <h2>Scope</h2><table>{scope_rows}</table><h2>Comparison policy</h2><table>{policy_rows}</table>
-<h2>Column policies</h2><table><thead><tr><th>Field</th><th>Type</th><th>Comparison</th><th>Additional rules</th></tr></thead><tbody>{column_policy_rows}</tbody></table>
+<h2>Column policies</h2><table><thead><tr><th>Field</th><th>Baseline column</th><th>Candidate column</th><th>Type</th><th>Comparison</th><th>Additional rules</th></tr></thead><tbody>{column_policy_rows}</tbody></table>
 <h2>Record counts</h2><table>{counts}</table>
 <h2>Field summary</h2><label>Show fields with <select id="field-class"><option value="">any result</option><option value="exact">exact matches</option><option value="within_tolerance">within-tolerance matches</option><option value="different">differences</option></select></label><p id="field-count" role="status" aria-live="polite">Showing {len(result['field_counts'])} of {len(result['field_counts'])} fields</p><table id="field-summary"><thead><tr><th>Field</th><th>Exact</th><th>Within tolerance</th><th>Different</th></tr></thead><tbody>{field_rows}</tbody></table>
 <h2>Excluded columns</h2><table><thead><tr><th>Column</th><th>Rationale</th></tr></thead><tbody>{exclusion_rows}</tbody></table>
@@ -925,6 +1026,7 @@ def terminal_result(outcome: str, message: str) -> dict[str, Any]:
         "keys": [],
         "policy": {},
         "column_policies": {},
+        "column_mappings": {},
         "problems": [message],
         "counts": {},
         "field_counts": {},

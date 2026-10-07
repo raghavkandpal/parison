@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**0.2.0.** The current CLI provides strict keyed comparison, reviewable recipe generation, JSON/HTML evidence bundles, static report filtering, CI-oriented exit codes, and local CSV, Parquet, JSON Lines and read-only SQLite inputs. The project owner explicitly waived the planned direct-human validation gates for this release; the recorded engineering and agent-proxy evidence does not establish broad usability or adoption.
+**0.3.0.** The released CLI provides strict keyed comparison, reviewable recipe generation, explicit column mappings and normalization, partitioned local datasets, schema preflight, JSON/HTML evidence bundles, and CI-oriented exit codes.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -16,9 +16,11 @@ Python 3.11 or newer is required.
 
 ```sh
 python -m pip install \
-  https://github.com/raghavkandpal/parison/releases/download/0.2.0/parison-0.2.0-py3-none-any.whl
+  https://github.com/raghavkandpal/parison/releases/download/0.3.0/parison-0.3.0-py3-none-any.whl
 parison --version
 parison validate-recipe examples/orders.recipe.json
+parison validate-inputs --recipe examples/orders.recipe.json \
+  --baseline examples/baseline.csv --candidate examples/candidate.csv
 parison compare --recipe examples/orders.recipe.json \
   --baseline examples/baseline.csv --candidate examples/candidate.csv \
   --output runs/orders-example
@@ -27,9 +29,17 @@ parison verify runs/orders-example
 
 `draft-recipe` inspects both inputs and writes a valid starting recipe with suggested keys, data types, scope metadata and exclusion rationales. Review every suggestion, then use `validate-recipe` as the structural gate. See the [recipe draft contract and workflow](docs/0.2/22-recipe-draft-contract.md).
 
+Recipes can map renamed source columns to one canonical field. Keys, policies, counts and discrepancy evidence continue to use the canonical name. See the [column-mapping contract](docs/0.3/28-column-mapping-contract.md).
+
 A generated PASS bundle is checked in under [`examples/output`](examples/output), containing [`result.json`](examples/output/result.json), [`effective-recipe.json`](examples/output/effective-recipe.json), [`report.html`](examples/output/report.html), and [`manifest.json`](examples/output/manifest.json). It is summary-only and contains no source keys or raw values.
 
-To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/0.2.0/parison-0.2.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md) and read-only [SQLite table](docs/0.2/24-sqlite-contract.md) inputs are also supported, including mixed-format comparisons. Recipes are strict JSON in this first slice; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars versions without recording hostnames.
+To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/0.3.0/parison-0.3.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md) and read-only [SQLite table](docs/0.2/24-sqlite-contract.md) inputs are also supported, including mixed-format comparisons. Recipes are strict JSON in this first slice; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars versions without recording hostnames.
+
+A baseline or candidate may also be a directory of same-format CSV, JSON Lines or Parquet files. Parison treats its immediate files as one logical input and enforces limits, schemas and identity across partitions. See the [partitioned-input contract](docs/0.3/30-partitioned-input-contract.md).
+
+String columns may opt into ordered `trim`, `casefold` and `unicode_nfc` normalization. Normalization is applied before key identity and field comparison; exact comparison remains the default. See the [normalization contract](docs/0.3/31-normalization-contract.md).
+
+Use `validate-inputs` to check physical schemas, mappings, exclusions and partition layouts before reading and comparing all records. Its JSON output contains schema metadata but no record values. See the [input-preflight contract](docs/0.3/32-input-preflight-contract.md).
 
 `output.sensitivity` defaults to `summary`, which stores no source keys or values. Set it explicitly to `raw` to include a bounded discrepancy sample, and protect that output as sensitive data. `--sample-limit` controls the maximum number of raw field differences written. Comparison errors also publish a summary-only diagnostic bundle when the output destination is available.
 
@@ -69,7 +79,8 @@ The first recorded 10k/100k/250k accuracy and performance run is in [`benchmarks
 Start with the [documentation index](docs/README.md).
 
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
-- Current development: [0.2 agenda](docs/0.2/19-0.2-agenda.md)
+- 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
+- Current development: [0.3 roadmap](docs/0.3/29-roadmap.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
 - Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)
 - Safety model: [0.1 security and data handling](docs/0.1/07-security-and-data-handling.md)

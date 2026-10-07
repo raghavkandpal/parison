@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, load_recipe, publish, terminal_result, verify_bundle
+from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, load_recipe, publish, terminal_result, validate_inputs, verify_bundle
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -37,28 +37,33 @@ def parser() -> argparse.ArgumentParser:
     commands = root.add_subparsers(dest="command", required=True)
     validate = commands.add_parser("validate-recipe", help="validate a JSON recipe")
     validate.add_argument("recipe")
+    inputs = commands.add_parser("validate-inputs", help="validate input schemas against a recipe")
+    inputs.add_argument("--recipe", required=True)
+    inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
+    inputs.add_argument("--candidate", required=True, help="candidate file, SQLite locator or partition directory")
+    inputs.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     draft = commands.add_parser(
         "draft-recipe",
         help="draft a JSON recipe with reviewable suggestions",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Review the generated JSON before comparison:
   confirm the suggested keys, scope, null handling and column data types;
-  adjust exclusions and add numeric tolerances where appropriate.
+  map renamed baseline/candidate columns; adjust exclusions and tolerances.
 Then run: parison validate-recipe DRAFT.json
 
 Numeric comparison requires integer, decimal or float plus an explicit
 symmetric-v1 tolerance. Suggestions are starting points, not approved policy.""",
     )
-    draft.add_argument("--baseline", required=True)
-    draft.add_argument("--candidate", required=True)
+    draft.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
+    draft.add_argument("--candidate", required=True, help="candidate file, SQLite locator or partition directory")
     draft.add_argument("--output", required=True)
     draft.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     verify = commands.add_parser("verify", help="verify a published run bundle")
     verify.add_argument("run_directory")
     run = commands.add_parser("compare", help="compare baseline and candidate files")
     run.add_argument("--recipe", required=True)
-    run.add_argument("--baseline", required=True)
-    run.add_argument("--candidate", required=True)
+    run.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
+    run.add_argument("--candidate", required=True, help="candidate file, SQLite locator or partition directory")
     run.add_argument("--output", required=True)
     run.add_argument("--sample-limit", type=int, default=100, help="maximum raw field differences to publish")
     run.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
@@ -93,6 +98,15 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"output": args.output}))
             print(f"Drafted recipe with inferred suggestions: {args.output}", file=sys.stderr)
             print("Next: review the suggestions, then run parison validate-recipe on the draft.", file=sys.stderr)
+            return 0
+        if args.command == "validate-inputs":
+            result = validate_inputs(args.recipe, args.baseline, args.candidate, args.max_input_bytes)
+            print(json.dumps(result, sort_keys=True))
+            print(
+                f"Validated input schemas: {result['inputs']['baseline']['columns']} baseline and "
+                f"{result['inputs']['candidate']['columns']} candidate columns.",
+                file=sys.stderr,
+            )
             return 0
         recipe = load_recipe(args.recipe)
         if args.command == "validate-recipe":
