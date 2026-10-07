@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**0.3 development.** The released 0.2.0 CLI provides strict keyed comparison, reviewable recipe generation, JSON/HTML evidence bundles, static report filtering, CI-oriented exit codes, and local CSV, Parquet, JSON Lines and read-only SQLite inputs. No 0.3 capabilities have been selected yet.
+**0.3 development.** The released 0.2.0 CLI provides strict keyed comparison, reviewable recipe generation, JSON/HTML evidence bundles, static report filtering, CI-oriented exit codes, and local CSV, Parquet, JSON Lines and read-only SQLite inputs. Development adds explicit column mappings, partitioned local datasets and opt-in string normalization.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -34,6 +34,8 @@ A generated PASS bundle is checked in under [`examples/output`](examples/output)
 To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/0.2.0/parison-0.2.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md) and read-only [SQLite table](docs/0.2/24-sqlite-contract.md) inputs are also supported, including mixed-format comparisons. Recipes are strict JSON in this first slice; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars versions without recording hostnames.
 
 On `develop`, a baseline or candidate may also be a directory of same-format CSV, JSON Lines or Parquet files. Parison treats its immediate files as one logical input and enforces limits, schemas and identity across partitions. See the [partitioned-input contract](docs/0.3/30-partitioned-input-contract.md).
+
+String columns on `develop` may opt into ordered `trim`, `casefold` and `unicode_nfc` normalization. Normalization is applied before key identity and field comparison; exact comparison remains the default. See the [normalization contract](docs/0.3/31-normalization-contract.md).
 
 `output.sensitivity` defaults to `summary`, which stores no source keys or values. Set it explicitly to `raw` to include a bounded discrepancy sample, and protect that output as sensitive data. `--sample-limit` controls the maximum number of raw field differences written. Comparison errors also publish a summary-only diagnostic bundle when the output destination is available.
 
@@ -73,7 +75,7 @@ The first recorded 10k/100k/250k accuracy and performance run is in [`benchmarks
 Start with the [documentation index](docs/README.md).
 
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
-- Current development: [0.2 agenda](docs/0.2/19-0.2-agenda.md)
+- Current development: [0.3 roadmap](docs/0.3/29-roadmap.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
 - Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)
 - Safety model: [0.1 security and data handling](docs/0.1/07-security-and-data-handling.md)

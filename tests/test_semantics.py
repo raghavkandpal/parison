@@ -177,6 +177,51 @@ class SemanticCorpus(unittest.TestCase):
                 )
                 self.assertEqual(result["outcome"], "FAIL")
 
+    def test_explicit_string_normalization_applies_to_keys_and_values(self):
+        columns = {
+            "id": {"type": "string", "comparison": "exact", "normalize": ["trim", "casefold"]},
+            "value": {"type": "string", "comparison": "exact", "normalize": ["unicode_nfc"]},
+        }
+        result = self.run_rows(
+            recipe(columns), ["id", "value"],
+            [{"id": " ABC ", "value": "e\u0301"}],
+            [{"id": "abc", "value": "é"}],
+        )
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["counts"]["common_keys"], 1)
+
+    def test_raw_evidence_retains_values_before_normalization(self):
+        columns = {
+            "id": {"type": "string", "comparison": "exact", "normalize": ["trim"]},
+            "value": {"type": "string", "comparison": "exact", "normalize": ["trim", "casefold"]},
+        }
+        spec = recipe(columns)
+        spec["output"]["sensitivity"] = "raw"
+        result = self.run_rows(
+            spec, ["id", "value"],
+            [{"id": " 1 ", "value": " LEFT "}],
+            [{"id": "1", "value": "right"}],
+        )
+        self.assertEqual(result["outcome"], "FAIL")
+        self.assertEqual(result["discrepancy_sample"][0]["baseline"], " LEFT ")
+        self.assertEqual(result["discrepancy_sample"][0]["candidate"], "right")
+
+    def test_normalization_rules_are_strict_and_string_only(self):
+        invalid = (
+            (["trim", "trim"], "unique supported"),
+            (["unknown"], "unique supported"),
+            ([{"trim": True}], "unique supported"),
+        )
+        for rules, message in invalid:
+            with self.subTest(rules=rules):
+                spec = recipe()
+                spec["columns"]["value"]["normalize"] = rules
+                with self.assertRaisesRegex(ParisonError, message):
+                    load_recipe(self.write_recipe(spec))
+        spec = recipe({"id": {"type": "integer", "comparison": "exact", "normalize": ["trim"]}})
+        with self.assertRaisesRegex(ParisonError, "only valid for strings"):
+            load_recipe(self.write_recipe(spec))
+
     def test_boolean_tokens_are_strict(self):
         columns = {
             "id": {"type": "string", "comparison": "exact"},

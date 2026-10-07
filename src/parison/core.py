@@ -10,6 +10,7 @@ import platform
 import shutil
 import sqlite3
 import tempfile
+import unicodedata
 from collections import Counter
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -20,8 +21,10 @@ from typing import Any
 
 OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPTED": 130}
 _RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "columns", "column_mappings", "excluded_columns", "output"}
-_COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone", "scale"}
+_COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone", "scale", "normalize"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
+_NORMALIZATIONS = {"trim", "casefold", "unicode_nfc"}
+_RAW_VALUE = object()
 _FILE_FORMATS = {".csv": "csv", ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".pq": "parquet"}
 
 
@@ -132,6 +135,13 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
                 raise ParisonError(f"columns.{name} tolerances must be finite and non-negative")
         elif tolerance is not None:
             raise ParisonError(f"columns.{name}.tolerance requires numeric comparison")
+        normalize = policy.get("normalize", [])
+        if not isinstance(normalize, list) or not all(isinstance(rule, str) for rule in normalize):
+            raise ParisonError(f"columns.{name}.normalize must be a list of unique supported rules")
+        if len(normalize) != len(set(normalize)) or not all(rule in _NORMALIZATIONS for rule in normalize):
+            raise ParisonError(f"columns.{name}.normalize must be a list of unique supported rules")
+        if normalize and policy["type"] != "string":
+            raise ParisonError(f"columns.{name}.normalize is only valid for strings")
     excluded = recipe.get("excluded_columns", {})
     if not isinstance(excluded, dict) or not all(isinstance(k, str) and isinstance(v, str) and v for k, v in excluded.items()):
         raise ParisonError("excluded_columns must map column names to nonempty rationales")
@@ -207,6 +217,33 @@ def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
 
 def _source_name(recipe: dict[str, Any], name: str, side: str) -> str:
     return recipe.get("column_mappings", {}).get(name, {}).get(side, name)
+
+
+def _normalize(value: Any, policy: dict[str, Any]) -> Any:
+    if value is None:
+        return None
+    for rule in policy.get("normalize", []):
+        if rule == "trim":
+            value = value.strip()
+        elif rule == "casefold":
+            value = value.casefold()
+        elif rule == "unicode_nfc":
+            value = unicodedata.normalize("NFC", value)
+    return value
+
+
+def _parse_row(raw: dict[str, Any], recipe: dict[str, Any], side: str, preserve_raw: bool = False) -> dict[Any, Any]:
+    row: dict[Any, Any] = {}
+    for name, policy in recipe["columns"].items():
+        parsed = _parse(raw.get(_source_name(recipe, name, side)), policy, name)
+        row[name] = _normalize(parsed, policy)
+        if preserve_raw:
+            row[(_RAW_VALUE, name)] = parsed
+    return row
+
+
+def _raw_value(row: dict[Any, Any], name: str) -> Any:
+    return _json_value(row.get((_RAW_VALUE, name), row[name]))
 
 
 def _validate_headers(path: Path, headers: list[str], recipe: dict[str, Any], side: str) -> None:
@@ -385,7 +422,7 @@ def _iter_jsonl(path: Path, max_rows: int):
 def _read(path: str | Path, recipe: dict[str, Any], max_rows: int, side: str) -> tuple[list[dict[str, Any]], list[str]]:
     raw_rows = list(_iter_input_rows(path, recipe, max_rows, side))
     rows = [
-        {name: _parse(row.get(_source_name(recipe, name, side)), policy, name) for name, policy in recipe["columns"].items()}
+        _parse_row(row, recipe, side, recipe.get("output", {}).get("sensitivity") == "raw")
         for row in raw_rows
     ]
     return rows, []
@@ -662,7 +699,7 @@ def _read_stream_index(
     null_count = row_count = 0
     for raw in _iter_input_rows(path, recipe, max_rows, side):
         row_count += 1
-        row = {name: _parse(raw.get(_source_name(recipe, name, side)), policy, name) for name, policy in recipe["columns"].items()}
+        row = _parse_row(raw, recipe, side)
         key = tuple(row[name] for name in recipe["keys"])
         null_count += any(value is None for value in key)
         if key in rows:
@@ -706,7 +743,7 @@ def _compare_stream_summary(
     null_count = candidate_only = discrepancy_count = row_count = 0
     for raw in _iter_input_rows(path, recipe, max_rows, "candidate"):
         row_count += 1
-        row = {name: _parse(raw.get(_source_name(recipe, name, "candidate")), policy, name) for name, policy in recipe["columns"].items()}
+        row = _parse_row(raw, recipe, "candidate")
         key = tuple(row[name] for name in keys)
         if any(value is None for value in key):
             null_count += 1
@@ -809,7 +846,8 @@ def compare(
                 for key in sorted(missing_keys, key=lambda item: tuple(str(v) for v in item)):
                     if len(discrepancies) >= sample_limit:
                         break
-                    discrepancies.append({"kind": "record", "key": _key_text(key), "classification": classification})
+                    source = left if classification == "baseline_only" else right
+                    discrepancies.append({"kind": "record", "key": [_raw_value(source[key], name) for name in keys], "classification": classification})
     if not streaming and not problems:
         for key in sorted(common, key=lambda item: tuple(str(v) for v in item)):
             row_class = "exact"
@@ -829,8 +867,8 @@ def compare(
                             "kind": "field",
                             "key": _key_text(key),
                             "field": name,
-                            "baseline": _json_value(left[key][name]),
-                            "candidate": _json_value(right[key][name]),
+                            "baseline": _raw_value(left[key], name),
+                            "candidate": _raw_value(right[key], name),
                             "classification": classification,
                             "delta": delta,
                             "allowance": allowance,

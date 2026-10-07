@@ -26,10 +26,10 @@ Each slice is independently shippable and lands as a focused commit only after t
 
 ### 3. Explicit normalization
 
-- [ ] Add opt-in string rules for trimming, case folding and Unicode normalization.
-- [ ] Apply normalization after parsing and before identity/comparison, including keys.
-- [ ] Keep defaults exact and report every active normalization rule.
-- [ ] Preserve original raw values in bounded raw evidence so normalization never hides what was received.
+- [x] Add opt-in string rules for trimming, case folding and Unicode normalization.
+- [x] Apply normalization after parsing and before identity/comparison, including keys.
+- [x] Keep defaults exact and report every active normalization rule.
+- [x] Preserve original raw values in bounded raw evidence so normalization never hides what was received.
 
 ### 4. Grouped summaries
 
