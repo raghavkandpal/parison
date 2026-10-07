@@ -31,12 +31,12 @@ Each slice is independently shippable and lands as a focused commit only after t
 - [x] Keep defaults exact and report every active normalization rule.
 - [x] Preserve original raw values in bounded raw evidence so normalization never hides what was received.
 
-### 4. Grouped summaries
+### 4. Schema-only preflight
 
-- [ ] Let recipes name existing canonical fields as grouping dimensions.
-- [ ] Produce complete per-group record and discrepancy counts in summary mode without storing raw values.
-- [ ] Bound group cardinality explicitly and fail rather than silently truncate canonical results.
-- [ ] Add accessible static-report group filtering without changing result semantics.
+- [x] Validate both physical schemas, mappings and exclusions without running a comparison.
+- [x] Cover single files, partition directories and SQLite locators with the existing byte guard.
+- [x] Emit a small machine-readable result containing schema metadata but no record values.
+- [x] Document the JSON Lines first-record boundary and what preflight cannot prove.
 
 ### 5. Release integration
 
@@ -51,4 +51,4 @@ Stop and narrow the active slice if it requires fuzzy matching, automatic policy
 
 ## Deferred
 
-Additional connectors, YAML, a local server, fuzzy identity, cross-run storage, automatic repairs and arbitrary transformations remain outside 0.3.
+Grouped summaries are deferred because publishing useful group labels would conflict with summary mode's promise to store no source keys or values. Additional connectors, YAML, a local server, fuzzy identity, cross-run storage, automatic repairs and arbitrary transformations remain outside 0.3.

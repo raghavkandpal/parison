@@ -19,6 +19,8 @@ python -m pip install \
   https://github.com/raghavkandpal/parison/releases/download/0.2.0/parison-0.2.0-py3-none-any.whl
 parison --version
 parison validate-recipe examples/orders.recipe.json
+parison validate-inputs --recipe examples/orders.recipe.json \
+  --baseline examples/baseline.csv --candidate examples/candidate.csv
 parison compare --recipe examples/orders.recipe.json \
   --baseline examples/baseline.csv --candidate examples/candidate.csv \
   --output runs/orders-example
@@ -36,6 +38,8 @@ To compare Parquet files, install `"parison[parquet] @ https://github.com/raghav
 On `develop`, a baseline or candidate may also be a directory of same-format CSV, JSON Lines or Parquet files. Parison treats its immediate files as one logical input and enforces limits, schemas and identity across partitions. See the [partitioned-input contract](docs/0.3/30-partitioned-input-contract.md).
 
 String columns on `develop` may opt into ordered `trim`, `casefold` and `unicode_nfc` normalization. Normalization is applied before key identity and field comparison; exact comparison remains the default. See the [normalization contract](docs/0.3/31-normalization-contract.md).
+
+Use `validate-inputs` on `develop` to check physical schemas, mappings, exclusions and partition layouts before reading and comparing all records. Its JSON output contains schema metadata but no record values. See the [input-preflight contract](docs/0.3/32-input-preflight-contract.md).
 
 `output.sensitivity` defaults to `summary`, which stores no source keys or values. Set it explicitly to `raw` to include a bounded discrepancy sample, and protect that output as sensitive data. `--sample-limit` controls the maximum number of raw field differences written. Comparison errors also publish a summary-only diagnostic bundle when the output destination is available.
 

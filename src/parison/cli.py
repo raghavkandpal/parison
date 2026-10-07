@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, load_recipe, publish, terminal_result, verify_bundle
+from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, load_recipe, publish, terminal_result, validate_inputs, verify_bundle
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -37,6 +37,11 @@ def parser() -> argparse.ArgumentParser:
     commands = root.add_subparsers(dest="command", required=True)
     validate = commands.add_parser("validate-recipe", help="validate a JSON recipe")
     validate.add_argument("recipe")
+    inputs = commands.add_parser("validate-inputs", help="validate input schemas against a recipe")
+    inputs.add_argument("--recipe", required=True)
+    inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
+    inputs.add_argument("--candidate", required=True, help="candidate file, SQLite locator or partition directory")
+    inputs.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     draft = commands.add_parser(
         "draft-recipe",
         help="draft a JSON recipe with reviewable suggestions",
@@ -93,6 +98,15 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"output": args.output}))
             print(f"Drafted recipe with inferred suggestions: {args.output}", file=sys.stderr)
             print("Next: review the suggestions, then run parison validate-recipe on the draft.", file=sys.stderr)
+            return 0
+        if args.command == "validate-inputs":
+            result = validate_inputs(args.recipe, args.baseline, args.candidate, args.max_input_bytes)
+            print(json.dumps(result, sort_keys=True))
+            print(
+                f"Validated input schemas: {result['inputs']['baseline']['columns']} baseline and "
+                f"{result['inputs']['candidate']['columns']} candidate columns.",
+                file=sys.stderr,
+            )
             return 0
         recipe = load_recipe(args.recipe)
         if args.command == "validate-recipe":

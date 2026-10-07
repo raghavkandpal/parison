@@ -8,6 +8,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Autonomous roadmap](0.3/29-roadmap.md)
 - [Partitioned-input contract](0.3/30-partitioned-input-contract.md)
 - [String-normalization contract](0.3/31-normalization-contract.md)
+- [Input-preflight contract](0.3/32-input-preflight-contract.md)
 
 ## 0.2 — released record
 

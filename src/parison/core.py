@@ -489,6 +489,42 @@ def _input_columns(path: str | Path) -> list[str]:
     return columns
 
 
+def validate_inputs(
+    recipe_path: str | Path,
+    baseline: str | Path,
+    candidate: str | Path,
+    max_input_bytes: int = 1_000_000_000,
+) -> dict[str, Any]:
+    """Validate input schemas against a recipe without comparing records."""
+    if max_input_bytes <= 0:
+        raise ParisonError("max_input_bytes must be positive")
+    recipe = load_recipe(recipe_path)
+    sizes = {side: _source_bytes(source) for side, source in (("baseline", baseline), ("candidate", candidate))}
+    if sum(sizes.values()) > max_input_bytes:
+        raise ParisonError(f"combined input size {sum(sizes.values())} exceeds limit {max_input_bytes} bytes")
+    inputs = {}
+    for side, source in (("baseline", baseline), ("candidate", candidate)):
+        columns = _input_columns(source)
+        _validate_headers(_source_path(source), columns, recipe, side)
+        paths = _source_paths(source)
+        sqlite_source = _sqlite_source(source)
+        inputs[side] = {
+            "format": "sqlite" if sqlite_source else _FILE_FORMATS[paths[0].suffix.lower()],
+            "bytes": sizes[side],
+            "columns": len(columns),
+            "partitions": len(paths),
+        }
+        if sqlite_source:
+            inputs[side]["table"] = sqlite_source[1]
+    return {
+        "status": "valid",
+        "comparison_mode": recipe["comparison_mode"],
+        "keys": recipe["keys"],
+        "canonical_columns": len(recipe["columns"]),
+        "inputs": inputs,
+    }
+
+
 def _suggest_type(values: list[Any]) -> dict[str, Any]:
     present = [str(value) for value in values if value not in (None, "")]
     if not present:

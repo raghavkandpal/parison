@@ -9,6 +9,7 @@ All notable changes will be documented in this file.
 - Explicit baseline/candidate column mappings under canonical recipe field names.
 - Partitioned CSV, JSON Lines and Parquet directories as logical inputs.
 - Opt-in, ordered string normalization for trimming, case folding and Unicode NFC.
+- Schema-only input preflight for recipes, mappings, exclusions and partition layouts.
 
 ## 0.2.0 - 2026-10-07
 
