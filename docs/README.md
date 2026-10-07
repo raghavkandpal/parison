@@ -2,6 +2,10 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
+## 0.4 — current development
+
+- [0.4 roadmap](0.4/36-roadmap.md)
+
 ## 0.3 — released record
 
 - [Explicit column-mapping contract](0.3/28-column-mapping-contract.md)

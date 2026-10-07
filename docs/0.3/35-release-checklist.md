@@ -8,6 +8,6 @@ Date: 7 October 2026
 - [x] Build wheel and source archive from a clean Git archive.
 - [x] Install the wheel with its Parquet extra and smoke-test version, validation, comparison and bundle verification.
 - [x] Set the package version to `0.3.0` and move changelog entries out of Unreleased.
-- [ ] Merge the release commit to `main` after CI passes.
-- [ ] Tag the merged commit `0.3.0`.
-- [ ] Publish the GitHub prerelease with wheel, source archive and SHA-256 checksums.
+- [x] Merge the release commit to `main` after CI passes.
+- [x] Tag the merged commit `0.3.0`.
+- [x] Publish the [GitHub prerelease](https://github.com/raghavkandpal/parison/releases/tag/0.3.0) with wheel, source archive and SHA-256 checksums.
