@@ -19,7 +19,7 @@ from typing import Any
 
 
 OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPTED": 130}
-_RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "columns", "excluded_columns", "output"}
+_RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "columns", "column_mappings", "excluded_columns", "output"}
 _COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone", "scale"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
 
@@ -137,6 +137,23 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     overlap = set(columns) & set(excluded)
     if overlap:
         raise ParisonError(f"columns cannot also be excluded: {', '.join(sorted(overlap))}")
+    mappings = recipe.get("column_mappings", {})
+    if not isinstance(mappings, dict):
+        raise ParisonError("column_mappings must be an object")
+    if not set(mappings) <= set(columns):
+        raise ParisonError("every column mapping must name a canonical column")
+    for name, mapping in mappings.items():
+        if not isinstance(mapping, dict) or set(mapping) != {"baseline", "candidate"}:
+            raise ParisonError(f"column_mappings.{name} must contain exactly baseline and candidate")
+        if not all(isinstance(value, str) and value for value in mapping.values()):
+            raise ParisonError(f"column_mappings.{name} source names must be nonempty strings")
+    for side in ("baseline", "candidate"):
+        source_names = [mappings.get(name, {}).get(side, name) for name in columns]
+        if len(source_names) != len(set(source_names)):
+            raise ParisonError(f"column_mappings must use unique {side} source columns")
+        mapped_exclusions = set(source_names) & set(excluded)
+        if mapped_exclusions:
+            raise ParisonError(f"mapped source columns cannot also be excluded: {', '.join(sorted(mapped_exclusions))}")
     output = recipe.get("output", {"sensitivity": "summary"})
     if not isinstance(output, dict) or set(output) != {"sensitivity"} or output["sensitivity"] not in {"summary", "raw"}:
         raise ParisonError("output must contain sensitivity='summary' or sensitivity='raw'")
@@ -187,11 +204,16 @@ def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
     raise AssertionError(kind)
 
 
-def _validate_headers(path: Path, headers: list[str], recipe: dict[str, Any]) -> None:
+def _source_name(recipe: dict[str, Any], name: str, side: str) -> str:
+    return recipe.get("column_mappings", {}).get(name, {}).get(side, name)
+
+
+def _validate_headers(path: Path, headers: list[str], recipe: dict[str, Any], side: str) -> None:
     if len(headers) != len(set(headers)):
         raise ParisonError(f"duplicate column names in {path}")
-    missing = set(recipe["columns"]) - set(headers)
-    extra = set(headers) - set(recipe["columns"]) - set(recipe.get("excluded_columns", {}))
+    expected = {_source_name(recipe, name, side) for name in recipe["columns"]}
+    missing = expected - set(headers)
+    extra = set(headers) - expected - set(recipe.get("excluded_columns", {}))
     if missing or extra:
         parts = []
         if missing:
@@ -316,13 +338,13 @@ def _iter_jsonl(path: Path, max_rows: int):
             raise ParisonError(f"input has no schema: {path}")
 
 
-def _read(path: str | Path, recipe: dict[str, Any], max_rows: int) -> tuple[list[dict[str, Any]], list[str]]:
+def _read(path: str | Path, recipe: dict[str, Any], max_rows: int, side: str) -> tuple[list[dict[str, Any]], list[str]]:
     if _sqlite_source(path):
         stream = _sqlite_rows(path, max_rows)
         headers, _ = next(stream)
-        _validate_headers(Path(str(path)), headers, recipe)
+        _validate_headers(Path(str(path)), headers, recipe, side)
         raw_rows = [row for _, row in stream]
-        return ([{name: _parse(row.get(name), policy, name) for name, policy in recipe["columns"].items()} for row in raw_rows], headers)
+        return ([{name: _parse(row.get(_source_name(recipe, name, side)), policy, name) for name, policy in recipe["columns"].items()} for row in raw_rows], headers)
     path = Path(path)
     if path.is_symlink():
         raise ParisonError(f"input must not be a symlink: {path}")
@@ -369,9 +391,9 @@ def _read(path: str | Path, recipe: dict[str, Any], max_rows: int) -> tuple[list
         headers = list(raw_rows[0])
     else:
         raise ParisonError(f"unsupported input format for {path}; use .csv, .jsonl or .parquet")
-    _validate_headers(path, headers, recipe)
+    _validate_headers(path, headers, recipe, side)
     rows = [
-        {name: _parse(row.get(name), policy, name) for name, policy in recipe["columns"].items()}
+        {name: _parse(row.get(_source_name(recipe, name, side)), policy, name) for name, policy in recipe["columns"].items()}
         for row in raw_rows
     ]
     return rows, headers
@@ -517,8 +539,8 @@ def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: i
         "columns": {name: {"type": "string", "comparison": "exact"} for name in shared},
         "excluded_columns": {name: "inspection" for name in excluded},
     }
-    baseline_rows, _ = _read(baseline, inspection_recipe, 5_000_000)
-    candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000)
+    baseline_rows, _ = _read(baseline, inspection_recipe, 5_000_000, "baseline")
+    candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000, "candidate")
     cutoff = datetime.fromtimestamp(
         max(_source_path(baseline).stat().st_mtime, _source_path(candidate).stat().st_mtime), timezone.utc
     ).isoformat().replace("+00:00", "Z")
@@ -536,6 +558,7 @@ def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: i
         "identity": {"null_keys": "reject", "duplicates": "reject"},
         "nulls_equal": True,
         "columns": {name: _suggest_type([row[name] for row in baseline_rows + candidate_rows]) for name in shared},
+        "column_mappings": {},
         "excluded_columns": {
             name: "present only in baseline" if name in baseline_columns else "present only in candidate"
             for name in excluded
@@ -566,11 +589,11 @@ def _index(rows: list[dict[str, Any]], keys: list[str], side: str) -> tuple[dict
     return dict(zip(values, rows)), problems
 
 
-def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int):
+def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int, side: str):
     if _sqlite_source(path):
         stream = _sqlite_rows(path, max_rows)
         headers, _ = next(stream)
-        _validate_headers(Path(str(path)), headers, recipe)
+        _validate_headers(Path(str(path)), headers, recipe, side)
         for _, row in stream:
             yield row
         return
@@ -587,7 +610,7 @@ def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int):
         with handle:
             try:
                 reader = csv.DictReader(handle, strict=True)
-                _validate_headers(path, reader.fieldnames or [], recipe)
+                _validate_headers(path, reader.fieldnames or [], recipe, side)
                 for row_count, raw in enumerate(reader):
                     if row_count >= max_rows:
                         raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
@@ -610,7 +633,7 @@ def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int):
             raise
         except Exception as exc:
             raise ParisonError(f"cannot read {path}: {exc}") from exc
-        _validate_headers(path, frame.columns, recipe)
+        _validate_headers(path, frame.columns, recipe, side)
         yield from frame.iter_rows(named=True)
     elif path.suffix.lower() in {".jsonl", ".ndjson"}:
         rows = _iter_jsonl(path, max_rows)
@@ -618,7 +641,7 @@ def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int):
             first = next(rows)
         except StopIteration:
             return
-        _validate_headers(path, list(first), recipe)
+        _validate_headers(path, list(first), recipe, side)
         yield first
         yield from rows
     else:
@@ -631,9 +654,9 @@ def _read_stream_index(
     rows: dict[tuple[Any, ...], dict[str, Any]] = {}
     duplicates: set[tuple[Any, ...]] = set()
     null_count = row_count = 0
-    for raw in _iter_input_rows(path, recipe, max_rows):
+    for raw in _iter_input_rows(path, recipe, max_rows, side):
         row_count += 1
-        row = {name: _parse(raw.get(name), policy, name) for name, policy in recipe["columns"].items()}
+        row = {name: _parse(raw.get(_source_name(recipe, name, side)), policy, name) for name, policy in recipe["columns"].items()}
         key = tuple(row[name] for name in recipe["keys"])
         null_count += any(value is None for value in key)
         if key in rows:
@@ -675,9 +698,9 @@ def _compare_stream_summary(
     seen: set[tuple[Any, ...]] = set()
     duplicates: set[tuple[Any, ...]] = set()
     null_count = candidate_only = discrepancy_count = row_count = 0
-    for raw in _iter_input_rows(path, recipe, max_rows):
+    for raw in _iter_input_rows(path, recipe, max_rows, "candidate"):
         row_count += 1
-        row = {name: _parse(raw.get(name), policy, name) for name, policy in recipe["columns"].items()}
+        row = {name: _parse(raw.get(_source_name(recipe, name, "candidate")), policy, name) for name, policy in recipe["columns"].items()}
         key = tuple(row[name] for name in keys)
         if any(value is None for value in key):
             null_count += 1
@@ -749,7 +772,7 @@ def compare(
     if streaming:
         left, baseline_count, left_problems = _read_stream_index(baseline_path, recipe, max_rows, "baseline")
     else:
-        baseline, _ = _read(baseline_path, recipe, max_rows)
+        baseline, _ = _read(baseline_path, recipe, max_rows, "baseline")
         baseline_count = len(baseline)
         left, left_problems = _index(baseline, keys, "baseline")
         del baseline
@@ -765,7 +788,7 @@ def compare(
         discrepancy_count = summary["field_discrepancy_count"]
         problems = summary["problems"]
     else:
-        candidate, _ = _read(candidate_path, recipe, max_rows)
+        candidate, _ = _read(candidate_path, recipe, max_rows, "candidate")
         right, right_problems = _index(candidate, keys, "candidate")
         problems = left_problems + right_problems
         common = set(left) & set(right)
@@ -827,6 +850,7 @@ def compare(
         "keys": keys,
         "policy": {"keys": keys, "nulls_equal": recipe["nulls_equal"], "sensitivity": recipe["output"]["sensitivity"]},
         "column_policies": recipe["columns"],
+        "column_mappings": recipe.get("column_mappings", {}),
         "problems": problems,
         "counts": {
             "baseline": baseline_count, "candidate": candidate_count, "common_keys": common_count,
@@ -863,9 +887,9 @@ def _report(result: dict[str, Any]) -> str:
         for key, value in result.get("policy", {}).items()
     ) or '<tr><td colspan="2">Unavailable</td></tr>'
     column_policy_rows = "".join(
-        f"<tr><th>{esc(name)}</th><td>{esc(policy['type'])}</td><td>{esc(policy.get('comparison', 'exact'))}</td><td>{esc(json.dumps({key: value for key, value in policy.items() if key not in {'type', 'comparison'}}, sort_keys=True))}</td></tr>"
+        f"<tr><th>{esc(name)}</th><td>{esc(result.get('column_mappings', {}).get(name, {}).get('baseline', name))}</td><td>{esc(result.get('column_mappings', {}).get(name, {}).get('candidate', name))}</td><td>{esc(policy['type'])}</td><td>{esc(policy.get('comparison', 'exact'))}</td><td>{esc(json.dumps({key: value for key, value in policy.items() if key not in {'type', 'comparison'}}, sort_keys=True))}</td></tr>"
         for name, policy in result.get("column_policies", {}).items()
-    ) or '<tr><td colspan="4">Unavailable</td></tr>'
+    ) or '<tr><td colspan="6">Unavailable</td></tr>'
     field_rows = "".join(
         f"<tr data-exact=\"{values['exact']}\" data-within_tolerance=\"{values['within_tolerance']}\" data-different=\"{values['different']}\"><th>{esc(name)}</th><td>{values['exact']}</td><td>{values['within_tolerance']}</td><td>{values['different']}</td></tr>"
         for name, values in result["field_counts"].items()
@@ -894,7 +918,7 @@ def _report(result: dict[str, Any]) -> str:
 <title>Parison report: {esc(result['outcome'])}</title><style>body{{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#18202a}}h1{{color:{'#14733b' if result['outcome']=='PASS' else '#a22'}}}table{{border-collapse:collapse;width:100%;margin:1rem 0}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left;vertical-align:top}}th{{background:#f3f5f7}}code{{overflow-wrap:anywhere}}.filters{{display:flex;gap:1rem;flex-wrap:wrap}}label{{display:grid;gap:.25rem}}input,select{{font:inherit;padding:.35rem}}</style>
 <main><h1>{esc(result['outcome'])}</h1><p>Complete evaluation: <strong>{str(result['complete']).lower()}</strong></p>
 <h2>Scope</h2><table>{scope_rows}</table><h2>Comparison policy</h2><table>{policy_rows}</table>
-<h2>Column policies</h2><table><thead><tr><th>Field</th><th>Type</th><th>Comparison</th><th>Additional rules</th></tr></thead><tbody>{column_policy_rows}</tbody></table>
+<h2>Column policies</h2><table><thead><tr><th>Field</th><th>Baseline column</th><th>Candidate column</th><th>Type</th><th>Comparison</th><th>Additional rules</th></tr></thead><tbody>{column_policy_rows}</tbody></table>
 <h2>Record counts</h2><table>{counts}</table>
 <h2>Field summary</h2><label>Show fields with <select id="field-class"><option value="">any result</option><option value="exact">exact matches</option><option value="within_tolerance">within-tolerance matches</option><option value="different">differences</option></select></label><p id="field-count" role="status" aria-live="polite">Showing {len(result['field_counts'])} of {len(result['field_counts'])} fields</p><table id="field-summary"><thead><tr><th>Field</th><th>Exact</th><th>Within tolerance</th><th>Different</th></tr></thead><tbody>{field_rows}</tbody></table>
 <h2>Excluded columns</h2><table><thead><tr><th>Column</th><th>Rationale</th></tr></thead><tbody>{exclusion_rows}</tbody></table>
@@ -925,6 +949,7 @@ def terminal_result(outcome: str, message: str) -> dict[str, Any]:
         "keys": [],
         "policy": {},
         "column_policies": {},
+        "column_mappings": {},
         "problems": [message],
         "counts": {},
         "field_counts": {},

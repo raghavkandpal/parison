@@ -43,7 +43,7 @@ def parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Review the generated JSON before comparison:
   confirm the suggested keys, scope, null handling and column data types;
-  adjust exclusions and add numeric tolerances where appropriate.
+  map renamed baseline/candidate columns; adjust exclusions and tolerances.
 Then run: parison validate-recipe DRAFT.json
 
 Numeric comparison requires integer, decimal or float plus an explicit

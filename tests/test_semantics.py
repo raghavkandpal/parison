@@ -81,6 +81,37 @@ class SemanticCorpus(unittest.TestCase):
         result = compare(self.write_recipe(spec), left, right)
         self.assertEqual(result["outcome"], "PASS")
 
+    def test_explicit_column_mappings_cover_keys_values_and_raw_evidence(self):
+        spec = recipe()
+        spec["column_mappings"] = {
+            "id": {"baseline": "legacy_id", "candidate": "id"},
+            "value": {"baseline": "legacy_value", "candidate": "value"},
+        }
+        left = self.write_csv("left.csv", ["legacy_id", "legacy_value"], [{"legacy_id": "001", "legacy_value": "same"}])
+        right = self.write_csv("right.csv", ["value", "id"], [{"id": "001", "value": "same"}])
+        result = compare(self.write_recipe(spec), left, right)
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["column_mappings"], spec["column_mappings"])
+
+        spec["output"]["sensitivity"] = "raw"
+        right = self.write_csv("different.csv", ["id", "value"], [{"id": "001", "value": "different"}])
+        result = compare(self.write_recipe(spec), left, right)
+        self.assertEqual(result["outcome"], "FAIL")
+        self.assertEqual(result["discrepancy_sample"][0]["field"], "value")
+
+    def test_column_mappings_reject_ambiguous_or_invalid_sources(self):
+        invalid = (
+            ({"missing": {"baseline": "a", "candidate": "b"}}, "canonical column"),
+            ({"id": {"baseline": "legacy_id"}}, "exactly baseline and candidate"),
+            ({"id": {"baseline": "same", "candidate": "id"}, "value": {"baseline": "same", "candidate": "value"}}, "unique baseline"),
+        )
+        for mappings, message in invalid:
+            with self.subTest(message=message):
+                spec = recipe()
+                spec["column_mappings"] = mappings
+                with self.assertRaisesRegex(ParisonError, message):
+                    load_recipe(self.write_recipe(spec))
+
     def test_swapping_inputs_swaps_only_missing_sides(self):
         spec = self.write_recipe(recipe())
         left = self.write_csv("left.csv", ["id", "value"], [{"id": "1", "value": "a"}])

@@ -4,6 +4,10 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Explicit baseline/candidate column mappings under canonical recipe field names.
+
 ## 0.2.0 - 2026-10-07
 
 ### Added

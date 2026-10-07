@@ -42,6 +42,19 @@ class JsonLinesInput(unittest.TestCase):
         self.assertEqual(result["counts"]["matched_exact"], 1)
         self.assertEqual(result["counts"]["matched_within_tolerance"], 1)
 
+    def test_mixed_inputs_use_canonical_column_mappings(self):
+        spec = json.loads(json.dumps(RECIPE))
+        spec["column_mappings"] = {
+            "id": {"baseline": "legacy_id", "candidate": "id"},
+            "amount": {"baseline": "legacy_amount", "candidate": "amount"},
+        }
+        self.recipe.write_text(json.dumps(spec), encoding="utf-8")
+        baseline = self.root / "baseline.csv"
+        baseline.write_text("legacy_id,legacy_amount,active\n001,10.00,true\n", encoding="utf-8")
+        candidate = self.root / "candidate.jsonl"
+        candidate.write_text('{"id":"001","amount":10.00,"active":true}\n', encoding="utf-8")
+        self.assertEqual(compare(self.recipe, baseline, candidate)["outcome"], "PASS")
+
     def test_jsonl_drafting_uses_names_without_inference(self):
         left, right = self.root / "left.jsonl", self.root / "right.ndjson"
         left.write_text('{"id":"secret","value":1}\n', encoding="utf-8")

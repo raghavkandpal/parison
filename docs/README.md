@@ -2,7 +2,11 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-## 0.2 — current development
+## 0.3 — current development
+
+- [Explicit column-mapping contract](0.3/28-column-mapping-contract.md)
+
+## 0.2 — released record
 
 - [Step-by-step user guide](0.2/27-user-guide.md)
 - [Product research](0.2/18-0.2-product-research.md)
