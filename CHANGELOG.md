@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-07
+
 ### Added
 
 - Reviewable recipe drafting from local inputs, with inferred keys, types, scope defaults and exclusion rationales.

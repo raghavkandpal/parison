@@ -11,6 +11,10 @@ Use synthetic or user-controlled data only. Do not commit production data, crede
 
 Store only consented, non-sensitive observations in `studies/`; keep private datasets and raw artifacts outside the repository.
 
+## Release-owner decision
+
+On 7 October 2026, the project owner explicitly chose to publish 0.2.0 with the current capabilities and waived the four unfinished direct-human validation gates above. Those studies remain unchecked and must not be represented as completed evidence.
+
 ## Code runbook
 
 Run each participant in a fresh temporary directory. On `develop`, use the checkout explicitly so an installed 0.1 release cannot be selected by accident:

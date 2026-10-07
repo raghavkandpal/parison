@@ -8,23 +8,23 @@ Parison is local and zero-custody. It does not extract data from production syst
 
 Python 3.11 or newer is required.
 
-The published release is 0.1.0:
+The published release is 0.2.0:
 
 ```sh
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install \
-  https://github.com/raghavkandpal/parison/releases/download/0.1.0/parison-0.1.0-py3-none-any.whl
+  https://github.com/raghavkandpal/parison/releases/download/0.2.0/parison-0.2.0-py3-none-any.whl
 parison --version
 ```
 
-Version 0.2 is still on `develop`. To evaluate it from a checkout without confusing it with an installed 0.1 CLI, prefix commands with `PYTHONPATH=src python -m parison`:
+To evaluate the current checkout without confusing it with an installed release, prefix commands with `PYTHONPATH=src python -m parison`:
 
 ```sh
 PYTHONPATH=src python -m parison --version
 ```
 
-The shorter `parison` spelling below is a readability placeholder for the current 0.2 invocation. The released 0.1 CLI supports validation, comparison and verification, but not recipe drafting, report filters, JSON Lines or SQLite.
+The shorter `parison` spelling below refers to either the installed 0.2 release or the checkout invocation above.
 
 ## 2. Prepare comparable snapshots
 
