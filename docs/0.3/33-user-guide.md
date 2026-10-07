@@ -1,6 +1,6 @@
-# Parison 0.3 development user guide
+# Parison 0.3 user guide
 
-This guide extends the released [0.2 user guide](../0.2/27-user-guide.md). The safety model, outcomes, bundle format and comparison contract remain unchanged. Install the `develop` checkout to evaluate these unreleased capabilities.
+This guide extends the [0.2 user guide](../0.2/27-user-guide.md). The safety model, outcomes, bundle format and comparison contract remain unchanged.
 
 ## 1. Map renamed columns
 
@@ -80,4 +80,4 @@ The comparison passes: physical names, partitioning and declared string represen
 
 ## Support boundary
 
-Development remains local-only and requires Python 3.11 or newer. CI covers Python 3.11–3.14, the pinned optional Polars dependency, Linux, macOS and Windows. Recursive discovery, remote connectors, fuzzy matching, arbitrary transformations and grouped publication of source values remain out of scope.
+Parison remains local-only and requires Python 3.11 or newer. CI covers Python 3.11–3.14, the pinned optional Polars dependency, Linux, macOS and Windows. Recursive discovery, remote connectors, fuzzy matching, arbitrary transformations and grouped publication of source values remain out of scope.

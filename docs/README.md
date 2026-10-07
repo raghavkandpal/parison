@@ -2,15 +2,16 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-## 0.3 — current development
+## 0.3 — released record
 
 - [Explicit column-mapping contract](0.3/28-column-mapping-contract.md)
 - [Autonomous roadmap](0.3/29-roadmap.md)
 - [Partitioned-input contract](0.3/30-partitioned-input-contract.md)
 - [String-normalization contract](0.3/31-normalization-contract.md)
 - [Input-preflight contract](0.3/32-input-preflight-contract.md)
-- [0.3 development user guide](0.3/33-user-guide.md)
+- [0.3 user guide](0.3/33-user-guide.md)
 - [0.3 engineering verification](0.3/34-engineering-verification.md)
+- [0.3.0 release checklist](0.3/35-release-checklist.md)
 
 ## 0.2 — released record
 
