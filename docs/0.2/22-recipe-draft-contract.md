@@ -4,7 +4,7 @@ Date: 6 October 2026
 
 ## Purpose
 
-`parison draft-recipe` removes JSON transcription work without converting observed data into trusted comparison policy. It inspects two local inputs, writes a deterministic draft, and exits successfully when the draft file is written. The draft is intentionally rejected by `parison validate-recipe` until a person or calling agent resolves every policy choice.
+`parison draft-recipe` removes JSON transcription work by inspecting two local inputs and writing a complete starting recipe. Inferred values are suggestions for human review, not proof that the comparison policy is correct.
 
 This is scaffolding, not automatic approval.
 
@@ -17,40 +17,40 @@ parison draft-recipe \
   --output comparison.recipe.json
 ```
 
-The output path must not already exist. Inputs follow the same regular-file, symlink, size and supported-format boundaries as comparison. The command reads schema information only; it does not need to retain or publish row values.
+The output path must not already exist. Inputs follow the same regular-file, symlink, size and supported-format boundaries as comparison. The command reads row values for inference but does not retain or publish them.
 
-## Deterministic draft
+## Suggested draft
 
 - Exact column names present on both sides become `columns` entries in baseline order.
-- Every shared column starts with `{"type": "REVIEW_REQUIRED", "comparison": "exact"}`. Types are not inferred from values or storage metadata because string identity, decimal scale and timestamp policy are semantic choices.
-- `keys` is empty.
-- `scope.snapshot` and `scope.cutoff` are empty; `scope.filters` is empty; `scope.completeness` is `REVIEW_REQUIRED`; `scope.expected_empty` is null.
+- Types are inferred conservatively from both inputs. Empty columns default to strings, numeric-looking values with significant leading zeroes remain strings, decimals retain the largest observed scale, and comparisons default to exact.
+- `keys` contains a unique, non-null combination, preferring identifier-like columns (`id`, `key` or `code`). Other columns are considered only when those columns cannot form a key.
+- `scope.snapshot` names the two input stems and `scope.cutoff` uses the newer file modification time. Filters default to none, completeness to `full`, and expected-empty reflects whether both inputs have no rows.
 - Identity rules are fixed to rejecting null keys and duplicates. Those safety invariants are not configurable in keyed-v1.
-- `nulls_equal` is null.
-- Columns present on only one side appear in `excluded_columns` with an empty rationale. The author must either justify each exclusion or reconcile the inputs.
+- `nulls_equal` defaults to true.
+- Columns present on only one side appear in `excluded_columns` with a side-specific rationale.
 - Output sensitivity is `summary`. Raw evidence is never suggested.
 - No tolerance is generated. An author may add a keyed-v1 numeric policy and tolerance only after selecting a numeric type.
 
-These sentinels deliberately violate recipe v1 validation. The draft becomes valid only after keys, scope, null equality, every column type, every exclusion rationale and any desired tolerance have been reviewed.
+The generated structure passes recipe validation so the reviewer edits concrete values instead of filling blanks. Validation checks structure, not whether an inference is semantically correct.
 
 ## Refusals
 
 Drafting fails without writing output when either schema cannot be read, a column name is duplicated, no columns are shared, an input changes during inspection, the combined byte limit is exceeded, or the destination already exists. Empty inputs are acceptable only when their format still provides a schema, such as a header-only CSV or typed Parquet file.
 
-The command never guesses key candidates, treats a unique observed column as identity, infers tolerances, approves exclusions, or claims the two datasets have comparable scope.
+The command never infers tolerances or claims that suggested identity and scope are approved. If no unique combination exists, it falls back to the first shared column so the uncertainty remains visible during review and comparison preflight.
 
 ## Review workflow
 
 1. Run `draft-recipe` once. It refuses to overwrite an existing file.
 2. Review the exact shared-column list and reconcile unintended one-sided columns.
-3. Choose the key columns. Set their types and keep their comparison exact.
-4. Record the snapshot, extraction cutoff, actual filters, full-scope assertion and whether an empty scope is expected.
-5. Choose null equality and a type for every compared column. Add decimal scale, timestamp awareness or numeric tolerance only where the policy needs it.
-6. Supply a nonempty rationale for every intentional exclusion.
-7. Run `parison validate-recipe comparison.recipe.json`. Fix every reported sentinel until it prints `valid`.
+3. Confirm the suggested key columns and their exact comparison policy.
+4. Replace the suggested snapshot, cutoff, filters, completeness and empty-scope values with the actual extraction contract where needed.
+5. Confirm null equality and every inferred type. Add numeric tolerance only where the policy needs it.
+6. Confirm every intentional exclusion and its rationale.
+7. Run `parison validate-recipe comparison.recipe.json`.
 8. Run `parison compare` with the reviewed recipe. Drafting alone never authorizes comparison.
 
-The generated file is the checklist: searching it for `REVIEW_REQUIRED`, empty strings, `null` and an empty `keys` list reveals the unresolved starting points. Validation, not that search, is the final authority.
+The generated file is the checklist. Its concrete values make review faster, but the reviewer remains the authority for semantic choices.
 
 ## Compatibility
 

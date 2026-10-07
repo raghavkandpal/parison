@@ -6,7 +6,7 @@ All notable changes will be documented in this file.
 
 ### Added
 
-- Intentionally unresolved recipe drafting from local input schemas, without inferred keys, types, scope, exclusions or tolerances.
+- Reviewable recipe drafting from local inputs, with inferred keys, types, scope defaults and exclusion rationales.
 - Concise human terminal summaries while preserving machine-readable stdout and existing exit codes.
 - Dependency-free filtering in self-contained HTML reports.
 - Local JSON Lines inputs and read-only SQLite table locators, including mixed-format comparison.

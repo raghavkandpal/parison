@@ -67,11 +67,11 @@ The draft describes the boundary between two schemas, not only the baseline. Par
 - reject pairs with no shared columns; and
 - catch malformed or duplicate schemas before policy review.
 
-Drafting reads schema information but does not infer keys, types, tolerances, exclusions or scope from values. A candidate is therefore required for the current command. If you need to author policy before a candidate exists, start from [`examples/orders.recipe.json`](../../examples/orders.recipe.json) and validate it later against the actual pair.
+Drafting reads both inputs and suggests keys, types, scope metadata and exclusion rationales. It does not infer tolerances, and every suggestion still requires human review. A candidate is required for the current command. If you need to author policy before a candidate exists, start from [`examples/orders.recipe.json`](../../examples/orders.recipe.json) and validate it later against the actual pair.
 
 ## 4. Review every recipe decision
 
-The generated JSON is intentionally invalid. Resolve every `REVIEW_REQUIRED`, empty required string, `null`, empty key list and empty exclusion rationale.
+The generated JSON is structurally valid so you can review concrete starting values. Confirm the keys, scope, null handling, types and exclusions before comparison; validation cannot determine whether those semantics are correct for your data.
 
 ### Identity
 

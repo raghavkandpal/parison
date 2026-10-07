@@ -53,7 +53,7 @@ class SqliteInput(unittest.TestCase):
     def test_sqlite_draft_reads_metadata_without_inference(self):
         draft = draft_recipe(self.source, self.source)
         self.assertEqual(list(draft["columns"]), ["id", "value"])
-        self.assertEqual(draft["columns"]["value"]["type"], "REVIEW_REQUIRED")
+        self.assertEqual(draft["columns"]["value"]["type"], "integer")
 
     def test_jsonl_sqlite_failure_matches_oracle(self):
         baseline = self.root / "baseline.jsonl"

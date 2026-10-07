@@ -25,7 +25,7 @@ parison compare --recipe examples/orders.recipe.json \
 parison verify runs/orders-example
 ```
 
-On `develop`, `draft-recipe` writes an intentionally invalid checklist: it copies shared column names but does not infer keys, types, scope, exclusions or tolerances. Review every unresolved choice, then use `validate-recipe` as the gate. See the [recipe draft contract and workflow](docs/0.2/22-recipe-draft-contract.md).
+`draft-recipe` inspects both inputs and writes a valid starting recipe with suggested keys, data types, scope metadata and exclusion rationales. Review every suggestion, then use `validate-recipe` as the structural gate. See the [recipe draft contract and workflow](docs/0.2/22-recipe-draft-contract.md).
 
 A generated PASS bundle is checked in under [`examples/output`](examples/output), containing [`result.json`](examples/output/result.json), [`effective-recipe.json`](examples/output/effective-recipe.json), [`report.html`](examples/output/report.html), and [`manifest.json`](examples/output/manifest.json). It is summary-only and contains no source keys or raw values.
 

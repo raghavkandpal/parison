@@ -10,7 +10,7 @@ from parison.core import ParisonError, draft_recipe, load_recipe
 
 
 class RecipeDraft(unittest.TestCase):
-    def test_cli_writes_deterministic_unresolved_recipe(self):
+    def test_cli_writes_reviewable_recipe_with_suggestions(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             baseline = root / "baseline.csv"
@@ -23,24 +23,32 @@ class RecipeDraft(unittest.TestCase):
                 code = main(["draft-recipe", "--baseline", str(baseline), "--candidate", str(candidate), "--output", str(output)])
             self.assertEqual(code, 0)
             self.assertEqual(json.loads(stdout.getvalue()), {"output": str(output)})
-            self.assertIn("unresolved", stderr.getvalue())
+            self.assertIn("inferred suggestions", stderr.getvalue())
             self.assertIn("validate-recipe", stderr.getvalue())
             draft = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(list(draft["columns"]), ["id", "amount"])
-            self.assertEqual(draft["excluded_columns"], {"baseline_note": "", "candidate_note": ""})
-            self.assertEqual(draft["keys"], [])
+            self.assertEqual(draft["excluded_columns"], {
+                "baseline_note": "present only in baseline",
+                "candidate_note": "present only in candidate",
+            })
+            self.assertEqual(draft["keys"], ["id"])
+            self.assertEqual(draft["columns"], {
+                "id": {"type": "string", "comparison": "exact"},
+                "amount": {"type": "integer", "comparison": "exact"},
+            })
+            self.assertEqual(draft["scope"]["completeness"], "full")
+            self.assertFalse(draft["scope"]["expected_empty"])
             self.assertEqual(draft["output"], {"sensitivity": "summary"})
             self.assertNotIn("secret", output.read_text(encoding="utf-8"))
             self.assertNotIn("private", output.read_text(encoding="utf-8"))
-            with self.assertRaises(ParisonError):
-                load_recipe(output)
+            self.assertEqual(load_recipe(output), draft)
 
     def test_draft_help_lists_required_review_choices(self):
         stdout = StringIO()
         with self.assertRaises(SystemExit), redirect_stdout(stdout):
             parser().parse_args(["draft-recipe", "--help"])
         help_text = stdout.getvalue()
-        for expected in ("choose keys", "completeness='full'", "REVIEW_REQUIRED", "symmetric-v1", "validate-recipe"):
+        for expected in ("suggested keys", "data types", "starting points", "symmetric-v1", "validate-recipe"):
             self.assertIn(expected, help_text)
 
     def test_draft_refuses_no_shared_columns(self):
@@ -52,7 +60,7 @@ class RecipeDraft(unittest.TestCase):
             with self.assertRaisesRegex(ParisonError, "no shared columns"):
                 draft_recipe(baseline, candidate)
 
-    def test_draft_requires_policy_choices_before_comparison(self):
+    def test_draft_suggestions_form_a_valid_recipe(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             baseline, candidate = root / "baseline.csv", root / "candidate.csv"
@@ -60,18 +68,10 @@ class RecipeDraft(unittest.TestCase):
             candidate.write_text("id,value,right_only\n1,same,y\n", encoding="utf-8")
             draft_path = root / "draft.json"
             draft_path.write_text(json.dumps(draft_recipe(baseline, candidate)), encoding="utf-8")
-            with self.assertRaises(ParisonError):
-                load_recipe(draft_path)
             draft = json.loads(draft_path.read_text(encoding="utf-8"))
-            draft["keys"] = ["id"]
-            draft["scope"] = {"snapshot": "reviewed-export", "cutoff": "2026-10-06T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False}
-            draft["nulls_equal"] = True
-            draft["columns"] = {name: {"type": "string", "comparison": "exact"} for name in draft["columns"]}
-            draft["excluded_columns"] = {"left_only": "source-specific metadata", "right_only": "source-specific metadata"}
-            draft_path.write_text(json.dumps(draft), encoding="utf-8")
             self.assertEqual(load_recipe(draft_path), draft)
 
-    def test_header_only_draft_is_deterministic_and_does_not_infer_types(self):
+    def test_header_only_draft_is_deterministic_and_uses_safe_defaults(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             baseline, candidate = root / "baseline.csv", root / "candidate.csv"
@@ -81,9 +81,24 @@ class RecipeDraft(unittest.TestCase):
             second = draft_recipe(baseline, candidate)
             self.assertEqual(first, second)
             self.assertEqual(first["columns"], {
-                "id": {"type": "REVIEW_REQUIRED", "comparison": "exact"},
-                "value": {"type": "REVIEW_REQUIRED", "comparison": "exact"},
+                "id": {"type": "string", "comparison": "exact"},
+                "value": {"type": "string", "comparison": "exact"},
             })
+            self.assertEqual(first["keys"], ["id"])
+            self.assertTrue(first["scope"]["expected_empty"])
+
+    def test_draft_infers_composite_identifier_keys_and_types(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            baseline, candidate = root / "baseline.csv", root / "candidate.csv"
+            contents = "tenant_code,item_id,amount,active,day\na,1,10.50,true,2026-10-01\na,2,11.00,false,2026-10-02\nb,1,12.25,true,2026-10-03\nb,2,13.00,false,2026-10-04\n"
+            baseline.write_text(contents, encoding="utf-8")
+            candidate.write_text(contents, encoding="utf-8")
+            draft = draft_recipe(baseline, candidate)
+            self.assertEqual(draft["keys"], ["tenant_code", "item_id"])
+            self.assertEqual(draft["columns"]["amount"], {"type": "decimal", "comparison": "exact", "scale": 2})
+            self.assertEqual(draft["columns"]["active"]["type"], "boolean")
+            self.assertEqual(draft["columns"]["day"]["type"], "date")
 
     def test_draft_rejects_duplicate_headers_symlinks_and_size_overruns(self):
         with tempfile.TemporaryDirectory() as directory:

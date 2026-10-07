@@ -11,7 +11,7 @@ import shutil
 import sqlite3
 import tempfile
 from collections import Counter
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from importlib import metadata
 from pathlib import Path
@@ -432,6 +432,62 @@ def _input_columns(path: str | Path) -> list[str]:
     return columns
 
 
+def _suggest_type(values: list[Any]) -> dict[str, Any]:
+    present = [str(value) for value in values if value not in (None, "")]
+    if not present:
+        return {"type": "string", "comparison": "exact"}
+    lowered = {value.lower() for value in present}
+    if lowered <= {"true", "false"}:
+        return {"type": "boolean", "comparison": "exact"}
+    if all(value.lstrip("-").isdigit() and not (value.lstrip("-").startswith("0") and len(value.lstrip("-")) > 1) for value in present):
+        return {"type": "integer", "comparison": "exact"}
+    try:
+        decimals = [Decimal(value) for value in present]
+        if all(value.is_finite() for value in decimals):
+            scale = max(max(-value.as_tuple().exponent, 0) for value in decimals)
+            return {"type": "decimal", "comparison": "exact", "scale": scale}
+    except InvalidOperation:
+        pass
+    try:
+        parsed = [datetime.fromisoformat(value.replace("Z", "+00:00")) for value in present]
+        if all(value.tzinfo is not None for value in parsed):
+            return {"type": "timestamp", "comparison": "exact", "timezone": "require-aware"}
+    except ValueError:
+        pass
+    try:
+        if all(date.fromisoformat(value) for value in present):
+            return {"type": "date", "comparison": "exact"}
+    except ValueError:
+        pass
+    return {"type": "string", "comparison": "exact"}
+
+
+def _suggest_keys(columns: list[str], baseline: list[dict[str, Any]], candidate: list[dict[str, Any]]) -> list[str]:
+    if not baseline or not candidate:
+        return [columns[0]]
+
+    def distinct_counts(names: list[str]) -> list[int]:
+        counts = []
+        for rows in (baseline, candidate):
+            values = [tuple(row[name] for name in names) for row in rows]
+            if any(value in (None, "") for key in values for value in key):
+                return [-1, -1]
+            counts.append(len(set(values)))
+        return counts
+
+    identifiers = [name for name in columns if any(token in name.lower().replace("_", " ").split() for token in ("id", "key", "code"))]
+    chosen: list[str] = []
+    for pool in (identifiers, [name for name in columns if name not in identifiers]):
+        remaining = list(pool)
+        while remaining:
+            best = max(remaining, key=lambda name: min(distinct_counts([*chosen, name])))
+            chosen.append(best)
+            remaining.remove(best)
+            if distinct_counts(chosen) == [len(baseline), len(candidate)]:
+                return chosen
+    return [columns[0]]
+
+
 def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: int = 1_000_000_000) -> dict[str, Any]:
     if max_input_bytes <= 0:
         raise ParisonError("max_input_bytes must be positive")
@@ -457,15 +513,33 @@ def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: i
         raise ParisonError("inputs have no shared columns")
     shared_names = set(shared)
     excluded = [name for name in baseline_columns + candidate_columns if name not in shared_names]
+    inspection_recipe = {
+        "columns": {name: {"type": "string", "comparison": "exact"} for name in shared},
+        "excluded_columns": {name: "inspection" for name in excluded},
+    }
+    baseline_rows, _ = _read(baseline, inspection_recipe, 5_000_000)
+    candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000)
+    cutoff = datetime.fromtimestamp(
+        max(_source_path(baseline).stat().st_mtime, _source_path(candidate).stat().st_mtime), timezone.utc
+    ).isoformat().replace("+00:00", "Z")
     return {
         "recipe_version": 1,
         "comparison_mode": "keyed",
-        "keys": [],
-        "scope": {"snapshot": "", "cutoff": "", "filters": [], "completeness": "REVIEW_REQUIRED", "expected_empty": None},
+        "keys": _suggest_keys(shared, baseline_rows, candidate_rows),
+        "scope": {
+            "snapshot": f"{_source_path(baseline).stem} vs {_source_path(candidate).stem}",
+            "cutoff": cutoff,
+            "filters": [],
+            "completeness": "full",
+            "expected_empty": not baseline_rows and not candidate_rows,
+        },
         "identity": {"null_keys": "reject", "duplicates": "reject"},
-        "nulls_equal": None,
-        "columns": {name: {"type": "REVIEW_REQUIRED", "comparison": "exact"} for name in shared},
-        "excluded_columns": dict.fromkeys(excluded, ""),
+        "nulls_equal": True,
+        "columns": {name: _suggest_type([row[name] for row in baseline_rows + candidate_rows]) for name in shared},
+        "excluded_columns": {
+            name: "present only in baseline" if name in baseline_columns else "present only in candidate"
+            for name in excluded
+        },
         "output": {"sensitivity": "summary"},
     }
 

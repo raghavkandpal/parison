@@ -48,7 +48,7 @@ class JsonLinesInput(unittest.TestCase):
         right.write_text('{"value":2,"id":"secret"}\n', encoding="utf-8")
         draft = draft_recipe(left, right)
         self.assertEqual(list(draft["columns"]), ["id", "value"])
-        self.assertEqual(draft["columns"]["value"]["type"], "REVIEW_REQUIRED")
+        self.assertEqual(draft["columns"]["value"]["type"], "integer")
 
     def test_jsonl_rejects_duplicate_missing_nested_and_nonfinite_values(self):
         bad_lines = (

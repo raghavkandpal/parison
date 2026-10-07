@@ -24,7 +24,7 @@ Nonstandard `NaN`, `Infinity` and `-Infinity` tokens are errors. Decimal scale a
 
 The existing regular-file and symlink refusal applies. Combined input bytes are checked before reading, rows count against `--max-rows`, and Ctrl-C follows the existing interrupted-bundle path. Parsing stops at the first malformed line and reports its line number without copying row values into summary artifacts.
 
-Drafting reads only enough JSON Lines content to establish and validate the schema; it never infers types, keys or policy from values. An empty JSON Lines file cannot supply a schema and is rejected.
+Drafting reads JSON Lines records to validate the schema and suggest types and keys from observed values. These suggestions require review. An empty JSON Lines file cannot supply a schema and is rejected.
 
 ## Usage
 

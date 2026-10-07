@@ -24,7 +24,7 @@ The database must be a regular non-symlink file. `-wal` and `-journal` sidecars 
 
 Cursor column names must be unique and nonempty. Every selected row has that fixed schema. SQLite NULL, INTEGER, REAL and TEXT values enter the existing recipe parser; BLOB values are rejected. Booleans, dates, timestamps and decimals should be stored as recipe-compatible TEXT when SQLite's dynamic typing would otherwise be ambiguous. In particular, binary REAL is not promoted into an exact decimal representation.
 
-Drafting reads table metadata only and emits the same unresolved recipe draft used for files. It does not infer policy from declared SQLite affinities or sample values.
+Drafting reads table values and emits the same reviewable recipe suggestions used for files. It infers from observed values rather than trusting SQLite affinity declarations.
 
 ## Limits, cancellation and evidence
 
