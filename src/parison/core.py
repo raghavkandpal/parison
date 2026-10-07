@@ -22,6 +22,7 @@ OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPT
 _RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "columns", "column_mappings", "excluded_columns", "output"}
 _COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone", "scale"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
+_FILE_FORMATS = {".csv": "csv", ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".pq": "parquet"}
 
 
 class ParisonError(ValueError):
@@ -241,12 +242,55 @@ def _source_path(source: str | Path) -> Path:
     return sqlite_source[0] if sqlite_source else Path(source)
 
 
+def _source_paths(source: str | Path) -> tuple[Path, ...]:
+    path = _source_path(source)
+    if _sqlite_source(source) or not path.is_dir():
+        return (path,)
+    if path.is_symlink():
+        raise ParisonError(f"partitioned input must not be a symlink: {path}")
+    try:
+        paths = tuple(sorted((item for item in path.iterdir() if not item.name.startswith(".")), key=lambda item: item.name))
+    except OSError as exc:
+        raise ParisonError(f"cannot inspect partitioned input {path}: {exc}") from exc
+    if not paths:
+        raise ParisonError(f"partitioned input has no files: {path}")
+    if any(item.is_symlink() or not item.is_file() for item in paths):
+        raise ParisonError(f"partitioned input must contain only regular non-symlink files: {path}")
+    formats = {_FILE_FORMATS.get(item.suffix.lower()) for item in paths}
+    if None in formats or len(formats) != 1:
+        raise ParisonError(f"partitioned input must contain one supported file format: {path}")
+    return paths
+
+
+def _source_digest(source: str | Path) -> str:
+    paths = _source_paths(source)
+    if len(paths) == 1 and not _source_path(source).is_dir():
+        return _digest(paths[0])
+    digest = hashlib.sha256()
+    for path in paths:
+        digest.update(path.name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(bytes.fromhex(_digest(path)))
+    return digest.hexdigest()
+
+
+def _source_bytes(source: str | Path) -> int:
+    try:
+        return sum(path.stat().st_size for path in _source_paths(source))
+    except OSError as exc:
+        raise ParisonError(f"cannot inspect inputs: {exc}") from exc
+
+
 def _source_metadata(source: str | Path, digest: str) -> dict[str, Any]:
     path = _source_path(source)
-    metadata = {"sha256": digest, "bytes": path.stat().st_size, "format": path.suffix.lower().lstrip(".")}
+    paths = _source_paths(source)
+    format_name = "sqlite" if _sqlite_source(source) else _FILE_FORMATS.get(paths[0].suffix.lower(), path.suffix.lower().lstrip("."))
+    metadata = {"sha256": digest, "bytes": _source_bytes(source), "format": format_name}
     sqlite_source = _sqlite_source(source)
     if sqlite_source:
         metadata.update(format="sqlite", table=sqlite_source[1])
+    elif path.is_dir():
+        metadata["partitions"] = len(paths)
     return metadata
 
 
@@ -339,64 +383,12 @@ def _iter_jsonl(path: Path, max_rows: int):
 
 
 def _read(path: str | Path, recipe: dict[str, Any], max_rows: int, side: str) -> tuple[list[dict[str, Any]], list[str]]:
-    if _sqlite_source(path):
-        stream = _sqlite_rows(path, max_rows)
-        headers, _ = next(stream)
-        _validate_headers(Path(str(path)), headers, recipe, side)
-        raw_rows = [row for _, row in stream]
-        return ([{name: _parse(row.get(_source_name(recipe, name, side)), policy, name) for name, policy in recipe["columns"].items()} for row in raw_rows], headers)
-    path = Path(path)
-    if path.is_symlink():
-        raise ParisonError(f"input must not be a symlink: {path}")
-    if not path.is_file():
-        raise ParisonError(f"input is not a regular file: {path}")
-    if path.suffix.lower() == ".csv":
-        try:
-            handle = path.open("r", encoding="utf-8", newline="")
-        except OSError as exc:
-            raise ParisonError(f"cannot read {path}: {exc}") from exc
-        with handle:
-            try:
-                reader = csv.DictReader(handle, strict=True)
-                headers = reader.fieldnames or []
-                if len(headers) != len(set(headers)):
-                    raise ParisonError(f"duplicate column names in {path}")
-                raw_rows = []
-                for row in reader:
-                    if len(raw_rows) >= max_rows:
-                        raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
-                    if None in row or any(value is None for value in row.values()):
-                        raise ParisonError(f"ragged CSV row {reader.line_num} in {path}")
-                    raw_rows.append(row)
-            except (csv.Error, UnicodeDecodeError) as exc:
-                raise ParisonError(f"cannot parse {path}: {exc}") from exc
-    elif path.suffix.lower() in {".parquet", ".pq"}:
-        try:
-            import polars as pl
-        except ImportError as exc:
-            raise ParisonError("Parquet support requires: pip install 'parison[parquet]'") from exc
-        try:
-            row_count = pl.scan_parquet(path).select(pl.len()).collect().item()
-            if row_count > max_rows:
-                raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
-            frame = pl.read_parquet(path)
-        except ParisonError:
-            raise
-        except Exception as exc:
-            raise ParisonError(f"cannot read {path}: {exc}") from exc
-        headers = frame.columns
-        raw_rows = frame.to_dicts()
-    elif path.suffix.lower() in {".jsonl", ".ndjson"}:
-        raw_rows = list(_iter_jsonl(path, max_rows))
-        headers = list(raw_rows[0])
-    else:
-        raise ParisonError(f"unsupported input format for {path}; use .csv, .jsonl or .parquet")
-    _validate_headers(path, headers, recipe, side)
+    raw_rows = list(_iter_input_rows(path, recipe, max_rows, side))
     rows = [
         {name: _parse(row.get(_source_name(recipe, name, side)), policy, name) for name, policy in recipe["columns"].items()}
         for row in raw_rows
     ]
-    return rows, headers
+    return rows, []
 
 
 def _digest(path: Path) -> str:
@@ -411,6 +403,12 @@ def _digest(path: Path) -> str:
 
 
 def _input_columns(path: str | Path) -> list[str]:
+    source_path = _source_path(path)
+    if source_path.is_dir():
+        schemas = [_input_columns(partition) for partition in _source_paths(path)]
+        if any(set(schema) != set(schemas[0]) for schema in schemas[1:]):
+            raise ParisonError(f"partitioned input has inconsistent schemas: {source_path}")
+        return schemas[0]
     if _sqlite_source(path):
         rows = _sqlite_rows(path, 1)
         try:
@@ -517,17 +515,15 @@ def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: i
         path = _source_path(source)
         if path.is_symlink():
             raise ParisonError(f"input must not be a symlink: {path}")
-        if not path.is_file():
-            raise ParisonError(f"input is not a regular file: {path}")
-    try:
-        input_bytes = _source_path(baseline).stat().st_size + _source_path(candidate).stat().st_size
-    except OSError as exc:
-        raise ParisonError(f"cannot inspect inputs: {exc}") from exc
+        if not path.is_file() and not path.is_dir():
+            raise ParisonError(f"input is not a regular file or partition directory: {path}")
+        _source_paths(source)
+    input_bytes = _source_bytes(baseline) + _source_bytes(candidate)
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
-    before = {str(source): _digest(_source_path(source)) for source in (baseline, candidate)}
+    before = {str(source): _source_digest(source) for source in (baseline, candidate)}
     baseline_columns, candidate_columns = _input_columns(baseline), _input_columns(candidate)
-    if any(_digest(_source_path(source)) != digest for source, digest in before.items()):
+    if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being inspected")
     candidate_names = set(candidate_columns)
     shared = [name for name in baseline_columns if name in candidate_names]
@@ -542,7 +538,7 @@ def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: i
     baseline_rows, _ = _read(baseline, inspection_recipe, 5_000_000, "baseline")
     candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000, "candidate")
     cutoff = datetime.fromtimestamp(
-        max(_source_path(baseline).stat().st_mtime, _source_path(candidate).stat().st_mtime), timezone.utc
+        max(path.stat().st_mtime for source in (baseline, candidate) for path in _source_paths(source)), timezone.utc
     ).isoformat().replace("+00:00", "Z")
     return {
         "recipe_version": 1,
@@ -590,6 +586,16 @@ def _index(rows: list[dict[str, Any]], keys: list[str], side: str) -> tuple[dict
 
 
 def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int, side: str):
+    source_path = _source_path(path)
+    if source_path.is_dir():
+        row_count = 0
+        for partition in _source_paths(path):
+            for row in _iter_input_rows(partition, recipe, max_rows, side):
+                if row_count >= max_rows:
+                    raise ParisonError(f"row count in {source_path} exceeds limit {max_rows}")
+                row_count += 1
+                yield row
+        return
     if _sqlite_source(path):
         stream = _sqlite_rows(path, max_rows)
         headers, _ = next(stream)
@@ -759,13 +765,10 @@ def compare(
         raise ParisonError("max_rows must be positive")
     recipe_path = Path(recipe_path)
     recipe = load_recipe(recipe_path)
-    try:
-        input_bytes = _source_path(baseline_path).stat().st_size + _source_path(candidate_path).stat().st_size
-    except OSError as exc:
-        raise ParisonError(f"cannot inspect inputs: {exc}") from exc
+    input_bytes = _source_bytes(baseline_path) + _source_bytes(candidate_path)
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
-    before = {str(source): _digest(_source_path(source)) for source in (baseline_path, candidate_path)}
+    before = {str(source): _source_digest(source) for source in (baseline_path, candidate_path)}
     keys = recipe["keys"]
     raw_output = recipe["output"]["sensitivity"] == "raw"
     streaming = not raw_output
@@ -833,7 +836,7 @@ def compare(
                             "allowance": allowance,
                         })
             row_counts[row_class] += 1
-    if any(_digest(_source_path(source)) != digest for source, digest in before.items()):
+    if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being read")
     empty = not baseline_count or not candidate_count
     if empty and not recipe["scope"]["expected_empty"]:

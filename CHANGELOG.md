@@ -7,6 +7,7 @@ All notable changes will be documented in this file.
 ### Added
 
 - Explicit baseline/candidate column mappings under canonical recipe field names.
+- Partitioned CSV, JSON Lines and Parquet directories as logical inputs.
 
 ## 0.2.0 - 2026-10-07
 

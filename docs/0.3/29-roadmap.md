@@ -18,11 +18,11 @@ Each slice is independently shippable and lands as a focused commit only after t
 
 ### 2. Partitioned local datasets
 
-- [ ] Accept a directory of same-format files as one logical input.
-- [ ] Use deterministic non-recursive file ordering and reject empty, mixed-format, symlinked or schema-inconsistent partitions.
-- [ ] Apply byte and row limits across the whole logical input and detect duplicate keys across partitions.
-- [ ] Record a stable combined digest, total bytes, format and partition count without publishing local paths.
-- [ ] Cover partitioned CSV, JSON Lines and Parquet plus mixed single/partitioned comparisons.
+- [x] Accept a directory of same-format files as one logical input.
+- [x] Use deterministic non-recursive file ordering and reject empty, mixed-format, symlinked or schema-inconsistent partitions.
+- [x] Apply byte and row limits across the whole logical input and detect duplicate keys across partitions.
+- [x] Record a stable combined digest, total bytes, format and partition count without publishing local paths.
+- [x] Cover partitioned CSV, JSON Lines and Parquet plus mixed single/partitioned comparisons.
 
 ### 3. Explicit normalization
 

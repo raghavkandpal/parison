@@ -6,6 +6,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 - [Explicit column-mapping contract](0.3/28-column-mapping-contract.md)
 - [Autonomous roadmap](0.3/29-roadmap.md)
+- [Partitioned-input contract](0.3/30-partitioned-input-contract.md)
 
 ## 0.2 — released record
 
