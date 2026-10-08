@@ -9,6 +9,10 @@ All notable changes will be documented in this file.
 - Bounded local gzip CSV and JSON Lines inputs, including partitions and mixed compressed/plain comparisons.
 - Separate combined physical and decoded input byte limits with compression provenance in results and preflight diagnostics.
 
+### Fixed
+
+- Recipe drafting now rejects inputs changed during row inspection, not only during schema inspection.
+
 ## 0.4.0 - 2026-10-08
 
 ### Added

@@ -621,7 +621,7 @@ def _input_columns(path: str | Path, decoded_sizes: dict[Path, int] | None = Non
         except Exception as exc:
             raise ParisonError(f"cannot read schema from {path}: {exc}") from exc
     else:
-        raise ParisonError(f"unsupported input format for {path}; use .csv, .jsonl or .parquet")
+        raise ParisonError(f"unsupported input format for {path}; use .csv, .jsonl, .parquet or gzip-compressed text")
     if not columns:
         raise ParisonError(f"input has no schema: {path}")
     if any(not isinstance(name, str) or not name for name in columns) or len(columns) != len(set(columns)):
@@ -768,6 +768,8 @@ def draft_recipe(
     }
     baseline_rows, _ = _read(baseline, inspection_recipe, 5_000_000, "baseline", decoded_sizes)
     candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000, "candidate", decoded_sizes)
+    if any(_source_digest(source) != digest for source, digest in before.items()):
+        raise ParisonError("an input changed while it was being inspected")
     cutoff = datetime.fromtimestamp(
         max(path.stat().st_mtime for source in (baseline, candidate) for path in _source_paths(source)), timezone.utc
     ).isoformat().replace("+00:00", "Z")
@@ -886,7 +888,7 @@ def _iter_input_rows(
         yield first
         yield from rows
     else:
-        raise ParisonError(f"unsupported input format for {path}; use .csv, .jsonl or .parquet")
+        raise ParisonError(f"unsupported input format for {path}; use .csv, .jsonl, .parquet or gzip-compressed text")
 
 
 def _read_stream_index(

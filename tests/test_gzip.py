@@ -5,7 +5,9 @@ import unittest
 from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
+from parison import core
 from parison.cli import main
 from parison.core import ParisonError, compare, draft_recipe, validate_inputs
 
@@ -80,6 +82,11 @@ class GzipInput(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("decoded input size exceeds limit", stderr.getvalue())
 
+        dense = self.compressed("dense.csv.gz", "id,value\n" + "0" * 100_000)
+        self.assertLess(dense.stat().st_size, 1_000)
+        with self.assertRaisesRegex(ParisonError, "decoded input size exceeds limit"):
+            compare(self.recipe, dense, right, max_decoded_bytes=10_000)
+
     def test_gzip_partitions_and_recipe_drafting(self):
         baseline = self.root / "baseline"
         baseline.mkdir()
@@ -100,6 +107,22 @@ class GzipInput(unittest.TestCase):
         good = self.compressed("good.csv.gz", "id,value\n001,10\n")
         with self.assertRaisesRegex(ParisonError, "cannot decompress"):
             compare(self.recipe, bad, good)
+
+    def test_drafting_rejects_input_changed_during_row_inspection(self):
+        left = self.compressed("left.csv.gz", "id,value\n001,10\n")
+        right = self.compressed("right.csv.gz", "id,value\n001,10\n")
+        original_read = core._read
+
+        def changing_read(*args, **kwargs):
+            rows = original_read(*args, **kwargs)
+            if Path(args[0]) == left:
+                with gzip.open(left, "at", encoding="utf-8") as handle:
+                    handle.write("002,20\n")
+            return rows
+
+        with patch("parison.core._read", side_effect=changing_read):
+            with self.assertRaisesRegex(ParisonError, "input changed while it was being inspected"):
+                draft_recipe(left, right)
 
 
 if __name__ == "__main__":
