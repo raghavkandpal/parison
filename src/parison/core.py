@@ -21,7 +21,7 @@ from typing import Any
 
 
 OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPTED": 130}
-_RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "columns", "column_mappings", "excluded_columns", "delimiters", "output"}
+_RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "output"}
 _COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone", "scale", "normalize"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
 _NORMALIZATIONS = {"trim", "casefold", "unicode_nfc"}
@@ -150,6 +150,17 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         if not isinstance(delimiter, str) or len(delimiter) != 1 or delimiter in {'"', "\r", "\n", "\0"}:
             raise ParisonError(f"delimiters.{side} must be one character other than quote, newline or NUL")
     recipe["delimiters"] = delimiters
+    null_tokens = recipe.get("null_tokens", {"baseline": [], "candidate": []})
+    if not isinstance(null_tokens, dict) or set(null_tokens) != {"baseline", "candidate"}:
+        raise ParisonError("null_tokens must contain exactly baseline and candidate")
+    for side, tokens in null_tokens.items():
+        if (
+            not isinstance(tokens, list)
+            or not all(isinstance(token, str) and token for token in tokens)
+            or len(tokens) != len(set(tokens))
+        ):
+            raise ParisonError(f"null_tokens.{side} must be a list of unique nonempty strings")
+    recipe["null_tokens"] = null_tokens
     columns = recipe.get("columns")
     if not isinstance(columns, dict) or not columns:
         raise ParisonError("columns must be a nonempty object")
@@ -299,6 +310,7 @@ def _effective_policy(recipe: dict[str, Any]) -> dict[str, Any]:
         "identity": recipe["identity"],
         "nulls_equal": recipe["nulls_equal"],
         "delimiters": recipe["delimiters"],
+        "null_tokens": recipe["null_tokens"],
         "columns": columns,
         "excluded_columns": recipe.get("excluded_columns", {}),
         "output": recipe.get("output", {"sensitivity": "summary"}),
@@ -461,7 +473,11 @@ def _decoded_sizes(sources: tuple[str | Path, ...], max_decoded_bytes: int) -> d
 
 
 def _source_metadata(
-    source: str | Path, digest: str, decoded_sizes: dict[Path, int] | None = None, delimiter: str = ","
+    source: str | Path,
+    digest: str,
+    decoded_sizes: dict[Path, int] | None = None,
+    delimiter: str = ",",
+    null_tokens: list[str] | None = None,
 ) -> dict[str, Any]:
     path = _source_path(source)
     paths = _source_paths(source)
@@ -469,6 +485,7 @@ def _source_metadata(
     metadata = {"sha256": digest, "bytes": _source_bytes(source), "format": format_name}
     if format_name in {"csv", "tsv"}:
         metadata["delimiter"] = delimiter
+        metadata["null_tokens"] = null_tokens or []
     sqlite_source = _sqlite_source(source)
     if sqlite_source:
         metadata.update(format="sqlite", table=sqlite_source[1])
@@ -679,6 +696,7 @@ def validate_inputs(
             inputs[side]["table"] = sqlite_source[1]
         if inputs[side]["format"] in {"csv", "tsv"}:
             inputs[side]["delimiter"] = delimiter
+            inputs[side]["null_tokens"] = recipe["null_tokens"][side]
         if any(path in decoded_sizes for path in paths):
             inputs[side].update(compression="gzip", decoded_bytes=sum(decoded_sizes.get(path, 0) for path in paths))
     return {
@@ -786,6 +804,7 @@ def draft_recipe(
         "columns": {name: {"type": "string", "comparison": "exact"} for name in shared},
         "excluded_columns": {name: "inspection" for name in excluded},
         "delimiters": delimiters,
+        "null_tokens": {"baseline": [], "candidate": []},
     }
     baseline_rows, _ = _read(baseline, inspection_recipe, 5_000_000, "baseline", decoded_sizes)
     candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000, "candidate", decoded_sizes)
@@ -808,6 +827,7 @@ def draft_recipe(
         "identity": {"null_keys": "reject", "duplicates": "reject"},
         "nulls_equal": True,
         "delimiters": delimiters,
+        "null_tokens": {"baseline": [], "candidate": []},
         "columns": {name: _suggest_type([row[name] for row in baseline_rows + candidate_rows]) for name in shared},
         "column_mappings": {},
         "excluded_columns": {
@@ -876,12 +896,13 @@ def _iter_input_rows(
             try:
                 reader = csv.DictReader(handle, delimiter=recipe.get("delimiters", {}).get(side, ","), strict=True)
                 _validate_headers(path, reader.fieldnames or [], recipe, side)
+                null_tokens = set(recipe.get("null_tokens", {}).get(side, []))
                 for row_count, raw in enumerate(reader):
                     if row_count >= max_rows:
                         raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
                     if None in raw or any(value is None for value in raw.values()):
                         raise ParisonError(f"ragged CSV row {reader.line_num} in {path}")
-                    yield raw
+                    yield {name: None if value in null_tokens else value for name, value in raw.items()}
             except (csv.Error, UnicodeDecodeError) as exc:
                 raise ParisonError(f"cannot parse {path}: {exc}") from exc
     elif format_name == "parquet":
@@ -1124,6 +1145,7 @@ def compare(
             "keys": keys,
             "nulls_equal": recipe["nulls_equal"],
             "delimiters": recipe["delimiters"],
+            "null_tokens": recipe["null_tokens"],
             "sensitivity": recipe["output"]["sensitivity"],
         },
         "column_policies": recipe["columns"],
@@ -1143,10 +1165,18 @@ def compare(
         "excluded_columns": recipe.get("excluded_columns", {}),
         "inputs": {
             "baseline": _source_metadata(
-                baseline_path, before[str(baseline_path)], decoded_sizes, recipe["delimiters"]["baseline"]
+                baseline_path,
+                before[str(baseline_path)],
+                decoded_sizes,
+                recipe["delimiters"]["baseline"],
+                recipe["null_tokens"]["baseline"],
             ),
             "candidate": _source_metadata(
-                candidate_path, before[str(candidate_path)], decoded_sizes, recipe["delimiters"]["candidate"]
+                candidate_path,
+                before[str(candidate_path)],
+                decoded_sizes,
+                recipe["delimiters"]["candidate"],
+                recipe["null_tokens"]["candidate"],
             ),
         },
         "recipe_sha256": _digest(recipe_path),

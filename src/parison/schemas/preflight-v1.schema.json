@@ -34,6 +34,7 @@
         "partitions": {"type": "integer", "minimum": 1},
         "table": {"type": "string", "minLength": 1},
         "delimiter": {"type": "string", "minLength": 1, "maxLength": 1},
+        "null_tokens": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
         "compression": {"const": "gzip"},
         "decoded_bytes": {"type": "integer", "minimum": 0},
         "schema": {

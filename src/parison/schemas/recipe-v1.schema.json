@@ -28,6 +28,15 @@
       "properties": {"null_keys": {"const": "reject"}, "duplicates": {"const": "reject"}}
     },
     "nulls_equal": {"type": "boolean"},
+    "null_tokens": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline", "candidate"],
+      "properties": {
+        "baseline": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "candidate": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
     "columns": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/column"}},
     "column_mappings": {
       "type": "object",

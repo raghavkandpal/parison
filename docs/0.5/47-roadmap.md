@@ -34,14 +34,14 @@ Make Parison practical for real-world local exports: compressed files, explicit 
 
 ### 5. Reviewed null tokens
 
-- [ ] Allow explicit text tokens such as `NULL` and `\\N` to map to null while preserving the distinction between null and an empty string.
-- [ ] Keep null-token policy type-aware, reviewable and included in the effective-policy fingerprint.
-- [ ] Reject ambiguous or invalid parsing policies before opening inputs.
+- [x] Allow explicit text tokens such as `NULL` and `\\N` to map to null while preserving the distinction between null and an empty string.
+- [x] Keep null-token policy type-aware, reviewable and included in the effective-policy fingerprint.
+- [x] Reject ambiguous or invalid parsing policies before opening inputs.
 
 ### 6. Drafting and migration workflow
 
 - [ ] Draft safe delimiter and null-token suggestions that remain visibly unapproved until reviewed.
-- [ ] Extend preflight diagnostics and schemas with effective parsing metadata.
+- [x] Extend preflight diagnostics and schemas with effective parsing metadata.
 - [ ] Add one checked-in migration example combining compression, delimiters, null tokens, mappings and normalization.
 - [ ] Cover plain/compressed CSV, TSV and JSON Lines across files and partitions without adding new dependencies.
 

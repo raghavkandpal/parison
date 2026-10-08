@@ -43,6 +43,8 @@ Local CSV, TSV and JSON Lines inputs may be gzip-compressed with `.csv.gz`, `.ts
 
 Recipes may set independent one-character baseline and candidate delimiters. Omitted delimiter policy preserves comma-separated behavior; drafting suggests tab only for `.tsv` inputs. Effective delimiters are fingerprinted and recorded in preflight and comparison evidence. See the [delimited-text contract](docs/0.5/51-delimited-text-contract.md).
 
+Delimited inputs may also declare independent baseline and candidate null-token lists. Tokens are exact and case-sensitive, empty strings cannot be configured as null tokens, and drafting safely proposes no tokens. See the [null-token contract](docs/0.5/52-null-token-contract.md).
+
 String columns may opt into ordered `trim`, `casefold` and `unicode_nfc` normalization. Normalization is applied before key identity and field comparison; exact comparison remains the default. See the [normalization contract](docs/0.3/31-normalization-contract.md).
 
 Use `validate-inputs` to check physical schemas, mappings, exclusions and partition layouts before reading and comparing all records. Its JSON output contains the effective-policy fingerprint and schema metadata but no record values. It accepts the same `--expected-policy-sha256 HASH` gate as `compare`. See the [input-preflight contract](docs/0.3/32-input-preflight-contract.md).
