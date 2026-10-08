@@ -4,7 +4,7 @@ Date: 8 October 2026
 
 ## Verified head
 
-Commit `b4d68c0` passed 121 tests on Python 3.11–3.14, macOS and Windows in [run 37779997294](https://github.com/raghavkandpal/parison/actions/runs/37779997294). Every matrix job installed Polars 1.44.2; the main jobs also validated all installed JSON Schemas and ran the checked-in record-validation smoke command.
+Commit `b2c139f` passed 122 tests on Python 3.11–3.14, macOS and Windows in [run 37780670159](https://github.com/raghavkandpal/parison/actions/runs/37780670159). Every matrix job installed Polars 1.44.2; the main jobs also validated all installed JSON Schemas and ran the checked-in record-validation smoke command.
 
 ## Covered behavior
 
