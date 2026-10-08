@@ -73,6 +73,12 @@ Make Parison's existing policy and validation modules easier to automate and rev
 - [x] Apply the comparison policy lock before preflight opens either input.
 - [x] Share fingerprint validation between preflight and comparison.
 
+### 12. Preflight result schema
+
+- [x] Version structured preflight results explicitly.
+- [x] Publish their complete shape as Draft 2020-12 JSON Schema.
+- [x] Validate real preflight output and smoke-test installed discovery in CI.
+
 ## Deferred
 
 Compressed inputs remain a later adapter slice because decompressed-byte accounting needs a separate resource contract. Remote connectors, fuzzy identity, arbitrary transformations and publication of grouped source values remain out of scope.

@@ -26,7 +26,12 @@ _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp
 _NORMALIZATIONS = {"trim", "casefold", "unicode_nfc"}
 _RAW_VALUE = object()
 _FILE_FORMATS = {".csv": "csv", ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".pq": "parquet"}
-_SCHEMAS = {"recipe": "recipe-v1.schema.json", "result": "result-v1.schema.json", "manifest": "manifest-v1.schema.json"}
+_SCHEMAS = {
+    "recipe": "recipe-v1.schema.json",
+    "result": "result-v1.schema.json",
+    "manifest": "manifest-v1.schema.json",
+    "preflight": "preflight-v1.schema.json",
+}
 
 
 class ParisonError(ValueError):
@@ -587,6 +592,7 @@ def validate_inputs(
         if sqlite_source:
             inputs[side]["table"] = sqlite_source[1]
     return {
+        "schema_version": 1,
         "status": status,
         "comparison_mode": recipe["comparison_mode"],
         "keys": recipe["keys"],

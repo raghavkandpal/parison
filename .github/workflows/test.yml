@@ -28,6 +28,7 @@ jobs:
       - run: parison schema recipe
       - run: parison schema result
       - run: parison schema manifest
+      - run: parison schema preflight
       - run: parison validate-recipe examples/orders.recipe.json
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke

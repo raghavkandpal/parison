@@ -48,6 +48,7 @@ class InputValidation(unittest.TestCase):
         baseline.write_text("id,old_value,note\nsecret,10,private\n", encoding="utf-8")
         candidate.write_text('{"id":"secret","value":10,"note":"private"}\n', encoding="utf-8")
         result = validate_inputs(self.recipe, baseline, candidate)
+        self.assertEqual(result["schema_version"], 1)
         self.assertEqual(result["status"], "valid")
         self.assertEqual(result["inputs"]["baseline"]["format"], "csv")
         self.assertEqual(result["inputs"]["candidate"]["format"], "jsonl")
