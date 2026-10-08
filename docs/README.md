@@ -9,6 +9,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Effective policy explanation](0.4/38-policy-explanation.md)
 - [Versioned JSON Schemas](0.4/39-json-schemas.md)
 - [Effective-policy fingerprint](0.4/40-policy-fingerprint.md)
+- [CI policy lock](0.4/41-ci-policy-lock.md)
 
 ## 0.3 — released record
 

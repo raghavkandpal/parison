@@ -11,6 +11,7 @@ All notable changes will be documented in this file.
 - Versioned Draft 2020-12 JSON Schemas for recipe and result artifacts.
 - Installed-schema discovery through `parison schema recipe|result`.
 - Canonical effective-policy SHA-256 fingerprints in explanations and comparison evidence.
+- An optional comparison gate that rejects policies not matching a reviewed fingerprint before reading inputs.
 
 ### Fixed
 

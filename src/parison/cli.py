@@ -72,6 +72,7 @@ symmetric-v1 tolerance. Suggestions are starting points, not approved policy."""
     run.add_argument("--sample-limit", type=int, default=100, help="maximum raw field differences to publish")
     run.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     run.add_argument("--max-rows", type=int, default=5_000_000, help="maximum rows in either input (default: 5 million)")
+    run.add_argument("--expected-policy-sha256", help="require this effective-policy fingerprint before reading inputs")
     return root
 
 
@@ -127,7 +128,15 @@ def main(argv: list[str] | None = None) -> int:
             print("valid")
             print(f"Validated recipe: {args.recipe}", file=sys.stderr)
             return 0
-        result = compare(args.recipe, args.baseline, args.candidate, args.sample_limit, args.max_input_bytes, args.max_rows)
+        result = compare(
+            args.recipe,
+            args.baseline,
+            args.candidate,
+            args.sample_limit,
+            args.max_input_bytes,
+            args.max_rows,
+            args.expected_policy_sha256,
+        )
         publish(args.output, result, recipe)
         print(json.dumps({"outcome": result["outcome"], "output": args.output}))
         _print_summary(result, args.output)

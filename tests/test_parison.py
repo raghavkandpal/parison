@@ -161,6 +161,27 @@ class ParisonTests(unittest.TestCase):
         self.assertEqual(json.loads(stdout.getvalue())["comparison_mode"], "keyed")
         self.assertIn("Explained effective policy", stderr.getvalue())
 
+    def test_expected_policy_fingerprint_gates_comparison_before_inputs(self):
+        expected = explain_recipe(self.recipe)["policy_sha256"]
+        left = self.csv("left.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
+        self.assertEqual(compare(self.recipe, left, left, expected_policy_sha256=expected)["outcome"], "PASS")
+        with self.assertRaisesRegex(ParisonError, "does not match expected"):
+            compare(self.recipe, "missing-left.csv", "missing-right.csv", expected_policy_sha256="0" * 64)
+        with self.assertRaisesRegex(ParisonError, "64 lowercase hexadecimal"):
+            compare(self.recipe, left, left, expected_policy_sha256="INVALID")
+
+    def test_cli_policy_fingerprint_mismatch_publishes_safe_error(self):
+        output = self.root / "policy-error"
+        code = main([
+            "compare", "--recipe", str(self.recipe), "--baseline", "missing-left.csv",
+            "--candidate", "missing-right.csv", "--output", str(output),
+            "--expected-policy-sha256", "0" * 64,
+        ])
+        self.assertEqual(code, 2)
+        result = json.loads((output / "result.json").read_text())
+        self.assertEqual(result["outcome"], "ERROR")
+        self.assertIn("does not match expected", result["problems"][0])
+
     def test_raw_evidence_is_explicit_bounded_and_html_escaped(self):
         raw_recipe = dict(RECIPE, output={"sensitivity": "raw"})
         self.recipe.write_text(json.dumps(raw_recipe), encoding="utf-8")

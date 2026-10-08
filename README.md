@@ -21,6 +21,7 @@ parison --version
 parison validate-recipe examples/orders.recipe.json
 parison validate-inputs --recipe examples/orders.recipe.json \
   --baseline examples/baseline.csv --candidate examples/candidate.csv
+parison explain examples/orders.recipe.json
 parison compare --recipe examples/orders.recipe.json \
   --baseline examples/baseline.csv --candidate examples/candidate.csv \
   --output runs/orders-example
@@ -40,6 +41,8 @@ A baseline or candidate may also be a directory of same-format CSV, JSON Lines o
 String columns may opt into ordered `trim`, `casefold` and `unicode_nfc` normalization. Normalization is applied before key identity and field comparison; exact comparison remains the default. See the [normalization contract](docs/0.3/31-normalization-contract.md).
 
 Use `validate-inputs` to check physical schemas, mappings, exclusions and partition layouts before reading and comparing all records. Its JSON output contains schema metadata but no record values. See the [input-preflight contract](docs/0.3/32-input-preflight-contract.md).
+
+Use `parison explain` to review the fully expanded policy and obtain its `policy_sha256`. CI can pass that value to `compare --expected-policy-sha256 HASH`; Parison rejects a malformed or changed policy before opening either input. The fingerprint checks equality only—it is not a signature or proof of approval.
 
 `output.sensitivity` defaults to `summary`, which stores no source keys or values. Set it explicitly to `raw` to include a bounded discrepancy sample, and protect that output as sensitive data. `--sample-limit` controls the maximum number of raw field differences written. Comparison errors also publish a summary-only diagnostic bundle when the output destination is available.
 

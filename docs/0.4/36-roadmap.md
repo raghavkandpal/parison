@@ -37,6 +37,12 @@ Make Parison's existing policy and validation modules easier to automate and rev
 - [x] Record the fingerprint in explanations, comparison results and reports.
 - [x] Preserve readability of older result-v1 bundles where the additive field is absent.
 
+### 6. CI policy lock
+
+- [x] Allow comparisons to require an expected effective-policy fingerprint.
+- [x] Reject malformed or mismatched fingerprints before opening either input.
+- [x] Preserve summary-only error bundles and deterministic exit code two on rejection.
+
 ## Deferred
 
 Compressed inputs remain a later adapter slice because decompressed-byte accounting needs a separate resource contract. Remote connectors, fuzzy identity, arbitrary transformations and publication of grouped source values remain out of scope.

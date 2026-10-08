@@ -887,6 +887,7 @@ def compare(
     sample_limit: int = 100,
     max_input_bytes: int = 1_000_000_000,
     max_rows: int = 5_000_000,
+    expected_policy_sha256: str | None = None,
 ) -> dict[str, Any]:
     if sample_limit < 0:
         raise ParisonError("sample_limit must be non-negative")
@@ -896,6 +897,12 @@ def compare(
         raise ParisonError("max_rows must be positive")
     recipe_path = Path(recipe_path)
     recipe = load_recipe(recipe_path)
+    policy_sha256 = _effective_policy(recipe)["policy_sha256"]
+    if expected_policy_sha256 is not None:
+        if len(expected_policy_sha256) != 64 or any(character not in "0123456789abcdef" for character in expected_policy_sha256):
+            raise ParisonError("expected policy SHA-256 must be 64 lowercase hexadecimal characters")
+        if expected_policy_sha256 != policy_sha256:
+            raise ParisonError(f"effective policy SHA-256 {policy_sha256} does not match expected {expected_policy_sha256}")
     input_bytes = _source_bytes(baseline_path) + _source_bytes(candidate_path)
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
@@ -1004,7 +1011,7 @@ def compare(
             "candidate": _source_metadata(candidate_path, before[str(candidate_path)]),
         },
         "recipe_sha256": _digest(recipe_path),
-        "policy_sha256": _effective_policy(recipe)["policy_sha256"],
+        "policy_sha256": policy_sha256,
     }
 
 
