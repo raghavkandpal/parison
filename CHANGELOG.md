@@ -4,6 +4,19 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.5.0 - 2026-10-08
+
+### Added
+
+- Bounded local gzip CSV and JSON Lines inputs, including partitions and mixed compressed/plain comparisons.
+- Separate combined physical and decoded input byte limits with compression provenance in results and preflight diagnostics.
+- Explicit one-character baseline and candidate delimiters, TSV and gzip TSV inputs, and delimiter provenance in effective policy, preflight and comparison evidence.
+- Reviewed baseline and candidate null tokens for delimited inputs, with safe empty defaults and preserved empty-string semantics.
+
+### Fixed
+
+- Recipe drafting now rejects inputs changed during row inspection, not only during schema inspection.
+
 ## 0.4.0 - 2026-10-08
 
 ### Added

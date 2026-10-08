@@ -46,6 +46,7 @@ def parser() -> argparse.ArgumentParser:
     inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
     inputs.add_argument("--candidate", required=True, help="candidate file, SQLite locator or partition directory")
     inputs.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
+    inputs.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000, help="maximum combined decoded gzip size (default: 1 GB)")
     inputs.add_argument("--expected-policy-sha256", help="require this effective-policy fingerprint before reading inputs")
     draft = commands.add_parser(
         "draft-recipe",
@@ -63,6 +64,7 @@ symmetric-v1 tolerance. Suggestions are starting points, not approved policy."""
     draft.add_argument("--candidate", required=True, help="candidate file, SQLite locator or partition directory")
     draft.add_argument("--output", required=True)
     draft.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
+    draft.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000, help="maximum combined decoded gzip size (default: 1 GB)")
     verify = commands.add_parser("verify", help="verify a published run bundle")
     verify.add_argument("run_directory")
     verify.add_argument("--json", action="store_true", help="print verified manifest metadata as JSON")
@@ -73,6 +75,7 @@ symmetric-v1 tolerance. Suggestions are starting points, not approved policy."""
     run.add_argument("--output", required=True)
     run.add_argument("--sample-limit", type=int, default=100, help="maximum raw field differences to publish")
     run.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
+    run.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000, help="maximum combined decoded gzip size (default: 1 GB)")
     run.add_argument("--max-rows", type=int, default=5_000_000, help="maximum rows in either input (default: 5 million)")
     run.add_argument("--expected-policy-sha256", help="require this effective-policy fingerprint before reading inputs")
     return root
@@ -93,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
             print("Integrity verification does not change the recorded comparison outcome.", file=sys.stderr)
             return 0
         if args.command == "draft-recipe":
-            draft = draft_recipe(args.baseline, args.candidate, args.max_input_bytes)
+            draft = draft_recipe(args.baseline, args.candidate, args.max_input_bytes, args.max_decoded_bytes)
             output = Path(args.output)
             try:
                 output.parent.mkdir(parents=True, exist_ok=True)
@@ -114,7 +117,14 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))
             return 0
         if args.command == "validate-inputs":
-            result = validate_inputs(args.recipe, args.baseline, args.candidate, args.max_input_bytes, args.expected_policy_sha256)
+            result = validate_inputs(
+                args.recipe,
+                args.baseline,
+                args.candidate,
+                args.max_input_bytes,
+                args.expected_policy_sha256,
+                args.max_decoded_bytes,
+            )
             print(json.dumps(result, sort_keys=True))
             if result["status"] == "valid":
                 print(
@@ -138,6 +148,7 @@ def main(argv: list[str] | None = None) -> int:
             args.max_input_bytes,
             args.max_rows,
             args.expected_policy_sha256,
+            args.max_decoded_bytes,
         )
         publish(args.output, result, recipe)
         print(json.dumps({"outcome": result["outcome"], "output": args.output}))
