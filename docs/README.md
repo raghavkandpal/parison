@@ -8,6 +8,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Structured preflight diagnostics](0.4/37-structured-preflight-diagnostics.md)
 - [Effective policy explanation](0.4/38-policy-explanation.md)
 - [Versioned JSON Schemas](0.4/39-json-schemas.md)
+- [Effective-policy fingerprint](0.4/40-policy-fingerprint.md)
 
 ## 0.3 — released record
 

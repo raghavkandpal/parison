@@ -132,7 +132,17 @@ class ParisonTests(unittest.TestCase):
         self.assertEqual(explanation["columns"]["status"]["baseline_column"], "legacy_status")
         self.assertEqual(explanation["columns"]["status"]["normalize"], ["trim", "casefold"])
         self.assertEqual(explanation["columns"]["total"]["comparison"], "numeric")
+        self.assertRegex(explanation["policy_sha256"], r"^[0-9a-f]{64}$")
         self.assertNotIn(str(self.recipe), json.dumps(explanation))
+
+        reordered = self.root / "reordered.json"
+        reordered.write_text(json.dumps(value, sort_keys=True, indent=4), encoding="utf-8")
+        self.assertNotEqual(self.recipe.read_bytes(), reordered.read_bytes())
+        self.assertEqual(explain_recipe(reordered)["policy_sha256"], explanation["policy_sha256"])
+
+        value["nulls_equal"] = False
+        reordered.write_text(json.dumps(value), encoding="utf-8")
+        self.assertNotEqual(explain_recipe(reordered)["policy_sha256"], explanation["policy_sha256"])
 
     def test_explain_cli_prints_machine_readable_policy(self):
         stdout, stderr = StringIO(), StringIO()

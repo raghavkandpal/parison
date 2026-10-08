@@ -31,6 +31,12 @@ Make Parison's existing policy and validation modules easier to automate and rev
 - [x] Expose installed schemas through the dependency-free CLI.
 - [x] Smoke-test schema discovery from built wheels in CI.
 
+### 5. Effective-policy fingerprint
+
+- [x] Hash the canonical effective policy independently from recipe-file formatting.
+- [x] Record the fingerprint in explanations, comparison results and reports.
+- [x] Preserve readability of older result-v1 bundles where the additive field is absent.
+
 ## Deferred
 
 Compressed inputs remain a later adapter slice because decompressed-byte accounting needs a separate resource contract. Remote connectors, fuzzy identity, arbitrary transformations and publication of grouped source values remain out of scope.

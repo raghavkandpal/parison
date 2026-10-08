@@ -27,6 +27,7 @@ class CheckedInExamples(unittest.TestCase):
         self.assertEqual(result["outcome"], "PASS")
         self.assertEqual(result["counts"]["matched_exact"], 2)
         self.assertEqual(result["inputs"]["baseline"]["partitions"], 2)
+        self.assertRegex(result["policy_sha256"], r"^[0-9a-f]{64}$")
 
     def test_committed_output_bundle_is_complete_and_verified(self):
         root = Path(__file__).parents[1]

@@ -38,6 +38,7 @@
     "discrepancy_sample_limit": {"type": "integer", "minimum": 0},
     "excluded_columns": {"type": "object", "additionalProperties": {"type": "string"}},
     "inputs": {"type": "object"},
-    "recipe_sha256": {"type": ["string", "null"]}
+    "recipe_sha256": {"type": ["string", "null"]},
+    "policy_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
   }
 }

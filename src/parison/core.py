@@ -226,9 +226,7 @@ def _source_name(recipe: dict[str, Any], name: str, side: str) -> str:
     return recipe.get("column_mappings", {}).get(name, {}).get(side, name)
 
 
-def explain_recipe(path: str | Path) -> dict[str, Any]:
-    """Return a fully explicit policy view without reading input data."""
-    recipe = load_recipe(path)
+def _effective_policy(recipe: dict[str, Any]) -> dict[str, Any]:
     columns = {}
     for name, configured in recipe["columns"].items():
         policy = dict(configured)
@@ -240,7 +238,7 @@ def explain_recipe(path: str | Path) -> dict[str, Any]:
             "candidate_column": _source_name(recipe, name, "candidate"),
             **policy,
         }
-    return {
+    policy = {
         "schema_version": 1,
         "recipe_version": recipe["recipe_version"],
         "comparison_mode": recipe["comparison_mode"],
@@ -251,6 +249,15 @@ def explain_recipe(path: str | Path) -> dict[str, Any]:
         "excluded_columns": recipe.get("excluded_columns", {}),
         "output": recipe.get("output", {"sensitivity": "summary"}),
     }
+    policy["policy_sha256"] = hashlib.sha256(
+        json.dumps(policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    return policy
+
+
+def explain_recipe(path: str | Path) -> dict[str, Any]:
+    """Return a fully explicit policy view without reading input data."""
+    return _effective_policy(load_recipe(path))
 
 
 def _normalize(value: Any, policy: dict[str, Any]) -> Any:
@@ -996,6 +1003,7 @@ def compare(
             "candidate": _source_metadata(candidate_path, before[str(candidate_path)]),
         },
         "recipe_sha256": _digest(recipe_path),
+        "policy_sha256": _effective_policy(recipe)["policy_sha256"],
     }
 
 
@@ -1052,7 +1060,7 @@ def _report(result: dict[str, Any]) -> str:
 <h2>Preflight issues</h2><ul>{problems}</ul>{evidence}
 <h2>Inputs</h2><table><thead><tr><th>Side</th><th>Bytes</th><th>SHA-256</th></tr></thead><tbody>{input_rows}</tbody></table>
 <h2>Resource limits</h2><table>{limit_rows}</table><h2>Runtime</h2><table>{runtime_rows}</table>
-<h2>Provenance</h2><p>Recipe SHA-256: <code>{esc(result.get('recipe_sha256') or 'unavailable')}</code></p></main><script>
+<h2>Provenance</h2><p>Recipe SHA-256: <code>{esc(result.get('recipe_sha256') or 'unavailable')}</code></p><p>Effective policy SHA-256: <code>{esc(result.get('policy_sha256') or 'unavailable')}</code></p></main><script>
 const fieldClass=document.querySelector('#field-class');
 const setCount=(id,rows,label)=>document.querySelector(id).textContent='Showing '+[...rows].filter(row=>!row.hidden).length+' of '+rows.length+' '+label;
 const fieldRows=document.querySelectorAll('#field-summary tbody tr[data-exact]');
@@ -1087,6 +1095,7 @@ def terminal_result(outcome: str, message: str) -> dict[str, Any]:
         "excluded_columns": {},
         "inputs": {},
         "recipe_sha256": None,
+        "policy_sha256": None,
     }
 
 

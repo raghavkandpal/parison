@@ -10,6 +10,7 @@ All notable changes will be documented in this file.
 - A data-free `explain` command that renders every effective recipe policy and source-column mapping.
 - Versioned Draft 2020-12 JSON Schemas for recipe and result artifacts.
 - Installed-schema discovery through `parison schema recipe|result`.
+- Canonical effective-policy SHA-256 fingerprints in explanations and comparison evidence.
 
 ## 0.3.0 - 2026-10-07
 
