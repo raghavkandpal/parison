@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.5.0 - 2026-10-08
+
 ### Added
 
 - Bounded local gzip CSV and JSON Lines inputs, including partitions and mixed compressed/plain comparisons.

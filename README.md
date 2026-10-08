@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**0.5 development.** The released 0.4.0 CLI adds structured preflight diagnostics, effective-policy explanation and locking, versioned installed JSON Schemas, machine-readable bundle verification, and stronger publication and verification failure handling. Development adds bounded local compressed inputs and explicit delimited-text parsing policy.
+**0.5 release candidate.** The released 0.4.0 CLI adds structured preflight diagnostics, effective-policy explanation and locking, versioned installed JSON Schemas, machine-readable bundle verification, and stronger publication and verification failure handling. The 0.5 candidate adds bounded local compressed inputs and explicit delimited-text parsing policy.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 

@@ -2,7 +2,7 @@
 
 Date: 8 October 2026
 
-Status: **not release-ready**. The real-world export product slices are complete, but release verification and packaging have not been rerun against the full 0.5 boundary.
+Status: **release candidate**. Product and development verification are complete; the versioned commit still requires CI, merge and final archive verification before publication.
 
 - [x] Complete the bounded gzip slice without adding archive containers or new dependencies.
 - [x] Preserve keyed-v1 outcomes, summary privacy, policy locks and input-change detection.
@@ -13,7 +13,7 @@ Status: **not release-ready**. The real-world export product slices are complete
 - [x] Complete explicit TSV/custom-delimiter policy and evidence.
 - [x] Complete reviewed null-token semantics without conflating null and empty strings.
 - [x] Complete drafting, preflight and a combined migration example for the expanded input policy.
-- [ ] Set the package version to `0.5.0` and move changelog entries out of Unreleased.
+- [x] Set the package version to `0.5.0` and move changelog entries out of Unreleased.
 - [ ] Pass CI on the release commit and merge it to `main`.
 - [ ] Build, inspect and checksum release archives from the merged commit.
 - [ ] Install the release wheel and repeat the compressed-input CLI smoke test.
