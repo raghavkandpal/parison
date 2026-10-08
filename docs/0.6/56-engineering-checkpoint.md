@@ -20,3 +20,10 @@ Commit `b2c139f` passed 122 tests on Python 3.11–3.14, macOS and Windows in [r
 ## Next boundary
 
 Do not add multiset, aggregate or remote comparison modes merely to fill 0.6. The next slice should respond to observed workflow friction or deepen the completed validation path without changing keyed-v1 outcomes.
+
+## Published release
+
+- Tag `0.6.0` points to verified merge commit `d9ebebcb62e021eb7d0f7d37debc7ab9028aaebf`.
+- The [0.6.0 GitHub prerelease](https://github.com/raghavkandpal/parison/releases/tag/0.6.0) contains the wheel, source archive and `SHA256SUMS.txt`.
+- The wheel SHA-256 is `9c875e3e0e878799b521794ea7eda6adf05026f4dad5a38d480159eea4478f18`; the source archive SHA-256 is `55c1b4652ca58ef11e0e4ce142776fee17ef17923d8d615bd8e4094ca5fbcb4c`.
+- Downloaded assets passed checksum verification, and the downloaded wheel passed version and record-validation smoke tests with Polars 1.44.2 in a fresh environment.
