@@ -98,6 +98,15 @@ class ParisonTests(unittest.TestCase):
         self.assertNotIn("secret-old", encoded)
         self.assertNotIn("secret-new", encoded)
 
+    def test_omitted_output_uses_effective_summary_default(self):
+        value = json.loads(json.dumps(RECIPE))
+        del value["output"]
+        self.recipe.write_text(json.dumps(value), encoding="utf-8")
+        self.assertEqual(load_recipe(self.recipe)["output"], {"sensitivity": "summary"})
+        left = self.csv("left.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
+        right = self.csv("right.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
+        self.assertEqual(compare(self.recipe, left, right)["sensitivity"], "summary")
+
     def test_report_surfaces_scope_fields_exclusions_limits_and_runtime(self):
         value = json.loads(json.dumps(RECIPE))
         value["columns"]["status"]["normalize"] = ["trim", "casefold"]

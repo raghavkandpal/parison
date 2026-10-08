@@ -175,6 +175,7 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     output = recipe.get("output", {"sensitivity": "summary"})
     if not isinstance(output, dict) or set(output) != {"sensitivity"} or output["sensitivity"] not in {"summary", "raw"}:
         raise ParisonError("output must contain sensitivity='summary' or sensitivity='raw'")
+    recipe["output"] = output
     return recipe
 
 

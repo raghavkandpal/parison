@@ -12,6 +12,10 @@ All notable changes will be documented in this file.
 - Installed-schema discovery through `parison schema recipe|result`.
 - Canonical effective-policy SHA-256 fingerprints in explanations and comparison evidence.
 
+### Fixed
+
+- Recipes that omit `output` now consistently apply the documented summary-sensitivity default.
+
 ## 0.3.0 - 2026-10-07
 
 ### Added
