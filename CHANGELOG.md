@@ -12,6 +12,7 @@ All notable changes will be documented in this file.
 - Installed-schema discovery through `parison schema recipe|result`.
 - Canonical effective-policy SHA-256 fingerprints in explanations and comparison evidence.
 - An optional comparison gate that rejects policies not matching a reviewed fingerprint before reading inputs.
+- Opt-in machine-readable manifest output from `parison verify --json`.
 
 ### Fixed
 

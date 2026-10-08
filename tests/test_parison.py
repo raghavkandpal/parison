@@ -333,6 +333,15 @@ class ParisonTests(unittest.TestCase):
         self.assertIn("recorded outcome: PASS", stderr.getvalue())
         self.assertIn("does not change", stderr.getvalue())
 
+        stdout, stderr = StringIO(), StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            code = main(["verify", str(output), "--json"])
+        self.assertEqual(code, 0)
+        metadata = json.loads(stdout.getvalue())
+        self.assertEqual(metadata["outcome"], "PASS")
+        self.assertEqual(metadata["sensitivity"], "summary")
+        self.assertIn("result.json", metadata["files"])
+
     def test_raw_sample_includes_missing_keys_with_one_shared_limit(self):
         raw_recipe = dict(RECIPE, output={"sensitivity": "raw"})
         self.recipe.write_text(json.dumps(raw_recipe), encoding="utf-8")

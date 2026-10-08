@@ -12,6 +12,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [CI policy lock](0.4/41-ci-policy-lock.md)
 - [Bundle verification hardening](0.4/42-bundle-verification.md)
 - [Publication failure handling](0.4/43-publication-failures.md)
+- [Machine-readable verification](0.4/44-machine-readable-verification.md)
 
 ## 0.3 — released record
 

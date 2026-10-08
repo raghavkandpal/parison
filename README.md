@@ -26,6 +26,7 @@ parison compare --recipe examples/orders.recipe.json \
   --baseline examples/baseline.csv --candidate examples/candidate.csv \
   --output runs/orders-example
 parison verify runs/orders-example
+parison verify runs/orders-example --json
 ```
 
 `draft-recipe` inspects both inputs and writes a valid starting recipe with suggested keys, data types, scope metadata and exclusion rationales. Review every suggestion, then use `validate-recipe` as the structural gate. See the [recipe draft contract and workflow](docs/0.2/22-recipe-draft-contract.md).

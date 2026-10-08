@@ -64,6 +64,7 @@ symmetric-v1 tolerance. Suggestions are starting points, not approved policy."""
     draft.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     verify = commands.add_parser("verify", help="verify a published run bundle")
     verify.add_argument("run_directory")
+    verify.add_argument("--json", action="store_true", help="print verified manifest metadata as JSON")
     run = commands.add_parser("compare", help="compare baseline and candidate files")
     run.add_argument("--recipe", required=True)
     run.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
@@ -82,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "verify":
             manifest = verify_bundle(args.run_directory)
-            print("valid")
+            print(json.dumps(manifest, sort_keys=True) if args.json else "valid")
             print(
                 f"Verified bundle integrity: {args.run_directory} "
                 f"(recorded outcome: {manifest['outcome']}, sensitivity: {manifest['sensitivity']})",

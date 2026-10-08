@@ -55,6 +55,12 @@ Make Parison's existing policy and validation modules easier to automate and rev
 - [x] Remove partial staging directories after publication failures.
 - [x] Preserve the rule that the final run directory appears only after every artifact is complete.
 
+### 9. Machine-readable bundle verification
+
+- [x] Expose verified manifest metadata as opt-in JSON.
+- [x] Preserve the existing human-oriented `valid` output by default.
+- [x] Keep outcome interpretation separate from integrity verification.
+
 ## Deferred
 
 Compressed inputs remain a later adapter slice because decompressed-byte accounting needs a separate resource contract. Remote connectors, fuzzy identity, arbitrary transformations and publication of grouped source values remain out of scope.
