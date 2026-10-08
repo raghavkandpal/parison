@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from parison import __version__
 from parison.cli import main
-from parison.core import ParisonError, compare, load_recipe, publish, verify_bundle
+from parison.core import ParisonError, compare, explain_recipe, load_recipe, publish, verify_bundle
 
 
 RECIPE = {
@@ -118,6 +118,29 @@ class ParisonTests(unittest.TestCase):
         self.assertIn("Showing 2 of 2 fields", report)
         self.assertIn('id="field-summary"', report)
         self.assertNotIn('id="raw-evidence"', report)
+
+    def test_explain_makes_effective_policy_explicit_without_inputs(self):
+        value = json.loads(json.dumps(RECIPE))
+        value["columns"]["status"]["normalize"] = ["trim", "casefold"]
+        value["column_mappings"] = {"status": {"baseline": "legacy_status", "candidate": "status"}}
+        value["excluded_columns"] = {"updated_at": "nondeterministic metadata"}
+        self.recipe.write_text(json.dumps(value), encoding="utf-8")
+        explanation = explain_recipe(self.recipe)
+        self.assertEqual(explanation["schema_version"], 1)
+        self.assertTrue(explanation["columns"]["order_id"]["key"])
+        self.assertEqual(explanation["columns"]["order_id"]["normalize"], [])
+        self.assertEqual(explanation["columns"]["status"]["baseline_column"], "legacy_status")
+        self.assertEqual(explanation["columns"]["status"]["normalize"], ["trim", "casefold"])
+        self.assertEqual(explanation["columns"]["total"]["comparison"], "numeric")
+        self.assertNotIn(str(self.recipe), json.dumps(explanation))
+
+    def test_explain_cli_prints_machine_readable_policy(self):
+        stdout, stderr = StringIO(), StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            code = main(["explain", str(self.recipe)])
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(stdout.getvalue())["comparison_mode"], "keyed")
+        self.assertIn("Explained effective policy", stderr.getvalue())
 
     def test_raw_evidence_is_explicit_bounded_and_html_escaped(self):
         raw_recipe = dict(RECIPE, output={"sensitivity": "raw"})

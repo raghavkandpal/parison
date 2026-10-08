@@ -17,8 +17,8 @@ Make Parison's existing policy and validation modules easier to automate and rev
 
 ### 2. Policy explanation
 
-- [ ] Render the effective recipe policy without reading input data.
-- [ ] Keep one machine-readable representation shared by terminal and future report views.
+- [x] Render the effective recipe policy without reading input data.
+- [x] Keep one machine-readable representation shared by terminal and future report views.
 
 ### 3. Versioned JSON schemas
 

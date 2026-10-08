@@ -219,6 +219,33 @@ def _source_name(recipe: dict[str, Any], name: str, side: str) -> str:
     return recipe.get("column_mappings", {}).get(name, {}).get(side, name)
 
 
+def explain_recipe(path: str | Path) -> dict[str, Any]:
+    """Return a fully explicit policy view without reading input data."""
+    recipe = load_recipe(path)
+    columns = {}
+    for name, configured in recipe["columns"].items():
+        policy = dict(configured)
+        policy["comparison"] = policy.get("comparison", "exact")
+        policy["normalize"] = policy.get("normalize", [])
+        columns[name] = {
+            "key": name in recipe["keys"],
+            "baseline_column": _source_name(recipe, name, "baseline"),
+            "candidate_column": _source_name(recipe, name, "candidate"),
+            **policy,
+        }
+    return {
+        "schema_version": 1,
+        "recipe_version": recipe["recipe_version"],
+        "comparison_mode": recipe["comparison_mode"],
+        "scope": recipe["scope"],
+        "identity": recipe["identity"],
+        "nulls_equal": recipe["nulls_equal"],
+        "columns": columns,
+        "excluded_columns": recipe.get("excluded_columns", {}),
+        "output": recipe.get("output", {"sensitivity": "summary"}),
+    }
+
+
 def _normalize(value: Any, policy: dict[str, Any]) -> Any:
     if value is None:
         return None
