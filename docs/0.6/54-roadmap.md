@@ -24,7 +24,7 @@ Find invalid records before comparison while preserving Parison's local, bounded
 
 - [x] Document the fast schema-only and full record-validation paths.
 - [x] Add CI smoke coverage using the checked-in 0.5 migration example.
-- [ ] Reassess the next 0.6 slice after real record validation is complete; do not add new comparison modes speculatively.
+- [x] Reassess after record validation; prioritize privacy-safe failures and operator feedback instead of a speculative comparison mode.
 
 ### 4. Privacy-safe parse failures
 
