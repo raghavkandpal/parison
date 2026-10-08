@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.4.0 - 2026-10-08
+
 ### Added
 
 - Machine-readable missing, unexpected, mapped and excluded-column diagnostics from `validate-inputs`.
@@ -11,7 +13,7 @@ All notable changes will be documented in this file.
 - Versioned Draft 2020-12 JSON Schemas for recipe and result artifacts.
 - A versioned Draft 2020-12 JSON Schema for bundle manifests.
 - A versioned Draft 2020-12 JSON Schema for structured input-preflight results.
-- Installed-schema discovery through `parison schema recipe|result`.
+- Installed-schema discovery through `parison schema recipe|result|manifest|preflight`.
 - Canonical effective-policy SHA-256 fingerprints in explanations and comparison evidence.
 - An optional comparison gate that rejects policies not matching a reviewed fingerprint before reading inputs.
 - Opt-in machine-readable manifest output from `parison verify --json`.

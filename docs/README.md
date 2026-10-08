@@ -2,7 +2,7 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-## 0.4 — current development
+## 0.4 — released record
 
 - [0.4 roadmap](0.4/36-roadmap.md)
 - [Structured preflight diagnostics](0.4/37-structured-preflight-diagnostics.md)
