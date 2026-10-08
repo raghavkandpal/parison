@@ -39,6 +39,10 @@ class ParisonError(ValueError):
     pass
 
 
+class _SafeParseError(ValueError):
+    pass
+
+
 def _file_format(path: Path) -> str | None:
     suffix = path.suffix.lower()
     if suffix == ".gz":
@@ -256,14 +260,14 @@ def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
         if kind == "decimal":
             value = Decimal(str(raw))
             if not value.is_finite():
-                raise ValueError("non-finite decimal")
+                raise _SafeParseError("non-finite decimal")
             if max(-value.as_tuple().exponent, 0) > policy["scale"]:
-                raise ValueError(f"value exceeds configured scale {policy['scale']}")
+                raise _SafeParseError(f"value exceeds configured scale {policy['scale']}")
             return value
         if kind == "float":
             value = float(raw)
             if not math.isfinite(value):
-                raise ValueError("non-finite float")
+                raise _SafeParseError("non-finite float")
             return value
         if kind == "boolean":
             if isinstance(raw, bool):
@@ -272,17 +276,18 @@ def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
                 return True
             if raw == "false":
                 return False
-            raise ValueError("expected true or false")
+            raise _SafeParseError("expected true or false")
         if kind == "date":
             return date.fromisoformat(str(raw))
         if kind == "timestamp":
             value = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
             if value.tzinfo is None:
-                raise ValueError("timestamp requires an explicit timezone")
+                raise _SafeParseError("timestamp requires an explicit timezone")
             return value
+    except _SafeParseError as exc:
+        raise ParisonError(f"cannot parse column {column} as {kind}: {exc}") from exc
     except (ValueError, TypeError, InvalidOperation) as exc:
-        detail = str(exc) or "invalid value"
-        raise ParisonError(f"cannot parse column {column} as {kind}: {detail}") from exc
+        raise ParisonError(f"cannot parse column {column} as {kind}") from exc
     raise AssertionError(kind)
 
 
@@ -658,6 +663,46 @@ def _input_columns(path: str | Path, decoded_sizes: dict[Path, int] | None = Non
     return columns
 
 
+def _record_diagnostics(
+    source: str | Path,
+    recipe: dict[str, Any],
+    max_rows: int,
+    side: str,
+    decoded_sizes: dict[Path, int],
+) -> dict[str, Any]:
+    seen: set[tuple[Any, ...]] = set()
+    duplicates: set[tuple[Any, ...]] = set()
+    invalid_fields: Counter[str] = Counter()
+    invalid_rows = null_key_rows = rows = 0
+    for raw in _iter_input_rows(source, recipe, max_rows, side, decoded_sizes):
+        rows += 1
+        row = {}
+        row_is_invalid = False
+        for name, policy in recipe["columns"].items():
+            try:
+                parsed = _parse(raw.get(_source_name(recipe, name, side)), policy, name)
+                row[name] = _normalize(parsed, policy)
+            except ParisonError:
+                invalid_fields[name] += 1
+                row_is_invalid = True
+        invalid_rows += row_is_invalid
+        if not set(recipe["keys"]) <= set(row):
+            continue
+        key = tuple(row[name] for name in recipe["keys"])
+        null_key_rows += any(value is None for value in key)
+        if key in seen:
+            duplicates.add(key)
+        seen.add(key)
+    return {
+        "status": "invalid" if invalid_rows or null_key_rows or duplicates else "valid",
+        "rows": rows,
+        "invalid_rows": invalid_rows,
+        "invalid_fields": dict(sorted(invalid_fields.items())),
+        "null_key_rows": null_key_rows,
+        "duplicate_keys": len(duplicates),
+    }
+
+
 def validate_inputs(
     recipe_path: str | Path,
     baseline: str | Path,
@@ -665,16 +710,21 @@ def validate_inputs(
     max_input_bytes: int = 1_000_000_000,
     expected_policy_sha256: str | None = None,
     max_decoded_bytes: int = 1_000_000_000,
+    validate_records: bool = False,
+    max_rows: int = 5_000_000,
 ) -> dict[str, Any]:
     """Validate input schemas against a recipe without comparing records."""
     if max_input_bytes <= 0:
         raise ParisonError("max_input_bytes must be positive")
+    if max_rows <= 0:
+        raise ParisonError("max_rows must be positive")
     recipe = load_recipe(recipe_path)
     policy_sha256 = _checked_policy_sha256(recipe, expected_policy_sha256)
     sizes = {side: _source_bytes(source) for side, source in (("baseline", baseline), ("candidate", candidate))}
     if sum(sizes.values()) > max_input_bytes:
         raise ParisonError(f"combined input size {sum(sizes.values())} exceeds limit {max_input_bytes} bytes")
     decoded_sizes = _decoded_sizes((baseline, candidate), max_decoded_bytes)
+    before = {str(source): _source_digest(source) for source in (baseline, candidate)} if validate_records else {}
     inputs = {}
     status = "valid"
     for side, source in (("baseline", baseline), ("candidate", candidate)):
@@ -699,6 +749,12 @@ def validate_inputs(
             inputs[side]["null_tokens"] = recipe["null_tokens"][side]
         if any(path in decoded_sizes for path in paths):
             inputs[side].update(compression="gzip", decoded_bytes=sum(decoded_sizes.get(path, 0) for path in paths))
+        if validate_records and not schema["missing"] and not schema["unexpected"]:
+            inputs[side]["records"] = _record_diagnostics(source, recipe, max_rows, side, decoded_sizes)
+            if inputs[side]["records"]["status"] == "invalid":
+                status = "invalid"
+    if validate_records and any(_source_digest(source) != digest for source, digest in before.items()):
+        raise ParisonError("an input changed while it was being validated")
     return {
         "schema_version": 1,
         "status": status,

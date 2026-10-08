@@ -244,6 +244,17 @@ class SemanticCorpus(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "cannot parse column value as date"):
             self.run_rows(spec, ["id", "value"], [{"id": "1", "value": "2026-01-01"}], [{"id": "1", "value": "2026-01-01T00:00:00"}])
 
+    def test_parse_errors_do_not_echo_invalid_source_values(self):
+        columns = {
+            "id": {"type": "string", "comparison": "exact"},
+            "value": {"type": "integer", "comparison": "exact"},
+        }
+        secret = "customer-secret-123"
+        with self.assertRaises(ParisonError) as raised:
+            self.run_rows(recipe(columns), ["id", "value"], [{"id": "1", "value": "1"}], [{"id": "1", "value": secret}])
+        self.assertEqual(str(raised.exception), "cannot parse column value as integer")
+        self.assertNotIn(secret, str(raised.exception))
+
     def test_large_integers_are_not_coerced_to_float(self):
         columns = {
             "id": {"type": "string", "comparison": "exact"},

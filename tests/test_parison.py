@@ -236,6 +236,22 @@ class ParisonTests(unittest.TestCase):
         self.assertNotIn("secret-value", json.dumps(result))
         self.assertEqual(json.loads((output / "manifest.json").read_text())["sensitivity"], "summary")
 
+    def test_cli_parse_error_bundle_does_not_echo_rejected_value(self):
+        secret = "customer-secret-123"
+        good = self.csv("good.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
+        invalid = self.csv("invalid.csv", [{"order_id": "001", "status": "ok", "total": secret}])
+        output = self.root / "parse-error"
+        stderr = StringIO()
+        with redirect_stderr(stderr):
+            code = main([
+                "compare", "--recipe", str(self.recipe), "--baseline", str(good),
+                "--candidate", str(invalid), "--output", str(output),
+            ])
+        evidence = json.dumps(json.loads((output / "result.json").read_text())) + stderr.getvalue()
+        self.assertEqual(code, 2)
+        self.assertIn("cannot parse column total as decimal", evidence)
+        self.assertNotIn(secret, evidence)
+
     def test_publication_io_failure_is_a_controlled_error(self):
         result = error_result("test")
         with patch("parison.core.tempfile.mkdtemp", side_effect=OSError("disk full")):

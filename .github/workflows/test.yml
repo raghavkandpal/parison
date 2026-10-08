@@ -36,6 +36,7 @@ jobs:
       - run: parison validate-inputs --recipe examples/0.3/migration.recipe.json --baseline examples/0.3/baseline --candidate examples/0.3/candidate.jsonl
       - run: parison compare --recipe examples/0.3/migration.recipe.json --baseline examples/0.3/baseline --candidate examples/0.3/candidate.jsonl --output /tmp/parison-0.3-smoke
       - run: parison validate-inputs --recipe examples/0.5/migration.recipe.json --baseline examples/0.5/baseline.tsv.gz --candidate examples/0.5/candidate.csv
+      - run: parison validate-inputs --records --recipe examples/0.5/migration.recipe.json --baseline examples/0.5/baseline.tsv.gz --candidate examples/0.5/candidate.csv
       - run: parison compare --recipe examples/0.5/migration.recipe.json --baseline examples/0.5/baseline.tsv.gz --candidate examples/0.5/candidate.csv --output /tmp/parison-0.5-smoke
       - name: Upload smoke evidence
         if: matrix.python-version == '3.14'

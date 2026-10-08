@@ -5,7 +5,9 @@ import unittest
 from contextlib import closing, redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
+from parison import core
 from parison.cli import main
 from parison.core import ParisonError, explain_recipe, validate_inputs
 
@@ -110,6 +112,82 @@ class InputValidation(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(result["inputs"]["baseline"]["partitions"], 2)
         self.assertIn("Validated input schemas", stderr.getvalue())
+
+    def test_record_scan_reports_identity_without_values(self):
+        baseline = self.root / "baseline.jsonl"
+        candidate = self.root / "candidate.jsonl"
+        baseline.write_text('{"id":null,"old_value":10,"note":"private"}\n', encoding="utf-8")
+        candidate.write_text(
+            '{"id":"secret","value":10,"note":"private"}\n'
+            '{"id":"secret","value":11,"note":"private"}\n',
+            encoding="utf-8",
+        )
+        result = validate_inputs(self.recipe, baseline, candidate, validate_records=True)
+        self.assertEqual(result["status"], "invalid")
+        self.assertEqual(result["inputs"]["baseline"]["records"], {
+            "status": "invalid", "rows": 1, "invalid_rows": 0, "invalid_fields": {},
+            "null_key_rows": 1, "duplicate_keys": 0,
+        })
+        self.assertEqual(result["inputs"]["candidate"]["records"], {
+            "status": "invalid", "rows": 2, "invalid_rows": 0, "invalid_fields": {},
+            "null_key_rows": 0, "duplicate_keys": 1,
+        })
+        self.assertNotIn("secret", json.dumps(result))
+        self.assertNotIn("private", json.dumps(result))
+
+    def test_record_scan_applies_types_limits_and_cli_flag(self):
+        baseline = self.root / "baseline.csv"
+        candidate = self.root / "candidate.csv"
+        baseline.write_text("id,old_value,note\n1,10,x\n", encoding="utf-8")
+        candidate.write_text("id,value,note\n1,10,x\n", encoding="utf-8")
+        stdout, stderr = StringIO(), StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            code = main([
+                "validate-inputs", "--records", "--recipe", str(self.recipe),
+                "--baseline", str(baseline), "--candidate", str(candidate),
+            ])
+        result = json.loads(stdout.getvalue())
+        self.assertEqual(code, 0)
+        self.assertEqual(result["inputs"]["baseline"]["records"]["rows"], 1)
+        self.assertIn("Baseline records: 1 rows, 0 invalid rows, 0 null-key rows, 0 duplicate keys.", stderr.getvalue())
+        self.assertIn("Candidate records: 1 rows, 0 invalid rows, 0 null-key rows, 0 duplicate keys.", stderr.getvalue())
+
+        candidate.write_text("id,value,note\n1,rejected-source-value,x\n", encoding="utf-8")
+        result = validate_inputs(self.recipe, baseline, candidate, validate_records=True)
+        self.assertEqual(result["status"], "invalid")
+        self.assertEqual(result["inputs"]["candidate"]["records"]["invalid_rows"], 1)
+        self.assertEqual(result["inputs"]["candidate"]["records"]["invalid_fields"], {"value": 1})
+        self.assertNotIn("rejected-source-value", json.dumps(result))
+        candidate.write_text("id,value,note\n1,10,x\n2,20,y\n", encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "row count.*exceeds limit 1"):
+            validate_inputs(self.recipe, baseline, candidate, validate_records=True, max_rows=1)
+
+    def test_record_scan_keeps_identity_diagnostics_for_other_invalid_fields(self):
+        baseline = self.root / "baseline.csv"
+        candidate = self.root / "candidate.csv"
+        baseline.write_text("id,old_value,note\n1,10,x\n", encoding="utf-8")
+        candidate.write_text("id,value,note\n1,rejected,x\n1,20,y\n", encoding="utf-8")
+        records = validate_inputs(self.recipe, baseline, candidate, validate_records=True)["inputs"]["candidate"]["records"]
+        self.assertEqual(records["invalid_rows"], 1)
+        self.assertEqual(records["invalid_fields"], {"value": 1})
+        self.assertEqual(records["duplicate_keys"], 1)
+
+    def test_record_scan_rejects_input_mutation(self):
+        baseline = self.root / "baseline.csv"
+        candidate = self.root / "candidate.csv"
+        baseline.write_text("id,old_value,note\n1,10,x\n", encoding="utf-8")
+        candidate.write_text("id,value,note\n1,10,x\n", encoding="utf-8")
+        original = core._record_diagnostics
+
+        def changing_diagnostics(*args, **kwargs):
+            result = original(*args, **kwargs)
+            if Path(args[0]) == baseline:
+                baseline.write_text("id,old_value,note\n1,11,x\n", encoding="utf-8")
+            return result
+
+        with patch("parison.core._record_diagnostics", side_effect=changing_diagnostics):
+            with self.assertRaisesRegex(ParisonError, "input changed while it was being validated"):
+                validate_inputs(self.recipe, baseline, candidate, validate_records=True)
 
     def test_sqlite_schema_is_inspected_read_only(self):
         database = self.root / "input.sqlite"
