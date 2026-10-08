@@ -14,3 +14,11 @@ Date: 8 October 2026
 ## Release boundary
 
 The release commit must set version `0.4.0`, move the changelog entries out of Unreleased, and pass the complete CI matrix again. Release archives must then be built from the merged commit, checksummed and smoke-tested before publication.
+
+## Published release
+
+- Release commit `a0ce390` passed the complete matrix in [run 37735929326](https://github.com/raghavkandpal/parison/actions/runs/37735929326) and PR checks before merging to `main` as `44f4a75`.
+- A clean archive of the merged commit produced `parison-0.4.0-py3-none-any.whl` and `parison-0.4.0.tar.gz`.
+- The release wheel SHA-256 is `8a7b5af4c14d9c9b85a3697d4c1a0b47960155628839c538a6c3b0477604fb35`; the source archive SHA-256 is `48f13561e51f17da0be1ecbec68b493c60832c67b2cb897cb69554e21a758320`.
+- Both assets were downloaded from the [0.4.0 GitHub prerelease](https://github.com/raghavkandpal/parison/releases/tag/0.4.0) and passed the published checksum file.
+- The downloaded wheel was installed with Polars 1.44.2 into an empty environment and repeated the version, policy-locked preflight, PASS comparison and machine-readable verification smoke test.
