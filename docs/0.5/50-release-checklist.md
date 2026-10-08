@@ -6,10 +6,10 @@ Status: **not release-ready**. The real-world export product slices are complete
 
 - [x] Complete the bounded gzip slice without adding archive containers or new dependencies.
 - [x] Preserve keyed-v1 outcomes, summary privacy, policy locks and input-change detection.
-- [x] Pass 106 local tests, including malformed, high-expansion and mutation cases.
-- [x] Pass Python 3.11–3.14 plus macOS and Windows CI.
-- [x] Build wheel and source archives from a clean Git archive.
-- [x] Install the development wheel into an empty environment and smoke-test gzip preflight, comparison and bundle verification.
+- [x] Pass 116 tests with optional Parquet and JSON Schema support, including malformed, high-expansion and mutation cases.
+- [x] Pass Python 3.11–3.14 plus macOS and Windows CI on the completed product boundary.
+- [x] Build and inspect wheel and source archives from a clean Git archive.
+- [x] Install the development wheel with Polars into an empty environment and smoke-test all schemas plus the combined 0.5 preflight, comparison and bundle verification.
 - [x] Complete explicit TSV/custom-delimiter policy and evidence.
 - [x] Complete reviewed null-token semantics without conflating null and empty strings.
 - [x] Complete drafting, preflight and a combined migration example for the expanded input policy.
