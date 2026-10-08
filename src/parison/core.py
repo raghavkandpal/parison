@@ -21,12 +21,12 @@ from typing import Any
 
 
 OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPTED": 130}
-_RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "columns", "column_mappings", "excluded_columns", "output"}
+_RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "columns", "column_mappings", "excluded_columns", "delimiters", "output"}
 _COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone", "scale", "normalize"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
 _NORMALIZATIONS = {"trim", "casefold", "unicode_nfc"}
 _RAW_VALUE = object()
-_FILE_FORMATS = {".csv": "csv", ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".pq": "parquet"}
+_FILE_FORMATS = {".csv": "csv", ".tsv": "tsv", ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".pq": "parquet"}
 _SCHEMAS = {
     "recipe": "recipe-v1.schema.json",
     "result": "result-v1.schema.json",
@@ -43,7 +43,7 @@ def _file_format(path: Path) -> str | None:
     suffix = path.suffix.lower()
     if suffix == ".gz":
         suffix = Path(path.stem).suffix.lower()
-        if suffix not in {".csv", ".jsonl", ".ndjson"}:
+        if suffix not in {".csv", ".tsv", ".jsonl", ".ndjson"}:
             return None
     return _FILE_FORMATS.get(suffix)
 
@@ -143,6 +143,13 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         raise ParisonError("identity must reject null_keys and duplicates")
     if not isinstance(recipe.get("nulls_equal"), bool):
         raise ParisonError("nulls_equal must be an explicit boolean")
+    delimiters = recipe.get("delimiters", {"baseline": ",", "candidate": ","})
+    if not isinstance(delimiters, dict) or set(delimiters) != {"baseline", "candidate"}:
+        raise ParisonError("delimiters must contain exactly baseline and candidate")
+    for side, delimiter in delimiters.items():
+        if not isinstance(delimiter, str) or len(delimiter) != 1 or delimiter in {'"', "\r", "\n", "\0"}:
+            raise ParisonError(f"delimiters.{side} must be one character other than quote, newline or NUL")
+    recipe["delimiters"] = delimiters
     columns = recipe.get("columns")
     if not isinstance(columns, dict) or not columns:
         raise ParisonError("columns must be a nonempty object")
@@ -291,6 +298,7 @@ def _effective_policy(recipe: dict[str, Any]) -> dict[str, Any]:
         "scope": recipe["scope"],
         "identity": recipe["identity"],
         "nulls_equal": recipe["nulls_equal"],
+        "delimiters": recipe["delimiters"],
         "columns": columns,
         "excluded_columns": recipe.get("excluded_columns", {}),
         "output": recipe.get("output", {"sensitivity": "summary"}),
@@ -452,11 +460,15 @@ def _decoded_sizes(sources: tuple[str | Path, ...], max_decoded_bytes: int) -> d
     return sizes
 
 
-def _source_metadata(source: str | Path, digest: str, decoded_sizes: dict[Path, int] | None = None) -> dict[str, Any]:
+def _source_metadata(
+    source: str | Path, digest: str, decoded_sizes: dict[Path, int] | None = None, delimiter: str = ","
+) -> dict[str, Any]:
     path = _source_path(source)
     paths = _source_paths(source)
     format_name = "sqlite" if _sqlite_source(source) else (_file_format(paths[0]) or path.suffix.lower().lstrip("."))
     metadata = {"sha256": digest, "bytes": _source_bytes(source), "format": format_name}
+    if format_name in {"csv", "tsv"}:
+        metadata["delimiter"] = delimiter
     sqlite_source = _sqlite_source(source)
     if sqlite_source:
         metadata.update(format="sqlite", table=sqlite_source[1])
@@ -577,11 +589,11 @@ def _digest(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _input_columns(path: str | Path, decoded_sizes: dict[Path, int] | None = None) -> list[str]:
+def _input_columns(path: str | Path, decoded_sizes: dict[Path, int] | None = None, delimiter: str = ",") -> list[str]:
     decoded_sizes = decoded_sizes or {}
     source_path = _source_path(path)
     if source_path.is_dir():
-        schemas = [_input_columns(partition, decoded_sizes) for partition in _source_paths(path)]
+        schemas = [_input_columns(partition, decoded_sizes, delimiter) for partition in _source_paths(path)]
         if any(set(schema) != set(schemas[0]) for schema in schemas[1:]):
             raise ParisonError(f"partitioned input has inconsistent schemas: {source_path}")
         return schemas[0]
@@ -598,10 +610,10 @@ def _input_columns(path: str | Path, decoded_sizes: dict[Path, int] | None = Non
     if not path.is_file():
         raise ParisonError(f"input is not a regular file: {path}")
     format_name = _file_format(path)
-    if format_name == "csv":
+    if format_name in {"csv", "tsv"}:
         try:
             with _open_text(path, decoded_sizes, newline="") as handle:
-                columns = next(csv.reader(handle, strict=True), [])
+                columns = next(csv.reader(handle, delimiter=delimiter, strict=True), [])
         except (OSError, EOFError, gzip.BadGzipFile, csv.Error, UnicodeDecodeError) as exc:
             raise ParisonError(f"cannot read schema from {path}: {exc}") from exc
     elif format_name == "jsonl":
@@ -621,7 +633,7 @@ def _input_columns(path: str | Path, decoded_sizes: dict[Path, int] | None = Non
         except Exception as exc:
             raise ParisonError(f"cannot read schema from {path}: {exc}") from exc
     else:
-        raise ParisonError(f"unsupported input format for {path}; use .csv, .jsonl, .parquet or gzip-compressed text")
+        raise ParisonError(f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet or gzip-compressed text")
     if not columns:
         raise ParisonError(f"input has no schema: {path}")
     if any(not isinstance(name, str) or not name for name in columns) or len(columns) != len(set(columns)):
@@ -649,7 +661,8 @@ def validate_inputs(
     inputs = {}
     status = "valid"
     for side, source in (("baseline", baseline), ("candidate", candidate)):
-        columns = _input_columns(source, decoded_sizes)
+        delimiter = recipe["delimiters"][side]
+        columns = _input_columns(source, decoded_sizes, delimiter)
         schema = _schema_details(columns, recipe, side)
         if schema["missing"] or schema["unexpected"]:
             status = "invalid"
@@ -664,6 +677,8 @@ def validate_inputs(
         }
         if sqlite_source:
             inputs[side]["table"] = sqlite_source[1]
+        if inputs[side]["format"] in {"csv", "tsv"}:
+            inputs[side]["delimiter"] = delimiter
         if any(path in decoded_sizes for path in paths):
             inputs[side].update(compression="gzip", decoded_bytes=sum(decoded_sizes.get(path, 0) for path in paths))
     return {
@@ -753,7 +768,12 @@ def draft_recipe(
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
     decoded_sizes = _decoded_sizes((baseline, candidate), max_decoded_bytes)
     before = {str(source): _source_digest(source) for source in (baseline, candidate)}
-    baseline_columns, candidate_columns = _input_columns(baseline, decoded_sizes), _input_columns(candidate, decoded_sizes)
+    delimiters = {
+        side: "\t" if _file_format(_source_paths(source)[0]) == "tsv" else ","
+        for side, source in (("baseline", baseline), ("candidate", candidate))
+    }
+    baseline_columns = _input_columns(baseline, decoded_sizes, delimiters["baseline"])
+    candidate_columns = _input_columns(candidate, decoded_sizes, delimiters["candidate"])
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being inspected")
     candidate_names = set(candidate_columns)
@@ -765,6 +785,7 @@ def draft_recipe(
     inspection_recipe = {
         "columns": {name: {"type": "string", "comparison": "exact"} for name in shared},
         "excluded_columns": {name: "inspection" for name in excluded},
+        "delimiters": delimiters,
     }
     baseline_rows, _ = _read(baseline, inspection_recipe, 5_000_000, "baseline", decoded_sizes)
     candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000, "candidate", decoded_sizes)
@@ -786,6 +807,7 @@ def draft_recipe(
         },
         "identity": {"null_keys": "reject", "duplicates": "reject"},
         "nulls_equal": True,
+        "delimiters": delimiters,
         "columns": {name: _suggest_type([row[name] for row in baseline_rows + candidate_rows]) for name in shared},
         "column_mappings": {},
         "excluded_columns": {
@@ -845,14 +867,14 @@ def _iter_input_rows(
     if not path.is_file():
         raise ParisonError(f"input is not a regular file: {path}")
     format_name = _file_format(path)
-    if format_name == "csv":
+    if format_name in {"csv", "tsv"}:
         try:
             handle = _open_text(path, decoded_sizes, newline="")
         except (OSError, EOFError, gzip.BadGzipFile) as exc:
             raise ParisonError(f"cannot read {path}: {exc}") from exc
         with handle:
             try:
-                reader = csv.DictReader(handle, strict=True)
+                reader = csv.DictReader(handle, delimiter=recipe.get("delimiters", {}).get(side, ","), strict=True)
                 _validate_headers(path, reader.fieldnames or [], recipe, side)
                 for row_count, raw in enumerate(reader):
                     if row_count >= max_rows:
@@ -888,7 +910,7 @@ def _iter_input_rows(
         yield first
         yield from rows
     else:
-        raise ParisonError(f"unsupported input format for {path}; use .csv, .jsonl, .parquet or gzip-compressed text")
+        raise ParisonError(f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet or gzip-compressed text")
 
 
 def _read_stream_index(
@@ -1098,7 +1120,12 @@ def compare(
         },
         "scope": recipe["scope"],
         "keys": keys,
-        "policy": {"keys": keys, "nulls_equal": recipe["nulls_equal"], "sensitivity": recipe["output"]["sensitivity"]},
+        "policy": {
+            "keys": keys,
+            "nulls_equal": recipe["nulls_equal"],
+            "delimiters": recipe["delimiters"],
+            "sensitivity": recipe["output"]["sensitivity"],
+        },
         "column_policies": recipe["columns"],
         "column_mappings": recipe.get("column_mappings", {}),
         "problems": problems,
@@ -1115,8 +1142,12 @@ def compare(
         "discrepancy_sample_limit": sample_limit if raw_output else 0,
         "excluded_columns": recipe.get("excluded_columns", {}),
         "inputs": {
-            "baseline": _source_metadata(baseline_path, before[str(baseline_path)], decoded_sizes),
-            "candidate": _source_metadata(candidate_path, before[str(candidate_path)], decoded_sizes),
+            "baseline": _source_metadata(
+                baseline_path, before[str(baseline_path)], decoded_sizes, recipe["delimiters"]["baseline"]
+            ),
+            "candidate": _source_metadata(
+                candidate_path, before[str(candidate_path)], decoded_sizes, recipe["delimiters"]["candidate"]
+            ),
         },
         "recipe_sha256": _digest(recipe_path),
         "policy_sha256": policy_sha256,

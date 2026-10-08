@@ -28,11 +28,12 @@
       "additionalProperties": false,
       "required": ["format", "bytes", "columns", "partitions", "schema"],
       "properties": {
-        "format": {"enum": ["csv", "jsonl", "parquet", "sqlite"]},
+        "format": {"enum": ["csv", "tsv", "jsonl", "parquet", "sqlite"]},
         "bytes": {"type": "integer", "minimum": 0},
         "columns": {"type": "integer", "minimum": 1},
         "partitions": {"type": "integer", "minimum": 1},
         "table": {"type": "string", "minLength": 1},
+        "delimiter": {"type": "string", "minLength": 1, "maxLength": 1},
         "compression": {"const": "gzip"},
         "decoded_bytes": {"type": "integer", "minimum": 0},
         "schema": {

@@ -2,7 +2,7 @@
 
 Date: 8 October 2026
 
-Parison accepts local gzip-compressed CSV and JSON Lines inputs whose names end in `.csv.gz`, `.jsonl.gz` or `.ndjson.gz`. They may be compared with plain inputs and used in partition directories containing one logical underlying format. ZIP archives, compressed Parquet and content-based compression detection are unsupported.
+Parison accepts local gzip-compressed CSV, TSV and JSON Lines inputs whose names end in `.csv.gz`, `.tsv.gz`, `.jsonl.gz` or `.ndjson.gz`. They may be compared with plain inputs and used in partition directories containing one logical underlying format. ZIP archives, compressed Parquet and content-based compression detection are unsupported.
 
 ## Resource limits
 

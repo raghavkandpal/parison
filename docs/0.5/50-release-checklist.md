@@ -10,7 +10,7 @@ Status: **not release-ready**. The completed gzip slice is engineering evidence,
 - [x] Pass Python 3.11–3.14 plus macOS and Windows CI.
 - [x] Build wheel and source archives from a clean Git archive.
 - [x] Install the development wheel into an empty environment and smoke-test gzip preflight, comparison and bundle verification.
-- [ ] Complete explicit TSV/custom-delimiter policy and evidence.
+- [x] Complete explicit TSV/custom-delimiter policy and evidence.
 - [ ] Complete reviewed null-token semantics without conflating null and empty strings.
 - [ ] Complete drafting, preflight and a combined migration example for the expanded input policy.
 - [ ] Set the package version to `0.5.0` and move changelog entries out of Unreleased.

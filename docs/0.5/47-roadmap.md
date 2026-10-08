@@ -28,9 +28,9 @@ Make Parison practical for real-world local exports: compressed files, explicit 
 
 ### 4. Explicit delimited-text parsing
 
-- [ ] Support TSV and one-character CSV delimiters through reviewed recipe policy rather than filename guessing.
-- [ ] Apply parsing settings consistently in drafting, preflight, comparison, policy explanation and fingerprints.
-- [ ] Record effective parsing settings in evidence without publishing record values.
+- [x] Support TSV and one-character CSV delimiters through reviewed recipe policy rather than filename guessing.
+- [x] Apply parsing settings consistently in drafting, preflight, comparison, policy explanation and fingerprints.
+- [x] Record effective parsing settings in evidence without publishing record values.
 
 ### 5. Reviewed null tokens
 

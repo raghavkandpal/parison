@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**0.5 development.** The released 0.4.0 CLI adds structured preflight diagnostics, effective-policy explanation and locking, versioned installed JSON Schemas, machine-readable bundle verification, and stronger publication and verification failure handling. Development is adding bounded local compressed inputs.
+**0.5 development.** The released 0.4.0 CLI adds structured preflight diagnostics, effective-policy explanation and locking, versioned installed JSON Schemas, machine-readable bundle verification, and stronger publication and verification failure handling. Development adds bounded local compressed inputs and explicit delimited-text parsing policy.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -39,7 +39,9 @@ To compare Parquet files, install `"parison[parquet] @ https://github.com/raghav
 
 A baseline or candidate may also be a directory of same-format CSV, JSON Lines or Parquet files. Parison treats its immediate files as one logical input and enforces limits, schemas and identity across partitions. See the [partitioned-input contract](docs/0.3/30-partitioned-input-contract.md).
 
-Local CSV and JSON Lines inputs may be gzip-compressed with `.csv.gz`, `.jsonl.gz` or `.ndjson.gz` extensions, including inside partition directories. The physical-byte guard still applies, and `--max-decoded-bytes` independently limits their combined decoded size. See the [compressed-input contract](docs/0.5/48-compressed-input-contract.md).
+Local CSV, TSV and JSON Lines inputs may be gzip-compressed with `.csv.gz`, `.tsv.gz`, `.jsonl.gz` or `.ndjson.gz` extensions, including inside partition directories. The physical-byte guard still applies, and `--max-decoded-bytes` independently limits their combined decoded size. See the [compressed-input contract](docs/0.5/48-compressed-input-contract.md).
+
+Recipes may set independent one-character baseline and candidate delimiters. Omitted delimiter policy preserves comma-separated behavior; drafting suggests tab only for `.tsv` inputs. Effective delimiters are fingerprinted and recorded in preflight and comparison evidence. See the [delimited-text contract](docs/0.5/51-delimited-text-contract.md).
 
 String columns may opt into ordered `trim`, `casefold` and `unicode_nfc` normalization. Normalization is applied before key identity and field comparison; exact comparison remains the default. See the [normalization contract](docs/0.3/31-normalization-contract.md).
 
