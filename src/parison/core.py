@@ -1154,15 +1154,36 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
         raise ParisonError(f"cannot read manifest: {exc}") from exc
     if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
         raise ParisonError("manifest is incomplete or unsupported")
+    if manifest.get("outcome") not in OUTCOME_CODES or manifest.get("sensitivity") not in {"summary", "raw"}:
+        raise ParisonError("manifest has invalid outcome or sensitivity metadata")
+    if not isinstance(manifest.get("runtime"), dict):
+        raise ParisonError("manifest has invalid runtime metadata")
     files = manifest.get("files")
     if not isinstance(files, dict) or not files:
         raise ParisonError("manifest has no files")
+    if not {"result.json", "report.html"} <= set(files):
+        raise ParisonError("manifest does not cover the required bundle files")
     for name, expected in files.items():
-        if not isinstance(name, str) or Path(name).name != name or not isinstance(expected, str):
+        if (
+            not isinstance(name, str)
+            or Path(name).name != name
+            or not isinstance(expected, str)
+            or len(expected) != 64
+            or any(character not in "0123456789abcdef" for character in expected)
+        ):
             raise ParisonError("manifest contains an invalid file entry")
         path = directory / name
         if path.is_symlink() or not path.is_file():
             raise ParisonError(f"bundle file is missing or unsafe: {name}")
         if _digest(path) != expected:
             raise ParisonError(f"bundle file failed integrity check: {name}")
+    try:
+        result = json.loads((directory / "result.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read result: {exc}") from exc
+    if not isinstance(result, dict) or result.get("schema_version") != 1:
+        raise ParisonError("result is incomplete or unsupported")
+    for name in ("outcome", "sensitivity", "runtime"):
+        if result.get(name) != manifest[name]:
+            raise ParisonError(f"manifest {name} does not match result")
     return manifest

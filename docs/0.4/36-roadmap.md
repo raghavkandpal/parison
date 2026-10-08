@@ -43,6 +43,12 @@ Make Parison's existing policy and validation modules easier to automate and rev
 - [x] Reject malformed or mismatched fingerprints before opening either input.
 - [x] Preserve summary-only error bundles and deterministic exit code two on rejection.
 
+### 7. Bundle verification hardening
+
+- [x] Require manifests to cover the canonical result and report files.
+- [x] Validate manifest outcome, sensitivity, runtime and digest shapes.
+- [x] Cross-check recorded manifest metadata against the integrity-checked result.
+
 ## Deferred
 
 Compressed inputs remain a later adapter slice because decompressed-byte accounting needs a separate resource contract. Remote connectors, fuzzy identity, arbitrary transformations and publication of grouped source values remain out of scope.

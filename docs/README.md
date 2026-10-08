@@ -10,6 +10,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Versioned JSON Schemas](0.4/39-json-schemas.md)
 - [Effective-policy fingerprint](0.4/40-policy-fingerprint.md)
 - [CI policy lock](0.4/41-ci-policy-lock.md)
+- [Bundle verification hardening](0.4/42-bundle-verification.md)
 
 ## 0.3 — released record
 

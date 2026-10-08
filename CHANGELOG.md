@@ -16,6 +16,7 @@ All notable changes will be documented in this file.
 ### Fixed
 
 - Recipes that omit `output` now consistently apply the documented summary-sensitivity default.
+- Bundle verification now rejects incomplete manifests and metadata that disagrees with `result.json`.
 
 ## 0.3.0 - 2026-10-07
 

@@ -246,6 +246,27 @@ class ParisonTests(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "failed integrity"):
             verify_bundle(output)
 
+    def test_bundle_verification_rejects_incomplete_or_inconsistent_metadata(self):
+        left = self.csv("left.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
+        output = self.root / "run"
+        publish(output, compare(self.recipe, left, left), load_recipe(self.recipe))
+        manifest_path = output / "manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        del manifest["outcome"]
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "invalid outcome"):
+            verify_bundle(output)
+
+        manifest["outcome"] = "FAIL"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "manifest outcome does not match result"):
+            verify_bundle(output)
+
+        del manifest["files"]["result.json"]
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "required bundle files"):
+            verify_bundle(output)
+
     def test_cli_reports_package_version(self):
         output = StringIO()
         with self.assertRaisesRegex(SystemExit, "0"), redirect_stdout(output):
