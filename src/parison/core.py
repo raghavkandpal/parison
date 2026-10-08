@@ -1115,9 +1115,12 @@ def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] |
     output = Path(output)
     if output.exists():
         raise ParisonError(f"output already exists: {output}")
-    output.parent.mkdir(parents=True, exist_ok=True)
-    stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
-    os.chmod(stage, 0o700)
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
+        os.chmod(stage, 0o700)
+    except OSError as exc:
+        raise ParisonError(f"cannot prepare bundle output: {exc}") from exc
     try:
         (stage / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         (stage / "report.html").write_text(_report(result), encoding="utf-8")
@@ -1138,6 +1141,9 @@ def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] |
         }
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         os.replace(stage, output)
+    except OSError as exc:
+        shutil.rmtree(stage, ignore_errors=True)
+        raise ParisonError(f"cannot publish bundle: {exc}") from exc
     except Exception:
         shutil.rmtree(stage, ignore_errors=True)
         raise

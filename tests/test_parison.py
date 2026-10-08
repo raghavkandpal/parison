@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from parison import __version__
 from parison.cli import main
-from parison.core import ParisonError, compare, explain_recipe, load_recipe, publish, verify_bundle
+from parison.core import ParisonError, compare, error_result, explain_recipe, load_recipe, publish, verify_bundle
 
 
 RECIPE = {
@@ -235,6 +235,20 @@ class ParisonTests(unittest.TestCase):
         self.assertFalse(result["complete"])
         self.assertNotIn("secret-value", json.dumps(result))
         self.assertEqual(json.loads((output / "manifest.json").read_text())["sensitivity"], "summary")
+
+    def test_publication_io_failure_is_a_controlled_error(self):
+        result = error_result("test")
+        with patch("parison.core.tempfile.mkdtemp", side_effect=OSError("disk full")):
+            with self.assertRaisesRegex(ParisonError, "cannot prepare bundle output: disk full"):
+                publish(self.root / "run", result, None)
+        self.assertFalse((self.root / "run").exists())
+
+        stage = self.root / ".run-stage"
+        stage.mkdir()
+        with patch("parison.core.tempfile.mkdtemp", return_value=str(stage)), patch("parison.core.os.replace", side_effect=OSError("read-only filesystem")):
+            with self.assertRaisesRegex(ParisonError, "cannot publish bundle: read-only filesystem"):
+                publish(self.root / "run", result, None)
+        self.assertFalse(stage.exists())
 
     def test_bundle_verification_detects_tampering(self):
         left = self.csv("left.csv", [{"order_id": "001", "status": "ok", "total": "1"}])

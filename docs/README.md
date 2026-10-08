@@ -11,6 +11,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Effective-policy fingerprint](0.4/40-policy-fingerprint.md)
 - [CI policy lock](0.4/41-ci-policy-lock.md)
 - [Bundle verification hardening](0.4/42-bundle-verification.md)
+- [Publication failure handling](0.4/43-publication-failures.md)
 
 ## 0.3 — released record
 
