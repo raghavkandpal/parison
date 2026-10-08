@@ -10,21 +10,21 @@ Read common local compressed text exports without allowing compressed size to by
 
 ### 1. Compression-aware input adapter
 
-- [ ] Recognize `.csv.gz`, `.jsonl.gz` and `.ndjson.gz` as their underlying text formats.
-- [ ] Support single files and same-format partition directories without temporary decoded copies.
-- [ ] Keep Parquet and SQLite behavior unchanged.
+- [x] Recognize `.csv.gz`, `.jsonl.gz` and `.ndjson.gz` as their underlying text formats.
+- [x] Support single files and same-format partition directories without temporary decoded copies.
+- [x] Keep Parquet and SQLite behavior unchanged.
 
 ### 2. Decoded-byte limits
 
-- [ ] Retain the existing combined physical-byte limit.
-- [ ] Add an explicit combined decoded-byte limit for compressed text inputs.
-- [ ] Enforce the decoded limit during schema inspection, drafting and comparison.
+- [x] Retain the existing combined physical-byte limit.
+- [x] Add an explicit combined decoded-byte limit for compressed text inputs.
+- [x] Enforce the decoded limit during schema inspection, drafting and comparison.
 
 ### 3. Evidence and automation
 
-- [ ] Record compression and physical bytes in preflight and comparison provenance.
-- [ ] Keep policy locks, input-change detection and summary privacy intact.
-- [ ] Cover malformed streams, decoded overruns, mixed compressed/plain inputs and partitions.
+- [x] Record compression and physical bytes in preflight and comparison provenance.
+- [x] Keep policy locks, input-change detection and summary privacy intact.
+- [x] Cover malformed streams, decoded overruns, mixed compressed/plain inputs and partitions.
 
 ## Deferred
 

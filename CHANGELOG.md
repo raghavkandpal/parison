@@ -4,6 +4,11 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Bounded local gzip CSV and JSON Lines inputs, including partitions and mixed compressed/plain comparisons.
+- Separate combined physical and decoded input byte limits with compression provenance in results and preflight diagnostics.
+
 ## 0.4.0 - 2026-10-08
 
 ### Added

@@ -5,6 +5,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 ## 0.5 — current development
 
 - [0.5 roadmap](0.5/47-roadmap.md)
+- [Compressed-input contract](0.5/48-compressed-input-contract.md)
 
 ## 0.4 — released record
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import gzip
 import hashlib
 import html
 import json
@@ -38,9 +39,48 @@ class ParisonError(ValueError):
     pass
 
 
+def _file_format(path: Path) -> str | None:
+    suffix = path.suffix.lower()
+    if suffix == ".gz":
+        suffix = Path(path.stem).suffix.lower()
+        if suffix not in {".csv", ".jsonl", ".ndjson"}:
+            return None
+    return _FILE_FORMATS.get(suffix)
+
+
+class _LimitedText:
+    def __init__(self, handle, limit: int, path: Path):
+        self.handle, self.remaining, self.path = handle, limit, path
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.handle.close()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        line = self.handle.readline(self.remaining + 1)
+        if not line:
+            raise StopIteration
+        size = len(line.encode("utf-8"))
+        if size > self.remaining:
+            raise ParisonError(f"decoded input changed or exceeds checked size: {self.path}")
+        self.remaining -= size
+        return line
+
+
+def _open_text(path: Path, decoded_sizes: dict[Path, int], newline: str | None = None):
+    if path.suffix.lower() != ".gz":
+        return path.open("r", encoding="utf-8", newline=newline)
+    return _LimitedText(gzip.open(path, "rt", encoding="utf-8", newline=newline), decoded_sizes[path], path)
+
+
 def load_schema(name: str) -> dict[str, Any]:
     if name not in _SCHEMAS:
-        raise ParisonError(f"unknown schema {name!r}; choose recipe or result")
+        raise ParisonError(f"unknown schema {name!r}; choose {', '.join(_SCHEMAS)}")
     return json.loads(resources.files("parison").joinpath("schemas", _SCHEMAS[name]).read_text(encoding="utf-8"))
 
 
@@ -57,7 +97,7 @@ def _runtime_info(paths: tuple[Any, Any] | None = None) -> dict[str, Any]:
         "platform": platform.system(),
         "machine": platform.machine(),
     }
-    if paths and any(_source_path(path).suffix.lower() in {".parquet", ".pq"} for path in paths):
+    if paths and any(_file_format(_source_path(path)) == "parquet" for path in paths):
         try:
             runtime["polars"] = metadata.version("polars")
         except metadata.PackageNotFoundError:
@@ -362,7 +402,7 @@ def _source_paths(source: str | Path) -> tuple[Path, ...]:
         raise ParisonError(f"partitioned input has no files: {path}")
     if any(item.is_symlink() or not item.is_file() for item in paths):
         raise ParisonError(f"partitioned input must contain only regular non-symlink files: {path}")
-    formats = {_FILE_FORMATS.get(item.suffix.lower()) for item in paths}
+    formats = {_file_format(item) for item in paths}
     if None in formats or len(formats) != 1:
         raise ParisonError(f"partitioned input must contain one supported file format: {path}")
     return paths
@@ -387,16 +427,43 @@ def _source_bytes(source: str | Path) -> int:
         raise ParisonError(f"cannot inspect inputs: {exc}") from exc
 
 
-def _source_metadata(source: str | Path, digest: str) -> dict[str, Any]:
+def _decoded_sizes(sources: tuple[str | Path, ...], max_decoded_bytes: int) -> dict[Path, int]:
+    if max_decoded_bytes <= 0:
+        raise ParisonError("max_decoded_bytes must be positive")
+    total = 0
+    sizes = {}
+    for source in sources:
+        for path in _source_paths(source):
+            if path.suffix.lower() != ".gz":
+                continue
+            size = 0
+            try:
+                with gzip.open(path, "rb") as handle:
+                    while chunk := handle.read(min(1024 * 1024, max_decoded_bytes - total + 1)):
+                        size += len(chunk)
+                        total += len(chunk)
+                        if total > max_decoded_bytes:
+                            raise ParisonError(f"combined decoded input size exceeds limit {max_decoded_bytes} bytes")
+            except ParisonError:
+                raise
+            except (OSError, EOFError, gzip.BadGzipFile) as exc:
+                raise ParisonError(f"cannot decompress {path}: {exc}") from exc
+            sizes[path] = size
+    return sizes
+
+
+def _source_metadata(source: str | Path, digest: str, decoded_sizes: dict[Path, int] | None = None) -> dict[str, Any]:
     path = _source_path(source)
     paths = _source_paths(source)
-    format_name = "sqlite" if _sqlite_source(source) else _FILE_FORMATS.get(paths[0].suffix.lower(), path.suffix.lower().lstrip("."))
+    format_name = "sqlite" if _sqlite_source(source) else (_file_format(paths[0]) or path.suffix.lower().lstrip("."))
     metadata = {"sha256": digest, "bytes": _source_bytes(source), "format": format_name}
     sqlite_source = _sqlite_source(source)
     if sqlite_source:
         metadata.update(format="sqlite", table=sqlite_source[1])
     elif path.is_dir():
         metadata["partitions"] = len(paths)
+    if decoded_sizes and any(item in decoded_sizes for item in paths):
+        metadata.update(compression="gzip", decoded_bytes=sum(decoded_sizes.get(item, 0) for item in paths))
     return metadata
 
 
@@ -465,10 +532,10 @@ def _jsonl_record(line: str, path: Path, line_number: int) -> dict[str, Any]:
     return {name: ("true" if item is True else "false" if item is False else item) for name, item in value.items()}
 
 
-def _iter_jsonl(path: Path, max_rows: int):
+def _iter_jsonl(path: Path, max_rows: int, decoded_sizes: dict[Path, int]):
     try:
-        handle = path.open("r", encoding="utf-8")
-    except OSError as exc:
+        handle = _open_text(path, decoded_sizes)
+    except (OSError, EOFError, gzip.BadGzipFile) as exc:
         raise ParisonError(f"cannot read {path}: {exc}") from exc
     with handle:
         headers = None
@@ -488,8 +555,10 @@ def _iter_jsonl(path: Path, max_rows: int):
             raise ParisonError(f"input has no schema: {path}")
 
 
-def _read(path: str | Path, recipe: dict[str, Any], max_rows: int, side: str) -> tuple[list[dict[str, Any]], list[str]]:
-    raw_rows = list(_iter_input_rows(path, recipe, max_rows, side))
+def _read(
+    path: str | Path, recipe: dict[str, Any], max_rows: int, side: str, decoded_sizes: dict[Path, int] | None = None
+) -> tuple[list[dict[str, Any]], list[str]]:
+    raw_rows = list(_iter_input_rows(path, recipe, max_rows, side, decoded_sizes or {}))
     rows = [
         _parse_row(row, recipe, side, recipe.get("output", {}).get("sensitivity") == "raw")
         for row in raw_rows
@@ -508,10 +577,11 @@ def _digest(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _input_columns(path: str | Path) -> list[str]:
+def _input_columns(path: str | Path, decoded_sizes: dict[Path, int] | None = None) -> list[str]:
+    decoded_sizes = decoded_sizes or {}
     source_path = _source_path(path)
     if source_path.is_dir():
-        schemas = [_input_columns(partition) for partition in _source_paths(path)]
+        schemas = [_input_columns(partition, decoded_sizes) for partition in _source_paths(path)]
         if any(set(schema) != set(schemas[0]) for schema in schemas[1:]):
             raise ParisonError(f"partitioned input has inconsistent schemas: {source_path}")
         return schemas[0]
@@ -527,20 +597,21 @@ def _input_columns(path: str | Path) -> list[str]:
         raise ParisonError(f"input must not be a symlink: {path}")
     if not path.is_file():
         raise ParisonError(f"input is not a regular file: {path}")
-    if path.suffix.lower() == ".csv":
+    format_name = _file_format(path)
+    if format_name == "csv":
         try:
-            with path.open("r", encoding="utf-8", newline="") as handle:
+            with _open_text(path, decoded_sizes, newline="") as handle:
                 columns = next(csv.reader(handle, strict=True), [])
-        except (OSError, csv.Error, UnicodeDecodeError) as exc:
+        except (OSError, EOFError, gzip.BadGzipFile, csv.Error, UnicodeDecodeError) as exc:
             raise ParisonError(f"cannot read schema from {path}: {exc}") from exc
-    elif path.suffix.lower() in {".jsonl", ".ndjson"}:
+    elif format_name == "jsonl":
         try:
-            with path.open("r", encoding="utf-8") as handle:
+            with _open_text(path, decoded_sizes) as handle:
                 line = next(handle, "")
             columns = list(_jsonl_record(line, path, 1)) if line else []
-        except (OSError, UnicodeDecodeError) as exc:
+        except (OSError, EOFError, gzip.BadGzipFile, UnicodeDecodeError) as exc:
             raise ParisonError(f"cannot read schema from {path}: {exc}") from exc
-    elif path.suffix.lower() in {".parquet", ".pq"}:
+    elif format_name == "parquet":
         try:
             import polars as pl
         except ImportError as exc:
@@ -564,6 +635,7 @@ def validate_inputs(
     candidate: str | Path,
     max_input_bytes: int = 1_000_000_000,
     expected_policy_sha256: str | None = None,
+    max_decoded_bytes: int = 1_000_000_000,
 ) -> dict[str, Any]:
     """Validate input schemas against a recipe without comparing records."""
     if max_input_bytes <= 0:
@@ -573,17 +645,18 @@ def validate_inputs(
     sizes = {side: _source_bytes(source) for side, source in (("baseline", baseline), ("candidate", candidate))}
     if sum(sizes.values()) > max_input_bytes:
         raise ParisonError(f"combined input size {sum(sizes.values())} exceeds limit {max_input_bytes} bytes")
+    decoded_sizes = _decoded_sizes((baseline, candidate), max_decoded_bytes)
     inputs = {}
     status = "valid"
     for side, source in (("baseline", baseline), ("candidate", candidate)):
-        columns = _input_columns(source)
+        columns = _input_columns(source, decoded_sizes)
         schema = _schema_details(columns, recipe, side)
         if schema["missing"] or schema["unexpected"]:
             status = "invalid"
         paths = _source_paths(source)
         sqlite_source = _sqlite_source(source)
         inputs[side] = {
-            "format": "sqlite" if sqlite_source else _FILE_FORMATS[paths[0].suffix.lower()],
+            "format": "sqlite" if sqlite_source else _file_format(paths[0]),
             "bytes": sizes[side],
             "columns": len(columns),
             "partitions": len(paths),
@@ -591,6 +664,8 @@ def validate_inputs(
         }
         if sqlite_source:
             inputs[side]["table"] = sqlite_source[1]
+        if any(path in decoded_sizes for path in paths):
+            inputs[side].update(compression="gzip", decoded_bytes=sum(decoded_sizes.get(path, 0) for path in paths))
     return {
         "schema_version": 1,
         "status": status,
@@ -658,7 +733,12 @@ def _suggest_keys(columns: list[str], baseline: list[dict[str, Any]], candidate:
     return [columns[0]]
 
 
-def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: int = 1_000_000_000) -> dict[str, Any]:
+def draft_recipe(
+    baseline: str | Path,
+    candidate: str | Path,
+    max_input_bytes: int = 1_000_000_000,
+    max_decoded_bytes: int = 1_000_000_000,
+) -> dict[str, Any]:
     if max_input_bytes <= 0:
         raise ParisonError("max_input_bytes must be positive")
     for source in (baseline, candidate):
@@ -671,8 +751,9 @@ def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: i
     input_bytes = _source_bytes(baseline) + _source_bytes(candidate)
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
+    decoded_sizes = _decoded_sizes((baseline, candidate), max_decoded_bytes)
     before = {str(source): _source_digest(source) for source in (baseline, candidate)}
-    baseline_columns, candidate_columns = _input_columns(baseline), _input_columns(candidate)
+    baseline_columns, candidate_columns = _input_columns(baseline, decoded_sizes), _input_columns(candidate, decoded_sizes)
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being inspected")
     candidate_names = set(candidate_columns)
@@ -685,8 +766,8 @@ def draft_recipe(baseline: str | Path, candidate: str | Path, max_input_bytes: i
         "columns": {name: {"type": "string", "comparison": "exact"} for name in shared},
         "excluded_columns": {name: "inspection" for name in excluded},
     }
-    baseline_rows, _ = _read(baseline, inspection_recipe, 5_000_000, "baseline")
-    candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000, "candidate")
+    baseline_rows, _ = _read(baseline, inspection_recipe, 5_000_000, "baseline", decoded_sizes)
+    candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000, "candidate", decoded_sizes)
     cutoff = datetime.fromtimestamp(
         max(path.stat().st_mtime for source in (baseline, candidate) for path in _source_paths(source)), timezone.utc
     ).isoformat().replace("+00:00", "Z")
@@ -735,12 +816,15 @@ def _index(rows: list[dict[str, Any]], keys: list[str], side: str) -> tuple[dict
     return dict(zip(values, rows)), problems
 
 
-def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int, side: str):
+def _iter_input_rows(
+    path: str | Path, recipe: dict[str, Any], max_rows: int, side: str, decoded_sizes: dict[Path, int] | None = None
+):
+    decoded_sizes = decoded_sizes or {}
     source_path = _source_path(path)
     if source_path.is_dir():
         row_count = 0
         for partition in _source_paths(path):
-            for row in _iter_input_rows(partition, recipe, max_rows, side):
+            for row in _iter_input_rows(partition, recipe, max_rows, side, decoded_sizes):
                 if row_count >= max_rows:
                     raise ParisonError(f"row count in {source_path} exceeds limit {max_rows}")
                 row_count += 1
@@ -758,10 +842,11 @@ def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int, si
         raise ParisonError(f"input must not be a symlink: {path}")
     if not path.is_file():
         raise ParisonError(f"input is not a regular file: {path}")
-    if path.suffix.lower() == ".csv":
+    format_name = _file_format(path)
+    if format_name == "csv":
         try:
-            handle = path.open("r", encoding="utf-8", newline="")
-        except OSError as exc:
+            handle = _open_text(path, decoded_sizes, newline="")
+        except (OSError, EOFError, gzip.BadGzipFile) as exc:
             raise ParisonError(f"cannot read {path}: {exc}") from exc
         with handle:
             try:
@@ -775,7 +860,7 @@ def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int, si
                     yield raw
             except (csv.Error, UnicodeDecodeError) as exc:
                 raise ParisonError(f"cannot parse {path}: {exc}") from exc
-    elif path.suffix.lower() in {".parquet", ".pq"}:
+    elif format_name == "parquet":
         try:
             import polars as pl
         except ImportError as exc:
@@ -791,8 +876,8 @@ def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int, si
             raise ParisonError(f"cannot read {path}: {exc}") from exc
         _validate_headers(path, frame.columns, recipe, side)
         yield from frame.iter_rows(named=True)
-    elif path.suffix.lower() in {".jsonl", ".ndjson"}:
-        rows = _iter_jsonl(path, max_rows)
+    elif format_name == "jsonl":
+        rows = _iter_jsonl(path, max_rows, decoded_sizes)
         try:
             first = next(rows)
         except StopIteration:
@@ -805,12 +890,12 @@ def _iter_input_rows(path: str | Path, recipe: dict[str, Any], max_rows: int, si
 
 
 def _read_stream_index(
-    path: Path, recipe: dict[str, Any], max_rows: int, side: str
+    path: Path, recipe: dict[str, Any], max_rows: int, side: str, decoded_sizes: dict[Path, int] | None = None
 ) -> tuple[dict[tuple[Any, ...], dict[str, Any]], int, list[str]]:
     rows: dict[tuple[Any, ...], dict[str, Any]] = {}
     duplicates: set[tuple[Any, ...]] = set()
     null_count = row_count = 0
-    for raw in _iter_input_rows(path, recipe, max_rows, side):
+    for raw in _iter_input_rows(path, recipe, max_rows, side, decoded_sizes):
         row_count += 1
         row = _parse_row(raw, recipe, side)
         key = tuple(row[name] for name in recipe["keys"])
@@ -846,6 +931,7 @@ def _compare_stream_summary(
     max_rows: int,
     left: dict[tuple[Any, ...], dict[str, Any]],
     prior_problems: list[str],
+    decoded_sizes: dict[Path, int] | None = None,
 ) -> dict[str, Any]:
     keys = recipe["keys"]
     compared = [name for name in recipe["columns"] if name not in keys]
@@ -854,7 +940,7 @@ def _compare_stream_summary(
     seen: set[tuple[Any, ...]] = set()
     duplicates: set[tuple[Any, ...]] = set()
     null_count = candidate_only = discrepancy_count = row_count = 0
-    for raw in _iter_input_rows(path, recipe, max_rows, "candidate"):
+    for raw in _iter_input_rows(path, recipe, max_rows, "candidate", decoded_sizes):
         row_count += 1
         row = _parse_row(raw, recipe, "candidate")
         key = tuple(row[name] for name in keys)
@@ -907,6 +993,7 @@ def compare(
     max_input_bytes: int = 1_000_000_000,
     max_rows: int = 5_000_000,
     expected_policy_sha256: str | None = None,
+    max_decoded_bytes: int = 1_000_000_000,
 ) -> dict[str, Any]:
     if sample_limit < 0:
         raise ParisonError("sample_limit must be non-negative")
@@ -920,20 +1007,21 @@ def compare(
     input_bytes = _source_bytes(baseline_path) + _source_bytes(candidate_path)
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
+    decoded_sizes = _decoded_sizes((baseline_path, candidate_path), max_decoded_bytes)
     before = {str(source): _source_digest(source) for source in (baseline_path, candidate_path)}
     keys = recipe["keys"]
     raw_output = recipe["output"]["sensitivity"] == "raw"
     streaming = not raw_output
     if streaming:
-        left, baseline_count, left_problems = _read_stream_index(baseline_path, recipe, max_rows, "baseline")
+        left, baseline_count, left_problems = _read_stream_index(baseline_path, recipe, max_rows, "baseline", decoded_sizes)
     else:
-        baseline, _ = _read(baseline_path, recipe, max_rows, "baseline")
+        baseline, _ = _read(baseline_path, recipe, max_rows, "baseline", decoded_sizes)
         baseline_count = len(baseline)
         left, left_problems = _index(baseline, keys, "baseline")
         del baseline
     discrepancies: list[dict[str, Any]] = []
     if streaming:
-        summary = _compare_stream_summary(candidate_path, recipe, max_rows, left, left_problems)
+        summary = _compare_stream_summary(candidate_path, recipe, max_rows, left, left_problems, decoded_sizes)
         candidate_count = summary["candidate"]
         common_count = summary["common"]
         baseline_only_count = summary["baseline_only"]
@@ -943,7 +1031,7 @@ def compare(
         discrepancy_count = summary["field_discrepancy_count"]
         problems = summary["problems"]
     else:
-        candidate, _ = _read(candidate_path, recipe, max_rows, "candidate")
+        candidate, _ = _read(candidate_path, recipe, max_rows, "candidate", decoded_sizes)
         right, right_problems = _index(candidate, keys, "candidate")
         problems = left_problems + right_problems
         common = set(left) & set(right)
@@ -1001,7 +1089,11 @@ def compare(
         "complete": not problems,
         "sensitivity": recipe["output"]["sensitivity"],
         "runtime": _runtime_info((baseline_path, candidate_path)),
-        "resource_limits": {"max_input_bytes": max_input_bytes, "max_rows_per_input": max_rows},
+        "resource_limits": {
+            "max_input_bytes": max_input_bytes,
+            "max_decoded_bytes": max_decoded_bytes,
+            "max_rows_per_input": max_rows,
+        },
         "scope": recipe["scope"],
         "keys": keys,
         "policy": {"keys": keys, "nulls_equal": recipe["nulls_equal"], "sensitivity": recipe["output"]["sensitivity"]},
@@ -1021,8 +1113,8 @@ def compare(
         "discrepancy_sample_limit": sample_limit if raw_output else 0,
         "excluded_columns": recipe.get("excluded_columns", {}),
         "inputs": {
-            "baseline": _source_metadata(baseline_path, before[str(baseline_path)]),
-            "candidate": _source_metadata(candidate_path, before[str(candidate_path)]),
+            "baseline": _source_metadata(baseline_path, before[str(baseline_path)], decoded_sizes),
+            "candidate": _source_metadata(candidate_path, before[str(candidate_path)], decoded_sizes),
         },
         "recipe_sha256": _digest(recipe_path),
         "policy_sha256": policy_sha256,

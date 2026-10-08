@@ -33,6 +33,8 @@
         "columns": {"type": "integer", "minimum": 1},
         "partitions": {"type": "integer", "minimum": 1},
         "table": {"type": "string", "minLength": 1},
+        "compression": {"const": "gzip"},
+        "decoded_bytes": {"type": "integer", "minimum": 0},
         "schema": {
           "type": "object",
           "additionalProperties": false,

@@ -39,6 +39,8 @@ To compare Parquet files, install `"parison[parquet] @ https://github.com/raghav
 
 A baseline or candidate may also be a directory of same-format CSV, JSON Lines or Parquet files. Parison treats its immediate files as one logical input and enforces limits, schemas and identity across partitions. See the [partitioned-input contract](docs/0.3/30-partitioned-input-contract.md).
 
+Local CSV and JSON Lines inputs may be gzip-compressed with `.csv.gz`, `.jsonl.gz` or `.ndjson.gz` extensions, including inside partition directories. The physical-byte guard still applies, and `--max-decoded-bytes` independently limits their combined decoded size. See the [compressed-input contract](docs/0.5/48-compressed-input-contract.md).
+
 String columns may opt into ordered `trim`, `casefold` and `unicode_nfc` normalization. Normalization is applied before key identity and field comparison; exact comparison remains the default. See the [normalization contract](docs/0.3/31-normalization-contract.md).
 
 Use `validate-inputs` to check physical schemas, mappings, exclusions and partition layouts before reading and comparing all records. Its JSON output contains the effective-policy fingerprint and schema metadata but no record values. It accepts the same `--expected-policy-sha256 HASH` gate as `compare`. See the [input-preflight contract](docs/0.3/32-input-preflight-contract.md).
@@ -49,7 +51,7 @@ Use `parison explain` to review the fully expanded policy and obtain its `policy
 
 Every recipe must declare a source snapshot, extraction cutoff, intended filters, full-scope completeness, whether an empty scope is expected, and whether two non-key null values are equal. These are recorded provenance assertions; Parison cannot independently prove that upstream pipelines honored them.
 
-Combined input size is limited to 1 GB by default and each input to 5 million rows; override these with `--max-input-bytes` and `--max-rows`. These are processing guards, not an operating-system memory sandbox. Ctrl-C returns exit code `130` and publishes a summary-only INTERRUPTED bundle when possible.
+Combined physical input size and combined decoded gzip size are each limited to 1 GB by default, and each input is limited to 5 million rows; override these with `--max-input-bytes`, `--max-decoded-bytes` and `--max-rows`. These are processing guards, not an operating-system memory sandbox. Ctrl-C returns exit code `130` and publishes a summary-only INTERRUPTED bundle when possible.
 
 The full CSV and Parquet suite runs in CI on Python 3.11 and 3.14.
 
