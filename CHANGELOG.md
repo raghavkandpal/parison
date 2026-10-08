@@ -18,6 +18,7 @@ All notable changes will be documented in this file.
 - Recipes that omit `output` now consistently apply the documented summary-sensitivity default.
 - Bundle verification now rejects incomplete manifests and metadata that disagrees with `result.json`.
 - Bundle staging and publication I/O failures now return controlled operational errors and clean up partial staging directories.
+- Bundle verification rejects symlinked manifests, and staging cleanup also covers permission-setting failures.
 
 ## 0.3.0 - 2026-10-07
 

@@ -1115,11 +1115,14 @@ def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] |
     output = Path(output)
     if output.exists():
         raise ParisonError(f"output already exists: {output}")
+    stage = None
     try:
         output.parent.mkdir(parents=True, exist_ok=True)
         stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
         os.chmod(stage, 0o700)
     except OSError as exc:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
         raise ParisonError(f"cannot prepare bundle output: {exc}") from exc
     try:
         (stage / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -1154,6 +1157,8 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
     manifest_path = directory / "manifest.json"
     if directory.is_symlink() or not directory.is_dir():
         raise ParisonError(f"run is not a regular directory: {directory}")
+    if manifest_path.is_symlink() or not manifest_path.is_file():
+        raise ParisonError("bundle manifest is missing or unsafe")
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:

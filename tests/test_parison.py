@@ -243,6 +243,13 @@ class ParisonTests(unittest.TestCase):
                 publish(self.root / "run", result, None)
         self.assertFalse((self.root / "run").exists())
 
+        stage = self.root / ".chmod-stage"
+        stage.mkdir()
+        with patch("parison.core.tempfile.mkdtemp", return_value=str(stage)), patch("parison.core.os.chmod", side_effect=OSError("permissions unavailable")):
+            with self.assertRaisesRegex(ParisonError, "cannot prepare bundle output: permissions unavailable"):
+                publish(self.root / "run", result, None)
+        self.assertFalse(stage.exists())
+
         stage = self.root / ".run-stage"
         stage.mkdir()
         with patch("parison.core.tempfile.mkdtemp", return_value=str(stage)), patch("parison.core.os.replace", side_effect=OSError("read-only filesystem")):
@@ -280,6 +287,15 @@ class ParisonTests(unittest.TestCase):
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
         with self.assertRaisesRegex(ParisonError, "required bundle files"):
             verify_bundle(output)
+
+    def test_bundle_verification_rejects_symlinked_manifest(self):
+        run = self.root / "run"
+        run.mkdir()
+        manifest = self.root / "manifest.json"
+        manifest.write_text("{}", encoding="utf-8")
+        (run / "manifest.json").symlink_to(manifest)
+        with self.assertRaisesRegex(ParisonError, "manifest is missing or unsafe"):
+            verify_bundle(run)
 
     def test_cli_reports_package_version(self):
         output = StringIO()
