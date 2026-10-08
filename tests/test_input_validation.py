@@ -7,7 +7,7 @@ from io import StringIO
 from pathlib import Path
 
 from parison.cli import main
-from parison.core import ParisonError, validate_inputs
+from parison.core import ParisonError, explain_recipe, validate_inputs
 
 try:
     import polars as pl
@@ -48,22 +48,53 @@ class InputValidation(unittest.TestCase):
         baseline.write_text("id,old_value,note\nsecret,10,private\n", encoding="utf-8")
         candidate.write_text('{"id":"secret","value":10,"note":"private"}\n', encoding="utf-8")
         result = validate_inputs(self.recipe, baseline, candidate)
+        self.assertEqual(result["schema_version"], 1)
         self.assertEqual(result["status"], "valid")
         self.assertEqual(result["inputs"]["baseline"]["format"], "csv")
         self.assertEqual(result["inputs"]["candidate"]["format"], "jsonl")
         self.assertEqual(result["canonical_columns"], 2)
+        self.assertEqual(result["policy_sha256"], explain_recipe(self.recipe)["policy_sha256"])
+        self.assertEqual(result["inputs"]["baseline"]["schema"], {
+            "missing": [],
+            "unexpected": [],
+            "mapped": {"value": "old_value"},
+            "excluded_present": ["note"],
+        })
         self.assertNotIn("secret", json.dumps(result))
         self.assertNotIn("private", json.dumps(result))
+
+    def test_preflight_policy_lock_runs_before_inputs(self):
+        expected = explain_recipe(self.recipe)["policy_sha256"]
+        with self.assertRaisesRegex(ParisonError, "does not match expected"):
+            validate_inputs(self.recipe, "missing-left.csv", "missing-right.csv", expected_policy_sha256="0" * 64)
+        with self.assertRaisesRegex(ParisonError, "64 lowercase hexadecimal"):
+            validate_inputs(self.recipe, "missing-left.csv", "missing-right.csv", expected_policy_sha256="INVALID")
+        self.assertRegex(expected, "^[0-9a-f]{64}$")
 
     def test_preflight_rejects_schema_mismatch_and_byte_overrun(self):
         baseline = self.root / "baseline.csv"
         candidate = self.root / "candidate.csv"
         baseline.write_text("id,wrong\n1,10\n", encoding="utf-8")
         candidate.write_text("id,value\n1,10\n", encoding="utf-8")
-        with self.assertRaisesRegex(ParisonError, "schema mismatch"):
-            validate_inputs(self.recipe, baseline, candidate)
+        result = validate_inputs(self.recipe, baseline, candidate)
+        self.assertEqual(result["status"], "invalid")
+        self.assertEqual(result["inputs"]["baseline"]["schema"]["missing"], ["old_value"])
+        self.assertEqual(result["inputs"]["baseline"]["schema"]["unexpected"], ["wrong"])
+        self.assertEqual(result["inputs"]["candidate"]["schema"]["missing"], [])
         with self.assertRaisesRegex(ParisonError, "exceeds limit"):
             validate_inputs(self.recipe, baseline, candidate, max_input_bytes=1)
+
+    def test_cli_emits_json_for_invalid_schemas(self):
+        baseline = self.root / "baseline.csv"
+        candidate = self.root / "candidate.csv"
+        baseline.write_text("id,wrong\n1,10\n", encoding="utf-8")
+        candidate.write_text("id,value\n1,10\n", encoding="utf-8")
+        stdout, stderr = StringIO(), StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            code = main(["validate-inputs", "--recipe", str(self.recipe), "--baseline", str(baseline), "--candidate", str(candidate)])
+        self.assertEqual(code, 2)
+        self.assertEqual(json.loads(stdout.getvalue())["status"], "invalid")
+        self.assertIn("JSON diagnostics", stderr.getvalue())
 
     def test_cli_reports_partition_metadata(self):
         baseline = self.root / "baseline"

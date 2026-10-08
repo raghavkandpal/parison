@@ -4,6 +4,28 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.4.0 - 2026-10-08
+
+### Added
+
+- Machine-readable missing, unexpected, mapped and excluded-column diagnostics from `validate-inputs`.
+- A data-free `explain` command that renders every effective recipe policy and source-column mapping.
+- Versioned Draft 2020-12 JSON Schemas for recipe and result artifacts.
+- A versioned Draft 2020-12 JSON Schema for bundle manifests.
+- A versioned Draft 2020-12 JSON Schema for structured input-preflight results.
+- Installed-schema discovery through `parison schema recipe|result|manifest|preflight`.
+- Canonical effective-policy SHA-256 fingerprints in explanations and comparison evidence.
+- An optional comparison gate that rejects policies not matching a reviewed fingerprint before reading inputs.
+- Opt-in machine-readable manifest output from `parison verify --json`.
+- Effective-policy fingerprints and optional policy locking in structured input preflight results.
+
+### Fixed
+
+- Recipes that omit `output` now consistently apply the documented summary-sensitivity default.
+- Bundle verification now rejects incomplete manifests and metadata that disagrees with `result.json`.
+- Bundle staging and publication I/O failures now return controlled operational errors and clean up partial staging directories.
+- Bundle verification rejects symlinked manifests, and staging cleanup also covers permission-setting failures.
+
 ## 0.3.0 - 2026-10-07
 
 ### Added

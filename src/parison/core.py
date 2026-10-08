@@ -14,7 +14,7 @@ import unicodedata
 from collections import Counter
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
-from importlib import metadata
+from importlib import metadata, resources
 from pathlib import Path
 from typing import Any
 
@@ -26,10 +26,22 @@ _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp
 _NORMALIZATIONS = {"trim", "casefold", "unicode_nfc"}
 _RAW_VALUE = object()
 _FILE_FORMATS = {".csv": "csv", ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".pq": "parquet"}
+_SCHEMAS = {
+    "recipe": "recipe-v1.schema.json",
+    "result": "result-v1.schema.json",
+    "manifest": "manifest-v1.schema.json",
+    "preflight": "preflight-v1.schema.json",
+}
 
 
 class ParisonError(ValueError):
     pass
+
+
+def load_schema(name: str) -> dict[str, Any]:
+    if name not in _SCHEMAS:
+        raise ParisonError(f"unknown schema {name!r}; choose recipe or result")
+    return json.loads(resources.files("parison").joinpath("schemas", _SCHEMAS[name]).read_text(encoding="utf-8"))
 
 
 def _runtime_info(paths: tuple[Any, Any] | None = None) -> dict[str, Any]:
@@ -168,6 +180,7 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     output = recipe.get("output", {"sensitivity": "summary"})
     if not isinstance(output, dict) or set(output) != {"sensitivity"} or output["sensitivity"] not in {"summary", "raw"}:
         raise ParisonError("output must contain sensitivity='summary' or sensitivity='raw'")
+    recipe["output"] = output
     return recipe
 
 
@@ -219,6 +232,50 @@ def _source_name(recipe: dict[str, Any], name: str, side: str) -> str:
     return recipe.get("column_mappings", {}).get(name, {}).get(side, name)
 
 
+def _effective_policy(recipe: dict[str, Any]) -> dict[str, Any]:
+    columns = {}
+    for name, configured in recipe["columns"].items():
+        policy = dict(configured)
+        policy["comparison"] = policy.get("comparison", "exact")
+        policy["normalize"] = policy.get("normalize", [])
+        columns[name] = {
+            "key": name in recipe["keys"],
+            "baseline_column": _source_name(recipe, name, "baseline"),
+            "candidate_column": _source_name(recipe, name, "candidate"),
+            **policy,
+        }
+    policy = {
+        "schema_version": 1,
+        "recipe_version": recipe["recipe_version"],
+        "comparison_mode": recipe["comparison_mode"],
+        "scope": recipe["scope"],
+        "identity": recipe["identity"],
+        "nulls_equal": recipe["nulls_equal"],
+        "columns": columns,
+        "excluded_columns": recipe.get("excluded_columns", {}),
+        "output": recipe.get("output", {"sensitivity": "summary"}),
+    }
+    policy["policy_sha256"] = hashlib.sha256(
+        json.dumps(policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    return policy
+
+
+def explain_recipe(path: str | Path) -> dict[str, Any]:
+    """Return a fully explicit policy view without reading input data."""
+    return _effective_policy(load_recipe(path))
+
+
+def _checked_policy_sha256(recipe: dict[str, Any], expected: str | None = None) -> str:
+    actual = _effective_policy(recipe)["policy_sha256"]
+    if expected is not None:
+        if len(expected) != 64 or any(character not in "0123456789abcdef" for character in expected):
+            raise ParisonError("expected policy SHA-256 must be 64 lowercase hexadecimal characters")
+        if expected != actual:
+            raise ParisonError(f"effective policy SHA-256 {actual} does not match expected {expected}")
+    return actual
+
+
 def _normalize(value: Any, policy: dict[str, Any]) -> Any:
     if value is None:
         return None
@@ -249,16 +306,28 @@ def _raw_value(row: dict[Any, Any], name: str) -> Any:
 def _validate_headers(path: Path, headers: list[str], recipe: dict[str, Any], side: str) -> None:
     if len(headers) != len(set(headers)):
         raise ParisonError(f"duplicate column names in {path}")
-    expected = {_source_name(recipe, name, side) for name in recipe["columns"]}
-    missing = expected - set(headers)
-    extra = set(headers) - expected - set(recipe.get("excluded_columns", {}))
+    details = _schema_details(headers, recipe, side)
+    missing, extra = details["missing"], details["unexpected"]
     if missing or extra:
         parts = []
         if missing:
-            parts.append("missing=" + ",".join(sorted(missing)))
+            parts.append("missing=" + ",".join(missing))
         if extra:
-            parts.append("unexpected=" + ",".join(sorted(extra)))
+            parts.append("unexpected=" + ",".join(extra))
         raise ParisonError(f"schema mismatch in {path}: {'; '.join(parts)}")
+
+
+def _schema_details(headers: list[str], recipe: dict[str, Any], side: str) -> dict[str, Any]:
+    physical = {name: _source_name(recipe, name, side) for name in recipe["columns"]}
+    header_names = set(headers)
+    expected = set(physical.values())
+    excluded = set(recipe.get("excluded_columns", {}))
+    return {
+        "missing": sorted(expected - header_names),
+        "unexpected": sorted(header_names - expected - excluded),
+        "mapped": {name: source for name, source in physical.items() if source != name},
+        "excluded_present": sorted(header_names & excluded),
+    }
 
 
 def _sqlite_source(source: str | Path) -> tuple[Path, str] | None:
@@ -494,18 +563,23 @@ def validate_inputs(
     baseline: str | Path,
     candidate: str | Path,
     max_input_bytes: int = 1_000_000_000,
+    expected_policy_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Validate input schemas against a recipe without comparing records."""
     if max_input_bytes <= 0:
         raise ParisonError("max_input_bytes must be positive")
     recipe = load_recipe(recipe_path)
+    policy_sha256 = _checked_policy_sha256(recipe, expected_policy_sha256)
     sizes = {side: _source_bytes(source) for side, source in (("baseline", baseline), ("candidate", candidate))}
     if sum(sizes.values()) > max_input_bytes:
         raise ParisonError(f"combined input size {sum(sizes.values())} exceeds limit {max_input_bytes} bytes")
     inputs = {}
+    status = "valid"
     for side, source in (("baseline", baseline), ("candidate", candidate)):
         columns = _input_columns(source)
-        _validate_headers(_source_path(source), columns, recipe, side)
+        schema = _schema_details(columns, recipe, side)
+        if schema["missing"] or schema["unexpected"]:
+            status = "invalid"
         paths = _source_paths(source)
         sqlite_source = _sqlite_source(source)
         inputs[side] = {
@@ -513,14 +587,17 @@ def validate_inputs(
             "bytes": sizes[side],
             "columns": len(columns),
             "partitions": len(paths),
+            "schema": schema,
         }
         if sqlite_source:
             inputs[side]["table"] = sqlite_source[1]
     return {
-        "status": "valid",
+        "schema_version": 1,
+        "status": status,
         "comparison_mode": recipe["comparison_mode"],
         "keys": recipe["keys"],
         "canonical_columns": len(recipe["columns"]),
+        "policy_sha256": policy_sha256,
         "inputs": inputs,
     }
 
@@ -829,6 +906,7 @@ def compare(
     sample_limit: int = 100,
     max_input_bytes: int = 1_000_000_000,
     max_rows: int = 5_000_000,
+    expected_policy_sha256: str | None = None,
 ) -> dict[str, Any]:
     if sample_limit < 0:
         raise ParisonError("sample_limit must be non-negative")
@@ -838,6 +916,7 @@ def compare(
         raise ParisonError("max_rows must be positive")
     recipe_path = Path(recipe_path)
     recipe = load_recipe(recipe_path)
+    policy_sha256 = _checked_policy_sha256(recipe, expected_policy_sha256)
     input_bytes = _source_bytes(baseline_path) + _source_bytes(candidate_path)
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
@@ -946,6 +1025,7 @@ def compare(
             "candidate": _source_metadata(candidate_path, before[str(candidate_path)]),
         },
         "recipe_sha256": _digest(recipe_path),
+        "policy_sha256": policy_sha256,
     }
 
 
@@ -1002,7 +1082,7 @@ def _report(result: dict[str, Any]) -> str:
 <h2>Preflight issues</h2><ul>{problems}</ul>{evidence}
 <h2>Inputs</h2><table><thead><tr><th>Side</th><th>Bytes</th><th>SHA-256</th></tr></thead><tbody>{input_rows}</tbody></table>
 <h2>Resource limits</h2><table>{limit_rows}</table><h2>Runtime</h2><table>{runtime_rows}</table>
-<h2>Provenance</h2><p>Recipe SHA-256: <code>{esc(result.get('recipe_sha256') or 'unavailable')}</code></p></main><script>
+<h2>Provenance</h2><p>Recipe SHA-256: <code>{esc(result.get('recipe_sha256') or 'unavailable')}</code></p><p>Effective policy SHA-256: <code>{esc(result.get('policy_sha256') or 'unavailable')}</code></p></main><script>
 const fieldClass=document.querySelector('#field-class');
 const setCount=(id,rows,label)=>document.querySelector(id).textContent='Showing '+[...rows].filter(row=>!row.hidden).length+' of '+rows.length+' '+label;
 const fieldRows=document.querySelectorAll('#field-summary tbody tr[data-exact]');
@@ -1037,6 +1117,7 @@ def terminal_result(outcome: str, message: str) -> dict[str, Any]:
         "excluded_columns": {},
         "inputs": {},
         "recipe_sha256": None,
+        "policy_sha256": None,
     }
 
 
@@ -1048,9 +1129,15 @@ def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] |
     output = Path(output)
     if output.exists():
         raise ParisonError(f"output already exists: {output}")
-    output.parent.mkdir(parents=True, exist_ok=True)
-    stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
-    os.chmod(stage, 0o700)
+    stage = None
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
+        os.chmod(stage, 0o700)
+    except OSError as exc:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+        raise ParisonError(f"cannot prepare bundle output: {exc}") from exc
     try:
         (stage / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         (stage / "report.html").write_text(_report(result), encoding="utf-8")
@@ -1071,6 +1158,9 @@ def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] |
         }
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         os.replace(stage, output)
+    except OSError as exc:
+        shutil.rmtree(stage, ignore_errors=True)
+        raise ParisonError(f"cannot publish bundle: {exc}") from exc
     except Exception:
         shutil.rmtree(stage, ignore_errors=True)
         raise
@@ -1081,21 +1171,44 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
     manifest_path = directory / "manifest.json"
     if directory.is_symlink() or not directory.is_dir():
         raise ParisonError(f"run is not a regular directory: {directory}")
+    if manifest_path.is_symlink() or not manifest_path.is_file():
+        raise ParisonError("bundle manifest is missing or unsafe")
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read manifest: {exc}") from exc
     if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
         raise ParisonError("manifest is incomplete or unsupported")
+    if manifest.get("outcome") not in OUTCOME_CODES or manifest.get("sensitivity") not in {"summary", "raw"}:
+        raise ParisonError("manifest has invalid outcome or sensitivity metadata")
+    if not isinstance(manifest.get("runtime"), dict):
+        raise ParisonError("manifest has invalid runtime metadata")
     files = manifest.get("files")
     if not isinstance(files, dict) or not files:
         raise ParisonError("manifest has no files")
+    if not {"result.json", "report.html"} <= set(files):
+        raise ParisonError("manifest does not cover the required bundle files")
     for name, expected in files.items():
-        if not isinstance(name, str) or Path(name).name != name or not isinstance(expected, str):
+        if (
+            not isinstance(name, str)
+            or Path(name).name != name
+            or not isinstance(expected, str)
+            or len(expected) != 64
+            or any(character not in "0123456789abcdef" for character in expected)
+        ):
             raise ParisonError("manifest contains an invalid file entry")
         path = directory / name
         if path.is_symlink() or not path.is_file():
             raise ParisonError(f"bundle file is missing or unsafe: {name}")
         if _digest(path) != expected:
             raise ParisonError(f"bundle file failed integrity check: {name}")
+    try:
+        result = json.loads((directory / "result.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read result: {exc}") from exc
+    if not isinstance(result, dict) or result.get("schema_version") != 1:
+        raise ParisonError("result is incomplete or unsupported")
+    for name in ("outcome", "sensitivity", "runtime"):
+        if result.get(name) != manifest[name]:
+            raise ParisonError(f"manifest {name} does not match result")
     return manifest

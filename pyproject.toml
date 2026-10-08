@@ -13,12 +13,16 @@ requires-python = ">=3.11"
 
 [project.optional-dependencies]
 parquet = ["polars==1.44.2"]
+test = ["jsonschema>=4,<5"]
 
 [project.scripts]
 parison = "parison.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+parison = ["schemas/*.json"]
 
 [tool.setuptools.dynamic]
 version = {attr = "parison.__version__"}

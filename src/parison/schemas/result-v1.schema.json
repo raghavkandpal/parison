@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/raghavkandpal/parison/schemas/result-v1.schema.json",
+  "title": "Parison result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "outcome", "complete", "sensitivity", "runtime", "resource_limits", "scope", "keys", "policy", "column_policies", "problems", "counts", "field_counts", "field_discrepancy_count", "discrepancy_count", "discrepancy_sample", "discrepancy_sample_limit", "excluded_columns", "inputs", "recipe_sha256"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "outcome": {"enum": ["PASS", "FAIL", "ERROR", "INCONCLUSIVE", "INTERRUPTED"]},
+    "complete": {"type": "boolean"},
+    "sensitivity": {"enum": ["summary", "raw"]},
+    "runtime": {"type": "object"},
+    "resource_limits": {"type": "object"},
+    "scope": {"type": ["object", "null"]},
+    "keys": {"type": "array", "items": {"type": "string"}},
+    "policy": {"type": "object"},
+    "column_policies": {"type": "object"},
+    "column_mappings": {"type": "object"},
+    "problems": {"type": "array", "items": {"type": "string"}},
+    "counts": {"type": "object"},
+    "field_counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["exact", "within_tolerance", "different"],
+        "properties": {
+          "exact": {"type": "integer", "minimum": 0},
+          "within_tolerance": {"type": "integer", "minimum": 0},
+          "different": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "field_discrepancy_count": {"type": "integer", "minimum": 0},
+    "discrepancy_count": {"type": "integer", "minimum": 0},
+    "discrepancy_sample": {"type": "array", "items": {"type": "object"}},
+    "discrepancy_sample_limit": {"type": "integer", "minimum": 0},
+    "excluded_columns": {"type": "object", "additionalProperties": {"type": "string"}},
+    "inputs": {"type": "object"},
+    "recipe_sha256": {"type": ["string", "null"]},
+    "policy_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -2,6 +2,20 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
+## 0.4 — released record
+
+- [0.4 roadmap](0.4/36-roadmap.md)
+- [Structured preflight diagnostics](0.4/37-structured-preflight-diagnostics.md)
+- [Effective policy explanation](0.4/38-policy-explanation.md)
+- [Versioned JSON Schemas](0.4/39-json-schemas.md)
+- [Effective-policy fingerprint](0.4/40-policy-fingerprint.md)
+- [CI policy lock](0.4/41-ci-policy-lock.md)
+- [Bundle verification hardening](0.4/42-bundle-verification.md)
+- [Publication failure handling](0.4/43-publication-failures.md)
+- [Machine-readable verification](0.4/44-machine-readable-verification.md)
+- [0.4 engineering verification](0.4/45-engineering-verification.md)
+- [0.4.0 release checklist](0.4/46-release-checklist.md)
+
 ## 0.3 — released record
 
 - [Explicit column-mapping contract](0.3/28-column-mapping-contract.md)
