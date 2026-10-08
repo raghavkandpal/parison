@@ -22,8 +22,8 @@ Make Parison's existing policy and validation modules easier to automate and rev
 
 ### 3. Versioned JSON schemas
 
-- [ ] Publish recipe and result JSON Schemas from the existing contracts.
-- [ ] Validate committed examples against those schemas in CI.
+- [x] Publish recipe and result JSON Schemas from the existing contracts.
+- [x] Validate committed examples against those schemas in CI.
 
 ## Deferred
 

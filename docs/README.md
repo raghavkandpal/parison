@@ -7,6 +7,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [0.4 roadmap](0.4/36-roadmap.md)
 - [Structured preflight diagnostics](0.4/37-structured-preflight-diagnostics.md)
 - [Effective policy explanation](0.4/38-policy-explanation.md)
+- [Versioned JSON Schemas](0.4/39-json-schemas.md)
 
 ## 0.3 — released record
 
