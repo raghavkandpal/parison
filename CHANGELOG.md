@@ -4,6 +4,10 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+- Type-parse errors identify the configured column and type without echoing rejected source values into diagnostics or summary error bundles.
+
 ## 0.5.0 - 2026-10-08
 
 ### Added

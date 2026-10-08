@@ -39,6 +39,10 @@ class ParisonError(ValueError):
     pass
 
 
+class _SafeParseError(ValueError):
+    pass
+
+
 def _file_format(path: Path) -> str | None:
     suffix = path.suffix.lower()
     if suffix == ".gz":
@@ -256,14 +260,14 @@ def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
         if kind == "decimal":
             value = Decimal(str(raw))
             if not value.is_finite():
-                raise ValueError("non-finite decimal")
+                raise _SafeParseError("non-finite decimal")
             if max(-value.as_tuple().exponent, 0) > policy["scale"]:
-                raise ValueError(f"value exceeds configured scale {policy['scale']}")
+                raise _SafeParseError(f"value exceeds configured scale {policy['scale']}")
             return value
         if kind == "float":
             value = float(raw)
             if not math.isfinite(value):
-                raise ValueError("non-finite float")
+                raise _SafeParseError("non-finite float")
             return value
         if kind == "boolean":
             if isinstance(raw, bool):
@@ -272,17 +276,18 @@ def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
                 return True
             if raw == "false":
                 return False
-            raise ValueError("expected true or false")
+            raise _SafeParseError("expected true or false")
         if kind == "date":
             return date.fromisoformat(str(raw))
         if kind == "timestamp":
             value = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
             if value.tzinfo is None:
-                raise ValueError("timestamp requires an explicit timezone")
+                raise _SafeParseError("timestamp requires an explicit timezone")
             return value
+    except _SafeParseError as exc:
+        raise ParisonError(f"cannot parse column {column} as {kind}: {exc}") from exc
     except (ValueError, TypeError, InvalidOperation) as exc:
-        detail = str(exc) or "invalid value"
-        raise ParisonError(f"cannot parse column {column} as {kind}: {detail}") from exc
+        raise ParisonError(f"cannot parse column {column} as {kind}") from exc
     raise AssertionError(kind)
 
 

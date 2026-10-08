@@ -26,6 +26,12 @@ Find invalid records before comparison while preserving Parison's local, bounded
 - [x] Add CI smoke coverage using the checked-in 0.5 migration example.
 - [ ] Reassess the next 0.6 slice after real record validation is complete; do not add new comparison modes speculatively.
 
+### 4. Privacy-safe parse failures
+
+- [x] Prevent standard-library parse exceptions from echoing rejected source values.
+- [x] Retain safe, actionable column/type context and authored policy diagnostics.
+- [x] Apply the same privacy boundary to comparison and record validation.
+
 ## Deferred
 
 No-key multiset comparison, aggregate comparison, remote inputs, recursive discovery, a server and a local UI remain separate product decisions. Record validation will not silently repair or pair invalid keys.
