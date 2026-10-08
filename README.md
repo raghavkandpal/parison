@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**0.5 released.** The CLI supports bounded local compressed inputs, explicit delimited-text and null-token policy, structured preflight diagnostics, effective-policy explanation and locking, installed JSON Schemas, and machine-readable bundle verification.
+**0.6 development.** The released 0.5.0 CLI supports bounded local compressed inputs, explicit delimited-text and null-token policy, structured preflight diagnostics, effective-policy explanation and locking, installed JSON Schemas, and machine-readable bundle verification. Development is adding opt-in record-level validation before comparison.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -92,7 +92,7 @@ Start with the [documentation index](docs/README.md).
 
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
-- Current development: [0.5 roadmap](docs/0.5/47-roadmap.md)
+- Current development: [0.6 roadmap](docs/0.6/54-roadmap.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
 - Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)
 - Safety model: [0.1 security and data handling](docs/0.1/07-security-and-data-handling.md)
