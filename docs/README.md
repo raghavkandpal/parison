@@ -13,6 +13,8 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Bundle verification hardening](0.4/42-bundle-verification.md)
 - [Publication failure handling](0.4/43-publication-failures.md)
 - [Machine-readable verification](0.4/44-machine-readable-verification.md)
+- [0.4 engineering verification](0.4/45-engineering-verification.md)
+- [0.4.0 release checklist](0.4/46-release-checklist.md)
 
 ## 0.3 — released record
 
