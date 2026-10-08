@@ -5,6 +5,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 ## 0.7 — current development
 
 - [0.7 roadmap](0.7/58-roadmap.md)
+- [Aggregate-v1 contract research](0.7/59-aggregate-research.md)
 
 ## 0.6 — released
 

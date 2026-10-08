@@ -15,10 +15,12 @@ Aggregate comparison is a separate contract. It must never activate because keye
 A reviewed aggregate recipe declares:
 
 - zero or more exact, typed `group_by` columns; an empty list means one global group;
-- one or more named measures using `count`, `sum`, `min` or `max`;
+- one or more named measures using row `count`, `sum`, `min` or `max`;
 - integer or decimal inputs for `sum`, with the existing exact or `symmetric-v1` numeric comparison policy;
 - explicit null handling per measure: `reject` or `ignore`;
 - the existing scope, source mapping, parsing, normalization, sensitivity and resource policies.
+
+Aggregate-v1 rejects null group keys. `count` has no source column and counts input rows. Empty global input produces one zero-row group; empty grouped input produces no groups. `sum`, `min` and `max` with no contributing values have an explicit `no_value` state rather than silently becoming zero.
 
 `average`, distinct counts, quantiles, approximate algorithms, expressions and user-supplied code are excluded from aggregate-v1. A future average can be represented transparently by separate `sum` and `count` measures.
 
@@ -36,7 +38,7 @@ A reviewed aggregate recipe declares:
 
 - [ ] Write the normative recipe and outcome contract with worked global, grouped, missing-group, null and tolerance examples.
 - [ ] Define canonical measure names, source mappings, accumulation types and deterministic group ordering.
-- [ ] Specify invariants: every input row is counted once per declared measure; published group counts reconcile with complete input row counts; missing groups and violating measures produce FAIL.
+- [ ] Specify invariants: every input row contributes once to one group count; each measure's contributing and ignored-null counts reconcile to its group count; missing groups and violating measures produce FAIL.
 - [ ] Specify INCONCLUSIVE and ERROR boundaries before implementation, including empty inputs, invalid group values, parse failures and resource exhaustion.
 
 Acceptance: an independent reviewer can calculate every example result without reading implementation code.
@@ -63,8 +65,8 @@ Acceptance: preflight can prove whether both complete inputs are executable unde
 
 - [ ] Introduce one mode dispatcher and one aggregate execution path; keep the keyed implementation intact behind its existing contract.
 - [ ] Accumulate exact typed group keys and named measures in one pass per input.
-- [ ] Use integer and `Decimal` arithmetic only for aggregate-v1 sums; never reduce decimal measures through binary floats.
-- [ ] Compare group coverage first, then measure results using existing exact/tolerance classification.
+- [ ] Accumulate integers directly and scaled decimals as unbounded integer coefficients; convert to canonical decimals only at the result boundary.
+- [ ] Compare canonical group-key sets first, then measure results for common groups using existing exact/tolerance classification.
 - [ ] Preserve input digests and reject mutation across both scans.
 
 Acceptance: oracle fixtures pass under row reordering, partition reordering, mixed input formats, mappings, normalization and tolerance boundaries.
@@ -72,7 +74,7 @@ Acceptance: oracle fixtures pass under row reordering, partition reordering, mix
 ### 5. Results, terminal output and reports
 
 - [ ] Emit complete group and measure totals in result v2 with conservation checks.
-- [ ] Keep summary mode free of group keys and source values.
+- [ ] Keep summary mode free of group keys, per-group counts, per-group measures and source values; aggregate output is reconciliation evidence, not de-identified data.
 - [ ] In raw mode, publish a deterministic bounded sample of missing groups and differing measures, clearly labelled as sensitive.
 - [ ] Render aggregate-specific terminal and HTML summaries without pretending groups are records or measures are fields.
 - [ ] Keep error and interruption bundles schema-valid for both modes.
@@ -90,7 +92,7 @@ Acceptance: an unfamiliar user can draft, review, lock, preflight, compare and v
 
 ### 7. Adversarial verification and release
 
-- [ ] Add hand-audited fixtures for offsetting errors, all-null groups, missing groups, decimal scale, tolerance boundaries, empty scopes and group explosion.
+- [ ] Add hand-audited fixtures for offsetting groups with equal global totals, all-null ignored measures, missing groups, decimal cancellation under reordered rows, tolerance boundaries, both empty-input shapes and group explosion.
 - [ ] Extend generated oracles and performance measurements across global, low-cardinality and high-cardinality groups.
 - [ ] Pass Python 3.11–3.14, macOS and Windows CI with optional Parquet and all installed schemas.
 - [ ] Build and inspect clean archives, install the final wheel in an empty environment, and repeat both keyed and aggregate smoke workflows before tagging 0.7.0.
