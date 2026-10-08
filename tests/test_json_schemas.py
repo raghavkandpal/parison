@@ -16,8 +16,10 @@ class JsonSchemas(unittest.TestCase):
     def setUpClass(cls):
         cls.recipe_schema = load_schema("recipe")
         cls.result_schema = load_schema("result")
+        cls.manifest_schema = load_schema("manifest")
         Draft202012Validator.check_schema(cls.recipe_schema)
         Draft202012Validator.check_schema(cls.result_schema)
+        Draft202012Validator.check_schema(cls.manifest_schema)
 
     def test_committed_recipes_match_recipe_schema(self):
         validator = Draft202012Validator(self.recipe_schema)
@@ -37,14 +39,19 @@ class JsonSchemas(unittest.TestCase):
         ))
         validator.validate(error_result("safe diagnostic"))
 
+    def test_committed_manifest_matches_manifest_schema(self):
+        Draft202012Validator(self.manifest_schema).validate(
+            json.loads((ROOT / "examples/output/manifest.json").read_text(encoding="utf-8"))
+        )
+
     def test_cli_prints_installed_schemas(self):
         from contextlib import redirect_stdout
         from io import StringIO
 
         stdout = StringIO()
         with redirect_stdout(stdout):
-            self.assertEqual(main(["schema", "recipe"]), 0)
-        self.assertEqual(json.loads(stdout.getvalue())["title"], "Parison recipe v1")
+            self.assertEqual(main(["schema", "manifest"]), 0)
+        self.assertEqual(json.loads(stdout.getvalue())["title"], "Parison manifest v1")
 
 
 if __name__ == "__main__":

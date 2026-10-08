@@ -61,6 +61,12 @@ Make Parison's existing policy and validation modules easier to automate and rev
 - [x] Preserve the existing human-oriented `valid` output by default.
 - [x] Keep outcome interpretation separate from integrity verification.
 
+### 10. Manifest schema
+
+- [x] Publish the bundle manifest's durable structure as Draft 2020-12 JSON Schema.
+- [x] Ship and smoke-test it through the existing installed-schema interface.
+- [x] Validate a committed bundle manifest against it in CI.
+
 ## Deferred
 
 Compressed inputs remain a later adapter slice because decompressed-byte accounting needs a separate resource contract. Remote connectors, fuzzy identity, arbitrary transformations and publication of grouped source values remain out of scope.

@@ -9,6 +9,7 @@ All notable changes will be documented in this file.
 - Machine-readable missing, unexpected, mapped and excluded-column diagnostics from `validate-inputs`.
 - A data-free `explain` command that renders every effective recipe policy and source-column mapping.
 - Versioned Draft 2020-12 JSON Schemas for recipe and result artifacts.
+- A versioned Draft 2020-12 JSON Schema for bundle manifests.
 - Installed-schema discovery through `parison schema recipe|result`.
 - Canonical effective-policy SHA-256 fingerprints in explanations and comparison evidence.
 - An optional comparison gate that rejects policies not matching a reviewed fingerprint before reading inputs.

@@ -26,7 +26,7 @@ _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp
 _NORMALIZATIONS = {"trim", "casefold", "unicode_nfc"}
 _RAW_VALUE = object()
 _FILE_FORMATS = {".csv": "csv", ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".pq": "parquet"}
-_SCHEMAS = {"recipe": "recipe-v1.schema.json", "result": "result-v1.schema.json"}
+_SCHEMAS = {"recipe": "recipe-v1.schema.json", "result": "result-v1.schema.json", "manifest": "manifest-v1.schema.json"}
 
 
 class ParisonError(ValueError):

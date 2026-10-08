@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/raghavkandpal/parison/schemas/manifest-v1.schema.json",
+  "title": "Parison manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "complete", "outcome", "sensitivity", "runtime", "files"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "complete": {"const": true},
+    "outcome": {"enum": ["PASS", "FAIL", "ERROR", "INCONCLUSIVE", "INTERRUPTED"]},
+    "sensitivity": {"enum": ["summary", "raw"]},
+    "runtime": {"type": "object"},
+    "files": {
+      "type": "object",
+      "required": ["result.json", "report.html"],
+      "propertyNames": {"pattern": "^[^/\\\\]+$"},
+      "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    }
+  }
+}
