@@ -4,8 +4,11 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.6.0 - 2026-10-08
+
 ### Added
 
+- Opt-in full-record validation through `validate-inputs --records`, with aggregate type and key-identity diagnostics.
 - Record validation completes its scan after configured type failures and reports privacy-safe invalid-row and per-field counts.
 
 ### Fixed
