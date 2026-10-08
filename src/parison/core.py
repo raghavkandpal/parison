@@ -672,18 +672,32 @@ def _record_diagnostics(
 ) -> dict[str, Any]:
     seen: set[tuple[Any, ...]] = set()
     duplicates: set[tuple[Any, ...]] = set()
-    null_key_rows = rows = 0
+    invalid_fields: Counter[str] = Counter()
+    invalid_rows = null_key_rows = rows = 0
     for raw in _iter_input_rows(source, recipe, max_rows, side, decoded_sizes):
         rows += 1
-        row = _parse_row(raw, recipe, side)
+        row = {}
+        row_is_invalid = False
+        for name, policy in recipe["columns"].items():
+            try:
+                parsed = _parse(raw.get(_source_name(recipe, name, side)), policy, name)
+                row[name] = _normalize(parsed, policy)
+            except ParisonError:
+                invalid_fields[name] += 1
+                row_is_invalid = True
+        invalid_rows += row_is_invalid
+        if not set(recipe["keys"]) <= set(row):
+            continue
         key = tuple(row[name] for name in recipe["keys"])
         null_key_rows += any(value is None for value in key)
         if key in seen:
             duplicates.add(key)
         seen.add(key)
     return {
-        "status": "invalid" if null_key_rows or duplicates else "valid",
+        "status": "invalid" if invalid_rows or null_key_rows or duplicates else "valid",
         "rows": rows,
+        "invalid_rows": invalid_rows,
+        "invalid_fields": dict(sorted(invalid_fields.items())),
         "null_key_rows": null_key_rows,
         "duplicate_keys": len(duplicates),
     }

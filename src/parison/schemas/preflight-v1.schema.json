@@ -38,10 +38,15 @@
         "records": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["status", "rows", "null_key_rows", "duplicate_keys"],
+          "required": ["status", "rows", "invalid_rows", "invalid_fields", "null_key_rows", "duplicate_keys"],
           "properties": {
             "status": {"enum": ["valid", "invalid"]},
             "rows": {"type": "integer", "minimum": 0},
+            "invalid_rows": {"type": "integer", "minimum": 0},
+            "invalid_fields": {
+              "type": "object",
+              "additionalProperties": {"type": "integer", "minimum": 1}
+            },
             "null_key_rows": {"type": "integer", "minimum": 0},
             "duplicate_keys": {"type": "integer", "minimum": 0}
           }

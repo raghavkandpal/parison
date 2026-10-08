@@ -37,6 +37,12 @@ Find invalid records before comparison while preserving Parison's local, bounded
 - [x] Keep standard output stable machine-readable JSON.
 - [x] Print concise per-side record and identity counts for interactive use.
 
+### 6. Complete type diagnostics
+
+- [x] Continue scanning after configured value parse failures instead of stopping at the first invalid record.
+- [x] Report aggregate invalid-row and per-field counts without publishing rejected values.
+- [x] Preserve key diagnostics when a different configured field is invalid.
+
 ## Deferred
 
 No-key multiset comparison, aggregate comparison, remote inputs, recursive discovery, a server and a local UI remain separate product decisions. Record validation will not silently repair or pair invalid keys.

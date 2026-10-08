@@ -125,10 +125,12 @@ class InputValidation(unittest.TestCase):
         result = validate_inputs(self.recipe, baseline, candidate, validate_records=True)
         self.assertEqual(result["status"], "invalid")
         self.assertEqual(result["inputs"]["baseline"]["records"], {
-            "status": "invalid", "rows": 1, "null_key_rows": 1, "duplicate_keys": 0,
+            "status": "invalid", "rows": 1, "invalid_rows": 0, "invalid_fields": {},
+            "null_key_rows": 1, "duplicate_keys": 0,
         })
         self.assertEqual(result["inputs"]["candidate"]["records"], {
-            "status": "invalid", "rows": 2, "null_key_rows": 0, "duplicate_keys": 1,
+            "status": "invalid", "rows": 2, "invalid_rows": 0, "invalid_fields": {},
+            "null_key_rows": 0, "duplicate_keys": 1,
         })
         self.assertNotIn("secret", json.dumps(result))
         self.assertNotIn("private", json.dumps(result))
@@ -147,15 +149,28 @@ class InputValidation(unittest.TestCase):
         result = json.loads(stdout.getvalue())
         self.assertEqual(code, 0)
         self.assertEqual(result["inputs"]["baseline"]["records"]["rows"], 1)
-        self.assertIn("Baseline records: 1 rows, 0 null-key rows, 0 duplicate keys.", stderr.getvalue())
-        self.assertIn("Candidate records: 1 rows, 0 null-key rows, 0 duplicate keys.", stderr.getvalue())
+        self.assertIn("Baseline records: 1 rows, 0 invalid rows, 0 null-key rows, 0 duplicate keys.", stderr.getvalue())
+        self.assertIn("Candidate records: 1 rows, 0 invalid rows, 0 null-key rows, 0 duplicate keys.", stderr.getvalue())
 
-        candidate.write_text("id,value,note\n1,invalid,x\n", encoding="utf-8")
-        with self.assertRaisesRegex(ParisonError, "cannot parse column value as integer"):
-            validate_inputs(self.recipe, baseline, candidate, validate_records=True)
+        candidate.write_text("id,value,note\n1,rejected-source-value,x\n", encoding="utf-8")
+        result = validate_inputs(self.recipe, baseline, candidate, validate_records=True)
+        self.assertEqual(result["status"], "invalid")
+        self.assertEqual(result["inputs"]["candidate"]["records"]["invalid_rows"], 1)
+        self.assertEqual(result["inputs"]["candidate"]["records"]["invalid_fields"], {"value": 1})
+        self.assertNotIn("rejected-source-value", json.dumps(result))
         candidate.write_text("id,value,note\n1,10,x\n2,20,y\n", encoding="utf-8")
         with self.assertRaisesRegex(ParisonError, "row count.*exceeds limit 1"):
             validate_inputs(self.recipe, baseline, candidate, validate_records=True, max_rows=1)
+
+    def test_record_scan_keeps_identity_diagnostics_for_other_invalid_fields(self):
+        baseline = self.root / "baseline.csv"
+        candidate = self.root / "candidate.csv"
+        baseline.write_text("id,old_value,note\n1,10,x\n", encoding="utf-8")
+        candidate.write_text("id,value,note\n1,rejected,x\n1,20,y\n", encoding="utf-8")
+        records = validate_inputs(self.recipe, baseline, candidate, validate_records=True)["inputs"]["candidate"]["records"]
+        self.assertEqual(records["invalid_rows"], 1)
+        self.assertEqual(records["invalid_fields"], {"value": 1})
+        self.assertEqual(records["duplicate_keys"], 1)
 
     def test_record_scan_rejects_input_mutation(self):
         baseline = self.root / "baseline.csv"

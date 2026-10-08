@@ -13,13 +13,13 @@ parison validate-inputs --records \
   --candidate candidate.csv
 ```
 
-The scan uses the same readers, delimiters, null tokens, column mappings, types, normalization and keys as comparison. A malformed configured value is an operational error. Null key components or duplicate typed keys make the structured validation status `invalid`.
+The scan uses the same readers, delimiters, null tokens, column mappings, types, normalization and keys as comparison. A configured value that cannot be parsed makes the structured validation status `invalid`; malformed input syntax or an unreadable source remains an operational error. Null key components or duplicate typed keys also make the status `invalid`.
 
 ## Diagnostics and privacy
 
-Each input gains a `records` object containing `status`, `rows`, `null_key_rows` and `duplicate_keys`. Duplicate counts describe distinct duplicated identities, matching comparison's identity rule. The output never includes a key or field value.
+Each input gains a `records` object containing `status`, `rows`, `invalid_rows`, `invalid_fields`, `null_key_rows` and `duplicate_keys`. `invalid_rows` counts each affected record once, while `invalid_fields` maps canonical configured field names to failure counts. Duplicate counts describe distinct duplicated identities, matching comparison's identity rule. A record with an invalid non-key field still contributes to identity diagnostics; a record whose key cannot be parsed cannot. The output never includes a key, field value or parser exception.
 
-Standard output remains the complete machine-readable preflight object. When `--records` is active, standard error also prints concise row, null-key and duplicate-key counts for each side.
+Standard output remains the complete machine-readable preflight object. When `--records` is active, standard error also prints concise row, invalid-row, null-key and duplicate-key counts for each side. Per-field counts remain in the JSON diagnostics.
 
 The installed preflight JSON Schema accepts these diagnostics while keeping them optional for schema-only callers.
 

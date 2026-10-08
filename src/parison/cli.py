@@ -136,7 +136,8 @@ def main(argv: list[str] | None = None) -> int:
                     if records:
                         print(
                             f"{side.title()} records: {records['rows']} rows, "
-                            f"{records['null_key_rows']} null-key rows, {records['duplicate_keys']} duplicate keys.",
+                            f"{records['invalid_rows']} invalid rows, {records['null_key_rows']} null-key rows, "
+                            f"{records['duplicate_keys']} duplicate keys.",
                             file=sys.stderr,
                         )
             if result["status"] == "valid":
