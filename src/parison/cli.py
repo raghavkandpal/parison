@@ -46,6 +46,7 @@ def parser() -> argparse.ArgumentParser:
     inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
     inputs.add_argument("--candidate", required=True, help="candidate file, SQLite locator or partition directory")
     inputs.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
+    inputs.add_argument("--expected-policy-sha256", help="require this effective-policy fingerprint before reading inputs")
     draft = commands.add_parser(
         "draft-recipe",
         help="draft a JSON recipe with reviewable suggestions",
@@ -113,7 +114,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))
             return 0
         if args.command == "validate-inputs":
-            result = validate_inputs(args.recipe, args.baseline, args.candidate, args.max_input_bytes)
+            result = validate_inputs(args.recipe, args.baseline, args.candidate, args.max_input_bytes, args.expected_policy_sha256)
             print(json.dumps(result, sort_keys=True))
             if result["status"] == "valid":
                 print(

@@ -261,6 +261,16 @@ def explain_recipe(path: str | Path) -> dict[str, Any]:
     return _effective_policy(load_recipe(path))
 
 
+def _checked_policy_sha256(recipe: dict[str, Any], expected: str | None = None) -> str:
+    actual = _effective_policy(recipe)["policy_sha256"]
+    if expected is not None:
+        if len(expected) != 64 or any(character not in "0123456789abcdef" for character in expected):
+            raise ParisonError("expected policy SHA-256 must be 64 lowercase hexadecimal characters")
+        if expected != actual:
+            raise ParisonError(f"effective policy SHA-256 {actual} does not match expected {expected}")
+    return actual
+
+
 def _normalize(value: Any, policy: dict[str, Any]) -> Any:
     if value is None:
         return None
@@ -548,11 +558,13 @@ def validate_inputs(
     baseline: str | Path,
     candidate: str | Path,
     max_input_bytes: int = 1_000_000_000,
+    expected_policy_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Validate input schemas against a recipe without comparing records."""
     if max_input_bytes <= 0:
         raise ParisonError("max_input_bytes must be positive")
     recipe = load_recipe(recipe_path)
+    policy_sha256 = _checked_policy_sha256(recipe, expected_policy_sha256)
     sizes = {side: _source_bytes(source) for side, source in (("baseline", baseline), ("candidate", candidate))}
     if sum(sizes.values()) > max_input_bytes:
         raise ParisonError(f"combined input size {sum(sizes.values())} exceeds limit {max_input_bytes} bytes")
@@ -579,6 +591,7 @@ def validate_inputs(
         "comparison_mode": recipe["comparison_mode"],
         "keys": recipe["keys"],
         "canonical_columns": len(recipe["columns"]),
+        "policy_sha256": policy_sha256,
         "inputs": inputs,
     }
 
@@ -897,12 +910,7 @@ def compare(
         raise ParisonError("max_rows must be positive")
     recipe_path = Path(recipe_path)
     recipe = load_recipe(recipe_path)
-    policy_sha256 = _effective_policy(recipe)["policy_sha256"]
-    if expected_policy_sha256 is not None:
-        if len(expected_policy_sha256) != 64 or any(character not in "0123456789abcdef" for character in expected_policy_sha256):
-            raise ParisonError("expected policy SHA-256 must be 64 lowercase hexadecimal characters")
-        if expected_policy_sha256 != policy_sha256:
-            raise ParisonError(f"effective policy SHA-256 {policy_sha256} does not match expected {expected_policy_sha256}")
+    policy_sha256 = _checked_policy_sha256(recipe, expected_policy_sha256)
     input_bytes = _source_bytes(baseline_path) + _source_bytes(candidate_path)
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")

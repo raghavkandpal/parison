@@ -41,7 +41,7 @@ A baseline or candidate may also be a directory of same-format CSV, JSON Lines o
 
 String columns may opt into ordered `trim`, `casefold` and `unicode_nfc` normalization. Normalization is applied before key identity and field comparison; exact comparison remains the default. See the [normalization contract](docs/0.3/31-normalization-contract.md).
 
-Use `validate-inputs` to check physical schemas, mappings, exclusions and partition layouts before reading and comparing all records. Its JSON output contains schema metadata but no record values. See the [input-preflight contract](docs/0.3/32-input-preflight-contract.md).
+Use `validate-inputs` to check physical schemas, mappings, exclusions and partition layouts before reading and comparing all records. Its JSON output contains the effective-policy fingerprint and schema metadata but no record values. It accepts the same `--expected-policy-sha256 HASH` gate as `compare`. See the [input-preflight contract](docs/0.3/32-input-preflight-contract.md).
 
 Use `parison explain` to review the fully expanded policy and obtain its `policy_sha256`. CI can pass that value to `compare --expected-policy-sha256 HASH`; Parison rejects a malformed or changed policy before opening either input. The fingerprint checks equality only—it is not a signature or proof of approval. Installed Draft 2020-12 schemas are available through `parison schema recipe|result|manifest`.
 

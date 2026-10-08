@@ -7,7 +7,7 @@ from io import StringIO
 from pathlib import Path
 
 from parison.cli import main
-from parison.core import ParisonError, validate_inputs
+from parison.core import ParisonError, explain_recipe, validate_inputs
 
 try:
     import polars as pl
@@ -52,6 +52,7 @@ class InputValidation(unittest.TestCase):
         self.assertEqual(result["inputs"]["baseline"]["format"], "csv")
         self.assertEqual(result["inputs"]["candidate"]["format"], "jsonl")
         self.assertEqual(result["canonical_columns"], 2)
+        self.assertEqual(result["policy_sha256"], explain_recipe(self.recipe)["policy_sha256"])
         self.assertEqual(result["inputs"]["baseline"]["schema"], {
             "missing": [],
             "unexpected": [],
@@ -60,6 +61,14 @@ class InputValidation(unittest.TestCase):
         })
         self.assertNotIn("secret", json.dumps(result))
         self.assertNotIn("private", json.dumps(result))
+
+    def test_preflight_policy_lock_runs_before_inputs(self):
+        expected = explain_recipe(self.recipe)["policy_sha256"]
+        with self.assertRaisesRegex(ParisonError, "does not match expected"):
+            validate_inputs(self.recipe, "missing-left.csv", "missing-right.csv", expected_policy_sha256="0" * 64)
+        with self.assertRaisesRegex(ParisonError, "64 lowercase hexadecimal"):
+            validate_inputs(self.recipe, "missing-left.csv", "missing-right.csv", expected_policy_sha256="INVALID")
+        self.assertRegex(expected, "^[0-9a-f]{64}$")
 
     def test_preflight_rejects_schema_mismatch_and_byte_overrun(self):
         baseline = self.root / "baseline.csv"

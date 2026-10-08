@@ -4,6 +4,8 @@ Date: 7 October 2026
 
 `validate-inputs` returns one JSON object for both matching and mismatched physical schemas. A valid schema exits zero; a schema mismatch exits two and still writes the complete diagnostic object to standard output.
 
+The top-level `policy_sha256` identifies the fully expanded policy used for the check. Pass `--expected-policy-sha256 HASH` to reject a malformed or changed policy before either input is opened.
+
 Each input contains a `schema` object:
 
 ```json

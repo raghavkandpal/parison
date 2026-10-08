@@ -67,6 +67,12 @@ Make Parison's existing policy and validation modules easier to automate and rev
 - [x] Ship and smoke-test it through the existing installed-schema interface.
 - [x] Validate a committed bundle manifest against it in CI.
 
+### 11. Policy-bound preflight
+
+- [x] Identify the effective policy in every structured preflight result.
+- [x] Apply the comparison policy lock before preflight opens either input.
+- [x] Share fingerprint validation between preflight and comparison.
+
 ## Deferred
 
 Compressed inputs remain a later adapter slice because decompressed-byte accounting needs a separate resource contract. Remote connectors, fuzzy identity, arbitrary transformations and publication of grouped source values remain out of scope.
