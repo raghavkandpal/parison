@@ -31,13 +31,15 @@ parison verify runs/orders-example --json
 
 `draft-recipe` inspects both inputs and writes a valid starting recipe with suggested keys, data types, scope metadata and exclusion rationales. Review every suggestion, then use `validate-recipe` as the structural gate. See the [recipe draft contract and workflow](docs/0.2/22-recipe-draft-contract.md).
 
+The [`examples/0.5`](examples/0.5) workflow combines gzip TSV, a custom candidate delimiter, side-specific null tokens, column mappings and normalization in one summary-only comparison.
+
 Recipes can map renamed source columns to one canonical field. Keys, policies, counts and discrepancy evidence continue to use the canonical name. See the [column-mapping contract](docs/0.3/28-column-mapping-contract.md).
 
 A generated PASS bundle is checked in under [`examples/output`](examples/output), containing [`result.json`](examples/output/result.json), [`effective-recipe.json`](examples/output/effective-recipe.json), [`report.html`](examples/output/report.html), and [`manifest.json`](examples/output/manifest.json). It is summary-only and contains no source keys or raw values.
 
 To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/0.4.0/parison-0.4.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md) and read-only [SQLite table](docs/0.2/24-sqlite-contract.md) inputs are also supported, including mixed-format comparisons. Recipes are strict JSON in this first slice; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars versions without recording hostnames.
 
-A baseline or candidate may also be a directory of same-format CSV, JSON Lines or Parquet files. Parison treats its immediate files as one logical input and enforces limits, schemas and identity across partitions. See the [partitioned-input contract](docs/0.3/30-partitioned-input-contract.md).
+A baseline or candidate may also be a directory of same-format CSV, TSV, JSON Lines or Parquet files. Parison treats its immediate files as one logical input and enforces limits, schemas and identity across partitions. See the [partitioned-input contract](docs/0.3/30-partitioned-input-contract.md).
 
 Local CSV, TSV and JSON Lines inputs may be gzip-compressed with `.csv.gz`, `.tsv.gz`, `.jsonl.gz` or `.ndjson.gz` extensions, including inside partition directories. The physical-byte guard still applies, and `--max-decoded-bytes` independently limits their combined decoded size. See the [compressed-input contract](docs/0.5/48-compressed-input-contract.md).
 

@@ -1,0 +1,30 @@
+{
+  "recipe_version": 1,
+  "comparison_mode": "keyed",
+  "keys": ["order_id"],
+  "scope": {
+    "snapshot": "0.5-real-world-export-example",
+    "cutoff": "2026-10-08T00:00:00Z",
+    "filters": [],
+    "completeness": "full",
+    "expected_empty": false
+  },
+  "identity": {"null_keys": "reject", "duplicates": "reject"},
+  "nulls_equal": true,
+  "null_tokens": {"baseline": ["NULL"], "candidate": ["\\N"]},
+  "delimiters": {"baseline": "\t", "candidate": "|"},
+  "columns": {
+    "order_id": {"type": "string", "comparison": "exact", "normalize": ["trim", "casefold"]},
+    "status": {"type": "string", "comparison": "exact", "normalize": ["trim", "casefold"]},
+    "total": {"type": "decimal", "scale": 2, "comparison": "exact"},
+    "note": {"type": "string", "comparison": "exact", "normalize": ["trim", "casefold"]}
+  },
+  "column_mappings": {
+    "order_id": {"baseline": "legacy_order_id", "candidate": "order_id"},
+    "status": {"baseline": "legacy_status", "candidate": "status"},
+    "total": {"baseline": "legacy_total", "candidate": "total"},
+    "note": {"baseline": "legacy_note", "candidate": "note"}
+  },
+  "excluded_columns": {},
+  "output": {"sensitivity": "summary"}
+}

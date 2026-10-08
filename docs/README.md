@@ -10,6 +10,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [0.5.0 release checklist](0.5/50-release-checklist.md)
 - [Delimited-text contract](0.5/51-delimited-text-contract.md)
 - [Null-token contract](0.5/52-null-token-contract.md)
+- [0.5 user guide](0.5/53-user-guide.md)
 
 ## 0.4 — released record
 

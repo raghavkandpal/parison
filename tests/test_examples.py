@@ -29,6 +29,20 @@ class CheckedInExamples(unittest.TestCase):
         self.assertEqual(result["inputs"]["baseline"]["partitions"], 2)
         self.assertRegex(result["policy_sha256"], r"^[0-9a-f]{64}$")
 
+    def test_0_5_example_combines_real_world_export_policies(self):
+        root = Path(__file__).parents[1]
+        result = compare(
+            root / "examples/0.5/migration.recipe.json",
+            root / "examples/0.5/baseline.tsv.gz",
+            root / "examples/0.5/candidate.csv",
+        )
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["counts"]["matched_exact"], 2)
+        self.assertEqual(result["inputs"]["baseline"]["compression"], "gzip")
+        self.assertEqual(result["inputs"]["baseline"]["delimiter"], "\t")
+        self.assertEqual(result["inputs"]["candidate"]["delimiter"], "|")
+        self.assertEqual(result["policy"]["null_tokens"]["candidate"], ["\\N"])
+
     def test_committed_output_bundle_is_complete_and_verified(self):
         root = Path(__file__).parents[1]
         output = root / "examples/output"

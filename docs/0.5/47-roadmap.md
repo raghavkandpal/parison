@@ -40,10 +40,10 @@ Make Parison practical for real-world local exports: compressed files, explicit 
 
 ### 6. Drafting and migration workflow
 
-- [ ] Draft safe delimiter and null-token suggestions that remain visibly unapproved until reviewed.
+- [x] Draft safe delimiter and null-token suggestions that remain visibly unapproved until reviewed.
 - [x] Extend preflight diagnostics and schemas with effective parsing metadata.
-- [ ] Add one checked-in migration example combining compression, delimiters, null tokens, mappings and normalization.
-- [ ] Cover plain/compressed CSV, TSV and JSON Lines across files and partitions without adding new dependencies.
+- [x] Add one checked-in migration example combining compression, delimiters, null tokens, mappings and normalization.
+- [x] Cover plain/compressed CSV, TSV and JSON Lines across files and partitions without adding new dependencies.
 
 ## Deferred
 
