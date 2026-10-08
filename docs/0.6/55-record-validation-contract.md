@@ -19,6 +19,8 @@ The scan uses the same readers, delimiters, null tokens, column mappings, types,
 
 Each input gains a `records` object containing `status`, `rows`, `null_key_rows` and `duplicate_keys`. Duplicate counts describe distinct duplicated identities, matching comparison's identity rule. The output never includes a key or field value.
 
+Standard output remains the complete machine-readable preflight object. When `--records` is active, standard error also prints concise row, null-key and duplicate-key counts for each side.
+
 The installed preflight JSON Schema accepts these diagnostics while keeping them optional for schema-only callers.
 
 ## Limits and stability

@@ -147,6 +147,8 @@ class InputValidation(unittest.TestCase):
         result = json.loads(stdout.getvalue())
         self.assertEqual(code, 0)
         self.assertEqual(result["inputs"]["baseline"]["records"]["rows"], 1)
+        self.assertIn("Baseline records: 1 rows, 0 null-key rows, 0 duplicate keys.", stderr.getvalue())
+        self.assertIn("Candidate records: 1 rows, 0 null-key rows, 0 duplicate keys.", stderr.getvalue())
 
         candidate.write_text("id,value,note\n1,invalid,x\n", encoding="utf-8")
         with self.assertRaisesRegex(ParisonError, "cannot parse column value as integer"):

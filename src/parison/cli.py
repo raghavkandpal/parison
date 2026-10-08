@@ -130,6 +130,15 @@ def main(argv: list[str] | None = None) -> int:
                 args.max_rows,
             )
             print(json.dumps(result, sort_keys=True))
+            if args.records:
+                for side in ("baseline", "candidate"):
+                    records = result["inputs"][side].get("records")
+                    if records:
+                        print(
+                            f"{side.title()} records: {records['rows']} rows, "
+                            f"{records['null_key_rows']} null-key rows, {records['duplicate_keys']} duplicate keys.",
+                            file=sys.stderr,
+                        )
             if result["status"] == "valid":
                 print(
                     f"Validated input schemas: {result['inputs']['baseline']['columns']} baseline and "
