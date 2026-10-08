@@ -7,6 +7,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [0.5 roadmap](0.5/47-roadmap.md)
 - [Compressed-input contract](0.5/48-compressed-input-contract.md)
 - [0.5 engineering verification](0.5/49-engineering-verification.md)
+- [0.5.0 release checklist](0.5/50-release-checklist.md)
 
 ## 0.4 — released record
 
