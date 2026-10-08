@@ -25,6 +25,12 @@ Make Parison's existing policy and validation modules easier to automate and rev
 - [x] Publish recipe and result JSON Schemas from the existing contracts.
 - [x] Validate committed examples against those schemas in CI.
 
+### 4. Schema distribution
+
+- [x] Ship both schemas inside wheel and source distributions.
+- [x] Expose installed schemas through the dependency-free CLI.
+- [x] Smoke-test schema discovery from built wheels in CI.
+
 ## Deferred
 
 Compressed inputs remain a later adapter slice because decompressed-byte accounting needs a separate resource contract. Remote connectors, fuzzy identity, arbitrary transformations and publication of grouped source values remain out of scope.

@@ -9,6 +9,7 @@ All notable changes will be documented in this file.
 - Machine-readable missing, unexpected, mapped and excluded-column diagnostics from `validate-inputs`.
 - A data-free `explain` command that renders every effective recipe policy and source-column mapping.
 - Versioned Draft 2020-12 JSON Schemas for recipe and result artifacts.
+- Installed-schema discovery through `parison schema recipe|result`.
 
 ## 0.3.0 - 2026-10-07
 

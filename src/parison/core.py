@@ -14,7 +14,7 @@ import unicodedata
 from collections import Counter
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
-from importlib import metadata
+from importlib import metadata, resources
 from pathlib import Path
 from typing import Any
 
@@ -26,10 +26,17 @@ _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp
 _NORMALIZATIONS = {"trim", "casefold", "unicode_nfc"}
 _RAW_VALUE = object()
 _FILE_FORMATS = {".csv": "csv", ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".pq": "parquet"}
+_SCHEMAS = {"recipe": "recipe-v1.schema.json", "result": "result-v1.schema.json"}
 
 
 class ParisonError(ValueError):
     pass
+
+
+def load_schema(name: str) -> dict[str, Any]:
+    if name not in _SCHEMAS:
+        raise ParisonError(f"unknown schema {name!r}; choose recipe or result")
+    return json.loads(resources.files("parison").joinpath("schemas", _SCHEMAS[name]).read_text(encoding="utf-8"))
 
 
 def _runtime_info(paths: tuple[Any, Any] | None = None) -> dict[str, Any]:
