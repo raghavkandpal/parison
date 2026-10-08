@@ -2,7 +2,7 @@
 
 Date: 8 October 2026
 
-Status: **verified release candidate**. Product work, CI, merge and final archive verification are complete. Tagging and publication remain the only unfinished release action.
+Status: **released**. All product, verification, packaging and publication steps are complete.
 
 - [x] Complete the bounded gzip slice without adding archive containers or new dependencies.
 - [x] Preserve keyed-v1 outcomes, summary privacy, policy locks and input-change detection.
@@ -17,4 +17,4 @@ Status: **verified release candidate**. Product work, CI, merge and final archiv
 - [x] Pass CI on the release commit and merge it to `main` through PR #9.
 - [x] Build, inspect and checksum release archives from merged commit `8573954`.
 - [x] Install the release wheel with Polars and repeat all-schema plus combined 0.5 CLI smoke tests.
-- [ ] Tag the merged commit `0.5.0` and publish a GitHub prerelease with wheel, source archive and checksums.
+- [x] Tag merged commit `8573954` as `0.5.0` and publish the [GitHub prerelease](https://github.com/raghavkandpal/parison/releases/tag/0.5.0) with wheel, source archive and checksums.
