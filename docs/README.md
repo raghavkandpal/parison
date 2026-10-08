@@ -2,7 +2,7 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-## 0.6 — release candidate
+## 0.6 — released
 
 - [0.6 roadmap](0.6/54-roadmap.md)
 - [Record-validation contract](0.6/55-record-validation-contract.md)
