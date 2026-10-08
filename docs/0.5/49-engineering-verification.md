@@ -18,3 +18,10 @@ Date: 8 October 2026
 This evidence covers the complete planned 0.5 product boundary. ZIP archives, other compression codecs, recursive discovery, arbitrary encodings, content sniffing and remote objects remain explicitly unsupported.
 
 The release commit must set version `0.5.0`, move changelog entries out of Unreleased and pass the complete matrix again. Final archives must be built from the merged release commit, so the development hashes above are evidence rather than release checksums.
+
+## Merged release candidate
+
+- Release commit `66f9b34` passed the complete matrix in [run 37778372061](https://github.com/raghavkandpal/parison/actions/runs/37778372061) and all [PR #9](https://github.com/raghavkandpal/parison/pull/9) checks before merging to `main` as `8573954d1c060680f2d5ece4fe4834337f93b326`.
+- A clean archive of the merge commit produced `parison-0.5.0-py3-none-any.whl` with SHA-256 `42c2ad5a7dc7d32cff575af312a6341375c8f405d100fdee3d63805a1697e7df` and `parison-0.5.0.tar.gz` with SHA-256 `374b7e7c8eab12b4ba344b732a2ef0dad291c1b4f03a81a954779093da4c7bbe`.
+- Archive inspection confirmed the same intended package, schemas, metadata, license, README and tests as the development build.
+- Installing the final wheel with Polars 1.44.2 into an empty environment reported version `0.5.0`, exposed all four schemas, returned valid combined-example preflight, produced a two-row PASS and verified the summary-only bundle.
