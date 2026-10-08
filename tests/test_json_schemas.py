@@ -51,6 +51,7 @@ class JsonSchemas(unittest.TestCase):
             ROOT / "examples/orders.recipe.json",
             ROOT / "examples/baseline.csv",
             ROOT / "examples/candidate.csv",
+            validate_records=True,
         )
         Draft202012Validator(self.preflight_schema).validate(result)
 

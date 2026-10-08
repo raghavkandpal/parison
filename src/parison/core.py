@@ -658,6 +658,32 @@ def _input_columns(path: str | Path, decoded_sizes: dict[Path, int] | None = Non
     return columns
 
 
+def _record_diagnostics(
+    source: str | Path,
+    recipe: dict[str, Any],
+    max_rows: int,
+    side: str,
+    decoded_sizes: dict[Path, int],
+) -> dict[str, Any]:
+    seen: set[tuple[Any, ...]] = set()
+    duplicates: set[tuple[Any, ...]] = set()
+    null_key_rows = rows = 0
+    for raw in _iter_input_rows(source, recipe, max_rows, side, decoded_sizes):
+        rows += 1
+        row = _parse_row(raw, recipe, side)
+        key = tuple(row[name] for name in recipe["keys"])
+        null_key_rows += any(value is None for value in key)
+        if key in seen:
+            duplicates.add(key)
+        seen.add(key)
+    return {
+        "status": "invalid" if null_key_rows or duplicates else "valid",
+        "rows": rows,
+        "null_key_rows": null_key_rows,
+        "duplicate_keys": len(duplicates),
+    }
+
+
 def validate_inputs(
     recipe_path: str | Path,
     baseline: str | Path,
@@ -665,16 +691,21 @@ def validate_inputs(
     max_input_bytes: int = 1_000_000_000,
     expected_policy_sha256: str | None = None,
     max_decoded_bytes: int = 1_000_000_000,
+    validate_records: bool = False,
+    max_rows: int = 5_000_000,
 ) -> dict[str, Any]:
     """Validate input schemas against a recipe without comparing records."""
     if max_input_bytes <= 0:
         raise ParisonError("max_input_bytes must be positive")
+    if max_rows <= 0:
+        raise ParisonError("max_rows must be positive")
     recipe = load_recipe(recipe_path)
     policy_sha256 = _checked_policy_sha256(recipe, expected_policy_sha256)
     sizes = {side: _source_bytes(source) for side, source in (("baseline", baseline), ("candidate", candidate))}
     if sum(sizes.values()) > max_input_bytes:
         raise ParisonError(f"combined input size {sum(sizes.values())} exceeds limit {max_input_bytes} bytes")
     decoded_sizes = _decoded_sizes((baseline, candidate), max_decoded_bytes)
+    before = {str(source): _source_digest(source) for source in (baseline, candidate)} if validate_records else {}
     inputs = {}
     status = "valid"
     for side, source in (("baseline", baseline), ("candidate", candidate)):
@@ -699,6 +730,12 @@ def validate_inputs(
             inputs[side]["null_tokens"] = recipe["null_tokens"][side]
         if any(path in decoded_sizes for path in paths):
             inputs[side].update(compression="gzip", decoded_bytes=sum(decoded_sizes.get(path, 0) for path in paths))
+        if validate_records and not schema["missing"] and not schema["unexpected"]:
+            inputs[side]["records"] = _record_diagnostics(source, recipe, max_rows, side, decoded_sizes)
+            if inputs[side]["records"]["status"] == "invalid":
+                status = "invalid"
+    if validate_records and any(_source_digest(source) != digest for source, digest in before.items()):
+        raise ParisonError("an input changed while it was being validated")
     return {
         "schema_version": 1,
         "status": status,

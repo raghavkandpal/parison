@@ -35,6 +35,17 @@
         "table": {"type": "string", "minLength": 1},
         "delimiter": {"type": "string", "minLength": 1, "maxLength": 1},
         "null_tokens": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "records": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "rows", "null_key_rows", "duplicate_keys"],
+          "properties": {
+            "status": {"enum": ["valid", "invalid"]},
+            "rows": {"type": "integer", "minimum": 0},
+            "null_key_rows": {"type": "integer", "minimum": 0},
+            "duplicate_keys": {"type": "integer", "minimum": 0}
+          }
+        },
         "compression": {"const": "gzip"},
         "decoded_bytes": {"type": "integer", "minimum": 0},
         "schema": {

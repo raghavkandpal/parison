@@ -10,20 +10,20 @@ Find invalid records before comparison while preserving Parison's local, bounded
 
 ### 1. Opt-in record validation
 
-- [ ] Add an opt-in full record scan to `validate-inputs`; keep schema-only validation as the default.
-- [ ] Apply configured parsing, types, mappings, normalization and key policy exactly as comparison does.
-- [ ] Report row counts, null-key rows and duplicate-key counts without publishing keys or values.
+- [x] Add an opt-in full record scan to `validate-inputs`; keep schema-only validation as the default.
+- [x] Apply configured parsing, types, mappings, normalization and key policy exactly as comparison does.
+- [x] Report row counts, null-key rows and duplicate-key counts without publishing keys or values.
 
 ### 2. Trust boundaries and evidence
 
-- [ ] Enforce physical-byte, decoded-byte, row and policy-fingerprint limits before or during the scan.
-- [ ] Reject inputs changed during record validation.
-- [ ] Extend the installed preflight schema and tests with optional record diagnostics.
+- [x] Enforce physical-byte, decoded-byte, row and policy-fingerprint limits before or during the scan.
+- [x] Reject inputs changed during record validation.
+- [x] Extend the installed preflight schema and tests with optional record diagnostics.
 
 ### 3. Workflow completion
 
-- [ ] Document the fast schema-only and full record-validation paths.
-- [ ] Add CI smoke coverage using the checked-in 0.5 migration example.
+- [x] Document the fast schema-only and full record-validation paths.
+- [x] Add CI smoke coverage using the checked-in 0.5 migration example.
 - [ ] Reassess the next 0.6 slice after real record validation is complete; do not add new comparison modes speculatively.
 
 ## Deferred

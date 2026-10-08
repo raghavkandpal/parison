@@ -5,6 +5,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 ## 0.6 — current development
 
 - [0.6 roadmap](0.6/54-roadmap.md)
+- [Record-validation contract](0.6/55-record-validation-contract.md)
 
 ## 0.5 — released
 
