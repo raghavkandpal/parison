@@ -12,6 +12,7 @@ Status: **in development**. Product behavior is implemented; cross-platform and 
 - [x] Check in a cross-format example and user guide.
 - [x] Add adversarial empty, null, missing-group, tolerance, reordering and group-limit fixtures.
 - [x] Add reproducible global, low-cardinality and high-cardinality benchmark oracles.
+- [x] Rehearse a clean development archive build and isolated keyed/aggregate wheel smoke workflows.
 - [ ] Pass Python 3.11–3.14 CI with all installed schemas and optional Parquet.
 - [ ] Pass macOS and Windows smoke jobs.
 - [ ] Build and inspect clean wheel and source archives.

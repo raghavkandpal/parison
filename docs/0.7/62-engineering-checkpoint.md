@@ -19,11 +19,22 @@ Aggregate-v1 now has one complete local workflow: explicit drafting, strict reci
 
 ## Local verification
 
-The local suite passed 142 tests with six optional-dependency skips before the benchmark slice. The generated aggregate oracle then passed for global, 10-group and 1,000-group profiles.
+The current local suite passed 143 tests with six optional-dependency skips. The generated aggregate oracle also passed for global, 10-group and 1,000-group profiles.
 
 The checked-in [aggregate measurement](../../benchmarks/results-2026-10-09-aggregate.json) records three fresh-process runs per 1,000-row profile on arm64 macOS with Python 3.12.5. Median elapsed times were 0.056 seconds global, 0.055 seconds low-cardinality and 0.075 seconds high-cardinality. Median Python allocation rose from roughly 1.1 MB global to 3.0 MB at 1,000 groups. These are engineering measurements, not supported scale claims.
 
 CI now installs and prints every v1/v2 schema, runs aggregate preflight/compare/verify smoke commands, measures all three aggregate profiles, and retains the existing Python 3.11–3.14 plus macOS/Windows matrix. Remote CI results are not yet recorded here.
+
+## Local archive rehearsal
+
+A clean PEP 517 build produced `parison-0.7.0.dev0` wheel and source archives. Inspection confirmed that both contain recipe v2, preflight v2 and result v2 schemas. The wheel was installed without dependencies into a fresh Python 3.12 virtual environment; version discovery, aggregate record preflight, aggregate compare/verify and keyed compare/verify all passed.
+
+Rehearsal checksums:
+
+- wheel: `bb299a8833829b1c702c31e9a8e0217c9fc83f6a3871f1339a75967ddd64aab0`
+- source archive: `3d2a6cbeb084ce2e7cf5fba278f1fdd8abd840eaa3cfa1a9d3635bd846783d5a`
+
+These identify temporary development archives, not release assets. Final archives must be rebuilt after setting version `0.7.0` on the verified release commit.
 
 ## Remaining release gates
 
