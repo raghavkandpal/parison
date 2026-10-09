@@ -1065,6 +1065,7 @@ def draft_recipe(
     candidate: str | Path,
     max_input_bytes: int = 1_000_000_000,
     max_decoded_bytes: int = 1_000_000_000,
+    aggregate: bool = False,
 ) -> dict[str, Any]:
     if max_input_bytes <= 0:
         raise ParisonError("max_input_bytes must be positive")
@@ -1107,10 +1108,8 @@ def draft_recipe(
     cutoff = datetime.fromtimestamp(
         max(path.stat().st_mtime for source in (baseline, candidate) for path in _source_paths(source)), timezone.utc
     ).isoformat().replace("+00:00", "Z")
-    return {
-        "recipe_version": 1,
-        "comparison_mode": "keyed",
-        "keys": _suggest_keys(shared, baseline_rows, candidate_rows),
+    columns = {name: _suggest_type([row[name] for row in baseline_rows + candidate_rows]) for name in shared}
+    common = {
         "scope": {
             "snapshot": f"{_source_path(baseline).stem} vs {_source_path(candidate).stem}",
             "cutoff": cutoff,
@@ -1118,17 +1117,37 @@ def draft_recipe(
             "completeness": "full",
             "expected_empty": not baseline_rows and not candidate_rows,
         },
-        "identity": {"null_keys": "reject", "duplicates": "reject"},
-        "nulls_equal": True,
         "delimiters": delimiters,
         "null_tokens": {"baseline": [], "candidate": []},
-        "columns": {name: _suggest_type([row[name] for row in baseline_rows + candidate_rows]) for name in shared},
+        "columns": columns,
         "column_mappings": {},
         "excluded_columns": {
             name: "present only in baseline" if name in baseline_columns else "present only in candidate"
             for name in excluded
         },
         "output": {"sensitivity": "summary"},
+    }
+    if aggregate:
+        rows = baseline_rows + candidate_rows
+        group_by = []
+        for name in shared:
+            values = [row[name] for row in rows]
+            if values and all(value not in (None, "") for value in values) and 1 < len(set(values)) < len(values):
+                group_by = [name]
+                break
+        measures = {"rows": {"operator": "count"}}
+        for name, policy in columns.items():
+            identifier = any(token in name.lower().replace("_", " ").split() for token in ("id", "key", "code"))
+            if policy["type"] in {"integer", "decimal"} and name not in group_by and not identifier:
+                measures[f"sum_{name}"] = {"operator": "sum", "column": name, "nulls": "reject"}
+        return {"recipe_version": 2, "comparison_mode": "aggregate", "group_by": group_by, "measures": measures, **common}
+    return {
+        "recipe_version": 1,
+        "comparison_mode": "keyed",
+        "keys": _suggest_keys(shared, baseline_rows, candidate_rows),
+        "identity": {"null_keys": "reject", "duplicates": "reject"},
+        "nulls_equal": True,
+        **common,
     }
 
 

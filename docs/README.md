@@ -7,6 +7,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [0.7 roadmap](0.7/58-roadmap.md)
 - [Aggregate-v1 contract research](0.7/59-aggregate-research.md)
 - [Aggregate-v1 comparison contract](0.7/60-aggregate-contract.md)
+- [Aggregate comparison user guide](0.7/61-user-guide.md)
 
 ## 0.6 — released
 

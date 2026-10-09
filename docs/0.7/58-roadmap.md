@@ -2,7 +2,7 @@
 
 Date: 8 October 2026
 
-Status: **in development**. Aggregate-v1 semantics, recipe v2 policy validation, deterministic execution and aggregate preflight are implemented; drafting remains in progress.
+Status: **in development**. The first complete aggregate-v1 workflow is implemented; adversarial verification and release hardening remain.
 
 ## Goal
 
@@ -83,10 +83,10 @@ Acceptance: a user can distinguish coverage failure, missing groups, exact measu
 
 ### 6. Drafting and migration workflow
 
-- [ ] Keep `draft-recipe` keyed by default; add an explicit aggregate drafting flag rather than guessing that identity is unnecessary.
-- [ ] Suggest only structural group/measure candidates and require human confirmation of every operator and null policy.
-- [ ] Add a checked-in end-to-end example that reconciles global counts plus grouped decimal sums across different file formats.
-- [ ] Document when aggregate comparison is appropriate and when keyed comparison or upstream tests are stronger evidence.
+- [x] Keep `draft-recipe` keyed by default; add an explicit aggregate drafting flag rather than guessing that identity is unnecessary.
+- [x] Suggest only structural group/measure candidates and require human confirmation of every operator and null policy.
+- [x] Add a checked-in end-to-end example that reconciles grouped counts plus decimal sums across different file formats.
+- [x] Document when aggregate comparison is appropriate and when keyed comparison or upstream tests are stronger evidence.
 
 Acceptance: an unfamiliar user can draft, review, lock, preflight, compare and verify the example without editing generated result artifacts.
 

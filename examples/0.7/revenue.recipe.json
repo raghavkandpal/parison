@@ -1,0 +1,27 @@
+{
+  "recipe_version": 2,
+  "comparison_mode": "aggregate",
+  "group_by": ["region"],
+  "measures": {
+    "rows": {"operator": "count"},
+    "revenue": {
+      "operator": "sum",
+      "column": "amount",
+      "nulls": "reject",
+      "comparison": "numeric",
+      "tolerance": {"formula": "symmetric-v1", "absolute": "0.01", "relative": "0"}
+    }
+  },
+  "scope": {
+    "snapshot": "synthetic-regional-revenue-v1",
+    "cutoff": "2026-10-09T00:00:00Z",
+    "filters": [],
+    "completeness": "full",
+    "expected_empty": false
+  },
+  "columns": {
+    "region": {"type": "string", "normalize": ["trim", "casefold"]},
+    "amount": {"type": "decimal", "scale": 2}
+  },
+  "output": {"sensitivity": "summary"}
+}
