@@ -2,7 +2,7 @@
 
 Date: 9 October 2026
 
-Status: **release candidate**. Product behavior and the development matrix are verified; final-version CI, merge and publication remain.
+Status: **released**. Product, verification, packaging and publication steps are complete.
 
 - [x] Freeze aggregate-v1 semantics and privacy boundaries.
 - [x] Add strict recipe v2, preflight v2 and result v2 schemas.
@@ -15,7 +15,7 @@ Status: **release candidate**. Product behavior and the development matrix are v
 - [x] Rehearse a clean development archive build and isolated keyed/aggregate wheel smoke workflows.
 - [x] Pass Python 3.11–3.14 CI with all installed schemas and optional Parquet.
 - [x] Pass macOS and Windows smoke jobs.
-- [ ] Build and inspect clean wheel and source archives.
-- [ ] Install the wheel in an empty environment and repeat keyed and aggregate smoke workflows.
+- [x] Build and inspect clean wheel and source archives.
+- [x] Install the wheel in an empty environment and repeat keyed and aggregate smoke workflows.
 - [x] Move changelog entries to 0.7.0 and set the final package version.
-- [ ] Merge the release commit, tag `0.7.0`, publish checksums and verify downloaded assets.
+- [x] Merge the release commit, tag `0.7.0`, publish checksums and verify downloaded assets.
