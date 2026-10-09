@@ -92,6 +92,8 @@ class MultisetRecipeTests(unittest.TestCase):
         lines = exported.read_text(encoding="utf-8").splitlines()
         self.assertEqual(len(lines), 2)
         self.assertEqual(json.loads(lines[0])["_parison_export"]["schema_version"], 3)
+        with self.assertRaisesRegex(ParisonError, "already exists"):
+            export_evidence(output, exported, limit=1)
         summary_recipe = json.loads(json.dumps(RECIPE))
         summary_recipe_path = Path(self.tmp.name) / "summary-recipe.json"
         summary_recipe_path.write_text(json.dumps(summary_recipe), encoding="utf-8")
@@ -100,6 +102,12 @@ class MultisetRecipeTests(unittest.TestCase):
         publish(summary_output, summary_result, load_recipe(summary_recipe_path))
         with self.assertRaisesRegex(ParisonError, "raw-sensitivity"):
             export_evidence(summary_output, Path(self.tmp.name) / "summary-evidence.jsonl")
+        tampered = Path(self.tmp.name) / "tampered"
+        publish(tampered, result, load_recipe(self.path))
+        manifest = tampered / "manifest.json"
+        manifest.write_text(manifest.read_text(encoding="utf-8").replace('"outcome": "FAIL"', '"outcome": "PASS"'), encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "manifest outcome does not match result"):
+            inspect_bundle(tampered)
         self.assertIn("Parison multiset report", (output / "report.html").read_text(encoding="utf-8"))
         Draft202012Validator(load_schema("result-v3")).validate(error_result("safe failure", load_recipe(self.path)))
         with self.assertRaisesRegex(ParisonError, "distinct row count"):

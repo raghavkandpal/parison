@@ -11,7 +11,7 @@ Status: **in progress**
 - [x] Summary bundles rejected for evidence export.
 - [x] Cross-platform CI inspection smoke coverage.
 - [x] Add a dedicated v0.9 raw evidence fixture with a nonzero discrepancy sample.
-- [ ] Add tampered-bundle and overwrite/refusal integration tests.
+- [x] Add tampered-bundle and overwrite/refusal integration tests.
 
 ## Release gates
 
