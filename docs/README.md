@@ -2,7 +2,7 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-## 0.8 — current development
+## 0.8 — released
 
 - [Multiset comparison research](0.8/64-multiset-research.md)
 - [0.8 roadmap](0.8/65-roadmap.md)
@@ -11,6 +11,10 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Multiset comparison user guide](0.8/68-user-guide.md)
 - [0.8 release checklist](0.8/69-release-checklist.md)
 - [0.8 engineering checkpoint](0.8/70-engineering-checkpoint.md)
+
+## 0.9 — current development
+
+- [0.9 roadmap](0.9/71-roadmap.md)
 
 ## 0.7 — released
 

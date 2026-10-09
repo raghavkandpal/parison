@@ -1,6 +1,6 @@
 # Parison 0.8 release checklist
 
-Status: **release candidate**
+Status: **released**
 
 ## Contract and implementation
 
@@ -28,6 +28,6 @@ Status: **release candidate**
 - [x] Local suite passes with optional dependency skips recorded.
 - [x] Rebuild clean wheel and source archive from the release candidate.
 - [x] Install the wheel in a fresh Python 3.12 environment and run the 0.8 example through verify.
-- [ ] Confirm Python and platform matrix, checksums and release assets after tagging.
+- [x] Confirm Python and platform matrix, checksums and release assets after tagging.
 
 Do not tag 0.8 until every unchecked item above has evidence attached to the engineering checkpoint.
