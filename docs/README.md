@@ -8,6 +8,8 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Aggregate-v1 contract research](0.7/59-aggregate-research.md)
 - [Aggregate-v1 comparison contract](0.7/60-aggregate-contract.md)
 - [Aggregate comparison user guide](0.7/61-user-guide.md)
+- [0.7 engineering checkpoint](0.7/62-engineering-checkpoint.md)
+- [0.7.0 release checklist](0.7/63-release-checklist.md)
 
 ## 0.6 — released
 

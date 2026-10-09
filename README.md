@@ -77,6 +77,18 @@ PYTHONPATH=src python benchmarks/run_cases.py \
 
 Each generated case includes baseline and candidate CSV files, a recipe, and exact expected counts. Generated data is ignored by Git and can be recreated at larger sizes with `--rows`.
 
+Generate and measure global, low-cardinality and high-cardinality aggregate profiles with:
+
+```sh
+PYTHONPATH=src python benchmarks/generate_aggregate_cases.py --rows 10000 100000
+PYTHONPATH=src python benchmarks/run_cases.py --repeats 3 \
+  benchmarks/generated/aggregate-global-10000 \
+  benchmarks/generated/aggregate-low-10000 \
+  benchmarks/generated/aggregate-high-10000
+```
+
+The first aggregate measurement across all three profiles is recorded in [`benchmarks/results-2026-10-09-aggregate.json`](benchmarks/results-2026-10-09-aggregate.json). It is a machine-specific engineering measurement, not a supported scale guarantee.
+
 To generate and measure equivalent Parquet inputs:
 
 ```sh
