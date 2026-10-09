@@ -5,6 +5,8 @@ Documentation is grouped by the version it describes. Released-version folders a
 ## 0.10 — current development
 
 - [Comparison-suite research](0.10/76-suite-research.md)
+- [0.10 roadmap](0.10/77-roadmap.md)
+- [Suite-v1 contract](0.10/78-suite-contract.md)
 
 ## 0.9 — released
 
