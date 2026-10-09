@@ -50,6 +50,7 @@ jobs:
       - run: parison validate-inputs --records --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl
       - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output /tmp/parison-0.8-smoke
       - run: parison verify /tmp/parison-0.8-smoke
+      - run: parison inspect /tmp/parison-0.8-smoke
       - name: Upload smoke evidence
         if: matrix.python-version == '3.14'
         uses: actions/upload-artifact@v6
@@ -87,4 +88,5 @@ jobs:
       - run: parison schema result-v3
       - run: parison schema preflight-v3
       - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output ${{ runner.temp }}/parison-multiset-smoke
+      - run: parison inspect ${{ runner.temp }}/parison-multiset-smoke
       - run: python -m unittest discover -s tests -v
