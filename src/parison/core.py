@@ -23,6 +23,7 @@ from typing import Any
 OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPTED": 130}
 _RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "output"}
 _AGGREGATE_RECIPE_KEYS = {"recipe_version", "comparison_mode", "group_by", "measures", "scope", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "output"}
+_MULTISET_RECIPE_KEYS = {"recipe_version", "comparison_mode", "scope", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "output"}
 _COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone", "scale", "normalize"}
 _MEASURE_KEYS = {"operator", "column", "nulls", "comparison", "tolerance"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
@@ -32,6 +33,7 @@ _FILE_FORMATS = {".csv": "csv", ".tsv": "tsv", ".jsonl": "jsonl", ".ndjson": "js
 _SCHEMAS = {
     "recipe": "recipe-v1.schema.json",
     "recipe-v2": "recipe-v2.schema.json",
+    "recipe-v3": "recipe-v3.schema.json",
     "result": "result-v1.schema.json",
     "result-v2": "result-v2.schema.json",
     "manifest": "manifest-v1.schema.json",
@@ -129,6 +131,8 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         raise ParisonError("recipe must be a JSON object")
     if recipe.get("recipe_version") == 2:
         return _load_aggregate_recipe(recipe)
+    if recipe.get("recipe_version") == 3:
+        return _load_multiset_recipe(recipe)
     _unknown(recipe, _RECIPE_KEYS, "recipe")
     if recipe.get("recipe_version") != 1:
         raise ParisonError("recipe_version must be 1")
@@ -303,6 +307,14 @@ def _load_aggregate_recipe(recipe: dict[str, Any]) -> dict[str, Any]:
     return recipe
 
 
+def _load_multiset_recipe(recipe: dict[str, Any]) -> dict[str, Any]:
+    _unknown(recipe, _MULTISET_RECIPE_KEYS, "recipe")
+    if recipe.get("comparison_mode") != "multiset":
+        raise ParisonError("recipe_version 3 requires comparison_mode='multiset'")
+    _validate_common_recipe(recipe, "multiset")
+    return recipe
+
+
 def _validate_tolerance(tolerance: Any, where: str) -> None:
     if not isinstance(tolerance, dict) or set(tolerance) != {"formula", "absolute", "relative"}:
         raise ParisonError(f"{where}.tolerance must define formula, absolute and relative")
@@ -316,7 +328,7 @@ def _validate_tolerance(tolerance: Any, where: str) -> None:
         raise ParisonError(f"{where} tolerances must be finite and non-negative")
 
 
-def _validate_common_recipe(recipe: dict[str, Any]) -> None:
+def _validate_common_recipe(recipe: dict[str, Any], mode: str = "aggregate") -> None:
     scope = recipe.get("scope")
     if not isinstance(scope, dict) or set(scope) != {"snapshot", "cutoff", "filters", "completeness", "expected_empty"}:
         raise ParisonError("scope must contain exactly snapshot, cutoff, filters, completeness and expected_empty")
@@ -337,7 +349,8 @@ def _validate_common_recipe(recipe: dict[str, Any]) -> None:
             raise ParisonError(f"columns.{name}.type is unsupported")
         comparison = policy.get("comparison", "exact")
         if comparison != "exact":
-            raise ParisonError(f"aggregate column {name} must use exact comparison; measures own comparison policy")
+            suffix = "; measures own comparison policy" if mode == "aggregate" else ""
+            raise ParisonError(f"{mode} column {name} must use exact comparison{suffix}")
         if policy["type"] == "decimal":
             if not isinstance(policy.get("scale"), int) or isinstance(policy.get("scale"), bool) or policy["scale"] < 0:
                 raise ParisonError(f"columns.{name}.scale must be a non-negative integer")
@@ -438,6 +451,8 @@ def _source_name(recipe: dict[str, Any], name: str, side: str) -> str:
 def _effective_policy(recipe: dict[str, Any]) -> dict[str, Any]:
     if recipe["comparison_mode"] == "aggregate":
         return _effective_aggregate_policy(recipe)
+    if recipe["comparison_mode"] == "multiset":
+        return _effective_multiset_policy(recipe)
     columns = {}
     for name, configured in recipe["columns"].items():
         policy = dict(configured)
@@ -495,6 +510,38 @@ def _effective_aggregate_policy(recipe: dict[str, Any]) -> dict[str, Any]:
         "group_by": recipe["group_by"],
         "group_nulls": "reject",
         "measures": measures,
+        "delimiters": recipe["delimiters"],
+        "null_tokens": recipe["null_tokens"],
+        "columns": columns,
+        "excluded_columns": recipe.get("excluded_columns", {}),
+        "output": recipe["output"],
+    }
+    policy["policy_sha256"] = hashlib.sha256(
+        json.dumps(policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    return policy
+
+
+def _effective_multiset_policy(recipe: dict[str, Any]) -> dict[str, Any]:
+    columns = {}
+    for name in sorted(recipe["columns"]):
+        configured = recipe["columns"][name]
+        columns[name] = {
+            "baseline_column": _source_name(recipe, name, "baseline"),
+            "candidate_column": _source_name(recipe, name, "candidate"),
+            **configured,
+            "comparison": "exact",
+            "normalize": configured.get("normalize", []),
+        }
+    policy = {
+        "schema_version": 3,
+        "recipe_version": 3,
+        "comparison_mode": "multiset",
+        "multiset_contract": "multiset-v1",
+        "canonical_encoding": "typed-length-prefixed-v1",
+        "column_order": sorted(columns),
+        "nulls_equal": True,
+        "scope": recipe["scope"],
         "delimiters": recipe["delimiters"],
         "null_tokens": recipe["null_tokens"],
         "columns": columns,
@@ -1370,6 +1417,8 @@ def compare(
             recipe_path, recipe, baseline_path, candidate_path, sample_limit, max_input_bytes,
             max_rows, max_decoded_bytes, max_groups, policy_sha256,
         )
+    if recipe["comparison_mode"] == "multiset":
+        raise ParisonError("multiset comparison execution is not implemented yet")
     input_bytes = _source_bytes(baseline_path) + _source_bytes(candidate_path)
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")

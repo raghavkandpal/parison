@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/raghavkandpal/parison/schemas/recipe-v3.schema.json",
+  "title": "Parison multiset recipe v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["recipe_version", "comparison_mode", "scope", "columns"],
+  "properties": {
+    "recipe_version": {"const": 3},
+    "comparison_mode": {"const": "multiset"},
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshot", "cutoff", "filters", "completeness", "expected_empty"],
+      "properties": {
+        "snapshot": {"type": "string", "minLength": 1},
+        "cutoff": {"type": "string", "minLength": 1},
+        "filters": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "completeness": {"const": "full"},
+        "expected_empty": {"type": "boolean"}
+      }
+    },
+    "null_tokens": {
+      "type": "object", "additionalProperties": false, "required": ["baseline", "candidate"],
+      "properties": {
+        "baseline": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "candidate": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "columns": {"type": "object", "minProperties": 1, "propertyNames": {"minLength": 1}, "additionalProperties": {"$ref": "#/$defs/column"}},
+    "column_mappings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false, "required": ["baseline", "candidate"],
+        "properties": {"baseline": {"type": "string", "minLength": 1}, "candidate": {"type": "string", "minLength": 1}}
+      }
+    },
+    "excluded_columns": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}},
+    "delimiters": {
+      "type": "object", "additionalProperties": false, "required": ["baseline", "candidate"],
+      "properties": {"baseline": {"type": "string", "minLength": 1, "maxLength": 1}, "candidate": {"type": "string", "minLength": 1, "maxLength": 1}}
+    },
+    "output": {
+      "type": "object", "additionalProperties": false, "required": ["sensitivity"],
+      "properties": {"sensitivity": {"enum": ["summary", "raw"]}}
+    }
+  },
+  "$defs": {
+    "column": {
+      "type": "object", "additionalProperties": false, "required": ["type"],
+      "properties": {
+        "type": {"enum": ["string", "integer", "decimal", "float", "boolean", "date", "timestamp"]},
+        "comparison": {"const": "exact"},
+        "timezone": {"const": "require-aware"},
+        "scale": {"type": "integer", "minimum": 0},
+        "normalize": {"type": "array", "uniqueItems": true, "items": {"enum": ["trim", "casefold", "unicode_nfc"]}}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"const": "timestamp"}}}, "then": {"required": ["timezone"]}, "else": {"not": {"required": ["timezone"]}}},
+        {"if": {"properties": {"type": {"const": "decimal"}}}, "then": {"required": ["scale"]}, "else": {"not": {"required": ["scale"]}}},
+        {"if": {"properties": {"type": {"const": "string"}}}, "else": {"not": {"required": ["normalize"]}}}
+      ]
+    }
+  }
+}

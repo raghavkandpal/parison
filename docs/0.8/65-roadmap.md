@@ -51,8 +51,8 @@ Acceptance: an independent reviewer can calculate every example and explain why 
 
 ### 2. Versioned policy and schemas
 
-- [ ] Add strict recipe-v3 validation without making keys optional in v1 or reinterpreting v2.
-- [ ] Add mode-aware policy explanation and stable fingerprinting for columns, encoding version and limits.
+- [x] Add strict recipe-v3 validation without making keys optional in v1 or reinterpreting v2.
+- [x] Add mode-aware policy explanation and stable fingerprinting for columns and encoding version; add execution limits with the engine slice.
 - [ ] Add result-v3 and preflight-v3 schemas with multiset-specific counts and evidence.
 - [ ] Make schema discovery, publication and verification dispatch across all three versions.
 

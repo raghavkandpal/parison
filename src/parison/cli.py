@@ -53,7 +53,7 @@ def parser() -> argparse.ArgumentParser:
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
     explain.add_argument("recipe")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-v2", "result", "result-v2", "manifest", "preflight", "preflight-v2"))
+    schema.add_argument("name", choices=("recipe", "recipe-v2", "recipe-v3", "result", "result-v2", "manifest", "preflight", "preflight-v2"))
     inputs = commands.add_parser("validate-inputs", help="validate input schemas and optionally records against a recipe")
     inputs.add_argument("--recipe", required=True)
     inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
