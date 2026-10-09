@@ -106,7 +106,7 @@ Start with the [documentation index](docs/README.md).
 
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
-- Current development: [0.7 roadmap](docs/0.7/58-roadmap.md)
+- Current development: [0.8 roadmap](docs/0.8/65-roadmap.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
 - Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)
 - Safety model: [0.1 security and data handling](docs/0.1/07-security-and-data-handling.md)

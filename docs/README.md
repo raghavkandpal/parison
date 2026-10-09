@@ -2,7 +2,12 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-## 0.7 — current development
+## 0.8 — current development
+
+- [Multiset comparison research](0.8/64-multiset-research.md)
+- [0.8 roadmap](0.8/65-roadmap.md)
+
+## 0.7 — released
 
 - [0.7 roadmap](0.7/58-roadmap.md)
 - [Aggregate-v1 contract research](0.7/59-aggregate-research.md)
