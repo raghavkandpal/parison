@@ -97,6 +97,17 @@ class RecipeDraft(unittest.TestCase):
                 self.assertEqual(main(["draft-recipe", "--aggregate", "--baseline", str(source), "--candidate", str(source), "--output", str(output)]), 0)
             self.assertEqual(json.loads(output.read_text())["comparison_mode"], "aggregate")
 
+    def test_explicit_multiset_draft_is_valid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, output = root / "input.csv", root / "draft.json"
+            source.write_text("region,amount\neast,1\neast,1\nwest,2\n", encoding="utf-8")
+            with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                self.assertEqual(main(["draft-recipe", "--multiset", "--baseline", str(source), "--candidate", str(source), "--output", str(output)]), 0)
+            draft = json.loads(output.read_text())
+            self.assertEqual(draft["recipe_version"], 3)
+            self.assertEqual(load_recipe(output), draft)
+
     def test_header_only_draft_is_deterministic_and_uses_safe_defaults(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

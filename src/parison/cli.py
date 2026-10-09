@@ -89,7 +89,9 @@ operator and null policy. Suggestions are starting points, not approved policy."
     draft.add_argument("--output", required=True)
     draft.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     draft.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000, help="maximum combined decoded gzip size (default: 1 GB)")
-    draft.add_argument("--aggregate", action="store_true", help="draft an aggregate-v1 recipe instead of a keyed recipe")
+    draft_mode = draft.add_mutually_exclusive_group()
+    draft_mode.add_argument("--aggregate", action="store_true", help="draft an aggregate-v1 recipe instead of a keyed recipe")
+    draft_mode.add_argument("--multiset", action="store_true", help="draft a multiset-v1 recipe instead of a keyed recipe")
     verify = commands.add_parser("verify", help="verify a published run bundle")
     verify.add_argument("run_directory")
     verify.add_argument("--json", action="store_true", help="print verified manifest metadata as JSON")
@@ -123,7 +125,7 @@ def main(argv: list[str] | None = None) -> int:
             print("Integrity verification does not change the recorded comparison outcome.", file=sys.stderr)
             return 0
         if args.command == "draft-recipe":
-            draft = draft_recipe(args.baseline, args.candidate, args.max_input_bytes, args.max_decoded_bytes, args.aggregate)
+            draft = draft_recipe(args.baseline, args.candidate, args.max_input_bytes, args.max_decoded_bytes, args.aggregate, args.multiset)
             output = Path(args.output)
             try:
                 output.parent.mkdir(parents=True, exist_ok=True)

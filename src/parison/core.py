@@ -1114,7 +1114,10 @@ def draft_recipe(
     max_input_bytes: int = 1_000_000_000,
     max_decoded_bytes: int = 1_000_000_000,
     aggregate: bool = False,
+    multiset: bool = False,
 ) -> dict[str, Any]:
+    if aggregate and multiset:
+        raise ParisonError("aggregate and multiset drafting are mutually exclusive")
     if max_input_bytes <= 0:
         raise ParisonError("max_input_bytes must be positive")
     for source in (baseline, candidate):
@@ -1189,6 +1192,8 @@ def draft_recipe(
             if policy["type"] in {"integer", "decimal"} and name not in group_by and not identifier:
                 measures[f"sum_{name}"] = {"operator": "sum", "column": name, "nulls": "reject"}
         return {"recipe_version": 2, "comparison_mode": "aggregate", "group_by": group_by, "measures": measures, **common}
+    if multiset:
+        return {"recipe_version": 3, "comparison_mode": "multiset", **common}
     return {
         "recipe_version": 1,
         "comparison_mode": "keyed",

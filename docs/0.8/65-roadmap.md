@@ -88,7 +88,7 @@ Acceptance: a reviewer can distinguish a missing row shape from a duplicate-coun
 
 ### 6. Drafting and end-to-end workflow
 
-- [ ] Add explicit `draft-recipe --multiset`; never infer the mode from failed key discovery.
+- [x] Add explicit `draft-recipe --multiset`; never infer the mode from failed key discovery.
 - [ ] Draft only shared scalar structure and require review of mappings, exclusions and normalization.
 - [ ] Add a checked-in duplicate-aware example spanning two supported input formats.
 - [ ] Document how to choose keyed, aggregate or multiset mode and what each mode does not prove.
