@@ -196,7 +196,7 @@ def main(argv: list[str] | None = None) -> int:
         return OUTCOME_CODES[result["outcome"]]
     except ParisonError as exc:
         if args.command == "compare":
-            result = error_result(str(exc))
+            result = error_result(str(exc), recipe)
             try:
                 publish(args.output, result, recipe)
                 _print_summary(result, args.output)
@@ -206,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     except KeyboardInterrupt:
         if args.command == "compare":
-            result = terminal_result("INTERRUPTED", "comparison interrupted by user")
+            result = terminal_result("INTERRUPTED", "comparison interrupted by user", recipe)
             try:
                 publish(args.output, result, recipe)
                 _print_summary(result, args.output)

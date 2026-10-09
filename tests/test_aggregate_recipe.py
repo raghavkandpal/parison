@@ -5,7 +5,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from parison.core import ParisonError, compare, explain_recipe, load_recipe, load_schema, publish, validate_inputs, verify_bundle
+from parison.core import ParisonError, compare, error_result, explain_recipe, load_recipe, load_schema, publish, validate_inputs, verify_bundle
 
 
 RECIPE = {
@@ -111,6 +111,7 @@ class AggregateRecipeTests(unittest.TestCase):
         self.assertEqual(result["schema_version"], 2)
         self.assertEqual(result["counts"]["common_groups"], 2)
         self.assertEqual(result["measure_counts"]["revenue"]["within_tolerance"], 1)
+        self.assertEqual(result["measure_conservation"]["revenue"]["baseline"], {"contributing": 3, "ignored_nulls": 0})
         self.assertNotIn("east", json.dumps(result).lower())
 
     def test_offsetting_groups_and_measure_differences_fail(self):
@@ -188,6 +189,12 @@ class AggregateRecipeTests(unittest.TestCase):
         self.assertEqual(records["rejected_null_measure_values"], 1)
         self.assertTrue(records["group_limit_exceeded"])
         self.assertNotIn("secret", json.dumps(result))
+
+    def test_aggregate_error_result_remains_result_v2(self):
+        result = error_result("safe failure", load_recipe(self.path))
+        Draft202012Validator(load_schema("result-v2")).validate(result)
+        self.assertEqual(result["schema_version"], 2)
+        self.assertEqual(result["runtime"]["contract"], "aggregate-v1")
 
 
 if __name__ == "__main__":

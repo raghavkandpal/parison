@@ -11,6 +11,7 @@ All notable changes will be documented in this file.
 - Deterministic global and grouped aggregate execution with exact integer/scaled-decimal sums, bounded groups, result v2 bundles, aggregate terminal output and HTML reports.
 - Aggregate-aware schema and record preflight with preflight v2 output, privacy-safe invalid group/measure counts and explicit group bounds.
 - Explicit `draft-recipe --aggregate` suggestions and a checked-in cross-format aggregate workflow.
+- Aggregate measure-conservation totals and schema-valid aggregate error/interruption bundles.
 
 ## 0.6.0 - 2026-10-08
 

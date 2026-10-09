@@ -73,11 +73,11 @@ Acceptance: oracle fixtures pass under row reordering, partition reordering, mix
 
 ### 5. Results, terminal output and reports
 
-- [ ] Emit complete group and measure totals in result v2 with conservation checks.
+- [x] Emit complete group and measure totals in result v2 with conservation checks.
 - [x] Keep summary mode free of group keys, per-group counts, per-group measures and source values; aggregate output is reconciliation evidence, not de-identified data.
 - [x] In raw mode, publish a deterministic bounded sample of missing groups and differing measures, clearly labelled as sensitive.
 - [x] Render aggregate-specific terminal and HTML summaries without pretending groups are records or measures are fields.
-- [ ] Keep error and interruption bundles schema-valid for both modes.
+- [x] Keep error and interruption bundles schema-valid for both modes.
 
 Acceptance: a user can distinguish coverage failure, missing groups, exact measures, tolerated measures and violating measures from both JSON and the static report.
 

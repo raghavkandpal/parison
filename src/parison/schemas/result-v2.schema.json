@@ -4,7 +4,7 @@
   "title": "Parison aggregate result v2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "outcome", "complete", "sensitivity", "runtime", "resource_limits", "scope", "group_by", "measures", "policy", "column_policies", "column_mappings", "problems", "counts", "measure_counts", "discrepancy_count", "discrepancy_sample", "discrepancy_sample_limit", "excluded_columns", "inputs", "recipe_sha256", "policy_sha256"],
+  "required": ["schema_version", "outcome", "complete", "sensitivity", "runtime", "resource_limits", "scope", "group_by", "measures", "policy", "column_policies", "column_mappings", "problems", "counts", "measure_counts", "measure_conservation", "discrepancy_count", "discrepancy_sample", "discrepancy_sample_limit", "excluded_columns", "inputs", "recipe_sha256", "policy_sha256"],
   "properties": {
     "schema_version": {"const": 2},
     "outcome": {"enum": ["PASS", "FAIL", "ERROR", "INCONCLUSIVE", "INTERRUPTED"]},
@@ -33,12 +33,13 @@
         }
       }
     },
+    "measure_conservation": {"type": "object"},
     "discrepancy_count": {"type": "integer", "minimum": 0},
     "discrepancy_sample": {"type": "array", "items": {"type": "object"}},
     "discrepancy_sample_limit": {"type": "integer", "minimum": 0},
     "excluded_columns": {"type": "object", "additionalProperties": {"type": "string"}},
     "inputs": {"type": "object"},
-    "recipe_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    "recipe_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "policy_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
   }
 }

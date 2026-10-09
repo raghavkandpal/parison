@@ -1637,6 +1637,15 @@ def _compare_aggregate(
                             "baseline_ignored_nulls": lstate["ignored_nulls"], "candidate_ignored_nulls": rstate["ignored_nulls"],
                         })
     totals = {kind: sum(values[kind] for values in measure_counts.values()) for kind in ("exact", "within_tolerance", "different")}
+    measure_conservation = {}
+    for name in recipe["measures"]:
+        measure_conservation[name] = {
+            side: {
+                "contributing": sum(group["measures"][name]["contributing"] for group in groups.values()),
+                "ignored_nulls": sum(group["measures"][name]["ignored_nulls"] for group in groups.values()),
+            }
+            for side, groups in (("baseline", left), ("candidate", right))
+        }
     outcome = "INCONCLUSIVE" if problems else ("FAIL" if baseline_only or candidate_only or totals["different"] else "PASS")
     return {
         "schema_version": 2,
@@ -1659,6 +1668,7 @@ def _compare_aggregate(
             "exact_measures": totals["exact"], "within_tolerance_measures": totals["within_tolerance"], "different_measures": totals["different"],
         },
         "measure_counts": measure_counts,
+        "measure_conservation": measure_conservation,
         "discrepancy_count": len(baseline_only) + len(candidate_only) + measure_discrepancies,
         "discrepancy_sample": discrepancies,
         "discrepancy_sample_limit": sample_limit if raw_output else 0,
@@ -1763,7 +1773,33 @@ def _aggregate_report(result: dict[str, Any]) -> str:
 <h2>Provenance</h2><p>Recipe SHA-256: <code>{esc(result['recipe_sha256'])}</code></p><p>Effective policy SHA-256: <code>{esc(result['policy_sha256'])}</code></p></main></html>"""
 
 
-def terminal_result(outcome: str, message: str) -> dict[str, Any]:
+def terminal_result(outcome: str, message: str, recipe: dict[str, Any] | None = None) -> dict[str, Any]:
+    if recipe and recipe.get("comparison_mode") == "aggregate":
+        return {
+            "schema_version": 2,
+            "outcome": outcome,
+            "complete": False,
+            "sensitivity": "summary",
+            "runtime": _runtime_info(contract="aggregate-v1"),
+            "resource_limits": {},
+            "scope": recipe.get("scope"),
+            "group_by": recipe.get("group_by", []),
+            "measures": recipe.get("measures", {}),
+            "policy": {},
+            "column_policies": recipe.get("columns", {}),
+            "column_mappings": recipe.get("column_mappings", {}),
+            "problems": [message],
+            "counts": {},
+            "measure_counts": {},
+            "measure_conservation": {},
+            "discrepancy_count": 0,
+            "discrepancy_sample": [],
+            "discrepancy_sample_limit": 0,
+            "excluded_columns": recipe.get("excluded_columns", {}),
+            "inputs": {},
+            "recipe_sha256": None,
+            "policy_sha256": None,
+        }
     return {
         "schema_version": 1,
         "outcome": outcome,
@@ -1790,8 +1826,8 @@ def terminal_result(outcome: str, message: str) -> dict[str, Any]:
     }
 
 
-def error_result(message: str) -> dict[str, Any]:
-    return terminal_result("ERROR", message)
+def error_result(message: str, recipe: dict[str, Any] | None = None) -> dict[str, Any]:
+    return terminal_result("ERROR", message, recipe)
 
 
 def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] | None) -> None:
