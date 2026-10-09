@@ -84,6 +84,7 @@ class MultisetRecipeTests(unittest.TestCase):
         self.assertEqual(verify_bundle(output)["outcome"], "FAIL")
         summary = inspect_bundle(output)
         self.assertEqual(summary["outcome"], "FAIL")
+        self.assertRegex(summary["bundle_sha256"], r"^[0-9a-f]{64}$")
         self.assertNotIn("discrepancy_sample", json.dumps(summary))
         exported = Path(self.tmp.name) / "evidence.jsonl"
         metadata = export_evidence(output, exported, limit=1)

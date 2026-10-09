@@ -2112,6 +2112,7 @@ def inspect_bundle(directory: str | Path) -> dict[str, Any]:
         "problems": result.get("problems", []),
         "resource_limits": result.get("resource_limits", {}),
         "policy_sha256": result.get("policy_sha256"),
+        "bundle_sha256": _digest(Path(directory) / "manifest.json"),
         "manifest_files": sorted(manifest.get("files", {})),
     }
 

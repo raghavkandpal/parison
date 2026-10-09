@@ -8,7 +8,7 @@ The first 0.9 workflow operates only on completed local bundles. It never reread
 parison inspect run/
 ```
 
-`inspect` verifies the manifest and returns safe metadata: outcome, completeness, result schema, counts, resource limits, policy fingerprint, runtime and covered bundle files. It does not print discrepancy samples.
+`inspect` verifies the manifest and returns safe metadata: outcome, completeness, result schema, counts, resource limits, policy fingerprint, runtime, bundle digest and covered bundle files. It does not print discrepancy samples.
 
 ## Export raw evidence
 
