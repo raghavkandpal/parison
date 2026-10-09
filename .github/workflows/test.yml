@@ -30,8 +30,11 @@ jobs:
       - run: parison schema manifest
       - run: parison schema preflight
       - run: parison schema recipe-v2
+      - run: parison schema recipe-v3
       - run: parison schema preflight-v2
+      - run: parison schema preflight-v3
       - run: parison schema result-v2
+      - run: parison schema result-v3
       - run: parison validate-recipe examples/orders.recipe.json
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke
@@ -44,6 +47,9 @@ jobs:
       - run: parison validate-inputs --records --recipe examples/0.7/revenue.recipe.json --baseline examples/0.7/baseline.csv --candidate examples/0.7/candidate.jsonl
       - run: parison compare --recipe examples/0.7/revenue.recipe.json --baseline examples/0.7/baseline.csv --candidate examples/0.7/candidate.jsonl --output /tmp/parison-0.7-smoke
       - run: parison verify /tmp/parison-0.7-smoke
+      - run: parison validate-inputs --records --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl
+      - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output /tmp/parison-0.8-smoke
+      - run: parison verify /tmp/parison-0.8-smoke
       - name: Upload smoke evidence
         if: matrix.python-version == '3.14'
         uses: actions/upload-artifact@v6
@@ -75,6 +81,10 @@ jobs:
       - run: parison --version
       - run: parison schema recipe
       - run: parison schema recipe-v2
+      - run: parison schema recipe-v3
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/0.7/revenue.recipe.json --baseline examples/0.7/baseline.csv --candidate examples/0.7/candidate.jsonl --output ${{ runner.temp }}/parison-aggregate-smoke
+      - run: parison schema result-v3
+      - run: parison schema preflight-v3
+      - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output ${{ runner.temp }}/parison-multiset-smoke
       - run: python -m unittest discover -s tests -v
