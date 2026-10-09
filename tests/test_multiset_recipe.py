@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 
 from jsonschema import Draft202012Validator
 
-from parison.core import ParisonError, _multiset_encoding, compare, error_result, explain_recipe, inspect_bundle, load_recipe, load_schema, publish, validate_inputs, verify_bundle
+from parison.core import ParisonError, _multiset_encoding, compare, error_result, export_evidence, explain_recipe, inspect_bundle, load_recipe, load_schema, publish, validate_inputs, verify_bundle
 
 
 RECIPE = {
@@ -85,6 +85,18 @@ class MultisetRecipeTests(unittest.TestCase):
         summary = inspect_bundle(output)
         self.assertEqual(summary["outcome"], "FAIL")
         self.assertNotIn("discrepancy_sample", json.dumps(summary))
+        exported = Path(self.tmp.name) / "evidence.jsonl"
+        metadata = export_evidence(output, exported, limit=1)
+        self.assertEqual(metadata["items"], 1)
+        self.assertEqual(len(exported.read_text(encoding="utf-8").splitlines()), 1)
+        summary_recipe = json.loads(json.dumps(RECIPE))
+        summary_recipe_path = Path(self.tmp.name) / "summary-recipe.json"
+        summary_recipe_path.write_text(json.dumps(summary_recipe), encoding="utf-8")
+        summary_result = compare(summary_recipe_path, left, right)
+        summary_output = Path(self.tmp.name) / "summary-run"
+        publish(summary_output, summary_result, load_recipe(summary_recipe_path))
+        with self.assertRaisesRegex(ParisonError, "raw-sensitivity"):
+            export_evidence(summary_output, Path(self.tmp.name) / "summary-evidence.jsonl")
         self.assertIn("Parison multiset report", (output / "report.html").read_text(encoding="utf-8"))
         Draft202012Validator(load_schema("result-v3")).validate(error_result("safe failure", load_recipe(self.path)))
         with self.assertRaisesRegex(ParisonError, "distinct row count"):

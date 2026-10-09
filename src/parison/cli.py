@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, explain_recipe, inspect_bundle, load_recipe, load_schema, publish, terminal_result, validate_inputs, verify_bundle
+from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, load_recipe, load_schema, publish, terminal_result, validate_inputs, verify_bundle
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -98,6 +98,11 @@ operator and null policy. Suggestions are starting points, not approved policy."
     verify.add_argument("--json", action="store_true", help="print verified manifest metadata as JSON")
     inspect = commands.add_parser("inspect", help="inspect safe metadata from a verified run bundle")
     inspect.add_argument("run_directory")
+    export = commands.add_parser("export-evidence", help="export bounded raw evidence from a verified bundle")
+    export.add_argument("run_directory")
+    export.add_argument("--output", required=True)
+    export.add_argument("--classification")
+    export.add_argument("--limit", type=int, default=100)
     run = commands.add_parser("compare", help="compare baseline and candidate files")
     run.add_argument("--recipe", required=True)
     run.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
@@ -129,6 +134,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "inspect":
             print(json.dumps(inspect_bundle(args.run_directory), indent=2, sort_keys=True))
+            return 0
+        if args.command == "export-evidence":
+            print(json.dumps(export_evidence(args.run_directory, args.output, args.classification, args.limit), sort_keys=True))
             return 0
         if args.command == "draft-recipe":
             draft = draft_recipe(args.baseline, args.candidate, args.max_input_bytes, args.max_decoded_bytes, args.aggregate, args.multiset)

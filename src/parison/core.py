@@ -2114,3 +2114,34 @@ def inspect_bundle(directory: str | Path) -> dict[str, Any]:
         "policy_sha256": result.get("policy_sha256"),
         "manifest_files": sorted(manifest.get("files", {})),
     }
+
+
+def export_evidence(directory: str | Path, output: str | Path, classification: str | None = None, limit: int = 100) -> dict[str, Any]:
+    """Export a bounded projection of raw discrepancy evidence from a verified bundle."""
+    if limit <= 0:
+        raise ParisonError("evidence export limit must be positive")
+    manifest = verify_bundle(directory)
+    result_path = Path(directory) / "result.json"
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    if result.get("sensitivity") != "raw":
+        raise ParisonError("evidence export requires a raw-sensitivity bundle")
+    allowed = {"baseline_only", "candidate_only", "within_tolerance", "different", "baseline_surplus", "candidate_surplus"}
+    if classification is not None and classification not in allowed:
+        raise ParisonError(f"unsupported evidence classification: {classification}")
+    items = [item for item in result.get("discrepancy_sample", []) if classification is None or item.get("classification") == classification][:limit]
+    target = Path(output)
+    if target.exists():
+        raise ParisonError(f"output already exists: {target}")
+    stage = target.with_name(f".{target.name}-stage")
+    try:
+        with stage.open("x", encoding="utf-8") as handle:
+            for item in items:
+                handle.write(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n")
+        os.replace(stage, target)
+    except OSError as exc:
+        try:
+            stage.unlink()
+        except OSError:
+            pass
+        raise ParisonError(f"cannot export evidence: {exc}") from exc
+    return {"output": str(target), "items": len(items), "limit": limit, "classification": classification, "bundle_files": sorted(manifest.get("files", {}))}
