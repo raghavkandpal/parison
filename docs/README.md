@@ -9,6 +9,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Suite-v1 contract](0.10/78-suite-contract.md)
 - [Comparison suite user guide](0.10/79-suite-user-guide.md)
 - [0.10 release checklist](0.10/80-release-checklist.md)
+- [0.10 engineering checkpoint](0.10/81-engineering-checkpoint.md)
 
 ## 0.9 — released
 

@@ -1,6 +1,6 @@
 # Parison 0.10 release checklist
 
-Status: **in progress**
+Status: **ready to tag**
 
 ## Suite contract and implementation
 
@@ -18,7 +18,8 @@ Status: **in progress**
 - [x] Mixed keyed, aggregate and multiset example passes locally.
 - [x] Python 3.11–3.14, macOS and Windows suite smoke passes.
 - [x] Add self-consistent parent-tampering and publication-failure tests.
-- [ ] Build and install a clean wheel, then run the mixed-suite workflow.
-- [ ] Record final matrix, artifact checksums and downloaded-release verification.
+- [x] Build and install a clean wheel, then run the mixed-suite workflow.
+- [x] Record the candidate matrix and artifact checksums before publication.
+- [ ] Rebuild from the tag and verify downloaded release assets.
 
 Do not tag 0.10 until every unchecked item has reproducible evidence.
