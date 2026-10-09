@@ -33,7 +33,7 @@ This is deliberately narrower than adding remote inputs, a server or a UI. The s
 3. Add deterministic bounded JSONL export; add CSV only if it does not duplicate semantics. **JSONL export implemented.**
 4. Add terminal summaries and static-report links without exposing summary values. **Terminal commands and guide implemented; executable links are omitted from static local reports.**
 5. Add adversarial tests for tampered manifests, unsupported schemas, limits, ordering and sensitive output. **Implemented.**
-6. Add cross-version wheel smoke and a release checkpoint. **In progress.**
+6. Add cross-version wheel smoke and a release checkpoint. **Implemented.**
 
 ## Deferred
 

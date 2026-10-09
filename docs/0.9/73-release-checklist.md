@@ -1,6 +1,6 @@
 # Parison 0.9 release checklist
 
-Status: **in progress**
+Status: **ready to tag**
 
 ## Investigation slice
 
@@ -16,8 +16,8 @@ Status: **in progress**
 ## Release gates
 
 - [x] Freeze the inspect/export schema and compatibility contract.
-- [ ] Run the full Python/platform matrix from the release candidate.
-- [ ] Build and install a clean wheel, then run inspect/export smoke tests.
-- [ ] Record checksums and publish only after all evidence is attached.
+- [x] Run the full Python/platform matrix from the release candidate.
+- [x] Build and install a clean wheel, then run inspect/export smoke tests.
+- [x] Record candidate checksums and attach the reproducible evidence before publication.
 
 Do not tag 0.9 until every unchecked item has a reproducible result.
