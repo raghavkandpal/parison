@@ -21,7 +21,7 @@ parison export-evidence run/ \
   --output baseline-surplus.jsonl
 ```
 
-Exports are bounded, deterministic JSON Lines projections of the already-published sample. They are written atomically and refuse to overwrite an existing file. Summary-sensitivity bundles are rejected. Treat exported files as sensitive because they may contain source values or keys.
+Exports are bounded, deterministic JSON Lines projections of the already-published sample. The first line is a `_parison_export` provenance record containing the verified bundle digest, result schema, policy fingerprint, filter and limit. They are written atomically and refuse to overwrite an existing file. Summary-sensitivity bundles are rejected. Treat exported files as sensitive because they may contain source values or keys.
 
 Supported classifications include keyed and aggregate evidence (`baseline_only`, `candidate_only`, `within_tolerance`, `different`) and multiset evidence (`baseline_surplus`, `candidate_surplus`).
 

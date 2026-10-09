@@ -2121,6 +2121,7 @@ def export_evidence(directory: str | Path, output: str | Path, classification: s
     if limit <= 0:
         raise ParisonError("evidence export limit must be positive")
     manifest = verify_bundle(directory)
+    manifest_path = Path(directory) / "manifest.json"
     result_path = Path(directory) / "result.json"
     result = json.loads(result_path.read_text(encoding="utf-8"))
     if result.get("sensitivity") != "raw":
@@ -2135,6 +2136,7 @@ def export_evidence(directory: str | Path, output: str | Path, classification: s
     stage = target.with_name(f".{target.name}-stage")
     try:
         with stage.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps({"_parison_export": {"bundle_sha256": _digest(manifest_path), "schema_version": result.get("schema_version"), "policy_sha256": result.get("policy_sha256"), "classification": classification, "limit": limit}}, sort_keys=True) + "\n")
             for item in items:
                 handle.write(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n")
         os.replace(stage, target)

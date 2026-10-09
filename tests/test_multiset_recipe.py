@@ -88,7 +88,9 @@ class MultisetRecipeTests(unittest.TestCase):
         exported = Path(self.tmp.name) / "evidence.jsonl"
         metadata = export_evidence(output, exported, limit=1)
         self.assertEqual(metadata["items"], 1)
-        self.assertEqual(len(exported.read_text(encoding="utf-8").splitlines()), 1)
+        lines = exported.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(json.loads(lines[0])["_parison_export"]["schema_version"], 3)
         summary_recipe = json.loads(json.dumps(RECIPE))
         summary_recipe_path = Path(self.tmp.name) / "summary-recipe.json"
         summary_recipe_path.write_text(json.dumps(summary_recipe), encoding="utf-8")
