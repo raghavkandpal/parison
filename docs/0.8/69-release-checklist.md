@@ -1,6 +1,6 @@
 # Parison 0.8 release checklist
 
-Status: **in progress**
+Status: **release candidate**
 
 ## Contract and implementation
 
@@ -17,17 +17,17 @@ Status: **in progress**
 - [x] Summary output contains no row values or canonical row keys.
 - [x] Raw evidence is bounded and deterministically ordered.
 - [x] Empty inputs, parsing failures, mutation checks and resource limits retain explicit outcomes.
-- [ ] Add golden encoding vectors for every scalar type, including timestamps and floats.
-- [ ] Add generated permutation and `PYTHONHASHSEED` determinism checks.
-- [ ] Record multiset benchmark profiles across duplicate skew and distinct-row ratios.
+- [x] Add golden encoding vectors for every scalar type, including timestamps and floats.
+- [x] Add generated permutation and `PYTHONHASHSEED` determinism checks.
+- [x] Record multiset benchmark profiles across duplicate skew and distinct-row ratios.
 
 ## CI and release rehearsal
 
 - [x] CI prints recipe-v3, result-v3 and preflight-v3 schemas.
 - [x] CI runs multiset preflight, compare and verify smoke commands.
 - [x] Local suite passes with optional dependency skips recorded.
-- [ ] Rebuild clean wheel and source archive from the final release commit.
-- [ ] Install the wheel in a fresh environment and run the 0.8 example through verify.
-- [ ] Confirm Python and platform matrix, checksums and release assets.
+- [x] Rebuild clean wheel and source archive from the release candidate.
+- [x] Install the wheel in a fresh Python 3.12 environment and run the 0.8 example through verify.
+- [ ] Confirm Python and platform matrix, checksums and release assets after tagging.
 
 Do not tag 0.8 until every unchecked item above has evidence attached to the engineering checkpoint.

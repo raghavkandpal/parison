@@ -170,6 +170,11 @@ def main(argv: list[str] | None = None) -> int:
                                 f"{records['invalid_rows']} invalid rows, {records['null_group_rows']} null-group rows, "
                                 f"{records['rejected_null_measure_values']} rejected null measure values.", file=sys.stderr,
                             )
+                        elif result["comparison_mode"] == "multiset":
+                            print(
+                                f"{side.title()} records: {records['rows']} rows, {records['distinct_rows']} distinct rows, "
+                                f"{records['invalid_rows']} invalid rows, limit exceeded: {str(records['distinct_row_limit_exceeded']).lower()}.", file=sys.stderr,
+                            )
                         else:
                             print(
                                 f"{side.title()} records: {records['rows']} rows, "

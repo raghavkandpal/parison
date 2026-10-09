@@ -4,6 +4,15 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.8.0 - 2026-10-09
+
+### Added
+
+- Exact keyless multiset comparison with duplicate-aware occurrence conservation.
+- Recipe, preflight and result v3 schemas with bounded deterministic evidence.
+- Canonical typed row encoding, explicit multiset drafting, cross-format examples and CI smoke coverage.
+- Privacy-safe multiset preflight diagnostics and hard distinct-row resource limits.
+
 ## 0.7.0 - 2026-10-09
 
 ### Added
