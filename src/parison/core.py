@@ -36,6 +36,7 @@ _SCHEMAS = {
     "result-v2": "result-v2.schema.json",
     "manifest": "manifest-v1.schema.json",
     "preflight": "preflight-v1.schema.json",
+    "preflight-v2": "preflight-v2.schema.json",
 }
 
 
@@ -883,6 +884,52 @@ def _record_diagnostics(
     }
 
 
+def _aggregate_record_diagnostics(
+    source: str | Path,
+    recipe: dict[str, Any],
+    max_rows: int,
+    max_groups: int,
+    side: str,
+    decoded_sizes: dict[Path, int],
+) -> dict[str, Any]:
+    groups: set[tuple[Any, ...]] = set()
+    invalid_fields: Counter[str] = Counter()
+    invalid_rows = null_group_rows = rejected_null_values = rows = 0
+    group_limit_exceeded = False
+    rejected_columns = {policy["column"] for policy in recipe["measures"].values() if policy["operator"] != "count" and policy["nulls"] == "reject"}
+    for raw in _iter_input_rows(source, recipe, max_rows, side, decoded_sizes):
+        rows += 1
+        parsed = {}
+        row_is_invalid = False
+        for name, policy in recipe["columns"].items():
+            try:
+                parsed[name] = _normalize(_parse(raw.get(_source_name(recipe, name, side)), policy, name), policy)
+            except ParisonError:
+                invalid_fields[name] += 1
+                row_is_invalid = True
+        invalid_rows += row_is_invalid
+        if set(recipe["group_by"]) <= set(parsed):
+            key = tuple(parsed[name] for name in recipe["group_by"])
+            if any(value is None for value in key):
+                null_group_rows += 1
+            elif len(groups) < max_groups or key in groups:
+                groups.add(key)
+            else:
+                group_limit_exceeded = True
+        rejected_null_values += sum(parsed.get(name) is None for name in rejected_columns if name in parsed)
+    invalid = invalid_rows or null_group_rows or rejected_null_values or group_limit_exceeded
+    return {
+        "status": "invalid" if invalid else "valid",
+        "rows": rows,
+        "invalid_rows": invalid_rows,
+        "invalid_fields": dict(sorted(invalid_fields.items())),
+        "null_group_rows": null_group_rows,
+        "rejected_null_measure_values": rejected_null_values,
+        "groups": len(groups),
+        "group_limit_exceeded": group_limit_exceeded,
+    }
+
+
 def validate_inputs(
     recipe_path: str | Path,
     baseline: str | Path,
@@ -892,16 +939,17 @@ def validate_inputs(
     max_decoded_bytes: int = 1_000_000_000,
     validate_records: bool = False,
     max_rows: int = 5_000_000,
+    max_groups: int = 100_000,
 ) -> dict[str, Any]:
     """Validate input schemas against a recipe without comparing records."""
     if max_input_bytes <= 0:
         raise ParisonError("max_input_bytes must be positive")
     if max_rows <= 0:
         raise ParisonError("max_rows must be positive")
+    if max_groups <= 0:
+        raise ParisonError("max_groups must be positive")
     recipe = load_recipe(recipe_path)
     policy_sha256 = _checked_policy_sha256(recipe, expected_policy_sha256)
-    if recipe["comparison_mode"] == "aggregate":
-        raise ParisonError("aggregate input validation is not implemented yet")
     sizes = {side: _source_bytes(source) for side, source in (("baseline", baseline), ("candidate", candidate))}
     if sum(sizes.values()) > max_input_bytes:
         raise ParisonError(f"combined input size {sum(sizes.values())} exceeds limit {max_input_bytes} bytes")
@@ -932,20 +980,28 @@ def validate_inputs(
         if any(path in decoded_sizes for path in paths):
             inputs[side].update(compression="gzip", decoded_bytes=sum(decoded_sizes.get(path, 0) for path in paths))
         if validate_records and not schema["missing"] and not schema["unexpected"]:
-            inputs[side]["records"] = _record_diagnostics(source, recipe, max_rows, side, decoded_sizes)
+            inputs[side]["records"] = (
+                _aggregate_record_diagnostics(source, recipe, max_rows, max_groups, side, decoded_sizes)
+                if recipe["comparison_mode"] == "aggregate"
+                else _record_diagnostics(source, recipe, max_rows, side, decoded_sizes)
+            )
             if inputs[side]["records"]["status"] == "invalid":
                 status = "invalid"
     if validate_records and any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being validated")
-    return {
-        "schema_version": 1,
+    result = {
+        "schema_version": 2 if recipe["comparison_mode"] == "aggregate" else 1,
         "status": status,
         "comparison_mode": recipe["comparison_mode"],
-        "keys": recipe["keys"],
         "canonical_columns": len(recipe["columns"]),
         "policy_sha256": policy_sha256,
         "inputs": inputs,
     }
+    if recipe["comparison_mode"] == "aggregate":
+        result.update(group_by=recipe["group_by"], measures=list(recipe["measures"]), max_groups=max_groups)
+    else:
+        result["keys"] = recipe["keys"]
+    return result
 
 
 def _suggest_type(values: list[Any]) -> dict[str, Any]:

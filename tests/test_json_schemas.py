@@ -19,11 +19,13 @@ class JsonSchemas(unittest.TestCase):
         cls.result_v2_schema = load_schema("result-v2")
         cls.manifest_schema = load_schema("manifest")
         cls.preflight_schema = load_schema("preflight")
+        cls.preflight_v2_schema = load_schema("preflight-v2")
         Draft202012Validator.check_schema(cls.recipe_schema)
         Draft202012Validator.check_schema(cls.result_schema)
         Draft202012Validator.check_schema(cls.result_v2_schema)
         Draft202012Validator.check_schema(cls.manifest_schema)
         Draft202012Validator.check_schema(cls.preflight_schema)
+        Draft202012Validator.check_schema(cls.preflight_v2_schema)
 
     def test_committed_recipes_match_recipe_schema(self):
         validator = Draft202012Validator(self.recipe_schema)

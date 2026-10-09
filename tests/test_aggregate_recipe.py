@@ -5,7 +5,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from parison.core import ParisonError, compare, explain_recipe, load_recipe, load_schema, publish, verify_bundle
+from parison.core import ParisonError, compare, explain_recipe, load_recipe, load_schema, publish, validate_inputs, verify_bundle
 
 
 RECIPE = {
@@ -169,6 +169,25 @@ class AggregateRecipeTests(unittest.TestCase):
         publish(output, result, load_recipe(self.path))
         self.assertEqual(verify_bundle(output)["outcome"], "FAIL")
         self.assertIn("Aggregate equality does not prove row equality", (output / "report.html").read_text())
+
+    def test_record_preflight_is_privacy_safe_and_schema_valid(self):
+        source = self.csv("records.jsonl", '{"region":"east","amount":"1.00","ordered_at":"2026-01-01T00:00:00Z"}\n{"region":"west","amount":"2.00","ordered_at":"2026-01-02T00:00:00Z"}\n')
+        result = validate_inputs(self.path, source, source, validate_records=True)
+        Draft202012Validator(load_schema("preflight-v2")).validate(result)
+        self.assertEqual(result["status"], "valid")
+        self.assertEqual(result["inputs"]["baseline"]["records"]["groups"], 2)
+        self.assertNotIn("east", json.dumps(result))
+
+    def test_record_preflight_reports_group_and_null_failures(self):
+        source = self.csv("invalid.jsonl", '{"region":null,"amount":"secret","ordered_at":"2026-01-01T00:00:00Z"}\n{"region":"east","amount":null,"ordered_at":"2026-01-02T00:00:00Z"}\n{"region":"west","amount":"1.00","ordered_at":"2026-01-02T00:00:00Z"}\n')
+        result = validate_inputs(self.path, source, source, validate_records=True, max_groups=1)
+        records = result["inputs"]["baseline"]["records"]
+        self.assertEqual(result["status"], "invalid")
+        self.assertEqual(records["invalid_fields"], {"amount": 1})
+        self.assertEqual(records["null_group_rows"], 1)
+        self.assertEqual(records["rejected_null_measure_values"], 1)
+        self.assertTrue(records["group_limit_exceeded"])
+        self.assertNotIn("secret", json.dumps(result))
 
 
 if __name__ == "__main__":

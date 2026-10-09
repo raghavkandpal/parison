@@ -2,7 +2,7 @@
 
 Date: 8 October 2026
 
-Status: **in development**. Aggregate-v1 semantics, recipe v2 policy validation and the first deterministic execution path are implemented; aggregate preflight and drafting remain in progress.
+Status: **in development**. Aggregate-v1 semantics, recipe v2 policy validation, deterministic execution and aggregate preflight are implemented; drafting remains in progress.
 
 ## Goal
 
@@ -47,17 +47,17 @@ Acceptance: an independent reviewer can calculate every example result without r
 
 - [x] Add strict recipe-v2 validation and an installed `recipe-v2` JSON Schema without loosening recipe v1.
 - [x] Add a mode-aware effective-policy explanation and stable SHA-256 fingerprint.
-- [ ] Add result-v2 and preflight-v2 schemas with explicit `groups`, `measures`, `group_counts` and `measure_counts`; result v2 is installed, while preflight v2 remains.
+- [x] Add result-v2 and preflight-v2 schemas with explicit aggregate group and measure evidence; do not reuse keyed row classifications for aggregate outcomes.
 - [ ] Teach schema discovery and bundle verification to select the declared schema version.
 
 Acceptance: old checked-in recipes and bundles remain byte-for-byte interpretable, and unknown aggregate fields/operators are rejected.
 
 ### 3. Aggregate-aware preflight
 
-- [ ] Reuse existing readers, mappings, types, normalization, byte limits, decoded-byte limits and mutation detection.
-- [ ] Validate group and measure columns without requiring unique row identity.
-- [ ] Extend `validate-inputs --records` with privacy-safe invalid group/measure counts and null-policy violations.
-- [ ] Add `--max-groups` as an explicit positive bound for grouped validation and comparison.
+- [x] Reuse existing readers, mappings, types, normalization, byte limits, decoded-byte limits and mutation detection.
+- [x] Validate group and measure columns without requiring unique row identity.
+- [x] Extend `validate-inputs --records` with privacy-safe invalid group/measure counts and null-policy violations.
+- [x] Add `--max-groups` as an explicit positive bound for grouped validation and comparison.
 
 Acceptance: preflight can prove whether both complete inputs are executable under the reviewed aggregate policy without publishing group values.
 

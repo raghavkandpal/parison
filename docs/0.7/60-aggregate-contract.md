@@ -2,7 +2,7 @@
 
 Date: 9 October 2026
 
-Status: **normative for Parison 0.7 development**. Recipe validation, policy explanation, deterministic execution and result v2 are implemented; aggregate preflight and drafting remain in progress.
+Status: **normative for Parison 0.7 development**. Recipe validation, policy explanation, aggregate preflight, deterministic execution and result v2 are implemented; aggregate drafting remains in progress.
 
 ## Claim and boundary
 

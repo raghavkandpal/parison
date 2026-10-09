@@ -53,15 +53,16 @@ def parser() -> argparse.ArgumentParser:
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
     explain.add_argument("recipe")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-v2", "result", "result-v2", "manifest", "preflight"))
+    schema.add_argument("name", choices=("recipe", "recipe-v2", "result", "result-v2", "manifest", "preflight", "preflight-v2"))
     inputs = commands.add_parser("validate-inputs", help="validate input schemas and optionally records against a recipe")
     inputs.add_argument("--recipe", required=True)
     inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
     inputs.add_argument("--candidate", required=True, help="candidate file, SQLite locator or partition directory")
     inputs.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     inputs.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000, help="maximum combined decoded gzip size (default: 1 GB)")
-    inputs.add_argument("--records", action="store_true", help="scan all records for types and key identity")
+    inputs.add_argument("--records", action="store_true", help="scan all records for types and mode-specific identity")
     inputs.add_argument("--max-rows", type=int, default=5_000_000, help="maximum rows in either input (default: 5 million)")
+    inputs.add_argument("--max-groups", type=int, default=100_000, help="maximum aggregate groups in either input (default: 100,000)")
     inputs.add_argument("--expected-policy-sha256", help="require this effective-policy fingerprint before reading inputs")
     draft = commands.add_parser(
         "draft-recipe",
@@ -142,18 +143,25 @@ def main(argv: list[str] | None = None) -> int:
                 args.max_decoded_bytes,
                 args.records,
                 args.max_rows,
+                args.max_groups,
             )
             print(json.dumps(result, sort_keys=True))
             if args.records:
                 for side in ("baseline", "candidate"):
                     records = result["inputs"][side].get("records")
                     if records:
-                        print(
-                            f"{side.title()} records: {records['rows']} rows, "
-                            f"{records['invalid_rows']} invalid rows, {records['null_key_rows']} null-key rows, "
-                            f"{records['duplicate_keys']} duplicate keys.",
-                            file=sys.stderr,
-                        )
+                        if result["comparison_mode"] == "aggregate":
+                            print(
+                                f"{side.title()} records: {records['rows']} rows, {records['groups']} groups, "
+                                f"{records['invalid_rows']} invalid rows, {records['null_group_rows']} null-group rows, "
+                                f"{records['rejected_null_measure_values']} rejected null measure values.", file=sys.stderr,
+                            )
+                        else:
+                            print(
+                                f"{side.title()} records: {records['rows']} rows, "
+                                f"{records['invalid_rows']} invalid rows, {records['null_key_rows']} null-key rows, "
+                                f"{records['duplicate_keys']} duplicate keys.", file=sys.stderr,
+                            )
             if result["status"] == "valid":
                 print(
                     f"Validated input schemas: {result['inputs']['baseline']['columns']} baseline and "
