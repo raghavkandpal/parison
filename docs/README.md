@@ -16,6 +16,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 - [0.9 roadmap](0.9/71-roadmap.md)
 - [0.9 investigation guide](0.9/72-investigation-guide.md)
+- [0.9 release checklist](0.9/73-release-checklist.md)
 
 ## 0.7 — released
 
