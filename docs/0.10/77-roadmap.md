@@ -2,7 +2,7 @@
 
 Date: 9 October 2026
 
-Status: **active development**
+Status: **release candidate**
 
 ## Focus: local comparison suites
 
@@ -16,7 +16,7 @@ Status: **active development**
 4. Publish one atomic parent bundle containing ordinary child bundles and safe suite summaries. **Implemented.**
 5. Add recursive verification and suite-aware safe inspection. **Implemented.**
 6. Add a checked-in mixed-mode example and cross-platform installed-wheel smoke. **Implemented.**
-7. Complete adversarial tests, release evidence and 0.10.0 publication.
+7. Complete adversarial tests, release evidence and 0.10.0 publication. **In progress.**
 
 ## Boundaries
 

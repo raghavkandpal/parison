@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.10.0 - 2026-10-09
+
 ### Added
 
 - Strict ordered comparison suites spanning keyed, aggregate and multiset cases.
