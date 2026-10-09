@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 
 from jsonschema import Draft202012Validator
 
-from parison.core import ParisonError, _multiset_encoding, compare, error_result, explain_recipe, load_recipe, load_schema, publish, validate_inputs, verify_bundle
+from parison.core import ParisonError, _multiset_encoding, compare, error_result, explain_recipe, inspect_bundle, load_recipe, load_schema, publish, validate_inputs, verify_bundle
 
 
 RECIPE = {
@@ -82,6 +82,9 @@ class MultisetRecipeTests(unittest.TestCase):
         output = Path(self.tmp.name) / "run"
         publish(output, result, load_recipe(self.path))
         self.assertEqual(verify_bundle(output)["outcome"], "FAIL")
+        summary = inspect_bundle(output)
+        self.assertEqual(summary["outcome"], "FAIL")
+        self.assertNotIn("discrepancy_sample", json.dumps(summary))
         self.assertIn("Parison multiset report", (output / "report.html").read_text(encoding="utf-8"))
         Draft202012Validator(load_schema("result-v3")).validate(error_result("safe failure", load_recipe(self.path)))
         with self.assertRaisesRegex(ParisonError, "distinct row count"):

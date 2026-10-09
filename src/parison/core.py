@@ -2090,3 +2090,27 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
         if result.get(name) != manifest[name]:
             raise ParisonError(f"manifest {name} does not match result")
     return manifest
+
+
+def inspect_bundle(directory: str | Path) -> dict[str, Any]:
+    """Return safe, schema-aware metadata from a verified bundle."""
+    manifest = verify_bundle(directory)
+    path = Path(directory) / "result.json"
+    try:
+        result = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read result: {exc}") from exc
+    if not isinstance(result, dict):
+        raise ParisonError("result is not a JSON object")
+    return {
+        "schema_version": result.get("schema_version"),
+        "outcome": result.get("outcome"),
+        "complete": result.get("complete"),
+        "sensitivity": result.get("sensitivity"),
+        "runtime": result.get("runtime", {}),
+        "counts": result.get("counts", {}),
+        "problems": result.get("problems", []),
+        "resource_limits": result.get("resource_limits", {}),
+        "policy_sha256": result.get("policy_sha256"),
+        "manifest_files": sorted(manifest.get("files", {})),
+    }
