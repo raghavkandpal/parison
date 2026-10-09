@@ -92,7 +92,7 @@ Acceptance: an unfamiliar user can draft, review, lock, preflight, compare and v
 
 ### 7. Adversarial verification and release
 
-- [ ] Add hand-audited fixtures for offsetting groups with equal global totals, all-null ignored measures, missing groups, decimal cancellation under reordered rows, tolerance boundaries, both empty-input shapes and group explosion.
+- [x] Add hand-audited fixtures for offsetting groups with equal global totals, all-null ignored measures, missing groups, decimal cancellation under reordered rows, tolerance boundaries, both empty-input shapes and group explosion.
 - [ ] Extend generated oracles and performance measurements across global, low-cardinality and high-cardinality groups.
 - [ ] Pass Python 3.11–3.14, macOS and Windows CI with optional Parquet and all installed schemas.
 - [ ] Build and inspect clean archives, install the final wheel in an empty environment, and repeat both keyed and aggregate smoke workflows before tagging 0.7.0.

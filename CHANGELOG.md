@@ -12,6 +12,7 @@ All notable changes will be documented in this file.
 - Aggregate-aware schema and record preflight with preflight v2 output, privacy-safe invalid group/measure counts and explicit group bounds.
 - Explicit `draft-recipe --aggregate` suggestions and a checked-in cross-format aggregate workflow.
 - Aggregate measure-conservation totals and schema-valid aggregate error/interruption bundles.
+- Hand-audited aggregate adversarial coverage for empty shapes, all-null measures, missing and exploding groups, exact decimal reordering and tolerance boundaries.
 
 ## 0.6.0 - 2026-10-08
 

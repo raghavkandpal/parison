@@ -158,6 +158,47 @@ class AggregateRecipeTests(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "group count exceeds limit 1"):
             compare(self.path, rows, rows, max_groups=1)
 
+    def test_grouped_empty_shape_has_no_groups(self):
+        value = json.loads(json.dumps(RECIPE))
+        value["scope"]["expected_empty"] = True
+        self.write(value)
+        empty = self.csv("empty.csv", "region,amount,ordered_at\n")
+        result = compare(self.path, empty, empty)
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["counts"]["baseline_groups"], 0)
+        self.assertEqual(result["counts"]["common_groups"], 0)
+
+    def test_all_null_ignored_measure_preserves_no_value_state(self):
+        value = json.loads(json.dumps(RECIPE))
+        value["measures"] = {"latest": {"operator": "max", "column": "ordered_at", "nulls": "ignore"}}
+        self.write(value)
+        rows = self.csv("nulls.jsonl", '{"region":"east","amount":"1.00","ordered_at":null}\n{"region":"east","amount":"2.00","ordered_at":null}\n')
+        result = compare(self.path, rows, rows)
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["measure_counts"]["latest"]["exact"], 1)
+        self.assertEqual(result["measure_conservation"]["latest"]["baseline"], {"contributing": 0, "ignored_nulls": 2})
+
+    def test_tolerance_boundary_is_inclusive_and_next_cent_fails(self):
+        left = self.csv("left.csv", "region,amount,ordered_at\neast,10.00,2026-01-01T00:00:00Z\n")
+        boundary = self.csv("boundary.csv", "region,amount,ordered_at\neast,10.01,2026-01-01T00:00:00Z\n")
+        outside = self.csv("outside.csv", "region,amount,ordered_at\neast,10.02,2026-01-01T00:00:00Z\n")
+        accepted = compare(self.path, left, boundary)
+        rejected = compare(self.path, left, outside)
+        self.assertEqual(accepted["outcome"], "PASS")
+        self.assertEqual(accepted["measure_counts"]["revenue"]["within_tolerance"], 1)
+        self.assertEqual(rejected["outcome"], "FAIL")
+        self.assertEqual(rejected["measure_counts"]["revenue"]["different"], 1)
+
+    def test_unexpected_empty_global_input_is_inconclusive(self):
+        value = json.loads(json.dumps(RECIPE))
+        value["group_by"] = []
+        self.write(value)
+        empty = self.csv("empty.csv", "region,amount,ordered_at\n")
+        nonempty = self.csv("one.csv", "region,amount,ordered_at\neast,1.00,2026-01-01T00:00:00Z\n")
+        result = compare(self.path, empty, nonempty)
+        self.assertEqual(result["outcome"], "INCONCLUSIVE")
+        self.assertFalse(result["complete"])
+
     def test_raw_evidence_and_bundle_are_verifiable(self):
         value = json.loads(json.dumps(RECIPE))
         value["output"] = {"sensitivity": "raw"}
