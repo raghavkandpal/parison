@@ -144,3 +144,4 @@ Tolerant row assignment, subset comparison, spill-backed execution, nested value
 
 The evidence and alternatives behind this choice are recorded in [the multiset research](64-multiset-research.md).
 The normative implementation target is [the multiset-v1 contract](66-multiset-contract.md).
+Encoding details and the required golden/property tests are recorded in [canonical row encoding research](67-canonical-row-encoding-research.md).
