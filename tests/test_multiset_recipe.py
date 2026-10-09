@@ -90,11 +90,14 @@ class MultisetRecipeTests(unittest.TestCase):
         self.assertRegex(summary["bundle_sha256"], r"^[0-9a-f]{64}$")
         self.assertNotIn('"discrepancy_sample":', json.dumps(summary))
         exported = Path(self.tmp.name) / "evidence.jsonl"
-        metadata = export_evidence(output, exported, limit=1)
+        metadata = export_evidence(output, exported, limit=1, kind="row")
         self.assertEqual(metadata["items"], 1)
         lines = exported.read_text(encoding="utf-8").splitlines()
         self.assertEqual(len(lines), 2)
         self.assertEqual(json.loads(lines[0])["_parison_export"]["schema_version"], 3)
+        self.assertEqual(json.loads(lines[0])["_parison_export"]["kind"], "row")
+        with self.assertRaisesRegex(ParisonError, "unsupported evidence kind"):
+            export_evidence(output, Path(self.tmp.name) / "invalid.jsonl", kind="unknown")
         with self.assertRaisesRegex(ParisonError, "already exists"):
             export_evidence(output, exported, limit=1)
         summary_recipe = json.loads(json.dumps(RECIPE))

@@ -102,6 +102,8 @@ operator and null policy. Suggestions are starting points, not approved policy."
     export.add_argument("run_directory")
     export.add_argument("--output", required=True)
     export.add_argument("--classification")
+    export.add_argument("--kind", choices=("record", "field", "group", "measure", "row"))
+    export.add_argument("--name", help="exact field or measure name")
     export.add_argument("--limit", type=int, default=100)
     run = commands.add_parser("compare", help="compare baseline and candidate files")
     run.add_argument("--recipe", required=True)
@@ -136,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(inspect_bundle(args.run_directory), indent=2, sort_keys=True))
             return 0
         if args.command == "export-evidence":
-            print(json.dumps(export_evidence(args.run_directory, args.output, args.classification, args.limit), sort_keys=True))
+            print(json.dumps(export_evidence(args.run_directory, args.output, args.classification, args.limit, kind=args.kind, name=args.name), sort_keys=True))
             return 0
         if args.command == "draft-recipe":
             draft = draft_recipe(args.baseline, args.candidate, args.max_input_bytes, args.max_decoded_bytes, args.aggregate, args.multiset)

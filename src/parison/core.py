@@ -2120,7 +2120,15 @@ def inspect_bundle(directory: str | Path) -> dict[str, Any]:
     }
 
 
-def export_evidence(directory: str | Path, output: str | Path, classification: str | None = None, limit: int = 100) -> dict[str, Any]:
+def export_evidence(
+    directory: str | Path,
+    output: str | Path,
+    classification: str | None = None,
+    limit: int = 100,
+    *,
+    kind: str | None = None,
+    name: str | None = None,
+) -> dict[str, Any]:
     """Export a bounded projection of raw discrepancy evidence from a verified bundle."""
     if limit <= 0:
         raise ParisonError("evidence export limit must be positive")
@@ -2133,14 +2141,26 @@ def export_evidence(directory: str | Path, output: str | Path, classification: s
     allowed = {"baseline_only", "candidate_only", "within_tolerance", "different", "baseline_surplus", "candidate_surplus"}
     if classification is not None and classification not in allowed:
         raise ParisonError(f"unsupported evidence classification: {classification}")
-    items = [item for item in result.get("discrepancy_sample", []) if classification is None or item.get("classification") == classification][:limit]
+    if kind is not None and kind not in {"record", "field", "group", "measure", "row"}:
+        raise ParisonError(f"unsupported evidence kind: {kind}")
+    if name is not None and not name:
+        raise ParisonError("evidence name filter must be nonempty")
+    def matches(item: dict[str, Any]) -> bool:
+        item_kind = item.get("kind", "row" if result.get("schema_version") == 3 else None)
+        item_name = item.get("field", item.get("measure"))
+        return (
+            (classification is None or item.get("classification") == classification)
+            and (kind is None or item_kind == kind)
+            and (name is None or item_name == name)
+        )
+    items = [item for item in result.get("discrepancy_sample", []) if matches(item)][:limit]
     target = Path(output)
     if target.exists():
         raise ParisonError(f"output already exists: {target}")
     stage = target.with_name(f".{target.name}-stage")
     try:
         with stage.open("x", encoding="utf-8") as handle:
-            handle.write(json.dumps({"_parison_export": {"bundle_sha256": _digest(manifest_path), "schema_version": result.get("schema_version"), "policy_sha256": result.get("policy_sha256"), "classification": classification, "limit": limit}}, sort_keys=True) + "\n")
+            handle.write(json.dumps({"_parison_export": {"bundle_sha256": _digest(manifest_path), "schema_version": result.get("schema_version"), "policy_sha256": result.get("policy_sha256"), "classification": classification, "kind": kind, "name": name, "limit": limit}}, sort_keys=True) + "\n")
             for item in items:
                 handle.write(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n")
         os.replace(stage, target)
@@ -2150,4 +2170,4 @@ def export_evidence(directory: str | Path, output: str | Path, classification: s
         except OSError:
             pass
         raise ParisonError(f"cannot export evidence: {exc}") from exc
-    return {"output": str(target), "items": len(items), "limit": limit, "classification": classification, "bundle_files": sorted(manifest.get("files", {}))}
+    return {"output": str(target), "items": len(items), "limit": limit, "classification": classification, "kind": kind, "name": name, "bundle_files": sorted(manifest.get("files", {}))}
