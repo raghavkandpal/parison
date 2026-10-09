@@ -1,6 +1,6 @@
 # Parison 0.9 release checklist
 
-Status: **ready to tag**
+Status: **released**
 
 ## Investigation slice
 
@@ -21,3 +21,5 @@ Status: **ready to tag**
 - [x] Record candidate checksums and attach the reproducible evidence before publication.
 
 Do not tag 0.9 until every unchecked item has a reproducible result.
+
+Released as [0.9.0](https://github.com/raghavkandpal/parison/releases/tag/0.9.0) from commit `e849f7c3e801f9d61dbdc2e74d11c7a5fec638b4`.

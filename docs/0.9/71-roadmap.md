@@ -2,7 +2,7 @@
 
 Date: 9 October 2026
 
-Status: **release candidate**
+Status: **released**
 
 ## Focus: discrepancy investigation
 
