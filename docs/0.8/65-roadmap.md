@@ -42,10 +42,10 @@ A run passes only when every canonical row has equal multiplicity. Multiset-v1 h
 
 ### 1. Freeze multiset-v1 semantics
 
-- [ ] Write the normative contract with duplicate, null, normalization, empty-scope and mixed-format examples.
-- [ ] Define the canonical typed row tuple and a collision-free, versioned encoding for ordering and evidence.
-- [ ] Define occurrence and distinct-shape conservation equations.
-- [ ] Specify PASS, FAIL, INCONCLUSIVE, ERROR and INTERRUPTED boundaries before implementation.
+- [x] Write the normative contract with duplicate, null, normalization, empty-scope and mixed-format examples.
+- [x] Define the canonical typed row tuple and a collision-free, versioned encoding for ordering and evidence.
+- [x] Define occurrence and distinct-shape conservation equations.
+- [x] Specify PASS, FAIL, INCONCLUSIVE, ERROR and INTERRUPTED boundaries before implementation.
 
 Acceptance: an independent reviewer can calculate every example and explain why `[A, A]` differs from `[A]` without reading code.
 
@@ -143,3 +143,4 @@ Pause implementation if a slice would:
 Tolerant row assignment, subset comparison, spill-backed execution, nested values, custom expressions, remote inputs, recursive discovery, a server and a local UI remain separate product decisions.
 
 The evidence and alternatives behind this choice are recorded in [the multiset research](64-multiset-research.md).
+The normative implementation target is [the multiset-v1 contract](66-multiset-contract.md).

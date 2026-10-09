@@ -6,6 +6,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 - [Multiset comparison research](0.8/64-multiset-research.md)
 - [0.8 roadmap](0.8/65-roadmap.md)
+- [Multiset-v1 comparison contract](0.8/66-multiset-contract.md)
 
 ## 0.7 — released
 
