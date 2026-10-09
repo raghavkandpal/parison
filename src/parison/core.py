@@ -41,6 +41,7 @@ _SCHEMAS = {
     "preflight": "preflight-v1.schema.json",
     "preflight-v2": "preflight-v2.schema.json",
     "preflight-v3": "preflight-v3.schema.json",
+    "suite": "suite-v1.schema.json",
 }
 
 
@@ -95,6 +96,57 @@ def load_schema(name: str) -> dict[str, Any]:
     if name not in _SCHEMAS:
         raise ParisonError(f"unknown schema {name!r}; choose {', '.join(_SCHEMAS)}")
     return json.loads(resources.files("parison").joinpath("schemas", _SCHEMAS[name]).read_text(encoding="utf-8"))
+
+
+def load_suite(path: str | Path) -> dict[str, Any]:
+    suite_path = Path(path)
+    try:
+        suite = json.loads(suite_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read suite: {exc}") from exc
+    if not isinstance(suite, dict) or set(suite) != {"suite_version", "cases"}:
+        raise ParisonError("suite must contain exactly suite_version and cases")
+    if suite["suite_version"] != 1:
+        raise ParisonError("suite_version must be 1")
+    cases = suite["cases"]
+    if not isinstance(cases, list) or not 1 <= len(cases) <= 100:
+        raise ParisonError("suite cases must be a nonempty array of at most 100 cases")
+    base = suite_path.parent.absolute()
+    loaded, identifiers = [], set()
+    for index, case in enumerate(cases):
+        required = {"id", "recipe", "baseline", "candidate"}
+        if not isinstance(case, dict) or not required <= set(case) or set(case) - required != ({"expected_policy_sha256"} if "expected_policy_sha256" in case else set()):
+            raise ParisonError(f"suite case {index} has invalid fields")
+        identifier = case["id"]
+        if not isinstance(identifier, str) or not identifier or any(character not in "abcdefghijklmnopqrstuvwxyz0123456789-" for character in identifier) or identifier.startswith("-") or identifier.endswith("-") or "--" in identifier:
+            raise ParisonError(f"suite case {index} has an invalid id")
+        if identifier in identifiers:
+            raise ParisonError(f"duplicate suite case id: {identifier}")
+        identifiers.add(identifier)
+        resolved = {"id": identifier}
+        for name in ("recipe", "baseline", "candidate"):
+            value = case[name]
+            if not isinstance(value, str) or not value or "\0" in value:
+                raise ParisonError(f"suite case {identifier} has an invalid {name} reference")
+            sqlite_source = _sqlite_source(value) if name != "recipe" else None
+            source_path = sqlite_source[0] if sqlite_source else Path(value)
+            if not source_path.is_absolute():
+                source_path = Path(os.path.abspath(base / source_path))
+            if source_path.is_symlink():
+                raise ParisonError(f"suite case {identifier} {name} must not be a symlink")
+            resolved[name] = f"sqlite:{source_path}#{sqlite_source[1]}" if sqlite_source else str(source_path)
+        recipe = load_recipe(resolved["recipe"])
+        expected = case.get("expected_policy_sha256")
+        _checked_policy_sha256(recipe, expected)
+        for name in ("baseline", "candidate"):
+            source_path = _source_path(resolved[name])
+            if not source_path.is_file() and not source_path.is_dir():
+                raise ParisonError(f"suite case {identifier} {name} is not a regular input")
+            _source_paths(resolved[name])
+        if expected is not None:
+            resolved["expected_policy_sha256"] = expected
+        loaded.append(resolved)
+    return {"suite_version": 1, "cases": loaded}
 
 
 def _runtime_info(paths: tuple[Any, Any] | None = None, contract: str = "keyed-v1") -> dict[str, Any]:

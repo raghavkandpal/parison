@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, load_recipe, load_schema, publish, terminal_result, validate_inputs, verify_bundle
+from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, load_recipe, load_schema, load_suite, publish, terminal_result, validate_inputs, verify_bundle
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -60,7 +60,9 @@ def parser() -> argparse.ArgumentParser:
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
     explain.add_argument("recipe")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3"))
+    schema.add_argument("name", choices=("recipe", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite"))
+    suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
+    suite.add_argument("plan")
     inputs = commands.add_parser("validate-inputs", help="validate input schemas and optionally records against a recipe")
     inputs.add_argument("--recipe", required=True)
     inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
@@ -160,6 +162,11 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "schema":
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))
+            return 0
+        if args.command == "validate-suite":
+            loaded = load_suite(args.plan)
+            print(json.dumps({"status": "valid", "cases": len(loaded["cases"])}, sort_keys=True))
+            print(f"Validated comparison suite: {args.plan}", file=sys.stderr)
             return 0
         if args.command == "validate-inputs":
             result = validate_inputs(
