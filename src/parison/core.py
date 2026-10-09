@@ -2044,6 +2044,21 @@ def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] |
         raise
 
 
+def _read_bundle_result(directory: Path) -> dict[str, Any]:
+    try:
+        result = json.loads((directory / "result.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read result: {exc}") from exc
+    if not isinstance(result, dict) or result.get("schema_version") not in {1, 2, 3}:
+        raise ParisonError("result is incomplete or unsupported")
+    sample = result.get("discrepancy_sample")
+    if not isinstance(sample, list) or not all(isinstance(item, dict) for item in sample):
+        raise ParisonError("result has an invalid discrepancy sample")
+    if not isinstance(result.get("discrepancy_count"), int) or not isinstance(result.get("discrepancy_sample_limit"), int):
+        raise ParisonError("result has invalid discrepancy counts")
+    return result
+
+
 def verify_bundle(directory: str | Path) -> dict[str, Any]:
     directory = Path(directory)
     manifest_path = directory / "manifest.json"
@@ -2080,12 +2095,7 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
             raise ParisonError(f"bundle file is missing or unsafe: {name}")
         if _digest(path) != expected:
             raise ParisonError(f"bundle file failed integrity check: {name}")
-    try:
-        result = json.loads((directory / "result.json").read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ParisonError(f"cannot read result: {exc}") from exc
-    if not isinstance(result, dict) or result.get("schema_version") not in {1, 2, 3}:
-        raise ParisonError("result is incomplete or unsupported")
+    result = _read_bundle_result(directory)
     for name in ("outcome", "sensitivity", "runtime"):
         if result.get(name) != manifest[name]:
             raise ParisonError(f"manifest {name} does not match result")
@@ -2095,13 +2105,7 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
 def inspect_bundle(directory: str | Path) -> dict[str, Any]:
     """Return safe, schema-aware metadata from a verified bundle."""
     manifest = verify_bundle(directory)
-    path = Path(directory) / "result.json"
-    try:
-        result = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ParisonError(f"cannot read result: {exc}") from exc
-    if not isinstance(result, dict):
-        raise ParisonError("result is not a JSON object")
+    result = _read_bundle_result(Path(directory))
     return {
         "schema_version": result.get("schema_version"),
         "outcome": result.get("outcome"),
@@ -2134,8 +2138,7 @@ def export_evidence(
         raise ParisonError("evidence export limit must be positive")
     manifest = verify_bundle(directory)
     manifest_path = Path(directory) / "manifest.json"
-    result_path = Path(directory) / "result.json"
-    result = json.loads(result_path.read_text(encoding="utf-8"))
+    result = _read_bundle_result(Path(directory))
     if result.get("sensitivity") != "raw":
         raise ParisonError("evidence export requires a raw-sensitivity bundle")
     allowed = {"baseline_only", "candidate_only", "within_tolerance", "different", "baseline_surplus", "candidate_surplus"}

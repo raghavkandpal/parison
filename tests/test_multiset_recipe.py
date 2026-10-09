@@ -1,4 +1,5 @@
 import json
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -117,6 +118,17 @@ class MultisetRecipeTests(unittest.TestCase):
         manifest.write_text(manifest.read_text(encoding="utf-8").replace('"outcome": "FAIL"', '"outcome": "PASS"'), encoding="utf-8")
         with self.assertRaisesRegex(ParisonError, "manifest outcome does not match result"):
             inspect_bundle(tampered)
+        malformed = Path(self.tmp.name) / "malformed"
+        publish(malformed, result, load_recipe(self.path))
+        result_path = malformed / "result.json"
+        malformed_result = json.loads(result_path.read_text(encoding="utf-8"))
+        malformed_result["discrepancy_sample"] = ["not-an-object"]
+        result_path.write_text(json.dumps(malformed_result), encoding="utf-8")
+        malformed_manifest = json.loads((malformed / "manifest.json").read_text(encoding="utf-8"))
+        malformed_manifest["files"]["result.json"] = hashlib.sha256(result_path.read_bytes()).hexdigest()
+        (malformed / "manifest.json").write_text(json.dumps(malformed_manifest), encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "invalid discrepancy sample"):
+            export_evidence(malformed, Path(self.tmp.name) / "malformed.jsonl")
         self.assertIn("Parison multiset report", (output / "report.html").read_text(encoding="utf-8"))
         Draft202012Validator(load_schema("result-v3")).validate(error_result("safe failure", load_recipe(self.path)))
         with self.assertRaisesRegex(ParisonError, "distinct row count"):
