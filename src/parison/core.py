@@ -2233,3 +2233,105 @@ def export_evidence(
             except OSError:
                 pass
     return {"output": str(target), "items": len(items), "limit": limit, "classification": classification, "kind": kind, "name": name, "bundle_files": sorted(manifest.get("files", {}))}
+
+
+def _suite_report(result: dict[str, Any]) -> str:
+    rows = "".join(
+        "<tr>" + "".join(f"<td>{html.escape(str(case[field]))}</td>" for field in ("id", "outcome", "complete", "contract", "bundle")) + "</tr>"
+        for case in result["cases"]
+    )
+    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Parison suite report</title>
+<style>body{{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:0 1rem}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #bbb;padding:.5rem;text-align:left}}</style></head>
+<body><h1>Parison suite report</h1><p><strong>{html.escape(result['outcome'])}</strong> — {result['completed_cases']} of {result['total_cases']} cases published.</p>
+<table><thead><tr><th>Case</th><th>Outcome</th><th>Complete</th><th>Contract</th><th>Bundle</th></tr></thead><tbody>{rows}</tbody></table></body></html>"""
+
+
+def run_suite(
+    plan: str | Path,
+    output: str | Path,
+    sample_limit: int = 100,
+    max_input_bytes: int = 1_000_000_000,
+    max_rows: int = 5_000_000,
+    max_decoded_bytes: int = 1_000_000_000,
+    max_groups: int = 100_000,
+    max_distinct_rows: int = 100_000,
+) -> dict[str, Any]:
+    """Run a validated ordered suite and atomically publish its child bundles."""
+    suite = load_suite(plan)
+    output = Path(output)
+    if output.exists():
+        raise ParisonError(f"output already exists: {output}")
+    stage = None
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
+        os.chmod(stage, 0o700)
+        (stage / "cases").mkdir()
+        cases, interrupted = [], False
+        for case in suite["cases"]:
+            recipe = load_recipe(case["recipe"])
+            try:
+                result = compare(
+                    case["recipe"], case["baseline"], case["candidate"], sample_limit,
+                    max_input_bytes, max_rows, case.get("expected_policy_sha256"),
+                    max_decoded_bytes, max_groups, max_distinct_rows,
+                )
+            except ParisonError as exc:
+                result = error_result(str(exc), recipe)
+            except KeyboardInterrupt:
+                result = terminal_result("INTERRUPTED", "comparison interrupted by user", recipe)
+                interrupted = True
+            child = stage / "cases" / case["id"]
+            publish(child, result, recipe)
+            cases.append({
+                "id": case["id"],
+                "outcome": result["outcome"],
+                "complete": result["complete"],
+                "schema_version": result["schema_version"],
+                "contract": result["runtime"]["contract"],
+                "policy_sha256": result.get("policy_sha256"),
+                "manifest_sha256": _digest(child / "manifest.json"),
+                "bundle": f"cases/{case['id']}",
+            })
+            if interrupted:
+                break
+        precedence = {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2, "ERROR": 3, "INTERRUPTED": 4}
+        outcome = max((case["outcome"] for case in cases), key=precedence.get)
+        outcome_counts = {name: sum(case["outcome"] == name for case in cases) for name in precedence}
+        result = {
+            "schema_version": 1,
+            "suite_version": 1,
+            "outcome": outcome,
+            "complete": len(cases) == len(suite["cases"]) and all(case["complete"] for case in cases),
+            "runtime": _runtime_info(contract="suite-v1"),
+            "total_cases": len(suite["cases"]),
+            "completed_cases": len(cases),
+            "outcome_counts": outcome_counts,
+            "cases": cases,
+            "suite_sha256": _digest(Path(plan)),
+        }
+        effective = json.loads(Path(plan).read_text(encoding="utf-8"))
+        (stage / "suite-result.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        (stage / "effective-suite.json").write_text(json.dumps(effective, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        (stage / "report.html").write_text(_suite_report(result), encoding="utf-8")
+        files = {name: _digest(stage / name) for name in ("suite-result.json", "effective-suite.json", "report.html")}
+        manifest = {
+            "schema_version": 1,
+            "kind": "suite",
+            "complete": True,
+            "outcome": outcome,
+            "runtime": result["runtime"],
+            "files": files,
+            "cases": {case["id"]: case["manifest_sha256"] for case in cases},
+        }
+        (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(stage, output)
+        return result
+    except OSError as exc:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+        raise ParisonError(f"cannot publish suite: {exc}") from exc
+    except Exception:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+        raise

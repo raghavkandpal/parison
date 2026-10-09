@@ -8,7 +8,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, explain_recipe, load_schema, load_suite
+from parison.core import ParisonError, explain_recipe, load_schema, load_suite, run_suite
 
 
 RECIPE = {
@@ -30,6 +30,8 @@ class SuiteTests(unittest.TestCase):
         (self.root / "recipe.json").write_text(json.dumps(RECIPE), encoding="utf-8")
         (self.root / "baseline.csv").write_text("id,value\na,1\n", encoding="utf-8")
         (self.root / "candidate.csv").write_text("id,value\na,1\n", encoding="utf-8")
+        (self.root / "different.csv").write_text("id,value\na,2\n", encoding="utf-8")
+        (self.root / "invalid.csv").write_text("id,value\na,not-an-integer\n", encoding="utf-8")
         self.plan = self.root / "suite.json"
 
     def tearDown(self):
@@ -84,6 +86,40 @@ class SuiteTests(unittest.TestCase):
         self.write_plan([missing])
         with self.assertRaisesRegex(ParisonError, "candidate is not a regular input"):
             load_suite(self.plan)
+
+    def test_run_suite_publishes_ordered_children_and_reduces_outcome(self):
+        passing = self.case("passing")
+        failing = self.case("failing")
+        failing["candidate"] = "different.csv"
+        self.write_plan([passing, failing])
+        output = self.root / "run"
+        result = run_suite(self.plan, output)
+        self.assertEqual(result["outcome"], "FAIL")
+        self.assertTrue(result["complete"])
+        self.assertEqual(result["outcome_counts"]["PASS"], 1)
+        self.assertEqual(result["outcome_counts"]["FAIL"], 1)
+        self.assertEqual([case["id"] for case in result["cases"]], ["passing", "failing"])
+        self.assertTrue((output / "cases" / "passing" / "manifest.json").is_file())
+        self.assertTrue((output / "cases" / "failing" / "manifest.json").is_file())
+        manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["kind"], "suite")
+        self.assertEqual(set(manifest["cases"]), {"passing", "failing"})
+        stdout, stderr = StringIO(), StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(main(["run-suite", "--plan", str(self.plan), "--output", str(self.root / "cli-run")]), 1)
+        self.assertEqual(json.loads(stdout.getvalue())["cases"], 2)
+        self.assertIn("Parison suite FAIL", stderr.getvalue())
+        with self.assertRaisesRegex(ParisonError, "output already exists"):
+            run_suite(self.plan, output)
+
+    def test_run_suite_continues_after_case_error(self):
+        broken = self.case("broken")
+        broken["candidate"] = "invalid.csv"
+        self.write_plan([broken, self.case("passing")])
+        result = run_suite(self.plan, self.root / "error-run")
+        self.assertEqual(result["outcome"], "ERROR")
+        self.assertEqual(result["completed_cases"], 2)
+        self.assertEqual([case["outcome"] for case in result["cases"]], ["ERROR", "PASS"])
 
 
 if __name__ == "__main__":
