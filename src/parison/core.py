@@ -36,6 +36,7 @@ _SCHEMAS = {
     "recipe-v3": "recipe-v3.schema.json",
     "result": "result-v1.schema.json",
     "result-v2": "result-v2.schema.json",
+    "result-v3": "result-v3.schema.json",
     "manifest": "manifest-v1.schema.json",
     "preflight": "preflight-v1.schema.json",
     "preflight-v2": "preflight-v2.schema.json",
@@ -1400,6 +1401,7 @@ def compare(
     expected_policy_sha256: str | None = None,
     max_decoded_bytes: int = 1_000_000_000,
     max_groups: int = 100_000,
+    max_distinct_rows: int = 100_000,
 ) -> dict[str, Any]:
     if sample_limit < 0:
         raise ParisonError("sample_limit must be non-negative")
@@ -1409,6 +1411,8 @@ def compare(
         raise ParisonError("max_rows must be positive")
     if max_groups <= 0:
         raise ParisonError("max_groups must be positive")
+    if max_distinct_rows <= 0:
+        raise ParisonError("max_distinct_rows must be positive")
     recipe_path = Path(recipe_path)
     recipe = load_recipe(recipe_path)
     policy_sha256 = _checked_policy_sha256(recipe, expected_policy_sha256)
@@ -1418,7 +1422,7 @@ def compare(
             max_rows, max_decoded_bytes, max_groups, policy_sha256,
         )
     if recipe["comparison_mode"] == "multiset":
-        raise ParisonError("multiset comparison execution is not implemented yet")
+        return _compare_multiset(recipe_path, recipe, baseline_path, candidate_path, sample_limit, max_input_bytes, max_rows, max_decoded_bytes, max_distinct_rows, policy_sha256)
     input_bytes = _source_bytes(baseline_path) + _source_bytes(candidate_path)
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
@@ -1731,9 +1735,37 @@ def _compare_aggregate(
     }
 
 
+def _compare_multiset(recipe_path: Path, recipe: dict[str, Any], baseline_path: str | Path, candidate_path: str | Path, sample_limit: int, max_input_bytes: int, max_rows: int, max_decoded_bytes: int, max_distinct_rows: int, policy_sha256: str) -> dict[str, Any]:
+    if _source_bytes(baseline_path) + _source_bytes(candidate_path) > max_input_bytes:
+        raise ParisonError(f"combined input size exceeds limit {max_input_bytes} bytes")
+    decoded_sizes = _decoded_sizes((baseline_path, candidate_path), max_decoded_bytes)
+    before = {str(source): _source_digest(source) for source in (baseline_path, candidate_path)}
+    names = sorted(recipe["columns"])
+    def counted(source, side):
+        rows, _ = _read(source, recipe, max_rows, side, decoded_sizes)
+        counts = Counter(tuple(row[name] for name in names) for row in rows)
+        if len(counts) > max_distinct_rows:
+            raise ParisonError(f"distinct row count in {side} exceeds limit {max_distinct_rows}")
+        return counts, len(rows)
+    left, baseline_rows = counted(baseline_path, "baseline")
+    right, candidate_rows = counted(candidate_path, "candidate")
+    if any(_source_digest(source) != digest for source, digest in before.items()):
+        raise ParisonError("an input changed while it was being read")
+    problems = ["nonempty multiset inputs are required"] if not baseline_rows and not candidate_rows and not recipe["scope"]["expected_empty"] else []
+    all_rows = set(left) | set(right)
+    differing = [row for row in all_rows if left[row] != right[row]]
+    counts = {"baseline_rows": baseline_rows, "candidate_rows": candidate_rows, "common_occurrences": sum(min(left[row], right[row]) for row in all_rows), "baseline_only_occurrences": sum(max(left[row] - right[row], 0) for row in all_rows), "candidate_only_occurrences": sum(max(right[row] - left[row], 0) for row in all_rows), "baseline_distinct_rows": len(left), "candidate_distinct_rows": len(right), "baseline_surplus_shapes": sum(left[row] > right[row] for row in all_rows), "candidate_surplus_shapes": sum(right[row] > left[row] for row in all_rows)}
+    raw = recipe["output"]["sensitivity"] == "raw"
+    sort_key = lambda row: json.dumps([_json_value(value) for value in row], ensure_ascii=False, separators=(",", ":"))
+    sample = [{"row": {name: _json_value(value) for name, value in zip(names, row)}, "baseline_count": left[row], "candidate_count": right[row], "classification": "baseline_surplus" if left[row] > right[row] else "candidate_surplus"} for row in sorted(differing, key=sort_key)[:sample_limit]] if raw else []
+    return {"schema_version": 3, "outcome": "INCONCLUSIVE" if problems else "FAIL" if differing else "PASS", "complete": not problems, "sensitivity": recipe["output"]["sensitivity"], "runtime": _runtime_info((baseline_path, candidate_path), "multiset-v1"), "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows, "max_distinct_rows_per_input": max_distinct_rows}, "scope": recipe["scope"], "policy": {"canonical_encoding": "typed-length-prefixed-v1", "column_order": names, "nulls_equal": True}, "column_policies": recipe["columns"], "column_mappings": recipe.get("column_mappings", {}), "problems": problems, "counts": counts, "discrepancy_count": len(differing), "discrepancy_sample": sample, "discrepancy_sample_limit": sample_limit if raw else 0, "excluded_columns": recipe.get("excluded_columns", {}), "inputs": {side: _source_metadata(path, before[str(path)], decoded_sizes, recipe["delimiters"][side], recipe["null_tokens"][side]) for side, path in (("baseline", baseline_path), ("candidate", candidate_path))}, "recipe_sha256": _digest(recipe_path), "policy_sha256": policy_sha256}
+
+
 def _report(result: dict[str, Any]) -> str:
     if result["schema_version"] == 2:
         return _aggregate_report(result)
+    if result["schema_version"] == 3:
+        return _multiset_report(result)
     def esc(value: Any) -> str:
         return html.escape(str(value))
     counts = "".join(f"<tr><th>{esc(k.replace('_', ' '))}</th><td>{v}</td></tr>" for k, v in result["counts"].items())
@@ -1822,7 +1854,27 @@ def _aggregate_report(result: dict[str, Any]) -> str:
 <h2>Provenance</h2><p>Recipe SHA-256: <code>{esc(result['recipe_sha256'])}</code></p><p>Effective policy SHA-256: <code>{esc(result['policy_sha256'])}</code></p></main></html>"""
 
 
+def _multiset_report(result: dict[str, Any]) -> str:
+    esc = lambda value: html.escape(str(value))
+    counts = "".join(f"<tr><th>{esc(name.replace('_', ' '))}</th><td>{value}</td></tr>" for name, value in result["counts"].items())
+    problems = "".join(f"<li>{esc(item)}</li>" for item in result["problems"]) or "<li>None</li>"
+    evidence = "<p>Summary mode stores no row values.</p>"
+    if result["sensitivity"] == "raw":
+        rows = "".join(f"<tr><td>{esc(item['classification'])}</td><td>{item['baseline_count']}</td><td>{item['candidate_count']}</td><td><code>{esc(json.dumps(item['row'], sort_keys=True))}</code></td></tr>" for item in result["discrepancy_sample"]) or '<tr><td colspan="4">No sampled discrepancies</td></tr>'
+        evidence = f"<p><strong>Sensitive:</strong> showing {len(result['discrepancy_sample'])} row shapes.</p><table><tr><th>Class</th><th>Baseline</th><th>Candidate</th><th>Row</th></tr>{rows}</table>"
+    return f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Parison multiset report: {esc(result['outcome'])}</title><style>body{{font:16px system-ui;max-width:1000px;margin:2rem auto;padding:0 1rem}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left}}</style><main><h1>{esc(result['outcome'])}</h1><p>Complete multiset evaluation: <strong>{str(result['complete']).lower()}</strong>.</p><table>{counts}</table><h2>Issues</h2><ul>{problems}</ul><h2>Evidence and privacy</h2>{evidence}</main></html>"""
+
+
 def terminal_result(outcome: str, message: str, recipe: dict[str, Any] | None = None) -> dict[str, Any]:
+    if recipe and recipe.get("comparison_mode") == "multiset":
+        return {
+            "schema_version": 3, "outcome": outcome, "complete": False, "sensitivity": "summary",
+            "runtime": _runtime_info(contract="multiset-v1"), "resource_limits": {}, "scope": recipe.get("scope"),
+            "policy": {}, "column_policies": recipe.get("columns", {}), "column_mappings": recipe.get("column_mappings", {}),
+            "problems": [message], "counts": {}, "discrepancy_count": 0, "discrepancy_sample": [],
+            "discrepancy_sample_limit": 0, "excluded_columns": recipe.get("excluded_columns", {}), "inputs": {},
+            "recipe_sha256": None, "policy_sha256": None,
+        }
     if recipe and recipe.get("comparison_mode") == "aggregate":
         return {
             "schema_version": 2,
@@ -1960,7 +2012,7 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
         result = json.loads((directory / "result.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read result: {exc}") from exc
-    if not isinstance(result, dict) or result.get("schema_version") not in {1, 2}:
+    if not isinstance(result, dict) or result.get("schema_version") not in {1, 2, 3}:
         raise ParisonError("result is incomplete or unsupported")
     for name in ("outcome", "sensitivity", "runtime"):
         if result.get(name) != manifest[name]:

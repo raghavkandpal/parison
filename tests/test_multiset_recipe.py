@@ -5,7 +5,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from parison.core import ParisonError, compare, explain_recipe, load_recipe, load_schema
+from parison.core import ParisonError, compare, error_result, explain_recipe, load_recipe, load_schema, publish, verify_bundle
 
 
 RECIPE = {
@@ -54,9 +54,36 @@ class MultisetRecipeTests(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "multiset column amount must use exact comparison"):
             load_recipe(self.path)
 
-    def test_execution_is_not_exposed_as_a_partial_feature(self):
-        with self.assertRaisesRegex(ParisonError, "not implemented yet"):
-            compare(self.path, "baseline.csv", "candidate.csv")
+    def test_duplicate_multiplicity_is_compared_exactly(self):
+        left = Path(self.tmp.name) / "left.csv"
+        right = Path(self.tmp.name) / "right.csv"
+        left.write_text("region,amount\nEast,1.00\neast,1.00\nwest,2.00\n", encoding="utf-8")
+        right.write_text("area,amount\nWEST,2.00\neast,1.00\nwest,2.00\n", encoding="utf-8")
+        result = compare(self.path, left, right)
+        Draft202012Validator(load_schema("result-v3")).validate(result)
+        self.assertEqual(result["outcome"], "FAIL")
+        self.assertEqual(result["counts"]["common_occurrences"], 2)
+        self.assertEqual(result["counts"]["baseline_only_occurrences"], 1)
+        self.assertEqual(result["counts"]["candidate_only_occurrences"], 1)
+        self.assertNotIn("east", json.dumps(result).lower())
+
+    def test_raw_evidence_is_bounded_and_distinct_row_limit_is_hard(self):
+        recipe = json.loads(json.dumps(RECIPE))
+        recipe["output"]["sensitivity"] = "raw"
+        self.path.write_text(json.dumps(recipe), encoding="utf-8")
+        left = Path(self.tmp.name) / "left.csv"
+        right = Path(self.tmp.name) / "right.csv"
+        left.write_text("region,amount\na,1.00\nb,2.00\n", encoding="utf-8")
+        right.write_text("area,amount\na,1.00\nc,3.00\n", encoding="utf-8")
+        result = compare(self.path, left, right, sample_limit=1)
+        self.assertEqual(len(result["discrepancy_sample"]), 1)
+        output = Path(self.tmp.name) / "run"
+        publish(output, result, load_recipe(self.path))
+        self.assertEqual(verify_bundle(output)["outcome"], "FAIL")
+        self.assertIn("Parison multiset report", (output / "report.html").read_text(encoding="utf-8"))
+        Draft202012Validator(load_schema("result-v3")).validate(error_result("safe failure", load_recipe(self.path)))
+        with self.assertRaisesRegex(ParisonError, "distinct row count"):
+            compare(self.path, left, right, max_distinct_rows=1)
 
 
 if __name__ == "__main__":

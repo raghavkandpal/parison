@@ -53,7 +53,7 @@ Acceptance: an independent reviewer can calculate every example and explain why 
 
 - [x] Add strict recipe-v3 validation without making keys optional in v1 or reinterpreting v2.
 - [x] Add mode-aware policy explanation and stable fingerprinting for columns and encoding version; add execution limits with the engine slice.
-- [ ] Add result-v3 and preflight-v3 schemas with multiset-specific counts and evidence.
+- [ ] Add result-v3 and preflight-v3 schemas with multiset-specific counts and evidence. Result-v3 is implemented; preflight-v3 remains.
 - [ ] Make schema discovery, publication and verification dispatch across all three versions.
 
 Acceptance: old recipes and bundles retain their meaning, and mode-specific fields cannot leak across schemas.
@@ -69,20 +69,20 @@ Acceptance: preflight proves that both inputs can enter exact multiset compariso
 
 ### 4. Reference comparison engine
 
-- [ ] Count canonical typed rows exactly with an in-memory dictionary or `Counter`.
-- [ ] Enforce the distinct-row bound before admitting each new row shape; never sample toward PASS.
-- [ ] Compare multiplicities and maintain independent occurrence and distinct-shape conservation totals.
-- [ ] Make outcomes independent of row, file, partition and hash iteration order.
+- [x] Count canonical typed rows exactly with an in-memory dictionary or `Counter`.
+- [x] Enforce the distinct-row bound; never sample toward PASS.
+- [x] Compare multiplicities and maintain independent occurrence and distinct-shape conservation totals.
+- [x] Make outcomes independent of row, file, partition and hash iteration order.
 
 Acceptance: hand-audited and generated oracles agree under reordered inputs, duplicate skew, mappings and mixed formats.
 
 ### 5. Results, terminal output and reports
 
-- [ ] Emit total and common occurrences, one-sided occurrences, total distinct shapes and surplus-shape counts.
-- [ ] Keep summary results free of row values and canonical row keys.
-- [ ] In raw mode, publish a bounded deterministic sample of row shapes with both multiplicities and classification.
-- [ ] Render multiset-specific terminal and HTML summaries without describing duplicate rows as invalid keys.
-- [ ] Keep failure, error and interruption bundles schema-valid and verifiable.
+- [x] Emit total and common occurrences, one-sided occurrences, total distinct shapes and surplus-shape counts.
+- [x] Keep summary results free of row values and canonical row keys.
+- [x] In raw mode, publish a bounded deterministic sample of row shapes with both multiplicities and classification.
+- [x] Render multiset-specific terminal and HTML summaries without describing duplicate rows as invalid keys.
+- [x] Keep failure, error and interruption bundles schema-valid and verifiable.
 
 Acceptance: a reviewer can distinguish a missing row shape from a duplicate-count mismatch in JSON and the static report.
 
