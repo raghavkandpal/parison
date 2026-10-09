@@ -2,7 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
-from parison.core import compare, export_evidence, load_schema, publish, verify_bundle
+from parison.core import compare, export_evidence, load_schema, publish, run_suite, verify_bundle
 from jsonschema import Draft202012Validator
 
 
@@ -81,6 +81,15 @@ class CheckedInExamples(unittest.TestCase):
         self.assertEqual(result["outcome"], "PASS")
         self.assertTrue(result["complete"])
         self.assertEqual(result["counts"]["matched_within_tolerance"], 1)
+
+    def test_0_10_mixed_suite_runs_all_comparison_modes(self):
+        root = Path(__file__).parents[1]
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            output = Path(directory) / "suite"
+            result = run_suite(root / "examples/0.10/mixed-suite.json", output)
+            self.assertEqual(result["outcome"], "PASS")
+            self.assertEqual([case["contract"] for case in result["cases"]], ["keyed-v1", "aggregate-v1", "multiset-v1"])
+            self.assertEqual(verify_bundle(output)["kind"], "suite")
 
 
 if __name__ == "__main__":

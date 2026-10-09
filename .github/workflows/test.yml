@@ -35,6 +35,9 @@ jobs:
       - run: parison schema preflight-v3
       - run: parison schema result-v2
       - run: parison schema result-v3
+      - run: parison schema suite
+      - run: parison schema suite-result
+      - run: parison schema suite-manifest
       - run: parison validate-recipe examples/orders.recipe.json
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke
@@ -61,6 +64,10 @@ jobs:
           test "$code" -eq 1
       - run: parison inspect /tmp/parison-0.9-raw-smoke
       - run: parison export-evidence /tmp/parison-0.9-raw-smoke --classification baseline_surplus --limit 10 --output /tmp/parison-0.9-evidence.jsonl
+      - run: parison validate-suite examples/0.10/mixed-suite.json
+      - run: parison run-suite --plan examples/0.10/mixed-suite.json --output /tmp/parison-0.10-suite
+      - run: parison verify /tmp/parison-0.10-suite
+      - run: parison inspect /tmp/parison-0.10-suite
       - name: Upload smoke evidence
         if: matrix.python-version == '3.14'
         uses: actions/upload-artifact@v6
@@ -99,4 +106,8 @@ jobs:
       - run: parison schema preflight-v3
       - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output ${{ runner.temp }}/parison-multiset-smoke
       - run: parison inspect ${{ runner.temp }}/parison-multiset-smoke
+      - run: parison validate-suite examples/0.10/mixed-suite.json
+      - run: parison run-suite --plan examples/0.10/mixed-suite.json --output ${{ runner.temp }}/parison-suite-smoke
+      - run: parison verify ${{ runner.temp }}/parison-suite-smoke
+      - run: parison inspect ${{ runner.temp }}/parison-suite-smoke
       - run: python -m unittest discover -s tests -v
