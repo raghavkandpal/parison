@@ -2111,27 +2111,8 @@ def _read_bundle_result(directory: Path) -> dict[str, Any]:
     return result
 
 
-def verify_bundle(directory: str | Path) -> dict[str, Any]:
-    directory = Path(directory)
-    manifest_path = directory / "manifest.json"
-    if directory.is_symlink() or not directory.is_dir():
-        raise ParisonError(f"run is not a regular directory: {directory}")
-    if manifest_path.is_symlink() or not manifest_path.is_file():
-        raise ParisonError("bundle manifest is missing or unsafe")
-    try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ParisonError(f"cannot read manifest: {exc}") from exc
-    if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
-        raise ParisonError("manifest is incomplete or unsupported")
-    if manifest.get("outcome") not in OUTCOME_CODES or manifest.get("sensitivity") not in {"summary", "raw"}:
-        raise ParisonError("manifest has invalid outcome or sensitivity metadata")
-    if not isinstance(manifest.get("runtime"), dict):
-        raise ParisonError("manifest has invalid runtime metadata")
-    files = manifest.get("files")
-    if not isinstance(files, dict) or not files:
-        raise ParisonError("manifest has no files")
-    if not {"result.json", "report.html"} <= set(files):
+def _verify_manifest_files(directory: Path, files: Any, required: set[str]) -> None:
+    if not isinstance(files, dict) or not files or not required <= set(files):
         raise ParisonError("manifest does not cover the required bundle files")
     for name, expected in files.items():
         if (
@@ -2147,6 +2128,89 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
             raise ParisonError(f"bundle file is missing or unsafe: {name}")
         if _digest(path) != expected:
             raise ParisonError(f"bundle file failed integrity check: {name}")
+
+
+def _verify_suite_bundle(directory: Path, manifest: dict[str, Any]) -> dict[str, Any]:
+    if manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
+        raise ParisonError("suite manifest is incomplete or unsupported")
+    if manifest.get("outcome") not in OUTCOME_CODES or not isinstance(manifest.get("runtime"), dict):
+        raise ParisonError("suite manifest has invalid metadata")
+    _verify_manifest_files(directory, manifest.get("files"), {"suite-result.json", "effective-suite.json", "report.html"})
+    try:
+        result = json.loads((directory / "suite-result.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read suite result: {exc}") from exc
+    if not isinstance(result, dict) or result.get("schema_version") != 1 or result.get("suite_version") != 1:
+        raise ParisonError("suite result is incomplete or unsupported")
+    for name in ("outcome", "runtime"):
+        if result.get(name) != manifest.get(name):
+            raise ParisonError(f"suite manifest {name} does not match result")
+    cases = result.get("cases")
+    case_digests = manifest.get("cases")
+    if not isinstance(cases, list) or not isinstance(case_digests, dict):
+        raise ParisonError("suite has invalid case metadata")
+    if {case.get("id") for case in cases if isinstance(case, dict)} != set(case_digests) or len(cases) != len(case_digests):
+        raise ParisonError("suite manifest cases do not match result")
+    for case in cases:
+        expected_fields = {"id", "outcome", "complete", "schema_version", "contract", "policy_sha256", "manifest_sha256", "bundle"}
+        if not isinstance(case, dict) or set(case) != expected_fields:
+            raise ParisonError("suite result contains invalid case fields")
+        identifier = case.get("id")
+        if (
+            not isinstance(identifier, str)
+            or not identifier
+            or any(character not in "abcdefghijklmnopqrstuvwxyz0123456789-" for character in identifier)
+            or identifier.startswith("-")
+            or identifier.endswith("-")
+            or "--" in identifier
+            or case.get("bundle") != f"cases/{identifier}"
+        ):
+            raise ParisonError("suite result contains an invalid child location")
+        child = directory / "cases" / identifier
+        child_manifest = verify_bundle(child)
+        digest = _digest(child / "manifest.json")
+        if digest != case_digests[identifier] or digest != case.get("manifest_sha256"):
+            raise ParisonError(f"suite child manifest digest does not match: {identifier}")
+        if (
+            child_manifest.get("outcome") != case.get("outcome")
+            or child_manifest.get("runtime", {}).get("contract") != case.get("contract")
+        ):
+            raise ParisonError(f"suite child metadata does not match: {identifier}")
+        child_result = _read_bundle_result(child)
+        if (
+            child_result.get("schema_version") != case.get("schema_version")
+            or child_result.get("policy_sha256") != case.get("policy_sha256")
+            or child_result.get("complete") != case.get("complete")
+        ):
+            raise ParisonError(f"suite child result metadata does not match: {identifier}")
+    if result.get("completed_cases") != len(cases) or not isinstance(result.get("total_cases"), int) or result["total_cases"] < len(cases):
+        raise ParisonError("suite result has invalid case counts")
+    expected_counts = {name: sum(case["outcome"] == name for case in cases) for name in OUTCOME_CODES}
+    if result.get("outcome_counts") != expected_counts or result.get("suite_sha256") != _digest(directory / "effective-suite.json"):
+        raise ParisonError("suite result has invalid counts or plan digest")
+    return manifest
+
+
+def verify_bundle(directory: str | Path) -> dict[str, Any]:
+    directory = Path(directory)
+    manifest_path = directory / "manifest.json"
+    if directory.is_symlink() or not directory.is_dir():
+        raise ParisonError(f"run is not a regular directory: {directory}")
+    if manifest_path.is_symlink() or not manifest_path.is_file():
+        raise ParisonError("bundle manifest is missing or unsafe")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read manifest: {exc}") from exc
+    if isinstance(manifest, dict) and manifest.get("kind") == "suite":
+        return _verify_suite_bundle(directory, manifest)
+    if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
+        raise ParisonError("manifest is incomplete or unsupported")
+    if manifest.get("outcome") not in OUTCOME_CODES or manifest.get("sensitivity") not in {"summary", "raw"}:
+        raise ParisonError("manifest has invalid outcome or sensitivity metadata")
+    if not isinstance(manifest.get("runtime"), dict):
+        raise ParisonError("manifest has invalid runtime metadata")
+    _verify_manifest_files(directory, manifest.get("files"), {"result.json", "report.html"})
     result = _read_bundle_result(directory)
     for name in ("outcome", "sensitivity", "runtime"):
         if result.get(name) != manifest[name]:
@@ -2157,6 +2221,25 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
 def inspect_bundle(directory: str | Path) -> dict[str, Any]:
     """Return safe, schema-aware metadata from a verified bundle."""
     manifest = verify_bundle(directory)
+    if manifest.get("kind") == "suite":
+        result = json.loads((Path(directory) / "suite-result.json").read_text(encoding="utf-8"))
+        return {
+            "kind": "suite",
+            "schema_version": result["schema_version"],
+            "suite_version": result["suite_version"],
+            "outcome": result["outcome"],
+            "complete": result["complete"],
+            "runtime": result["runtime"],
+            "total_cases": result["total_cases"],
+            "completed_cases": result["completed_cases"],
+            "outcome_counts": result["outcome_counts"],
+            "cases": [
+                {name: case[name] for name in ("id", "outcome", "complete", "schema_version", "contract", "policy_sha256", "manifest_sha256", "bundle")}
+                for case in result["cases"]
+            ],
+            "bundle_sha256": _digest(Path(directory) / "manifest.json"),
+            "manifest_files": sorted(manifest["files"]),
+        }
     result = _read_bundle_result(Path(directory))
     return {
         "schema_version": result.get("schema_version"),
@@ -2189,6 +2272,8 @@ def export_evidence(
     if limit <= 0:
         raise ParisonError("evidence export limit must be positive")
     manifest = verify_bundle(directory)
+    if manifest.get("kind") == "suite":
+        raise ParisonError("evidence export requires a child run bundle")
     manifest_path = Path(directory) / "manifest.json"
     result = _read_bundle_result(Path(directory))
     if result.get("sensitivity") != "raw":
@@ -2298,6 +2383,8 @@ def run_suite(
         precedence = {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2, "ERROR": 3, "INTERRUPTED": 4}
         outcome = max((case["outcome"] for case in cases), key=precedence.get)
         outcome_counts = {name: sum(case["outcome"] == name for case in cases) for name in precedence}
+        effective = json.loads(Path(plan).read_text(encoding="utf-8"))
+        (stage / "effective-suite.json").write_text(json.dumps(effective, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         result = {
             "schema_version": 1,
             "suite_version": 1,
@@ -2308,11 +2395,9 @@ def run_suite(
             "completed_cases": len(cases),
             "outcome_counts": outcome_counts,
             "cases": cases,
-            "suite_sha256": _digest(Path(plan)),
+            "suite_sha256": _digest(stage / "effective-suite.json"),
         }
-        effective = json.loads(Path(plan).read_text(encoding="utf-8"))
         (stage / "suite-result.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        (stage / "effective-suite.json").write_text(json.dumps(effective, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         (stage / "report.html").write_text(_suite_report(result), encoding="utf-8")
         files = {name: _digest(stage / name) for name in ("suite-result.json", "effective-suite.json", "report.html")}
         manifest = {

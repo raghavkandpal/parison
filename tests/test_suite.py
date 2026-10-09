@@ -8,7 +8,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, explain_recipe, load_schema, load_suite, run_suite
+from parison.core import ParisonError, explain_recipe, export_evidence, inspect_bundle, load_schema, load_suite, run_suite, verify_bundle
 
 
 RECIPE = {
@@ -104,6 +104,15 @@ class SuiteTests(unittest.TestCase):
         manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["kind"], "suite")
         self.assertEqual(set(manifest["cases"]), {"passing", "failing"})
+        self.assertEqual(verify_bundle(output)["kind"], "suite")
+        inspection = inspect_bundle(output)
+        self.assertEqual(inspection["outcome_counts"]["FAIL"], 1)
+        self.assertNotIn("discrepancy_sample", json.dumps(inspection))
+        with self.assertRaisesRegex(ParisonError, "requires a child run bundle"):
+            export_evidence(output, self.root / "suite-evidence.jsonl")
+        with redirect_stdout(StringIO()), redirect_stderr(StringIO()) as verify_stderr:
+            self.assertEqual(main(["verify", str(output)]), 0)
+        self.assertIn("suite", verify_stderr.getvalue())
         stdout, stderr = StringIO(), StringIO()
         with redirect_stdout(stdout), redirect_stderr(stderr):
             self.assertEqual(main(["run-suite", "--plan", str(self.plan), "--output", str(self.root / "cli-run")]), 1)
@@ -111,6 +120,10 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("Parison suite FAIL", stderr.getvalue())
         with self.assertRaisesRegex(ParisonError, "output already exists"):
             run_suite(self.plan, output)
+        child_result = output / "cases" / "passing" / "result.json"
+        child_result.write_text(child_result.read_text(encoding="utf-8") + " ", encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "failed integrity"):
+            verify_bundle(output)
 
     def test_run_suite_continues_after_case_error(self):
         broken = self.case("broken")
