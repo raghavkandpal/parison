@@ -16,10 +16,12 @@ class JsonSchemas(unittest.TestCase):
     def setUpClass(cls):
         cls.recipe_schema = load_schema("recipe")
         cls.result_schema = load_schema("result")
+        cls.result_v2_schema = load_schema("result-v2")
         cls.manifest_schema = load_schema("manifest")
         cls.preflight_schema = load_schema("preflight")
         Draft202012Validator.check_schema(cls.recipe_schema)
         Draft202012Validator.check_schema(cls.result_schema)
+        Draft202012Validator.check_schema(cls.result_v2_schema)
         Draft202012Validator.check_schema(cls.manifest_schema)
         Draft202012Validator.check_schema(cls.preflight_schema)
 

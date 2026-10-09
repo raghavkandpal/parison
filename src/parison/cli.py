@@ -12,7 +12,20 @@ from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_resu
 def _print_summary(result: dict, output: str) -> None:
     counts = result["counts"]
     print(f"Parison {result['outcome']} (complete: {str(result['complete']).lower()})", file=sys.stderr)
-    if counts:
+    if result["schema_version"] == 2 and counts:
+        print(
+            "Groups: "
+            f"baseline {counts['baseline_groups']}, candidate {counts['candidate_groups']}, common {counts['common_groups']}, "
+            f"baseline-only {counts['baseline_only_groups']}, candidate-only {counts['candidate_only_groups']}",
+            file=sys.stderr,
+        )
+        print(
+            "Measures: "
+            f"exact {counts['exact_measures']}, within tolerance {counts['within_tolerance_measures']}, "
+            f"different {counts['different_measures']}",
+            file=sys.stderr,
+        )
+    elif counts:
         print(
             "Rows: "
             f"baseline {counts['baseline']}, candidate {counts['candidate']}, common {counts['common_keys']}, "
@@ -40,7 +53,7 @@ def parser() -> argparse.ArgumentParser:
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
     explain.add_argument("recipe")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "result", "manifest", "preflight"))
+    schema.add_argument("name", choices=("recipe", "recipe-v2", "result", "result-v2", "manifest", "preflight"))
     inputs = commands.add_parser("validate-inputs", help="validate input schemas and optionally records against a recipe")
     inputs.add_argument("--recipe", required=True)
     inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
@@ -79,6 +92,7 @@ symmetric-v1 tolerance. Suggestions are starting points, not approved policy."""
     run.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     run.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000, help="maximum combined decoded gzip size (default: 1 GB)")
     run.add_argument("--max-rows", type=int, default=5_000_000, help="maximum rows in either input (default: 5 million)")
+    run.add_argument("--max-groups", type=int, default=100_000, help="maximum groups in either aggregate input (default: 100,000)")
     run.add_argument("--expected-policy-sha256", help="require this effective-policy fingerprint before reading inputs")
     return root
 
@@ -164,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
             args.max_rows,
             args.expected_policy_sha256,
             args.max_decoded_bytes,
+            args.max_groups,
         )
         publish(args.output, result, recipe)
         print(json.dumps({"outcome": result["outcome"], "output": args.output}))

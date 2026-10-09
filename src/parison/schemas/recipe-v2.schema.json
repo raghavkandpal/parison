@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/raghavkandpal/parison/schemas/recipe-v2.schema.json",
+  "title": "Parison aggregate recipe v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["recipe_version", "comparison_mode", "group_by", "measures", "scope", "columns"],
+  "properties": {
+    "recipe_version": {"const": 2},
+    "comparison_mode": {"const": "aggregate"},
+    "group_by": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "measures": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"minLength": 1},
+      "additionalProperties": {"$ref": "#/$defs/measure"}
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshot", "cutoff", "filters", "completeness", "expected_empty"],
+      "properties": {
+        "snapshot": {"type": "string", "minLength": 1},
+        "cutoff": {"type": "string", "minLength": 1},
+        "filters": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "completeness": {"const": "full"},
+        "expected_empty": {"type": "boolean"}
+      }
+    },
+    "null_tokens": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline", "candidate"],
+      "properties": {
+        "baseline": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "candidate": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "columns": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/column"}},
+    "column_mappings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["baseline", "candidate"],
+        "properties": {
+          "baseline": {"type": "string", "minLength": 1},
+          "candidate": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "excluded_columns": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}},
+    "delimiters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline", "candidate"],
+      "properties": {
+        "baseline": {"type": "string", "minLength": 1, "maxLength": 1},
+        "candidate": {"type": "string", "minLength": 1, "maxLength": 1}
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sensitivity"],
+      "properties": {"sensitivity": {"enum": ["summary", "raw"]}}
+    }
+  },
+  "$defs": {
+    "column": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["string", "integer", "decimal", "float", "boolean", "date", "timestamp"]},
+        "comparison": {"const": "exact"},
+        "timezone": {"const": "require-aware"},
+        "scale": {"type": "integer", "minimum": 0},
+        "normalize": {"type": "array", "uniqueItems": true, "items": {"enum": ["trim", "casefold", "unicode_nfc"]}}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"const": "timestamp"}}}, "then": {"required": ["timezone"]}, "else": {"not": {"required": ["timezone"]}}},
+        {"if": {"properties": {"type": {"const": "decimal"}}}, "then": {"required": ["scale"]}, "else": {"not": {"required": ["scale"]}}},
+        {"if": {"properties": {"type": {"const": "string"}}}, "else": {"not": {"required": ["normalize"]}}}
+      ]
+    },
+    "tolerance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formula", "absolute", "relative"],
+      "properties": {
+        "formula": {"const": "symmetric-v1"},
+        "absolute": {"type": ["string", "number", "integer"]},
+        "relative": {"type": ["string", "number", "integer"]}
+      }
+    },
+    "measure": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operator"],
+          "properties": {"operator": {"const": "count"}}
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operator", "column", "nulls"],
+          "properties": {
+            "operator": {"enum": ["sum", "min", "max"]},
+            "column": {"type": "string", "minLength": 1},
+            "nulls": {"enum": ["reject", "ignore"]},
+            "comparison": {"enum": ["exact", "numeric"]},
+            "tolerance": {"$ref": "#/$defs/tolerance"}
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"comparison": {"const": "numeric"}}, "required": ["comparison"]},
+              "then": {"required": ["tolerance"]},
+              "else": {"not": {"required": ["tolerance"]}}
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -53,6 +53,8 @@ Use `validate-inputs` to check physical schemas, mappings, exclusions and partit
 
 Use `parison explain` to review the fully expanded policy and obtain its `policy_sha256`. CI can pass that value to `compare --expected-policy-sha256 HASH`; Parison rejects a malformed or changed policy before opening either input. The fingerprint checks equality only—it is not a signature or proof of approval. Installed Draft 2020-12 schemas are available through `parison schema recipe|result|manifest|preflight`.
 
+Aggregate-v1 execution is available during 0.7 development. `validate-recipe`, `explain` and `compare` accept strict aggregate recipe v2 files; installed schemas are available through `parison schema recipe-v2|result-v2`. Aggregate comparison supports global or grouped `count`, `sum`, `min` and `max`, exact scaled-decimal accumulation, numeric tolerances, bounded groups and summary-safe evidence. Aggregate-aware `validate-inputs` and drafting remain in progress. See the [aggregate-v1 contract](docs/0.7/60-aggregate-contract.md).
+
 `output.sensitivity` defaults to `summary`, which stores no source keys or values. Set it explicitly to `raw` to include a bounded discrepancy sample, and protect that output as sensitive data. `--sample-limit` controls the maximum number of raw field differences written. Comparison errors also publish a summary-only diagnostic bundle when the output destination is available.
 
 Every recipe must declare a source snapshot, extraction cutoff, intended filters, full-scope completeness, whether an empty scope is expected, and whether two non-key null values are equal. These are recorded provenance assertions; Parison cannot independently prove that upstream pipelines honored them.

@@ -4,6 +4,12 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Normative aggregate-v1 semantics for global and grouped reconciliation, including empty, null, ordering, exact-decimal and disclosure rules.
+- Strict aggregate recipe v2 validation, an installed `recipe-v2` JSON Schema, and stable mode-aware effective-policy fingerprints.
+- Deterministic global and grouped aggregate execution with exact integer/scaled-decimal sums, bounded groups, result v2 bundles, aggregate terminal output and HTML reports.
+
 ## 0.6.0 - 2026-10-08
 
 ### Added

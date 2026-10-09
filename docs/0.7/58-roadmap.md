@@ -2,7 +2,7 @@
 
 Date: 8 October 2026
 
-Status: **planned**. Implementation has not started.
+Status: **in development**. Aggregate-v1 semantics, recipe v2 policy validation and the first deterministic execution path are implemented; aggregate preflight and drafting remain in progress.
 
 ## Goal
 
@@ -36,18 +36,18 @@ Aggregate-v1 rejects null group keys. `count` has no source column and counts in
 
 ### 1. Freeze aggregate-v1 semantics
 
-- [ ] Write the normative recipe and outcome contract with worked global, grouped, missing-group, null and tolerance examples.
-- [ ] Define canonical measure names, source mappings, accumulation types and deterministic group ordering.
-- [ ] Specify invariants: every input row contributes once to one group count; each measure's contributing and ignored-null counts reconcile to its group count; missing groups and violating measures produce FAIL.
-- [ ] Specify INCONCLUSIVE and ERROR boundaries before implementation, including empty inputs, invalid group values, parse failures and resource exhaustion.
+- [x] Write the normative recipe and outcome contract with worked global, grouped, missing-group, null and tolerance examples.
+- [x] Define canonical measure names, source mappings, accumulation types and deterministic group ordering.
+- [x] Specify invariants: every input row contributes once to one group count; each measure's contributing and ignored-null counts reconcile to its group count; missing groups and violating measures produce FAIL.
+- [x] Specify INCONCLUSIVE and ERROR boundaries before implementation, including empty inputs, invalid group values, parse failures and resource exhaustion.
 
 Acceptance: an independent reviewer can calculate every example result without reading implementation code.
 
 ### 2. Versioned policy and schemas
 
-- [ ] Add strict recipe-v2 validation and an installed `recipe-v2` JSON Schema without loosening recipe v1.
-- [ ] Add a mode-aware effective-policy explanation and stable SHA-256 fingerprint.
-- [ ] Add result-v2 and preflight-v2 schemas with explicit `groups`, `measures`, `group_counts` and `measure_counts`; do not reuse keyed row classifications for aggregate outcomes.
+- [x] Add strict recipe-v2 validation and an installed `recipe-v2` JSON Schema without loosening recipe v1.
+- [x] Add a mode-aware effective-policy explanation and stable SHA-256 fingerprint.
+- [ ] Add result-v2 and preflight-v2 schemas with explicit `groups`, `measures`, `group_counts` and `measure_counts`; result v2 is installed, while preflight v2 remains.
 - [ ] Teach schema discovery and bundle verification to select the declared schema version.
 
 Acceptance: old checked-in recipes and bundles remain byte-for-byte interpretable, and unknown aggregate fields/operators are rejected.
@@ -63,20 +63,20 @@ Acceptance: preflight can prove whether both complete inputs are executable unde
 
 ### 4. Deterministic aggregation engine
 
-- [ ] Introduce one mode dispatcher and one aggregate execution path; keep the keyed implementation intact behind its existing contract.
-- [ ] Accumulate exact typed group keys and named measures in one pass per input.
-- [ ] Accumulate integers directly and scaled decimals as unbounded integer coefficients; convert to canonical decimals only at the result boundary.
-- [ ] Compare canonical group-key sets first, then measure results for common groups using existing exact/tolerance classification.
-- [ ] Preserve input digests and reject mutation across both scans.
+- [x] Introduce one mode dispatcher and one aggregate execution path; keep the keyed implementation intact behind its existing contract.
+- [x] Accumulate exact typed group keys and named measures in one pass per input.
+- [x] Accumulate integers directly and scaled decimals as unbounded integer coefficients; convert to canonical decimals only at the result boundary.
+- [x] Compare canonical group-key sets first, then measure results for common groups using existing exact/tolerance classification.
+- [x] Preserve input digests and reject mutation across both scans.
 
 Acceptance: oracle fixtures pass under row reordering, partition reordering, mixed input formats, mappings, normalization and tolerance boundaries.
 
 ### 5. Results, terminal output and reports
 
 - [ ] Emit complete group and measure totals in result v2 with conservation checks.
-- [ ] Keep summary mode free of group keys, per-group counts, per-group measures and source values; aggregate output is reconciliation evidence, not de-identified data.
-- [ ] In raw mode, publish a deterministic bounded sample of missing groups and differing measures, clearly labelled as sensitive.
-- [ ] Render aggregate-specific terminal and HTML summaries without pretending groups are records or measures are fields.
+- [x] Keep summary mode free of group keys, per-group counts, per-group measures and source values; aggregate output is reconciliation evidence, not de-identified data.
+- [x] In raw mode, publish a deterministic bounded sample of missing groups and differing measures, clearly labelled as sensitive.
+- [x] Render aggregate-specific terminal and HTML summaries without pretending groups are records or measures are fields.
 - [ ] Keep error and interruption bundles schema-valid for both modes.
 
 Acceptance: a user can distinguish coverage failure, missing groups, exact measures, tolerated measures and violating measures from both JSON and the static report.
