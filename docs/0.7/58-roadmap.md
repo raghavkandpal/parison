@@ -2,7 +2,7 @@
 
 Date: 8 October 2026
 
-Status: **in development**. The first complete aggregate-v1 workflow is implemented; adversarial verification and release hardening remain.
+Status: **release candidate**. The complete aggregate-v1 workflow and adversarial verification are implemented; final archive publication remains.
 
 ## Goal
 
@@ -94,7 +94,7 @@ Acceptance: an unfamiliar user can draft, review, lock, preflight, compare and v
 
 - [x] Add hand-audited fixtures for offsetting groups with equal global totals, all-null ignored measures, missing groups, decimal cancellation under reordered rows, tolerance boundaries, both empty-input shapes and group explosion.
 - [x] Extend generated oracles and performance measurements across global, low-cardinality and high-cardinality groups.
-- [ ] Pass Python 3.11–3.14, macOS and Windows CI with optional Parquet and all installed schemas.
+- [x] Pass Python 3.11–3.14, macOS and Windows CI with optional Parquet and all installed schemas.
 - [ ] Build and inspect clean archives, install the final wheel in an empty environment, and repeat both keyed and aggregate smoke workflows before tagging 0.7.0.
 
 Acceptance: aggregate mode cannot turn offsetting row errors into a claim of row equality, exceed declared group bounds silently, or regress keyed-v1 evidence.

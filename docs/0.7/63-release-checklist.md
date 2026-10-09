@@ -2,7 +2,7 @@
 
 Date: 9 October 2026
 
-Status: **in development**. Product behavior is implemented; cross-platform and packaging gates remain.
+Status: **release candidate**. Product behavior and the development matrix are verified; final-version CI, merge and publication remain.
 
 - [x] Freeze aggregate-v1 semantics and privacy boundaries.
 - [x] Add strict recipe v2, preflight v2 and result v2 schemas.
@@ -13,9 +13,9 @@ Status: **in development**. Product behavior is implemented; cross-platform and 
 - [x] Add adversarial empty, null, missing-group, tolerance, reordering and group-limit fixtures.
 - [x] Add reproducible global, low-cardinality and high-cardinality benchmark oracles.
 - [x] Rehearse a clean development archive build and isolated keyed/aggregate wheel smoke workflows.
-- [ ] Pass Python 3.11–3.14 CI with all installed schemas and optional Parquet.
-- [ ] Pass macOS and Windows smoke jobs.
+- [x] Pass Python 3.11–3.14 CI with all installed schemas and optional Parquet.
+- [x] Pass macOS and Windows smoke jobs.
 - [ ] Build and inspect clean wheel and source archives.
 - [ ] Install the wheel in an empty environment and repeat keyed and aggregate smoke workflows.
-- [ ] Move changelog entries to 0.7.0 and set the final package version.
+- [x] Move changelog entries to 0.7.0 and set the final package version.
 - [ ] Merge the release commit, tag `0.7.0`, publish checksums and verify downloaded assets.

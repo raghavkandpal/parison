@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**0.7 development.** The released 0.6.0 CLI adds opt-in record-level validation with privacy-safe aggregate type and key-identity diagnostics. Development is adding an explicit aggregate comparison contract for global and grouped reconciliation without weakening keyed comparison.
+**0.7.0 release candidate.** The candidate adds explicit global and grouped aggregate reconciliation without weakening keyed comparison. Its cross-platform release matrix is green; final archive publication remains.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 

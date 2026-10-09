@@ -23,7 +23,7 @@ The current local suite passed 143 tests with six optional-dependency skips. The
 
 The checked-in [aggregate measurement](../../benchmarks/results-2026-10-09-aggregate.json) records three fresh-process runs per 1,000-row profile on arm64 macOS with Python 3.12.5. Median elapsed times were 0.056 seconds global, 0.055 seconds low-cardinality and 0.075 seconds high-cardinality. Median Python allocation rose from roughly 1.1 MB global to 3.0 MB at 1,000 groups. These are engineering measurements, not supported scale claims.
 
-CI now installs and prints every v1/v2 schema, runs aggregate preflight/compare/verify smoke commands, measures all three aggregate profiles, and retains the existing Python 3.11–3.14 plus macOS/Windows matrix. Remote CI results are not yet recorded here.
+CI installs and prints every v1/v2 schema, runs aggregate preflight/compare/verify smoke commands, measures all three aggregate profiles, and retains the existing Python 3.11–3.14 plus macOS/Windows matrix. All six jobs passed from commit `341a930` in [run 37895465310](https://github.com/raghavkandpal/parison/actions/runs/37895465310).
 
 ## Local archive rehearsal
 
@@ -38,8 +38,7 @@ These identify temporary development archives, not release assets. Final archive
 
 ## Remaining release gates
 
-- obtain a green remote matrix for the current aggregate implementation;
-- run optional Parquet aggregate fixtures in that matrix;
+- obtain a green remote matrix for the final `0.7.0` version commit;
 - build clean wheel and source archives and inspect their installed schemas;
 - install the wheel in an empty environment and repeat keyed and aggregate smoke workflows;
-- finalize version metadata, changelog and the 0.7.0 release checklist before tagging.
+- merge the verified release commit before tagging.
