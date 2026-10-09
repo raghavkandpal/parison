@@ -9,6 +9,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Multiset-v1 comparison contract](0.8/66-multiset-contract.md)
 - [Canonical row encoding research](0.8/67-canonical-row-encoding-research.md)
 - [Multiset comparison user guide](0.8/68-user-guide.md)
+- [0.8 release checklist](0.8/69-release-checklist.md)
 
 ## 0.7 — released
 
