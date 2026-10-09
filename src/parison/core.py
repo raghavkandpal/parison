@@ -2190,6 +2190,18 @@ def _verify_suite_bundle(directory: Path, manifest: dict[str, Any]) -> dict[str,
     expected_counts = {name: sum(case["outcome"] == name for case in cases) for name in OUTCOME_CODES}
     if result.get("outcome_counts") != expected_counts or result.get("suite_sha256") != _digest(directory / "effective-suite.json"):
         raise ParisonError("suite result has invalid counts or plan digest")
+    try:
+        effective = json.loads((directory / "effective-suite.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read effective suite: {exc}") from exc
+    planned = effective.get("cases") if isinstance(effective, dict) and effective.get("suite_version") == 1 else None
+    if not isinstance(planned, list) or result["total_cases"] != len(planned) or [case["id"] for case in cases] != [case.get("id") for case in planned[:len(cases)] if isinstance(case, dict)]:
+        raise ParisonError("suite result does not match effective plan")
+    precedence = {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2, "ERROR": 3, "INTERRUPTED": 4}
+    expected_outcome = max((case["outcome"] for case in cases), key=precedence.get)
+    expected_complete = len(cases) == len(planned) and all(case["complete"] for case in cases)
+    if result.get("outcome") != expected_outcome or result.get("complete") != expected_complete:
+        raise ParisonError("suite result has invalid outcome or completeness")
     return manifest
 
 

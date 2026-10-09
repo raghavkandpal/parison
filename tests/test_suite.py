@@ -4,6 +4,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
@@ -135,6 +136,17 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(result["outcome"], "ERROR")
         self.assertEqual(result["completed_cases"], 2)
         self.assertEqual([case["outcome"] for case in result["cases"]], ["ERROR", "PASS"])
+
+    def test_interruption_stops_after_publishing_interrupted_child(self):
+        self.write_plan([self.case("first"), self.case("second")])
+        output = self.root / "interrupted"
+        with patch("parison.core.compare", side_effect=KeyboardInterrupt):
+            result = run_suite(self.plan, output)
+        self.assertEqual(result["outcome"], "INTERRUPTED")
+        self.assertEqual(result["completed_cases"], 1)
+        self.assertEqual(result["total_cases"], 2)
+        self.assertFalse(result["complete"])
+        self.assertEqual(verify_bundle(output)["outcome"], "INTERRUPTED")
 
 
 if __name__ == "__main__":
