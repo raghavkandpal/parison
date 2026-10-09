@@ -2157,17 +2157,24 @@ def export_evidence(
     target = Path(output)
     if target.exists():
         raise ParisonError(f"output already exists: {target}")
-    stage = target.with_name(f".{target.name}-stage")
+    stage = None
     try:
-        with stage.open("x", encoding="utf-8") as handle:
+        descriptor, stage_name = tempfile.mkstemp(prefix=f".{target.name}-", dir=target.parent, text=True)
+        stage = Path(stage_name)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             handle.write(json.dumps({"_parison_export": {"bundle_sha256": _digest(manifest_path), "schema_version": result.get("schema_version"), "policy_sha256": result.get("policy_sha256"), "classification": classification, "kind": kind, "name": name, "limit": limit}}, sort_keys=True) + "\n")
             for item in items:
                 handle.write(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n")
-        os.replace(stage, target)
+        os.link(stage, target)
+        stage.unlink()
+    except FileExistsError as exc:
+        raise ParisonError(f"output already exists: {target}") from exc
     except OSError as exc:
-        try:
-            stage.unlink()
-        except OSError:
-            pass
         raise ParisonError(f"cannot export evidence: {exc}") from exc
+    finally:
+        if stage is not None:
+            try:
+                stage.unlink()
+            except OSError:
+                pass
     return {"output": str(target), "items": len(items), "limit": limit, "classification": classification, "kind": kind, "name": name, "bundle_files": sorted(manifest.get("files", {}))}

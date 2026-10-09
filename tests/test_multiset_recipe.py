@@ -90,8 +90,11 @@ class MultisetRecipeTests(unittest.TestCase):
         self.assertRegex(summary["bundle_sha256"], r"^[0-9a-f]{64}$")
         self.assertNotIn('"discrepancy_sample":', json.dumps(summary))
         exported = Path(self.tmp.name) / "evidence.jsonl"
+        stale_stage = Path(self.tmp.name) / ".evidence.jsonl-stage"
+        stale_stage.write_text("unrelated", encoding="utf-8")
         metadata = export_evidence(output, exported, limit=1, kind="row")
         self.assertEqual(metadata["items"], 1)
+        self.assertEqual(stale_stage.read_text(encoding="utf-8"), "unrelated")
         lines = exported.read_text(encoding="utf-8").splitlines()
         self.assertEqual(len(lines), 2)
         self.assertEqual(json.loads(lines[0])["_parison_export"]["schema_version"], 3)
