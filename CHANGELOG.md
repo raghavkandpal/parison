@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.9.0 - 2026-10-09
+
 ### Added
 
 - Verified bundle inspection with safe evidence-coverage, policy and bundle provenance metadata.
