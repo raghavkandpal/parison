@@ -51,6 +51,8 @@ jobs:
       - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output /tmp/parison-0.8-smoke
       - run: parison verify /tmp/parison-0.8-smoke
       - run: parison inspect /tmp/parison-0.8-smoke
+      - run: parison compare --recipe examples/0.8/multiset-raw.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output /tmp/parison-0.8-raw-smoke
+      - run: parison export-evidence /tmp/parison-0.8-raw-smoke --limit 10 --output /tmp/parison-0.8-evidence.jsonl
       - name: Upload smoke evidence
         if: matrix.python-version == '3.14'
         uses: actions/upload-artifact@v6

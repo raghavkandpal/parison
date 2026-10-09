@@ -2,7 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
-from parison.core import compare, load_schema, verify_bundle
+from parison.core import compare, export_evidence, load_schema, publish, verify_bundle
 from jsonschema import Draft202012Validator
 
 
@@ -61,6 +61,16 @@ class CheckedInExamples(unittest.TestCase):
         Draft202012Validator(load_schema("result-v3")).validate(result)
         self.assertEqual(result["outcome"], "PASS")
         self.assertEqual(result["counts"]["common_occurrences"], 3)
+
+    def test_0_8_raw_example_exports_bounded_evidence(self):
+        root = Path(__file__).parents[1] / "examples" / "0.8"
+        result = compare(root / "multiset-raw.recipe.json", root / "baseline.csv", root / "candidate.jsonl")
+        self.assertEqual(result["sensitivity"], "raw")
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            output = Path(directory) / "run"
+            publish(output, result, json.loads((root / "multiset-raw.recipe.json").read_text(encoding="utf-8")))
+            evidence = Path(directory) / "evidence.jsonl"
+            self.assertEqual(export_evidence(output, evidence, limit=10)["items"], 0)
 
     def test_committed_output_bundle_is_complete_and_verified(self):
         root = Path(__file__).parents[1]
