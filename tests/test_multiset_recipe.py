@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from decimal import Decimal
+from datetime import date, datetime, timezone
 
 from jsonschema import Draft202012Validator
 
@@ -107,6 +108,35 @@ class MultisetRecipeTests(unittest.TestCase):
         limited = validate_inputs(self.path, left, right, validate_records=True, max_distinct_rows=1)
         self.assertEqual(limited["status"], "invalid")
         self.assertTrue(limited["inputs"]["baseline"]["records"]["distinct_row_limit_exceeded"])
+
+    def test_encoding_golden_scalar_tags(self):
+        recipe = json.loads(json.dumps(RECIPE))
+        recipe["columns"] = {
+            "a_bool": {"type": "boolean"}, "b_int": {"type": "integer"}, "c_decimal": {"type": "decimal", "scale": 2},
+            "d_float": {"type": "float"}, "e_date": {"type": "date"}, "f_timestamp": {"type": "timestamp", "timezone": "require-aware"}, "g_string": {"type": "string"},
+        }
+        names = sorted(recipe["columns"])
+        encoded = _multiset_encoding((True, 7, Decimal("1.20"), 1.5, date(2026, 10, 9), datetime(2026, 10, 9, tzinfo=timezone.utc), "é"), names, recipe)
+        tags = []
+        offset = 0
+        while offset < len(encoded):
+            tags.append(encoded[offset])
+            offset += 1 + 8 + int.from_bytes(encoded[offset + 1:offset + 9], "big")
+        self.assertEqual(tags, [1, 2, 3, 7, 5, 6, 4])
+        self.assertIn("2026-10-09T00:00:00.000000Z".encode(), encoded)
+
+    def test_raw_evidence_is_invariant_under_row_order(self):
+        recipe = json.loads(json.dumps(RECIPE))
+        recipe["output"]["sensitivity"] = "raw"
+        self.path.write_text(json.dumps(recipe), encoding="utf-8")
+        left = Path(self.tmp.name) / "left.csv"
+        right = Path(self.tmp.name) / "right.csv"
+        left.write_text("region,amount\nb,2.00\na,1.00\nc,3.00\n", encoding="utf-8")
+        right.write_text("area,amount\nc,3.01\na,1.00\nb,2.01\n", encoding="utf-8")
+        first = compare(self.path, left, right, sample_limit=2)
+        right.write_text("area,amount\nb,2.01\nc,3.01\na,1.00\n", encoding="utf-8")
+        second = compare(self.path, left, right, sample_limit=2)
+        self.assertEqual(first["discrepancy_sample"], second["discrepancy_sample"])
 
 
 if __name__ == "__main__":
