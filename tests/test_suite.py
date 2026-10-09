@@ -1,4 +1,6 @@
+import hashlib
 import json
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -147,6 +149,37 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(result["total_cases"], 2)
         self.assertFalse(result["complete"])
         self.assertEqual(verify_bundle(output)["outcome"], "INTERRUPTED")
+
+    def test_rejects_self_consistent_parent_summary_tampering(self):
+        self.write_plan([self.case()])
+        output = self.root / "tampered"
+        run_suite(self.plan, output)
+        result_path = output / "suite-result.json"
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+        result["outcome_counts"]["PASS"] = 0
+        result["outcome_counts"]["FAIL"] = 1
+        result_path.write_text(json.dumps(result), encoding="utf-8")
+        manifest_path = output / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["files"]["suite-result.json"] = hashlib.sha256(result_path.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "invalid counts"):
+            verify_bundle(output)
+
+    def test_parent_publication_failure_cleans_staging(self):
+        self.write_plan([self.case()])
+        output = self.root / "publication"
+        real_replace = os.replace
+
+        def fail_parent(source, destination):
+            if Path(destination) == output:
+                raise OSError("injected parent publication failure")
+            return real_replace(source, destination)
+
+        with patch("parison.core.os.replace", side_effect=fail_parent), self.assertRaisesRegex(ParisonError, "cannot publish suite"):
+            run_suite(self.plan, output)
+        self.assertFalse(output.exists())
+        self.assertEqual(list(self.root.glob(".publication-*")), [])
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ Status: **in progress**
 
 - [x] Mixed keyed, aggregate and multiset example passes locally.
 - [x] Python 3.11–3.14, macOS and Windows suite smoke passes.
-- [ ] Add self-consistent parent-tampering and publication-failure tests.
+- [x] Add self-consistent parent-tampering and publication-failure tests.
 - [ ] Build and install a clean wheel, then run the mixed-suite workflow.
 - [ ] Record final matrix, artifact checksums and downloaded-release verification.
 
