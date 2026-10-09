@@ -2,10 +2,11 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from decimal import Decimal
 
 from jsonschema import Draft202012Validator
 
-from parison.core import ParisonError, compare, error_result, explain_recipe, load_recipe, load_schema, publish, verify_bundle
+from parison.core import ParisonError, _multiset_encoding, compare, error_result, explain_recipe, load_recipe, load_schema, publish, verify_bundle
 
 
 RECIPE = {
@@ -84,6 +85,16 @@ class MultisetRecipeTests(unittest.TestCase):
         Draft202012Validator(load_schema("result-v3")).validate(error_result("safe failure", load_recipe(self.path)))
         with self.assertRaisesRegex(ParisonError, "distinct row count"):
             compare(self.path, left, right, max_distinct_rows=1)
+
+    def test_encoding_is_tagged_length_prefixed_and_canonical(self):
+        recipe = load_recipe(self.path)
+        names = ["amount", "region"]
+        first = _multiset_encoding((Decimal("1.00"), "a\x00b"), names, recipe)
+        second = _multiset_encoding((Decimal("1.0"), "a\x00b"), names, recipe)
+        self.assertEqual(first, second)
+        self.assertEqual(first[:1], b"\x03")
+        self.assertEqual(int.from_bytes(first[1:9], "big"), 4)
+        self.assertNotEqual(first, _multiset_encoding((Decimal("1.01"), "a\x00b"), names, recipe))
 
 
 if __name__ == "__main__":

@@ -1210,6 +1210,44 @@ def _json_value(value: Any) -> Any:
     return value
 
 
+_MULTISET_TAGS = {"null": b"\x00", "boolean": b"\x01", "integer": b"\x02", "decimal": b"\x03", "string": b"\x04", "date": b"\x05", "timestamp": b"\x06", "float": b"\x07"}
+
+
+def _multiset_encoding(row: tuple[Any, ...], names: list[str], recipe: dict[str, Any]) -> bytes:
+    encoded = bytearray()
+    for name, value in zip(names, row):
+        policy = recipe["columns"][name]
+        kind = policy["type"]
+        if value is None:
+            payload = b""
+            tag = _MULTISET_TAGS["null"]
+        elif kind == "boolean":
+            payload, tag = (b"1" if value else b"0"), _MULTISET_TAGS["boolean"]
+        elif kind == "integer":
+            payload, tag = str(value).encode("ascii"), _MULTISET_TAGS["integer"]
+        elif kind == "decimal":
+            text = format(value, f".{policy['scale']}f")
+            if value == 0:
+                text = format(Decimal(0), f".{policy['scale']}f")
+            payload, tag = text.encode("ascii"), _MULTISET_TAGS["decimal"]
+        elif kind == "float":
+            payload, tag = value.hex().encode("ascii"), _MULTISET_TAGS["float"]
+        elif kind == "date":
+            payload, tag = value.isoformat().encode("ascii"), _MULTISET_TAGS["date"]
+        elif kind == "timestamp":
+            utc = value.astimezone(timezone.utc)
+            text = utc.strftime("%Y-%m-%dT%H:%M:%S.") + f"{utc.microsecond:06d}Z"
+            payload, tag = text.encode("ascii"), _MULTISET_TAGS["timestamp"]
+        else:
+            payload, tag = value.encode("utf-8"), _MULTISET_TAGS["string"]
+        if len(payload) >= 2**64:
+            raise ParisonError("multiset row field exceeds encoding-v1 length limit")
+        encoded.extend(tag)
+        encoded.extend(len(payload).to_bytes(8, "big"))
+        encoded.extend(payload)
+    return bytes(encoded)
+
+
 def _key_text(key: tuple[Any, ...]) -> list[Any]:
     return [_json_value(value) for value in key]
 
@@ -1761,7 +1799,7 @@ def _compare_multiset(recipe_path: Path, recipe: dict[str, Any], baseline_path: 
     differing = [row for row in all_rows if left[row] != right[row]]
     counts = {"baseline_rows": baseline_rows, "candidate_rows": candidate_rows, "common_occurrences": sum(min(left[row], right[row]) for row in all_rows), "baseline_only_occurrences": sum(max(left[row] - right[row], 0) for row in all_rows), "candidate_only_occurrences": sum(max(right[row] - left[row], 0) for row in all_rows), "baseline_distinct_rows": len(left), "candidate_distinct_rows": len(right), "baseline_surplus_shapes": sum(left[row] > right[row] for row in all_rows), "candidate_surplus_shapes": sum(right[row] > left[row] for row in all_rows)}
     raw = recipe["output"]["sensitivity"] == "raw"
-    sort_key = lambda row: json.dumps([_json_value(value) for value in row], ensure_ascii=False, separators=(",", ":"))
+    sort_key = lambda row: _multiset_encoding(row, names, recipe)
     sample = [{"row": {name: _json_value(value) for name, value in zip(names, row)}, "baseline_count": left[row], "candidate_count": right[row], "classification": "baseline_surplus" if left[row] > right[row] else "candidate_surplus"} for row in sorted(differing, key=sort_key)[:sample_limit]] if raw else []
     return {"schema_version": 3, "outcome": "INCONCLUSIVE" if problems else "FAIL" if differing else "PASS", "complete": not problems, "sensitivity": recipe["output"]["sensitivity"], "runtime": _runtime_info((baseline_path, candidate_path), "multiset-v1"), "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows, "max_distinct_rows_per_input": max_distinct_rows}, "scope": recipe["scope"], "policy": {"canonical_encoding": "typed-length-prefixed-v1", "column_order": names, "nulls_equal": True}, "column_policies": recipe["columns"], "column_mappings": recipe.get("column_mappings", {}), "problems": problems, "counts": counts, "discrepancy_count": len(differing), "discrepancy_sample": sample, "discrepancy_sample_limit": sample_limit if raw else 0, "excluded_columns": recipe.get("excluded_columns", {}), "inputs": {side: _source_metadata(path, before[str(path)], decoded_sizes, recipe["delimiters"][side], recipe["null_tokens"][side]) for side, path in (("baseline", baseline_path), ("candidate", candidate_path))}, "recipe_sha256": _digest(recipe_path), "policy_sha256": policy_sha256}
 
