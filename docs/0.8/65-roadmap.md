@@ -90,7 +90,7 @@ Acceptance: a reviewer can distinguish a missing row shape from a duplicate-coun
 
 - [x] Add explicit `draft-recipe --multiset`; never infer the mode from failed key discovery.
 - [ ] Draft only shared scalar structure and require review of mappings, exclusions and normalization.
-- [ ] Add a checked-in duplicate-aware example spanning two supported input formats.
+- [x] Add a checked-in duplicate-aware example spanning two supported input formats.
 - [ ] Document how to choose keyed, aggregate or multiset mode and what each mode does not prove.
 
 Acceptance: an unfamiliar user can draft, review, lock, preflight, compare, publish and verify the example without editing generated artifacts.
