@@ -53,7 +53,12 @@ jobs:
       - run: parison inspect /tmp/parison-0.8-smoke
       - run: parison compare --recipe examples/0.8/multiset-raw.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output /tmp/parison-0.8-raw-smoke
       - run: parison export-evidence /tmp/parison-0.8-raw-smoke --limit 10 --output /tmp/parison-0.8-evidence.jsonl
-      - run: parison compare --recipe examples/0.9/multiset-raw.recipe.json --baseline examples/0.9/baseline.csv --candidate examples/0.9/candidate.jsonl --output /tmp/parison-0.9-raw-smoke
+      - name: Compare the intentionally different v0.9 fixture
+        run: |
+          set +e
+          parison compare --recipe examples/0.9/multiset-raw.recipe.json --baseline examples/0.9/baseline.csv --candidate examples/0.9/candidate.jsonl --output /tmp/parison-0.9-raw-smoke
+          code=$?
+          test "$code" -eq 1
       - run: parison inspect /tmp/parison-0.9-raw-smoke
       - run: parison export-evidence /tmp/parison-0.9-raw-smoke --classification baseline_surplus --limit 10 --output /tmp/parison-0.9-evidence.jsonl
       - name: Upload smoke evidence
