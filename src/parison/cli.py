@@ -60,7 +60,7 @@ def parser() -> argparse.ArgumentParser:
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
     explain.add_argument("recipe")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite"))
+    schema.add_argument("name", choices=("recipe", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-result", "suite-manifest"))
     suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
     suite.add_argument("plan")
     suite_run = commands.add_parser("run-suite", help="run an ordered comparison suite")

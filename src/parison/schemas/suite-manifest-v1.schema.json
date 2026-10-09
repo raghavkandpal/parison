@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/raghavkandpal/parison/schemas/suite-manifest-v1.schema.json",
+  "title": "Parison suite manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "complete", "outcome", "runtime", "files", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "suite"},
+    "complete": {"const": true},
+    "outcome": {"enum": ["PASS", "FAIL", "ERROR", "INCONCLUSIVE", "INTERRUPTED"]},
+    "runtime": {"type": "object"},
+    "files": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+      "required": ["suite-result.json", "effective-suite.json", "report.html"]
+    },
+    "cases": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+      "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    }
+  }
+}

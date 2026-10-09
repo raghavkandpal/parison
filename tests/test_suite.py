@@ -102,6 +102,8 @@ class SuiteTests(unittest.TestCase):
         self.assertTrue((output / "cases" / "passing" / "manifest.json").is_file())
         self.assertTrue((output / "cases" / "failing" / "manifest.json").is_file())
         manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+        Draft202012Validator(load_schema("suite-result")).validate(result)
+        Draft202012Validator(load_schema("suite-manifest")).validate(manifest)
         self.assertEqual(manifest["kind"], "suite")
         self.assertEqual(set(manifest["cases"]), {"passing", "failing"})
         self.assertEqual(verify_bundle(output)["kind"], "suite")

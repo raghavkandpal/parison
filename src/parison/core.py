@@ -42,6 +42,8 @@ _SCHEMAS = {
     "preflight-v2": "preflight-v2.schema.json",
     "preflight-v3": "preflight-v3.schema.json",
     "suite": "suite-v1.schema.json",
+    "suite-result": "suite-result-v1.schema.json",
+    "suite-manifest": "suite-manifest-v1.schema.json",
 }
 
 
