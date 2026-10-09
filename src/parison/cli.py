@@ -60,7 +60,7 @@ def parser() -> argparse.ArgumentParser:
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
     explain.add_argument("recipe")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2"))
+    schema.add_argument("name", choices=("recipe", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3"))
     inputs = commands.add_parser("validate-inputs", help="validate input schemas and optionally records against a recipe")
     inputs.add_argument("--recipe", required=True)
     inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
@@ -70,6 +70,7 @@ def parser() -> argparse.ArgumentParser:
     inputs.add_argument("--records", action="store_true", help="scan all records for types and mode-specific identity")
     inputs.add_argument("--max-rows", type=int, default=5_000_000, help="maximum rows in either input (default: 5 million)")
     inputs.add_argument("--max-groups", type=int, default=100_000, help="maximum aggregate groups in either input (default: 100,000)")
+    inputs.add_argument("--max-distinct-rows", type=int, default=100_000, help="maximum distinct rows in either multiset input (default: 100,000)")
     inputs.add_argument("--expected-policy-sha256", help="require this effective-policy fingerprint before reading inputs")
     draft = commands.add_parser(
         "draft-recipe",
@@ -156,6 +157,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.records,
                 args.max_rows,
                 args.max_groups,
+                args.max_distinct_rows,
             )
             print(json.dumps(result, sort_keys=True))
             if args.records:

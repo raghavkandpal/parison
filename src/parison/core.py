@@ -40,6 +40,7 @@ _SCHEMAS = {
     "manifest": "manifest-v1.schema.json",
     "preflight": "preflight-v1.schema.json",
     "preflight-v2": "preflight-v2.schema.json",
+    "preflight-v3": "preflight-v3.schema.json",
 }
 
 
@@ -978,6 +979,27 @@ def _aggregate_record_diagnostics(
     }
 
 
+def _multiset_record_diagnostics(source, recipe, max_rows, max_distinct_rows, side, decoded_sizes):
+    seen: set[tuple[Any, ...]] = set()
+    invalid_fields: Counter[str] = Counter()
+    invalid_rows = rows = 0
+    for raw in _iter_input_rows(source, recipe, max_rows, side, decoded_sizes):
+        rows += 1
+        parsed = {}
+        row_invalid = False
+        for name, policy in recipe["columns"].items():
+            try:
+                parsed[name] = _normalize(_parse(raw.get(_source_name(recipe, name, side)), policy, name), policy)
+            except ParisonError:
+                invalid_fields[name] += 1
+                row_invalid = True
+        invalid_rows += row_invalid
+        if not row_invalid:
+            seen.add(tuple(parsed[name] for name in sorted(recipe["columns"])))
+    limit_exceeded = len(seen) > max_distinct_rows
+    return {"status": "invalid" if invalid_rows or limit_exceeded else "valid", "rows": rows, "invalid_rows": invalid_rows, "invalid_fields": dict(sorted(invalid_fields.items())), "distinct_rows": len(seen), "distinct_row_limit_exceeded": limit_exceeded}
+
+
 def validate_inputs(
     recipe_path: str | Path,
     baseline: str | Path,
@@ -988,6 +1010,7 @@ def validate_inputs(
     validate_records: bool = False,
     max_rows: int = 5_000_000,
     max_groups: int = 100_000,
+    max_distinct_rows: int = 100_000,
 ) -> dict[str, Any]:
     """Validate input schemas against a recipe without comparing records."""
     if max_input_bytes <= 0:
@@ -996,6 +1019,8 @@ def validate_inputs(
         raise ParisonError("max_rows must be positive")
     if max_groups <= 0:
         raise ParisonError("max_groups must be positive")
+    if max_distinct_rows <= 0:
+        raise ParisonError("max_distinct_rows must be positive")
     recipe = load_recipe(recipe_path)
     policy_sha256 = _checked_policy_sha256(recipe, expected_policy_sha256)
     sizes = {side: _source_bytes(source) for side, source in (("baseline", baseline), ("candidate", candidate))}
@@ -1031,6 +1056,8 @@ def validate_inputs(
             inputs[side]["records"] = (
                 _aggregate_record_diagnostics(source, recipe, max_rows, max_groups, side, decoded_sizes)
                 if recipe["comparison_mode"] == "aggregate"
+                else _multiset_record_diagnostics(source, recipe, max_rows, max_distinct_rows, side, decoded_sizes)
+                if recipe["comparison_mode"] == "multiset"
                 else _record_diagnostics(source, recipe, max_rows, side, decoded_sizes)
             )
             if inputs[side]["records"]["status"] == "invalid":
@@ -1038,7 +1065,7 @@ def validate_inputs(
     if validate_records and any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being validated")
     result = {
-        "schema_version": 2 if recipe["comparison_mode"] == "aggregate" else 1,
+        "schema_version": 2 if recipe["comparison_mode"] == "aggregate" else 3 if recipe["comparison_mode"] == "multiset" else 1,
         "status": status,
         "comparison_mode": recipe["comparison_mode"],
         "canonical_columns": len(recipe["columns"]),
@@ -1047,6 +1074,8 @@ def validate_inputs(
     }
     if recipe["comparison_mode"] == "aggregate":
         result.update(group_by=recipe["group_by"], measures=list(recipe["measures"]), max_groups=max_groups)
+    elif recipe["comparison_mode"] == "multiset":
+        result["max_distinct_rows"] = max_distinct_rows
     else:
         result["keys"] = recipe["keys"]
     return result

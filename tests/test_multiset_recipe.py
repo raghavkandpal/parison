@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from jsonschema import Draft202012Validator
 
-from parison.core import ParisonError, _multiset_encoding, compare, error_result, explain_recipe, load_recipe, load_schema, publish, verify_bundle
+from parison.core import ParisonError, _multiset_encoding, compare, error_result, explain_recipe, load_recipe, load_schema, publish, validate_inputs, verify_bundle
 
 
 RECIPE = {
@@ -95,6 +95,18 @@ class MultisetRecipeTests(unittest.TestCase):
         self.assertEqual(first[:1], b"\x03")
         self.assertEqual(int.from_bytes(first[1:9], "big"), 4)
         self.assertNotEqual(first, _multiset_encoding((Decimal("1.01"), "a\x00b"), names, recipe))
+
+    def test_record_preflight_counts_distinct_rows_and_enforces_limit(self):
+        left = Path(self.tmp.name) / "left.csv"
+        right = Path(self.tmp.name) / "right.csv"
+        left.write_text("region,amount\neast,1.00\neast,1.00\nwest,2.00\n", encoding="utf-8")
+        right.write_text("area,amount\neast,1.00\nwest,2.00\n", encoding="utf-8")
+        result = validate_inputs(self.path, left, right, validate_records=True)
+        Draft202012Validator(load_schema("preflight-v3")).validate(result)
+        self.assertEqual(result["inputs"]["baseline"]["records"]["distinct_rows"], 2)
+        limited = validate_inputs(self.path, left, right, validate_records=True, max_distinct_rows=1)
+        self.assertEqual(limited["status"], "invalid")
+        self.assertTrue(limited["inputs"]["baseline"]["records"]["distinct_row_limit_exceeded"])
 
 
 if __name__ == "__main__":

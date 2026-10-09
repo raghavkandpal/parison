@@ -53,16 +53,16 @@ Acceptance: an independent reviewer can calculate every example and explain why 
 
 - [x] Add strict recipe-v3 validation without making keys optional in v1 or reinterpreting v2.
 - [x] Add mode-aware policy explanation and stable fingerprinting for columns and encoding version; add execution limits with the engine slice.
-- [ ] Add result-v3 and preflight-v3 schemas with multiset-specific counts and evidence. Result-v3 is implemented; preflight-v3 remains.
+- [x] Add result-v3 and preflight-v3 schemas with multiset-specific counts and evidence.
 - [ ] Make schema discovery, publication and verification dispatch across all three versions.
 
 Acceptance: old recipes and bundles retain their meaning, and mode-specific fields cannot leak across schemas.
 
 ### 3. Multiset-aware preflight
 
-- [ ] Validate all identity columns using existing readers, mappings, types and normalization.
-- [ ] Report privacy-safe invalid-row and invalid-field counts without row values.
-- [ ] Add a positive `--max-distinct-rows` bound and expose it through policy explanation.
+- [x] Validate all identity columns using existing readers, mappings, types and normalization.
+- [x] Report privacy-safe invalid-row and invalid-field counts without row values.
+- [x] Add a positive `--max-distinct-rows` bound to record preflight and comparison.
 - [ ] Reject unsupported values before counting; retain complete-input and mutation guarantees.
 
 Acceptance: preflight proves that both inputs can enter exact multiset comparison without publishing row identities.
