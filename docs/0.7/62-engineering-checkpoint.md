@@ -36,9 +36,10 @@ Rehearsal checksums:
 
 These identify temporary development archives, not release assets. Final archives must be rebuilt after setting version `0.7.0` on the verified release commit.
 
-## Remaining release gates
+## Published release
 
-- obtain a green remote matrix for the final `0.7.0` version commit;
-- build clean wheel and source archives and inspect their installed schemas;
-- install the wheel in an empty environment and repeat keyed and aggregate smoke workflows;
-- merge the verified release commit before tagging.
+- Pull request [#13](https://github.com/raghavkandpal/parison/pull/13) merged the verified release candidate as commit `216784530e8dfb1155a89ee5f1fe0433b39fc2dc`.
+- All six post-merge jobs passed in [run 37895940636](https://github.com/raghavkandpal/parison/actions/runs/37895940636).
+- Tag `0.7.0` points to the verified merge commit and the [0.7.0 GitHub prerelease](https://github.com/raghavkandpal/parison/releases/tag/0.7.0) contains the wheel, source archive and `SHA256SUMS.txt`.
+- The final wheel SHA-256 is `385966bf7db923bc05ecdf57c14174df7f85409d8cc1bf56835436dd26032e63`; the source archive SHA-256 is `77993fb77e1e097048167be87298f380402cc3118952aab183620ff0bc114202`.
+- Downloaded assets passed checksum verification. The downloaded wheel, installed with Polars 1.44.2 in a fresh Python 3.12 environment, passed version discovery plus keyed and aggregate compare/verify workflows.
