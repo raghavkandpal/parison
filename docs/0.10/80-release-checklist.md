@@ -1,6 +1,6 @@
 # Parison 0.10 release checklist
 
-Status: **ready to tag**
+Status: **released**
 
 ## Suite contract and implementation
 
@@ -20,6 +20,8 @@ Status: **ready to tag**
 - [x] Add self-consistent parent-tampering and publication-failure tests.
 - [x] Build and install a clean wheel, then run the mixed-suite workflow.
 - [x] Record the candidate matrix and artifact checksums before publication.
-- [ ] Rebuild from the tag and verify downloaded release assets.
+- [x] Rebuild from the tag and verify downloaded release assets.
 
 Do not tag 0.10 until every unchecked item has reproducible evidence.
+
+Released as [0.10.0](https://github.com/raghavkandpal/parison/releases/tag/0.10.0) from commit `437068e6edc1ca2c6593d4ce980c87816a153ef3`.

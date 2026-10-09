@@ -2,7 +2,7 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-## 0.10 — current development
+## 0.10 — released
 
 - [Comparison-suite research](0.10/76-suite-research.md)
 - [0.10 roadmap](0.10/77-roadmap.md)
