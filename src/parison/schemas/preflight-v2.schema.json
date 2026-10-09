@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/raghavkandpal/parison/schemas/preflight-v2.schema.json",
+  "title": "Parison aggregate preflight result v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "comparison_mode", "group_by", "measures", "max_groups", "canonical_columns", "policy_sha256", "inputs"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "status": {"enum": ["valid", "invalid"]},
+    "comparison_mode": {"const": "aggregate"},
+    "group_by": {"type": "array", "items": {"type": "string"}},
+    "measures": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "max_groups": {"type": "integer", "minimum": 1},
+    "canonical_columns": {"type": "integer", "minimum": 1},
+    "policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline", "candidate"],
+      "properties": {"baseline": {"$ref": "#/$defs/input"}, "candidate": {"$ref": "#/$defs/input"}}
+    }
+  },
+  "$defs": {
+    "schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["missing", "unexpected", "mapped", "excluded_present"],
+      "properties": {
+        "missing": {"type": "array", "items": {"type": "string"}},
+        "unexpected": {"type": "array", "items": {"type": "string"}},
+        "mapped": {"type": "object", "additionalProperties": {"type": "string"}},
+        "excluded_present": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "records": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "rows", "invalid_rows", "invalid_fields", "null_group_rows", "rejected_null_measure_values", "groups", "group_limit_exceeded"],
+      "properties": {
+        "status": {"enum": ["valid", "invalid"]},
+        "rows": {"type": "integer", "minimum": 0},
+        "invalid_rows": {"type": "integer", "minimum": 0},
+        "invalid_fields": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 1}},
+        "null_group_rows": {"type": "integer", "minimum": 0},
+        "rejected_null_measure_values": {"type": "integer", "minimum": 0},
+        "groups": {"type": "integer", "minimum": 0},
+        "group_limit_exceeded": {"type": "boolean"}
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "bytes", "columns", "partitions", "schema"],
+      "properties": {
+        "format": {"enum": ["csv", "tsv", "jsonl", "parquet", "sqlite"]},
+        "bytes": {"type": "integer", "minimum": 0},
+        "columns": {"type": "integer", "minimum": 1},
+        "partitions": {"type": "integer", "minimum": 1},
+        "table": {"type": "string", "minLength": 1},
+        "delimiter": {"type": "string", "minLength": 1, "maxLength": 1},
+        "null_tokens": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "records": {"$ref": "#/$defs/records"},
+        "compression": {"const": "gzip"},
+        "decoded_bytes": {"type": "integer", "minimum": 0},
+        "schema": {"$ref": "#/$defs/schema"}
+      }
+    }
+  }
+}

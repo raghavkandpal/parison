@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/raghavkandpal/parison/schemas/result-v2.schema.json",
+  "title": "Parison aggregate result v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "outcome", "complete", "sensitivity", "runtime", "resource_limits", "scope", "group_by", "measures", "policy", "column_policies", "column_mappings", "problems", "counts", "measure_counts", "measure_conservation", "discrepancy_count", "discrepancy_sample", "discrepancy_sample_limit", "excluded_columns", "inputs", "recipe_sha256", "policy_sha256"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "outcome": {"enum": ["PASS", "FAIL", "ERROR", "INCONCLUSIVE", "INTERRUPTED"]},
+    "complete": {"type": "boolean"},
+    "sensitivity": {"enum": ["summary", "raw"]},
+    "runtime": {"type": "object"},
+    "resource_limits": {"type": "object"},
+    "scope": {"type": ["object", "null"]},
+    "group_by": {"type": "array", "items": {"type": "string"}},
+    "measures": {"type": "object"},
+    "policy": {"type": "object"},
+    "column_policies": {"type": "object"},
+    "column_mappings": {"type": "object"},
+    "problems": {"type": "array", "items": {"type": "string"}},
+    "counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "measure_counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["exact", "within_tolerance", "different"],
+        "properties": {
+          "exact": {"type": "integer", "minimum": 0},
+          "within_tolerance": {"type": "integer", "minimum": 0},
+          "different": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "measure_conservation": {"type": "object"},
+    "discrepancy_count": {"type": "integer", "minimum": 0},
+    "discrepancy_sample": {"type": "array", "items": {"type": "object"}},
+    "discrepancy_sample_limit": {"type": "integer", "minimum": 0},
+    "excluded_columns": {"type": "object", "additionalProperties": {"type": "string"}},
+    "inputs": {"type": "object"},
+    "recipe_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "policy_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+  }
+}

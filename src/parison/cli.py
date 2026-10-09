@@ -12,7 +12,20 @@ from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_resu
 def _print_summary(result: dict, output: str) -> None:
     counts = result["counts"]
     print(f"Parison {result['outcome']} (complete: {str(result['complete']).lower()})", file=sys.stderr)
-    if counts:
+    if result["schema_version"] == 2 and counts:
+        print(
+            "Groups: "
+            f"baseline {counts['baseline_groups']}, candidate {counts['candidate_groups']}, common {counts['common_groups']}, "
+            f"baseline-only {counts['baseline_only_groups']}, candidate-only {counts['candidate_only_groups']}",
+            file=sys.stderr,
+        )
+        print(
+            "Measures: "
+            f"exact {counts['exact_measures']}, within tolerance {counts['within_tolerance_measures']}, "
+            f"different {counts['different_measures']}",
+            file=sys.stderr,
+        )
+    elif counts:
         print(
             "Rows: "
             f"baseline {counts['baseline']}, candidate {counts['candidate']}, common {counts['common_keys']}, "
@@ -40,15 +53,16 @@ def parser() -> argparse.ArgumentParser:
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
     explain.add_argument("recipe")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "result", "manifest", "preflight"))
+    schema.add_argument("name", choices=("recipe", "recipe-v2", "result", "result-v2", "manifest", "preflight", "preflight-v2"))
     inputs = commands.add_parser("validate-inputs", help="validate input schemas and optionally records against a recipe")
     inputs.add_argument("--recipe", required=True)
     inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
     inputs.add_argument("--candidate", required=True, help="candidate file, SQLite locator or partition directory")
     inputs.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     inputs.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000, help="maximum combined decoded gzip size (default: 1 GB)")
-    inputs.add_argument("--records", action="store_true", help="scan all records for types and key identity")
+    inputs.add_argument("--records", action="store_true", help="scan all records for types and mode-specific identity")
     inputs.add_argument("--max-rows", type=int, default=5_000_000, help="maximum rows in either input (default: 5 million)")
+    inputs.add_argument("--max-groups", type=int, default=100_000, help="maximum aggregate groups in either input (default: 100,000)")
     inputs.add_argument("--expected-policy-sha256", help="require this effective-policy fingerprint before reading inputs")
     draft = commands.add_parser(
         "draft-recipe",
@@ -60,13 +74,15 @@ def parser() -> argparse.ArgumentParser:
 Then run: parison validate-recipe DRAFT.json
 
 Numeric comparison requires integer, decimal or float plus an explicit
-symmetric-v1 tolerance. Suggestions are starting points, not approved policy.""",
+symmetric-v1 tolerance. With --aggregate, confirm every suggested group,
+operator and null policy. Suggestions are starting points, not approved policy.""",
     )
     draft.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
     draft.add_argument("--candidate", required=True, help="candidate file, SQLite locator or partition directory")
     draft.add_argument("--output", required=True)
     draft.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     draft.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000, help="maximum combined decoded gzip size (default: 1 GB)")
+    draft.add_argument("--aggregate", action="store_true", help="draft an aggregate-v1 recipe instead of a keyed recipe")
     verify = commands.add_parser("verify", help="verify a published run bundle")
     verify.add_argument("run_directory")
     verify.add_argument("--json", action="store_true", help="print verified manifest metadata as JSON")
@@ -79,6 +95,7 @@ symmetric-v1 tolerance. Suggestions are starting points, not approved policy."""
     run.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     run.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000, help="maximum combined decoded gzip size (default: 1 GB)")
     run.add_argument("--max-rows", type=int, default=5_000_000, help="maximum rows in either input (default: 5 million)")
+    run.add_argument("--max-groups", type=int, default=100_000, help="maximum groups in either aggregate input (default: 100,000)")
     run.add_argument("--expected-policy-sha256", help="require this effective-policy fingerprint before reading inputs")
     return root
 
@@ -98,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
             print("Integrity verification does not change the recorded comparison outcome.", file=sys.stderr)
             return 0
         if args.command == "draft-recipe":
-            draft = draft_recipe(args.baseline, args.candidate, args.max_input_bytes, args.max_decoded_bytes)
+            draft = draft_recipe(args.baseline, args.candidate, args.max_input_bytes, args.max_decoded_bytes, args.aggregate)
             output = Path(args.output)
             try:
                 output.parent.mkdir(parents=True, exist_ok=True)
@@ -128,18 +145,25 @@ def main(argv: list[str] | None = None) -> int:
                 args.max_decoded_bytes,
                 args.records,
                 args.max_rows,
+                args.max_groups,
             )
             print(json.dumps(result, sort_keys=True))
             if args.records:
                 for side in ("baseline", "candidate"):
                     records = result["inputs"][side].get("records")
                     if records:
-                        print(
-                            f"{side.title()} records: {records['rows']} rows, "
-                            f"{records['invalid_rows']} invalid rows, {records['null_key_rows']} null-key rows, "
-                            f"{records['duplicate_keys']} duplicate keys.",
-                            file=sys.stderr,
-                        )
+                        if result["comparison_mode"] == "aggregate":
+                            print(
+                                f"{side.title()} records: {records['rows']} rows, {records['groups']} groups, "
+                                f"{records['invalid_rows']} invalid rows, {records['null_group_rows']} null-group rows, "
+                                f"{records['rejected_null_measure_values']} rejected null measure values.", file=sys.stderr,
+                            )
+                        else:
+                            print(
+                                f"{side.title()} records: {records['rows']} rows, "
+                                f"{records['invalid_rows']} invalid rows, {records['null_key_rows']} null-key rows, "
+                                f"{records['duplicate_keys']} duplicate keys.", file=sys.stderr,
+                            )
             if result["status"] == "valid":
                 print(
                     f"Validated input schemas: {result['inputs']['baseline']['columns']} baseline and "
@@ -164,6 +188,7 @@ def main(argv: list[str] | None = None) -> int:
             args.max_rows,
             args.expected_policy_sha256,
             args.max_decoded_bytes,
+            args.max_groups,
         )
         publish(args.output, result, recipe)
         print(json.dumps({"outcome": result["outcome"], "output": args.output}))
@@ -171,7 +196,7 @@ def main(argv: list[str] | None = None) -> int:
         return OUTCOME_CODES[result["outcome"]]
     except ParisonError as exc:
         if args.command == "compare":
-            result = error_result(str(exc))
+            result = error_result(str(exc), recipe)
             try:
                 publish(args.output, result, recipe)
                 _print_summary(result, args.output)
@@ -181,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     except KeyboardInterrupt:
         if args.command == "compare":
-            result = terminal_result("INTERRUPTED", "comparison interrupted by user")
+            result = terminal_result("INTERRUPTED", "comparison interrupted by user", recipe)
             try:
                 publish(args.output, result, recipe)
                 _print_summary(result, args.output)

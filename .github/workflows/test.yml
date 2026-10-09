@@ -29,6 +29,9 @@ jobs:
       - run: parison schema result
       - run: parison schema manifest
       - run: parison schema preflight
+      - run: parison schema recipe-v2
+      - run: parison schema preflight-v2
+      - run: parison schema result-v2
       - run: parison validate-recipe examples/orders.recipe.json
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke
@@ -38,6 +41,9 @@ jobs:
       - run: parison validate-inputs --recipe examples/0.5/migration.recipe.json --baseline examples/0.5/baseline.tsv.gz --candidate examples/0.5/candidate.csv
       - run: parison validate-inputs --records --recipe examples/0.5/migration.recipe.json --baseline examples/0.5/baseline.tsv.gz --candidate examples/0.5/candidate.csv
       - run: parison compare --recipe examples/0.5/migration.recipe.json --baseline examples/0.5/baseline.tsv.gz --candidate examples/0.5/candidate.csv --output /tmp/parison-0.5-smoke
+      - run: parison validate-inputs --records --recipe examples/0.7/revenue.recipe.json --baseline examples/0.7/baseline.csv --candidate examples/0.7/candidate.jsonl
+      - run: parison compare --recipe examples/0.7/revenue.recipe.json --baseline examples/0.7/baseline.csv --candidate examples/0.7/candidate.jsonl --output /tmp/parison-0.7-smoke
+      - run: parison verify /tmp/parison-0.7-smoke
       - name: Upload smoke evidence
         if: matrix.python-version == '3.14'
         uses: actions/upload-artifact@v6
@@ -49,6 +55,8 @@ jobs:
       - run: python -m unittest discover -s tests -v
       - run: python benchmarks/generate_cases.py --output /tmp/parison-bench --rows 1000
       - run: python benchmarks/run_cases.py --repeats 1 --max-memory-per-row 6000 /tmp/parison-bench/rows-1000
+      - run: python benchmarks/generate_aggregate_cases.py --output /tmp/parison-aggregate-bench --rows 1000
+      - run: python benchmarks/run_cases.py --repeats 1 --max-memory-per-row 6000 /tmp/parison-aggregate-bench/aggregate-global-1000 /tmp/parison-aggregate-bench/aggregate-low-1000 /tmp/parison-aggregate-bench/aggregate-high-1000
 
   platform-smoke:
     runs-on: ${{ matrix.os }}
@@ -66,5 +74,7 @@ jobs:
       - run: python -m pip install '.[parquet,test]'
       - run: parison --version
       - run: parison schema recipe
+      - run: parison schema recipe-v2
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
+      - run: parison compare --recipe examples/0.7/revenue.recipe.json --baseline examples/0.7/baseline.csv --candidate examples/0.7/candidate.jsonl --output ${{ runner.temp }}/parison-aggregate-smoke
       - run: python -m unittest discover -s tests -v

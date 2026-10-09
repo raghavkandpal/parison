@@ -71,6 +71,32 @@ class RecipeDraft(unittest.TestCase):
             draft = json.loads(draft_path.read_text(encoding="utf-8"))
             self.assertEqual(load_recipe(draft_path), draft)
 
+    def test_explicit_aggregate_draft_suggests_groups_and_measures(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            baseline, candidate = root / "baseline.csv", root / "candidate.csv"
+            contents = "region,amount,order_id\neast,10.50,1\neast,2.00,2\nwest,3.00,3\n"
+            baseline.write_text(contents, encoding="utf-8")
+            candidate.write_text(contents, encoding="utf-8")
+            draft = draft_recipe(baseline, candidate, aggregate=True)
+            self.assertEqual(draft["recipe_version"], 2)
+            self.assertEqual(draft["comparison_mode"], "aggregate")
+            self.assertEqual(draft["group_by"], ["region"])
+            self.assertEqual(draft["measures"]["rows"], {"operator": "count"})
+            self.assertEqual(draft["measures"]["sum_amount"], {"operator": "sum", "column": "amount", "nulls": "reject"})
+            path = root / "aggregate.json"
+            path.write_text(json.dumps(draft), encoding="utf-8")
+            self.assertEqual(load_recipe(path), draft)
+
+    def test_aggregate_draft_requires_explicit_flag(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, output = root / "input.csv", root / "draft.json"
+            source.write_text("region,amount\neast,1\neast,2\nwest,3\n", encoding="utf-8")
+            with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                self.assertEqual(main(["draft-recipe", "--aggregate", "--baseline", str(source), "--candidate", str(source), "--output", str(output)]), 0)
+            self.assertEqual(json.loads(output.read_text())["comparison_mode"], "aggregate")
+
     def test_header_only_draft_is_deterministic_and_uses_safe_defaults(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

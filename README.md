@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**0.6.0 released.** The release adds opt-in record-level validation with privacy-safe aggregate type and key-identity diagnostics before comparison.
+**0.7.0 release candidate.** The candidate adds explicit global and grouped aggregate reconciliation without weakening keyed comparison. Its cross-platform release matrix is green; final archive publication remains.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -53,6 +53,8 @@ Use `validate-inputs` to check physical schemas, mappings, exclusions and partit
 
 Use `parison explain` to review the fully expanded policy and obtain its `policy_sha256`. CI can pass that value to `compare --expected-policy-sha256 HASH`; Parison rejects a malformed or changed policy before opening either input. The fingerprint checks equality only—it is not a signature or proof of approval. Installed Draft 2020-12 schemas are available through `parison schema recipe|result|manifest|preflight`.
 
+Aggregate-v1 execution is available during 0.7 development. `validate-recipe`, `explain`, `validate-inputs` and `compare` accept strict aggregate recipe v2 files; installed schemas are available through `parison schema recipe-v2|preflight-v2|result-v2`. Aggregate comparison supports global or grouped `count`, `sum`, `min` and `max`, exact scaled-decimal accumulation, numeric tolerances, bounded groups and summary-safe evidence. Use `draft-recipe --aggregate` for an explicitly requested starting policy. See the [aggregate-v1 contract](docs/0.7/60-aggregate-contract.md) and [aggregate user guide](docs/0.7/61-user-guide.md).
+
 `output.sensitivity` defaults to `summary`, which stores no source keys or values. Set it explicitly to `raw` to include a bounded discrepancy sample, and protect that output as sensitive data. `--sample-limit` controls the maximum number of raw field differences written. Comparison errors also publish a summary-only diagnostic bundle when the output destination is available.
 
 Every recipe must declare a source snapshot, extraction cutoff, intended filters, full-scope completeness, whether an empty scope is expected, and whether two non-key null values are equal. These are recorded provenance assertions; Parison cannot independently prove that upstream pipelines honored them.
@@ -75,6 +77,18 @@ PYTHONPATH=src python benchmarks/run_cases.py \
 
 Each generated case includes baseline and candidate CSV files, a recipe, and exact expected counts. Generated data is ignored by Git and can be recreated at larger sizes with `--rows`.
 
+Generate and measure global, low-cardinality and high-cardinality aggregate profiles with:
+
+```sh
+PYTHONPATH=src python benchmarks/generate_aggregate_cases.py --rows 10000 100000
+PYTHONPATH=src python benchmarks/run_cases.py --repeats 3 \
+  benchmarks/generated/aggregate-global-10000 \
+  benchmarks/generated/aggregate-low-10000 \
+  benchmarks/generated/aggregate-high-10000
+```
+
+The first aggregate measurement across all three profiles is recorded in [`benchmarks/results-2026-10-09-aggregate.json`](benchmarks/results-2026-10-09-aggregate.json). It is a machine-specific engineering measurement, not a supported scale guarantee.
+
 To generate and measure equivalent Parquet inputs:
 
 ```sh
@@ -92,7 +106,7 @@ Start with the [documentation index](docs/README.md).
 
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
-- 0.6 release record: [release checklist](docs/0.6/57-release-checklist.md)
+- Current development: [0.7 roadmap](docs/0.7/58-roadmap.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
 - Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)
 - Safety model: [0.1 security and data handling](docs/0.1/07-security-and-data-handling.md)

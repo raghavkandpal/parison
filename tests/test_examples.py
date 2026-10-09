@@ -43,6 +43,17 @@ class CheckedInExamples(unittest.TestCase):
         self.assertEqual(result["inputs"]["candidate"]["delimiter"], "|")
         self.assertEqual(result["policy"]["null_tokens"]["candidate"], ["\\N"])
 
+    def test_0_7_aggregate_example_is_a_cross_format_pass(self):
+        root = Path(__file__).parents[1]
+        result = compare(
+            root / "examples/0.7/revenue.recipe.json",
+            root / "examples/0.7/baseline.csv",
+            root / "examples/0.7/candidate.jsonl",
+        )
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["counts"]["common_groups"], 2)
+        self.assertEqual(result["measure_counts"]["revenue"], {"exact": 1, "within_tolerance": 1, "different": 0})
+
     def test_committed_output_bundle_is_complete_and_verified(self):
         root = Path(__file__).parents[1]
         output = root / "examples/output"

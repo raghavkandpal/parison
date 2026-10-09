@@ -8,9 +8,9 @@ import sys
 import time
 import tracemalloc
 from datetime import date
-from importlib import metadata
 from pathlib import Path
 
+from parison import __version__
 from parison.core import compare
 
 
@@ -23,7 +23,9 @@ def measure(case: Path, input_format: str = "csv") -> dict:
     elapsed = time.perf_counter() - started
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    if result["outcome"] != expected["outcome"] or result["counts"] != expected["counts"] or result["field_discrepancy_count"] != expected["field_discrepancy_count"]:
+    if result["outcome"] != expected["outcome"] or result["counts"] != expected["counts"]:
+        raise SystemExit(f"accuracy check failed for {case}")
+    if "field_discrepancy_count" in expected and result["field_discrepancy_count"] != expected["field_discrepancy_count"]:
         raise SystemExit(f"accuracy check failed for {case}")
     try:
         import resource
@@ -45,10 +47,7 @@ def child_measurement(case: Path, input_format: str) -> dict:
 
 
 def package_version() -> str:
-    try:
-        return metadata.version("parison")
-    except metadata.PackageNotFoundError:
-        return "source-tree"
+    return __version__
 
 
 def main() -> None:
@@ -79,7 +78,7 @@ def main() -> None:
         rss_runs = [run["peak_rss_bytes"] for run in runs if run["peak_rss_bytes"] is not None]
         elapsed = statistics.median(elapsed_runs)
         peak = statistics.median(peak_runs)
-        baseline_rows = expected["counts"]["baseline"]
+        baseline_rows = expected["counts"].get("baseline", expected["counts"].get("baseline_rows"))
         memory_per_row = peak / baseline_rows
         if args.max_memory_per_row is not None and memory_per_row > args.max_memory_per_row:
             raise SystemExit(f"memory regression for {case}: {memory_per_row:.1f} > {args.max_memory_per_row:.1f} bytes/row")

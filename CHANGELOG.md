@@ -4,6 +4,19 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.7.0 - 2026-10-09
+
+### Added
+
+- Normative aggregate-v1 semantics for global and grouped reconciliation, including empty, null, ordering, exact-decimal and disclosure rules.
+- Strict aggregate recipe v2 validation, an installed `recipe-v2` JSON Schema, and stable mode-aware effective-policy fingerprints.
+- Deterministic global and grouped aggregate execution with exact integer/scaled-decimal sums, bounded groups, result v2 bundles, aggregate terminal output and HTML reports.
+- Aggregate-aware schema and record preflight with preflight v2 output, privacy-safe invalid group/measure counts and explicit group bounds.
+- Explicit `draft-recipe --aggregate` suggestions and a checked-in cross-format aggregate workflow.
+- Aggregate measure-conservation totals and schema-valid aggregate error/interruption bundles.
+- Hand-audited aggregate adversarial coverage for empty shapes, all-null measures, missing and exploding groups, exact decimal reordering and tolerance boundaries.
+- Reproducible global, low-cardinality and high-cardinality aggregate accuracy/performance profiles plus CI smoke coverage.
+
 ## 0.6.0 - 2026-10-08
 
 ### Added
