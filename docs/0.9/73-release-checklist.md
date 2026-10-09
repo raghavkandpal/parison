@@ -15,7 +15,7 @@ Status: **in progress**
 
 ## Release gates
 
-- [ ] Freeze the inspect/export schema and compatibility contract.
+- [x] Freeze the inspect/export schema and compatibility contract.
 - [ ] Run the full Python/platform matrix from the release candidate.
 - [ ] Build and install a clean wheel, then run inspect/export smoke tests.
 - [ ] Record checksums and publish only after all evidence is attached.

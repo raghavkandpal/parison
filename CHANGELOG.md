@@ -4,6 +4,15 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Verified bundle inspection with safe evidence-coverage, policy and bundle provenance metadata.
+- Bounded JSON Lines export of published raw evidence with classification, evidence-kind and exact field/measure filters.
+
+### Fixed
+
+- Evidence export now uses collision-safe staging and atomic no-overwrite publication.
+
 ## 0.8.0 - 2026-10-09
 
 ### Added
