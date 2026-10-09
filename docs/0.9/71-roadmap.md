@@ -28,10 +28,10 @@ This is deliberately narrower than adding remote inputs, a server or a UI. The s
 
 ## Ordered implementation
 
-1. Freeze an inspect/export contract with examples for keyed, aggregate and multiset evidence. **In progress.**
+1. Freeze an inspect/export contract with examples for keyed, aggregate and multiset evidence. **Implemented for the initial JSONL slice.**
 2. Add schema-aware bundle readers and one shared filter model. **Bundle inspection implemented.**
 3. Add deterministic bounded JSONL export; add CSV only if it does not duplicate semantics. **JSONL export implemented.**
-4. Add terminal summaries and static-report links without exposing summary values.
+4. Add terminal summaries and static-report links without exposing summary values. **Guide and terminal commands implemented; report links remain.**
 5. Add adversarial tests for tampered manifests, unsupported schemas, limits, ordering and sensitive output.
 6. Add cross-version wheel smoke and a release checkpoint.
 
