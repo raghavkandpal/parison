@@ -10,12 +10,12 @@ Status: **active development**
 
 ## Ordered implementation
 
-1. Freeze suite-v1 plan, result, outcome-reduction and privacy contracts.
-2. Add an installed suite schema, strict loading, reference resolution and `validate-suite`.
-3. Run cases sequentially through existing compare/publish paths and continue after ordinary case outcomes.
-4. Publish one atomic parent bundle containing ordinary child bundles and safe suite summaries.
-5. Add recursive verification and suite-aware safe inspection.
-6. Add a checked-in mixed-mode example and cross-platform installed-wheel smoke.
+1. Freeze suite-v1 plan, result, outcome-reduction and privacy contracts. **Implemented.**
+2. Add installed suite schemas, strict loading, reference resolution and `validate-suite`. **Implemented.**
+3. Run cases sequentially through existing compare/publish paths and continue after ordinary case outcomes. **Implemented.**
+4. Publish one atomic parent bundle containing ordinary child bundles and safe suite summaries. **Implemented.**
+5. Add recursive verification and suite-aware safe inspection. **Implemented.**
+6. Add a checked-in mixed-mode example and cross-platform installed-wheel smoke. **Implemented.**
 7. Complete adversarial tests, release evidence and 0.10.0 publication.
 
 ## Boundaries

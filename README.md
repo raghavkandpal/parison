@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**0.9.0 released.** The release adds verified bundle inspection and bounded local evidence export across keyed, aggregate and multiset results without changing those comparison contracts.
+**0.9.0 released; 0.10 in development.** The current development line adds ordered local comparison suites across keyed, aggregate and multiset cases with atomic parent publication and recursive verification.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 

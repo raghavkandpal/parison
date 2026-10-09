@@ -7,6 +7,8 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Comparison-suite research](0.10/76-suite-research.md)
 - [0.10 roadmap](0.10/77-roadmap.md)
 - [Suite-v1 contract](0.10/78-suite-contract.md)
+- [Comparison suite user guide](0.10/79-suite-user-guide.md)
+- [0.10 release checklist](0.10/80-release-checklist.md)
 
 ## 0.9 — released
 

@@ -4,6 +4,11 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Strict ordered comparison suites spanning keyed, aggregate and multiset cases.
+- Atomic suite bundles with recursively verified child bundles, safe aggregate inspection and installed plan/result/manifest schemas.
+
 ## 0.9.0 - 2026-10-09
 
 ### Added
