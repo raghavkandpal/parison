@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/raghavkandpal/parison/schemas/preflight-v3.schema.json",
+  "title": "Parison multiset preflight result v3",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "status", "comparison_mode", "max_distinct_rows", "canonical_columns", "policy_sha256", "inputs"],
+  "properties": {
+    "schema_version": {"const": 3}, "status": {"enum": ["valid", "invalid"]}, "comparison_mode": {"const": "multiset"},
+    "max_distinct_rows": {"type": "integer", "minimum": 1}, "canonical_columns": {"type": "integer", "minimum": 1},
+    "policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "inputs": {"type": "object", "required": ["baseline", "candidate"], "properties": {"baseline": {"$ref": "#/$defs/input"}, "candidate": {"$ref": "#/$defs/input"}}, "additionalProperties": false}
+  },
+  "$defs": {
+    "input": {"type": "object", "required": ["format", "bytes", "columns", "partitions", "schema"], "properties": {"format": {"type": "string"}, "bytes": {"type": "integer", "minimum": 0}, "columns": {"type": "integer", "minimum": 1}, "partitions": {"type": "integer", "minimum": 1}, "schema": {"type": "object"}, "records": {"type": "object"}}, "additionalProperties": true}
+  }
+}

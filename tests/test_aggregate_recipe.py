@@ -5,7 +5,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from parison.core import ParisonError, compare, error_result, explain_recipe, load_recipe, load_schema, publish, validate_inputs, verify_bundle
+from parison.core import ParisonError, compare, error_result, explain_recipe, export_evidence, load_recipe, load_schema, publish, validate_inputs, verify_bundle
 
 
 RECIPE = {
@@ -122,6 +122,19 @@ class AggregateRecipeTests(unittest.TestCase):
         self.assertEqual(result["counts"]["baseline_only_groups"], 1)
         self.assertEqual(result["counts"]["candidate_only_groups"], 1)
         self.assertEqual(result["measure_counts"]["revenue"]["different"], 1)
+
+    def test_evidence_export_filters_exact_measure_name(self):
+        value = json.loads(json.dumps(RECIPE))
+        value["output"]["sensitivity"] = "raw"
+        self.write(value)
+        left = self.csv("left.csv", "region,amount,ordered_at\neast,1.00,2026-01-01T00:00:00Z\n")
+        right = self.csv("right.csv", "region,amount,ordered_at\neast,2.00,2026-01-01T00:00:00Z\n")
+        output = Path(self.tmp.name) / "run"
+        publish(output, compare(self.path, left, right), load_recipe(self.path))
+        evidence = Path(self.tmp.name) / "revenue.jsonl"
+        metadata = export_evidence(output, evidence, kind="measure", name="revenue")
+        self.assertEqual(metadata["items"], 1)
+        self.assertEqual(json.loads(evidence.read_text(encoding="utf-8").splitlines()[1])["measure"], "revenue")
 
     def test_decimal_cancellation_is_order_independent(self):
         value = json.loads(json.dumps(RECIPE))

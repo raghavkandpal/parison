@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/raghavkandpal/parison/schemas/result-v3.schema.json",
+  "title": "Parison multiset result v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "outcome", "complete", "sensitivity", "runtime", "resource_limits", "scope", "policy", "column_policies", "column_mappings", "problems", "counts", "discrepancy_count", "discrepancy_sample", "discrepancy_sample_limit", "excluded_columns", "inputs", "recipe_sha256", "policy_sha256"],
+  "properties": {
+    "schema_version": {"const": 3},
+    "outcome": {"enum": ["PASS", "FAIL", "ERROR", "INCONCLUSIVE", "INTERRUPTED"]},
+    "complete": {"type": "boolean"},
+    "sensitivity": {"enum": ["summary", "raw"]},
+    "runtime": {"type": "object"}, "resource_limits": {"type": "object"}, "scope": {"type": ["object", "null"]},
+    "policy": {"type": "object"}, "column_policies": {"type": "object"}, "column_mappings": {"type": "object"},
+    "problems": {"type": "array", "items": {"type": "string"}},
+    "counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "discrepancy_count": {"type": "integer", "minimum": 0}, "discrepancy_sample": {"type": "array", "items": {"type": "object"}},
+    "discrepancy_sample_limit": {"type": "integer", "minimum": 0}, "excluded_columns": {"type": "object"}, "inputs": {"type": "object"},
+    "recipe_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "policy_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+  }
+}

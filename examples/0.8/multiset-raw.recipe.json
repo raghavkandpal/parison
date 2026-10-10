@@ -1,0 +1,8 @@
+{
+  "recipe_version": 3,
+  "comparison_mode": "multiset",
+  "scope": {"snapshot": "orders-v5", "cutoff": "2026-10-09T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": false},
+  "columns": {"region": {"type": "string", "normalize": ["trim", "casefold"]}, "amount": {"type": "decimal", "scale": 2}},
+  "column_mappings": {"region": {"baseline": "region", "candidate": "area"}},
+  "output": {"sensitivity": "raw"}
+}

@@ -198,6 +198,12 @@ class ParisonTests(unittest.TestCase):
         for hook in ('id="raw-key"', 'id="raw-field"', 'id="raw-class"', 'id="raw-count" role="status"', 'id="raw-evidence"', 'data-class="different"', "Showing 1 of 1 sampled items"):
             self.assertIn(hook, report)
         self.assertEqual(json.loads((output / "manifest.json").read_text())["sensitivity"], "raw")
+        evidence = self.root / "status-evidence.jsonl"
+        with redirect_stdout(StringIO()):
+            self.assertEqual(main(["export-evidence", str(output), "--kind", "field", "--name", "status", "--output", str(evidence)]), 0)
+        lines = [json.loads(line) for line in evidence.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(lines[0]["_parison_export"]["name"], "status")
+        self.assertEqual(lines[1]["field"], "status")
 
     def test_report_controls_do_not_change_canonical_result(self):
         left = self.csv("left.csv", [{"order_id": "001", "status": "old", "total": "1"}])

@@ -2,7 +2,34 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-## 0.7 — current development
+## 0.10 — released
+
+- [Comparison-suite research](0.10/76-suite-research.md)
+- [0.10 roadmap](0.10/77-roadmap.md)
+- [Suite-v1 contract](0.10/78-suite-contract.md)
+- [Comparison suite user guide](0.10/79-suite-user-guide.md)
+- [0.10 release checklist](0.10/80-release-checklist.md)
+- [0.10 engineering checkpoint](0.10/81-engineering-checkpoint.md)
+
+## 0.9 — released
+
+- [0.9 roadmap](0.9/71-roadmap.md)
+- [0.9 investigation guide](0.9/72-investigation-guide.md)
+- [0.9 release checklist](0.9/73-release-checklist.md)
+- [Investigation contract](0.9/74-investigation-contract.md)
+- [0.9 engineering checkpoint](0.9/75-engineering-checkpoint.md)
+
+## 0.8 — released
+
+- [Multiset comparison research](0.8/64-multiset-research.md)
+- [0.8 roadmap](0.8/65-roadmap.md)
+- [Multiset-v1 comparison contract](0.8/66-multiset-contract.md)
+- [Canonical row encoding research](0.8/67-canonical-row-encoding-research.md)
+- [Multiset comparison user guide](0.8/68-user-guide.md)
+- [0.8 release checklist](0.8/69-release-checklist.md)
+- [0.8 engineering checkpoint](0.8/70-engineering-checkpoint.md)
+
+## 0.7 — released
 
 - [0.7 roadmap](0.7/58-roadmap.md)
 - [Aggregate-v1 contract research](0.7/59-aggregate-research.md)

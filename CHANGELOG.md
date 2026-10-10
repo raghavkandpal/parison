@@ -4,6 +4,33 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.10.0 - 2026-10-09
+
+### Added
+
+- Strict ordered comparison suites spanning keyed, aggregate and multiset cases.
+- Atomic suite bundles with recursively verified child bundles, safe aggregate inspection and installed plan/result/manifest schemas.
+
+## 0.9.0 - 2026-10-09
+
+### Added
+
+- Verified bundle inspection with safe evidence-coverage, policy and bundle provenance metadata.
+- Bounded JSON Lines export of published raw evidence with classification, evidence-kind and exact field/measure filters.
+
+### Fixed
+
+- Evidence export now uses collision-safe staging and atomic no-overwrite publication.
+
+## 0.8.0 - 2026-10-09
+
+### Added
+
+- Exact keyless multiset comparison with duplicate-aware occurrence conservation.
+- Recipe, preflight and result v3 schemas with bounded deterministic evidence.
+- Canonical typed row encoding, explicit multiset drafting, cross-format examples and CI smoke coverage.
+- Privacy-safe multiset preflight diagnostics and hard distinct-row resource limits.
+
 ## 0.7.0 - 2026-10-09
 
 ### Added

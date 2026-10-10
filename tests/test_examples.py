@@ -2,7 +2,8 @@ import json
 import unittest
 from pathlib import Path
 
-from parison.core import compare, verify_bundle
+from parison.core import compare, export_evidence, load_schema, publish, run_suite, verify_bundle
+from jsonschema import Draft202012Validator
 
 
 class CheckedInExamples(unittest.TestCase):
@@ -54,6 +55,23 @@ class CheckedInExamples(unittest.TestCase):
         self.assertEqual(result["counts"]["common_groups"], 2)
         self.assertEqual(result["measure_counts"]["revenue"], {"exact": 1, "within_tolerance": 1, "different": 0})
 
+    def test_0_8_multiset_example_is_a_cross_format_pass(self):
+        root = Path(__file__).parents[1] / "examples" / "0.8"
+        result = compare(root / "multiset.recipe.json", root / "baseline.csv", root / "candidate.jsonl")
+        Draft202012Validator(load_schema("result-v3")).validate(result)
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["counts"]["common_occurrences"], 3)
+
+    def test_0_8_raw_example_exports_bounded_evidence(self):
+        root = Path(__file__).parents[1] / "examples" / "0.8"
+        result = compare(root / "multiset-raw.recipe.json", root / "baseline.csv", root / "candidate.jsonl")
+        self.assertEqual(result["sensitivity"], "raw")
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            output = Path(directory) / "run"
+            publish(output, result, json.loads((root / "multiset-raw.recipe.json").read_text(encoding="utf-8")))
+            evidence = Path(directory) / "evidence.jsonl"
+            self.assertEqual(export_evidence(output, evidence, limit=10)["items"], 0)
+
     def test_committed_output_bundle_is_complete_and_verified(self):
         root = Path(__file__).parents[1]
         output = root / "examples/output"
@@ -63,6 +81,15 @@ class CheckedInExamples(unittest.TestCase):
         self.assertEqual(result["outcome"], "PASS")
         self.assertTrue(result["complete"])
         self.assertEqual(result["counts"]["matched_within_tolerance"], 1)
+
+    def test_0_10_mixed_suite_runs_all_comparison_modes(self):
+        root = Path(__file__).parents[1]
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            output = Path(directory) / "suite"
+            result = run_suite(root / "examples/0.10/mixed-suite.json", output)
+            self.assertEqual(result["outcome"], "PASS")
+            self.assertEqual([case["contract"] for case in result["cases"]], ["keyed-v1", "aggregate-v1", "multiset-v1"])
+            self.assertEqual(verify_bundle(output)["kind"], "suite")
 
 
 if __name__ == "__main__":

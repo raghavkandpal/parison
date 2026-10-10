@@ -6,13 +6,20 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, explain_recipe, load_recipe, load_schema, publish, terminal_result, validate_inputs, verify_bundle
+from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, load_recipe, load_schema, load_suite, publish, run_suite, terminal_result, validate_inputs, verify_bundle
 
 
 def _print_summary(result: dict, output: str) -> None:
     counts = result["counts"]
     print(f"Parison {result['outcome']} (complete: {str(result['complete']).lower()})", file=sys.stderr)
-    if result["schema_version"] == 2 and counts:
+    if result["schema_version"] == 3 and counts:
+        print(
+            "Rows: "
+            f"baseline {counts['baseline_rows']}, candidate {counts['candidate_rows']}, common occurrences {counts['common_occurrences']}, "
+            f"baseline-only {counts['baseline_only_occurrences']}, candidate-only {counts['candidate_only_occurrences']}",
+            file=sys.stderr,
+        )
+    elif result["schema_version"] == 2 and counts:
         print(
             "Groups: "
             f"baseline {counts['baseline_groups']}, candidate {counts['candidate_groups']}, common {counts['common_groups']}, "
@@ -53,7 +60,18 @@ def parser() -> argparse.ArgumentParser:
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
     explain.add_argument("recipe")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-v2", "result", "result-v2", "manifest", "preflight", "preflight-v2"))
+    schema.add_argument("name", choices=("recipe", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-result", "suite-manifest"))
+    suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
+    suite.add_argument("plan")
+    suite_run = commands.add_parser("run-suite", help="run an ordered comparison suite")
+    suite_run.add_argument("--plan", required=True)
+    suite_run.add_argument("--output", required=True)
+    suite_run.add_argument("--sample-limit", type=int, default=100)
+    suite_run.add_argument("--max-input-bytes", type=int, default=1_000_000_000)
+    suite_run.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000)
+    suite_run.add_argument("--max-rows", type=int, default=5_000_000)
+    suite_run.add_argument("--max-groups", type=int, default=100_000)
+    suite_run.add_argument("--max-distinct-rows", type=int, default=100_000)
     inputs = commands.add_parser("validate-inputs", help="validate input schemas and optionally records against a recipe")
     inputs.add_argument("--recipe", required=True)
     inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
@@ -63,6 +81,7 @@ def parser() -> argparse.ArgumentParser:
     inputs.add_argument("--records", action="store_true", help="scan all records for types and mode-specific identity")
     inputs.add_argument("--max-rows", type=int, default=5_000_000, help="maximum rows in either input (default: 5 million)")
     inputs.add_argument("--max-groups", type=int, default=100_000, help="maximum aggregate groups in either input (default: 100,000)")
+    inputs.add_argument("--max-distinct-rows", type=int, default=100_000, help="maximum distinct rows in either multiset input (default: 100,000)")
     inputs.add_argument("--expected-policy-sha256", help="require this effective-policy fingerprint before reading inputs")
     draft = commands.add_parser(
         "draft-recipe",
@@ -82,10 +101,21 @@ operator and null policy. Suggestions are starting points, not approved policy."
     draft.add_argument("--output", required=True)
     draft.add_argument("--max-input-bytes", type=int, default=1_000_000_000, help="maximum combined input size (default: 1 GB)")
     draft.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000, help="maximum combined decoded gzip size (default: 1 GB)")
-    draft.add_argument("--aggregate", action="store_true", help="draft an aggregate-v1 recipe instead of a keyed recipe")
+    draft_mode = draft.add_mutually_exclusive_group()
+    draft_mode.add_argument("--aggregate", action="store_true", help="draft an aggregate-v1 recipe instead of a keyed recipe")
+    draft_mode.add_argument("--multiset", action="store_true", help="draft a multiset-v1 recipe instead of a keyed recipe")
     verify = commands.add_parser("verify", help="verify a published run bundle")
     verify.add_argument("run_directory")
     verify.add_argument("--json", action="store_true", help="print verified manifest metadata as JSON")
+    inspect = commands.add_parser("inspect", help="inspect safe metadata from a verified run bundle")
+    inspect.add_argument("run_directory")
+    export = commands.add_parser("export-evidence", help="export bounded raw evidence from a verified bundle")
+    export.add_argument("run_directory")
+    export.add_argument("--output", required=True)
+    export.add_argument("--classification")
+    export.add_argument("--kind", choices=("record", "field", "group", "measure", "row"))
+    export.add_argument("--name", help="exact field or measure name")
+    export.add_argument("--limit", type=int, default=100)
     run = commands.add_parser("compare", help="compare baseline and candidate files")
     run.add_argument("--recipe", required=True)
     run.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
@@ -96,6 +126,7 @@ operator and null policy. Suggestions are starting points, not approved policy."
     run.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000, help="maximum combined decoded gzip size (default: 1 GB)")
     run.add_argument("--max-rows", type=int, default=5_000_000, help="maximum rows in either input (default: 5 million)")
     run.add_argument("--max-groups", type=int, default=100_000, help="maximum groups in either aggregate input (default: 100,000)")
+    run.add_argument("--max-distinct-rows", type=int, default=100_000, help="maximum distinct rows in either multiset input (default: 100,000)")
     run.add_argument("--expected-policy-sha256", help="require this effective-policy fingerprint before reading inputs")
     return root
 
@@ -107,15 +138,18 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "verify":
             manifest = verify_bundle(args.run_directory)
             print(json.dumps(manifest, sort_keys=True) if args.json else "valid")
-            print(
-                f"Verified bundle integrity: {args.run_directory} "
-                f"(recorded outcome: {manifest['outcome']}, sensitivity: {manifest['sensitivity']})",
-                file=sys.stderr,
-            )
+            detail = "suite" if manifest.get("kind") == "suite" else f"sensitivity: {manifest['sensitivity']}"
+            print(f"Verified bundle integrity: {args.run_directory} (recorded outcome: {manifest['outcome']}, {detail})", file=sys.stderr)
             print("Integrity verification does not change the recorded comparison outcome.", file=sys.stderr)
             return 0
+        if args.command == "inspect":
+            print(json.dumps(inspect_bundle(args.run_directory), indent=2, sort_keys=True))
+            return 0
+        if args.command == "export-evidence":
+            print(json.dumps(export_evidence(args.run_directory, args.output, args.classification, args.limit, kind=args.kind, name=args.name), sort_keys=True))
+            return 0
         if args.command == "draft-recipe":
-            draft = draft_recipe(args.baseline, args.candidate, args.max_input_bytes, args.max_decoded_bytes, args.aggregate)
+            draft = draft_recipe(args.baseline, args.candidate, args.max_input_bytes, args.max_decoded_bytes, args.aggregate, args.multiset)
             output = Path(args.output)
             try:
                 output.parent.mkdir(parents=True, exist_ok=True)
@@ -135,6 +169,19 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "schema":
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))
             return 0
+        if args.command == "validate-suite":
+            loaded = load_suite(args.plan)
+            print(json.dumps({"status": "valid", "cases": len(loaded["cases"])}, sort_keys=True))
+            print(f"Validated comparison suite: {args.plan}", file=sys.stderr)
+            return 0
+        if args.command == "run-suite":
+            result = run_suite(
+                args.plan, args.output, args.sample_limit, args.max_input_bytes, args.max_rows,
+                args.max_decoded_bytes, args.max_groups, args.max_distinct_rows,
+            )
+            print(json.dumps({"outcome": result["outcome"], "output": args.output, "cases": result["completed_cases"]}, sort_keys=True))
+            print(f"Parison suite {result['outcome']}: {result['completed_cases']} of {result['total_cases']} cases published to {args.output}", file=sys.stderr)
+            return OUTCOME_CODES[result["outcome"]]
         if args.command == "validate-inputs":
             result = validate_inputs(
                 args.recipe,
@@ -146,6 +193,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.records,
                 args.max_rows,
                 args.max_groups,
+                args.max_distinct_rows,
             )
             print(json.dumps(result, sort_keys=True))
             if args.records:
@@ -157,6 +205,11 @@ def main(argv: list[str] | None = None) -> int:
                                 f"{side.title()} records: {records['rows']} rows, {records['groups']} groups, "
                                 f"{records['invalid_rows']} invalid rows, {records['null_group_rows']} null-group rows, "
                                 f"{records['rejected_null_measure_values']} rejected null measure values.", file=sys.stderr,
+                            )
+                        elif result["comparison_mode"] == "multiset":
+                            print(
+                                f"{side.title()} records: {records['rows']} rows, {records['distinct_rows']} distinct rows, "
+                                f"{records['invalid_rows']} invalid rows, limit exceeded: {str(records['distinct_row_limit_exceeded']).lower()}.", file=sys.stderr,
                             )
                         else:
                             print(
@@ -189,6 +242,7 @@ def main(argv: list[str] | None = None) -> int:
             args.expected_policy_sha256,
             args.max_decoded_bytes,
             args.max_groups,
+            args.max_distinct_rows,
         )
         publish(args.output, result, recipe)
         print(json.dumps({"outcome": result["outcome"], "output": args.output}))

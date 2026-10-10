@@ -16,18 +16,24 @@ class JsonSchemas(unittest.TestCase):
     def setUpClass(cls):
         cls.recipe_schema = load_schema("recipe")
         cls.recipe_v2_schema = load_schema("recipe-v2")
+        cls.recipe_v3_schema = load_schema("recipe-v3")
         cls.result_schema = load_schema("result")
         cls.result_v2_schema = load_schema("result-v2")
+        cls.result_v3_schema = load_schema("result-v3")
         cls.manifest_schema = load_schema("manifest")
         cls.preflight_schema = load_schema("preflight")
         cls.preflight_v2_schema = load_schema("preflight-v2")
+        cls.preflight_v3_schema = load_schema("preflight-v3")
         Draft202012Validator.check_schema(cls.recipe_schema)
         Draft202012Validator.check_schema(cls.recipe_v2_schema)
+        Draft202012Validator.check_schema(cls.recipe_v3_schema)
         Draft202012Validator.check_schema(cls.result_schema)
         Draft202012Validator.check_schema(cls.result_v2_schema)
+        Draft202012Validator.check_schema(cls.result_v3_schema)
         Draft202012Validator.check_schema(cls.manifest_schema)
         Draft202012Validator.check_schema(cls.preflight_schema)
         Draft202012Validator.check_schema(cls.preflight_v2_schema)
+        Draft202012Validator.check_schema(cls.preflight_v3_schema)
 
     def test_committed_recipes_match_recipe_schema(self):
         validator = Draft202012Validator(self.recipe_schema)
@@ -36,7 +42,8 @@ class JsonSchemas(unittest.TestCase):
         for path in recipes:
             with self.subTest(path=path):
                 value = json.loads(path.read_text(encoding="utf-8"))
-                (Draft202012Validator(self.recipe_v2_schema) if value.get("recipe_version") == 2 else validator).validate(value)
+                schema = self.recipe_v2_schema if value.get("recipe_version") == 2 else self.recipe_v3_schema if value.get("recipe_version") == 3 else self.recipe_schema
+                Draft202012Validator(schema).validate(value)
 
     def test_complete_and_terminal_results_match_result_schema(self):
         validator = Draft202012Validator(self.result_schema)
