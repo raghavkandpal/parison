@@ -85,6 +85,7 @@ def parser() -> argparse.ArgumentParser:
     suite_run.add_argument("--shard-count", type=int)
     suite_run.add_argument("--workspace")
     suite_run.add_argument("--resume", action="store_true")
+    suite_run.add_argument("--jobs", type=int, default=1, help="maximum concurrent suite cases (default: 1; maximum: 16)")
     suite_assemble = commands.add_parser("assemble-suite", help="assemble verified suite shards")
     suite_assemble.add_argument("--plan", required=True)
     suite_assemble.add_argument("--input", action="append", required=True)
@@ -210,6 +211,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.max_decoded_bytes, args.max_groups, args.max_distinct_rows,
                 args.case, args.tag, args.shard_index, args.shard_count,
                 args.workspace, args.resume,
+                args.jobs,
             )
             print(json.dumps({"outcome": result["outcome"], "output": args.output, "cases": result["completed_cases"]}, sort_keys=True))
             subject = "suite shard" if result.get("kind") == "suite-shard" else "suite"

@@ -6,6 +6,7 @@ import hashlib
 import html
 import json
 import math
+import multiprocessing
 import os
 import platform
 import shutil
@@ -14,6 +15,7 @@ import tempfile
 import unicodedata
 import xml.etree.ElementTree as ET
 from collections import Counter
+from concurrent.futures import ProcessPoolExecutor
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from importlib import metadata, resources
@@ -58,6 +60,7 @@ _SUITE_LIMIT_DEFAULTS = {
     "max_distinct_rows": 100_000,
 }
 _SUITE_LIMIT_KEYS = set(_SUITE_LIMIT_DEFAULTS)
+_MAX_SUITE_JOBS = 16
 
 
 class ParisonError(ValueError):
@@ -2812,6 +2815,21 @@ def _reusable_workspace_child(
     return resource_limits == expected_resources
 
 
+def _execute_suite_case(case: dict[str, Any], destination: Path, sample_limit: int, limits: dict[str, int]) -> dict[str, Any]:
+    """Execute and publish one isolated suite case."""
+    recipe = load_recipe(case["recipe"])
+    try:
+        result = compare(
+            case["recipe"], case["baseline"], case["candidate"], sample_limit,
+            limits["max_input_bytes"], limits["max_rows"], case.get("expected_policy_sha256"),
+            limits["max_decoded_bytes"], limits["max_groups"], limits["max_distinct_rows"],
+        )
+    except ParisonError as exc:
+        result = error_result(str(exc), recipe)
+    publish(destination, result, recipe)
+    return result
+
+
 def run_suite(
     plan: str | Path,
     output: str | Path,
@@ -2827,10 +2845,13 @@ def run_suite(
     shard_count: int | None = None,
     workspace: str | Path | None = None,
     resume: bool = False,
+    jobs: int = 1,
 ) -> dict[str, Any]:
     """Run a validated ordered suite and atomically publish its child bundles."""
     suite = load_suite(plan)
     selected = select_suite_cases(suite, case_ids, tags, shard_index, shard_count)
+    if not 1 <= jobs <= _MAX_SUITE_JOBS:
+        raise ParisonError(f"jobs must be between 1 and {_MAX_SUITE_JOBS}")
     if (workspace is not None or resume) and suite["suite_version"] != 2:
         raise ParisonError("suite workspaces require suite_version 2")
     if resume and workspace is None:
@@ -2862,9 +2883,9 @@ def run_suite(
         stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
         os.chmod(stage, 0o700)
         (stage / "cases").mkdir()
-        cases, interrupted = [], False
+        cases_by_id: dict[str, dict[str, Any]] = {}
+        pending = []
         for case in selected:
-            recipe = load_recipe(case["recipe"])
             limits = case.get("limits", {
                 "max_input_bytes": max_input_bytes,
                 "max_decoded_bytes": max_decoded_bytes,
@@ -2885,33 +2906,50 @@ def run_suite(
             else:
                 if workspace_child is not None:
                     shutil.rmtree(workspace_child, ignore_errors=True)
-                try:
-                    result = compare(
-                        case["recipe"], case["baseline"], case["candidate"], sample_limit,
-                        limits["max_input_bytes"], limits["max_rows"], case.get("expected_policy_sha256"),
-                        limits["max_decoded_bytes"], limits["max_groups"], limits["max_distinct_rows"],
-                    )
-                except ParisonError as exc:
-                    result = error_result(str(exc), recipe)
-                except KeyboardInterrupt:
-                    result = terminal_result("INTERRUPTED", "comparison interrupted by user", recipe)
-                    interrupted = True
-                publish(workspace_child or child, result, recipe)
-                if workspace_child is not None and checkpoint is not None:
-                    _write_checkpoint(checkpoint, _checkpoint_data(case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit))
-                    _copy_verified_child(workspace_child, child)
-            cases.append({
-                "id": case["id"],
-                "outcome": result["outcome"],
-                "complete": result["complete"],
-                "schema_version": result["schema_version"],
-                "contract": result["runtime"]["contract"],
-                "policy_sha256": result.get("policy_sha256"),
-                "manifest_sha256": _digest(child / "manifest.json"),
+                pending.append((case, child, workspace_child, checkpoint, limits))
+                continue
+            cases_by_id[case["id"]] = {
+                "id": case["id"], "outcome": result["outcome"], "complete": result["complete"],
+                "schema_version": result["schema_version"], "contract": result["runtime"]["contract"],
+                "policy_sha256": result.get("policy_sha256"), "manifest_sha256": _digest(child / "manifest.json"),
                 "bundle": f"cases/{case['id']}",
-            })
-            if interrupted:
-                break
+            }
+
+        def finish(case, child, workspace_child, checkpoint, limits, result):
+            if workspace_child is not None and checkpoint is not None:
+                _write_checkpoint(checkpoint, _checkpoint_data(case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit))
+                _copy_verified_child(workspace_child, child)
+            cases_by_id[case["id"]] = {
+                "id": case["id"], "outcome": result["outcome"], "complete": result["complete"],
+                "schema_version": result["schema_version"], "contract": result["runtime"]["contract"],
+                "policy_sha256": result.get("policy_sha256"), "manifest_sha256": _digest(child / "manifest.json"),
+                "bundle": f"cases/{case['id']}",
+            }
+
+        interrupted = False
+        if jobs == 1:
+            for case, child, workspace_child, checkpoint, limits in pending:
+                try:
+                    result = _execute_suite_case(case, workspace_child or child, sample_limit, limits)
+                except KeyboardInterrupt:
+                    recipe = load_recipe(case["recipe"])
+                    result = terminal_result("INTERRUPTED", "comparison interrupted by user", recipe)
+                    publish(workspace_child or child, result, recipe)
+                    interrupted = True
+                finish(case, child, workspace_child, checkpoint, limits, result)
+                if interrupted:
+                    break
+        else:
+            with ProcessPoolExecutor(max_workers=jobs, mp_context=multiprocessing.get_context("spawn")) as executor:
+                futures = [
+                    (case, child, workspace_child, checkpoint, limits,
+                     executor.submit(_execute_suite_case, case, workspace_child or child, sample_limit, limits))
+                    for case, child, workspace_child, checkpoint, limits in pending
+                ]
+                for case, child, workspace_child, checkpoint, limits, future in futures:
+                    finish(case, child, workspace_child, checkpoint, limits, future.result())
+
+        cases = [cases_by_id[case["id"]] for case in selected if case["id"] in cases_by_id]
         precedence = {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2, "ERROR": 3, "INTERRUPTED": 4}
         outcome = max((case["outcome"] for case in cases), key=precedence.get)
         outcome_counts = {name: sum(case["outcome"] == name for case in cases) for name in precedence}

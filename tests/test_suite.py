@@ -135,6 +135,27 @@ class SuiteTests(unittest.TestCase):
         child = json.loads((output / "cases" / "orders" / "result.json").read_text(encoding="utf-8"))
         self.assertEqual(child["resource_limits"]["max_rows_per_input"], 1)
 
+    def test_concurrent_suite_matches_sequential_semantics_and_plan_order(self):
+        passing = self.case("first")
+        failing = self.case("second") | {"candidate": "different.csv"}
+        self.write_plan_v2([passing, failing, self.case("third")])
+        sequential = run_suite(self.plan, self.root / "sequential")
+        concurrent = run_suite(self.plan, self.root / "concurrent", jobs=2)
+        self.assertEqual(concurrent["outcome"], sequential["outcome"])
+        self.assertEqual(concurrent["outcome_counts"], sequential["outcome_counts"])
+        self.assertEqual([case["id"] for case in concurrent["cases"]], ["first", "second", "third"])
+        self.assertEqual([case["outcome"] for case in concurrent["cases"]], ["PASS", "FAIL", "PASS"])
+        self.assertEqual(verify_bundle(self.root / "concurrent")["kind"], "suite")
+
+    def test_concurrent_suite_validates_job_bound_and_cli(self):
+        self.write_plan_v2([self.case("first"), self.case("second")])
+        with self.assertRaisesRegex(ParisonError, "jobs must be between 1 and 16"):
+            run_suite(self.plan, self.root / "invalid", jobs=0)
+        stdout = StringIO()
+        with redirect_stdout(stdout), redirect_stderr(StringIO()):
+            self.assertEqual(main(["run-suite", "--plan", str(self.plan), "--output", str(self.root / "cli-concurrent"), "--jobs", "2"]), 0)
+        self.assertEqual(json.loads(stdout.getvalue())["cases"], 2)
+
     def test_assemble_suite_proves_exact_coverage_and_plan_order(self):
         self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])
         shard_0, shard_1 = self.root / "shard-0", self.root / "shard-1"
