@@ -1,0 +1,15 @@
+{
+  "cases": [
+    {"accuracy": "verified", "assembly_seconds": 0.023281, "cases": 10, "clean_seconds": 0.019667, "resume_seconds": 0.024531, "sequential_shard_execution_seconds": 0.025654, "shards": 4},
+    {"accuracy": "verified", "assembly_seconds": 0.0497, "cases": 25, "clean_seconds": 0.043759, "resume_seconds": 0.061713, "sequential_shard_execution_seconds": 0.057601, "shards": 4},
+    {"accuracy": "verified", "assembly_seconds": 0.194534, "cases": 100, "clean_seconds": 0.170782, "resume_seconds": 0.235795, "sequential_shard_execution_seconds": 0.214564, "shards": 4}
+  ],
+  "environment": {
+    "date": "2026-10-10",
+    "machine": "arm64",
+    "measurement": "single local run; shards executed sequentially; comparison, bundle copying and verification included; not a supported performance claim",
+    "parison": "0.11.0",
+    "platform": "Darwin",
+    "python": "3.12.5"
+  }
+}

@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.11.0 - 2026-10-10
+
 ### Added
 
 - Strict suite-v2 plans with tags, deterministic selection, canonical plan fingerprints and effective per-case resource limits.
