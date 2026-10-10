@@ -16,7 +16,9 @@ def measure_suite_scale(repository: Path, case_count: int, shard_count: int = 4)
     if case_count <= 0 or shard_count <= 0:
         raise ValueError("case and shard counts must be positive")
     shard_count = min(case_count, shard_count)
-    with tempfile.TemporaryDirectory() as temporary:
+    # Keep the generated plan on the checkout's filesystem so Windows can form
+    # portable relative references even when its system temp uses another drive.
+    with tempfile.TemporaryDirectory(prefix=".parison-suite-bench-", dir=repository) as temporary:
         root = Path(temporary)
         references = {
             "recipe": os.path.relpath(repository / "examples/orders.recipe.json", root),
