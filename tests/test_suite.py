@@ -11,7 +11,7 @@ from unittest.mock import patch
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, explain_recipe, export_evidence, inspect_bundle, load_schema, load_suite, run_suite, verify_bundle
+from parison.core import ParisonError, explain_recipe, export_evidence, inspect_bundle, list_suite, load_schema, load_suite, run_suite, verify_bundle
 
 
 RECIPE = {
@@ -43,6 +43,12 @@ class SuiteTests(unittest.TestCase):
     def write_plan(self, cases):
         self.plan.write_text(json.dumps({"suite_version": 1, "cases": cases}), encoding="utf-8")
 
+    def write_plan_v2(self, cases, defaults=None):
+        plan = {"suite_version": 2, "cases": cases}
+        if defaults is not None:
+            plan["defaults"] = defaults
+        self.plan.write_text(json.dumps(plan), encoding="utf-8")
+
     def case(self, identifier="orders"):
         return {"id": identifier, "recipe": "recipe.json", "baseline": "baseline.csv", "candidate": "candidate.csv"}
 
@@ -64,6 +70,37 @@ class SuiteTests(unittest.TestCase):
             self.assertEqual(main(["validate-suite", str(self.plan)]), 0)
         self.assertEqual(json.loads(stdout.getvalue()), {"cases": 1, "status": "valid"})
         self.assertIn("Validated comparison suite", stderr.getvalue())
+
+    def test_suite_v2_listing_selection_limits_and_fingerprint(self):
+        first = self.case("orders") | {"tags": ["critical", "finance"], "description": "Order totals", "limits": {"max_rows": 7}}
+        second = self.case("users") | {"tags": ["critical"]}
+        self.write_plan_v2([first, second], {"limits": {"max_input_bytes": 99}})
+        schema = load_schema("suite-v2")
+        Draft202012Validator.check_schema(schema)
+        Draft202012Validator(schema).validate(json.loads(self.plan.read_text(encoding="utf-8")))
+        listed = list_suite(self.plan, tags=["critical", "finance"])
+        self.assertEqual([case["id"] for case in listed["cases"]], ["orders"])
+        self.assertEqual(listed["cases"][0]["limits"]["max_rows"], 7)
+        self.assertEqual(listed["cases"][0]["limits"]["max_input_bytes"], 99)
+        self.assertRegex(listed["suite_policy_sha256"], "^[0-9a-f]{64}$")
+        self.assertEqual([case["id"] for case in list_suite(self.plan, shard_index=1, shard_count=2)["cases"]], ["users"])
+        stdout, stderr = StringIO(), StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(main(["list-suite", str(self.plan), "--tag", "critical", "--json"]), 0)
+        self.assertEqual(json.loads(stdout.getvalue())["selected_cases"], 2)
+
+    def test_suite_v2_rejects_unportable_and_ambiguous_metadata(self):
+        self.write_plan_v2([self.case() | {"tags": ["z", "a"]}])
+        with self.assertRaisesRegex(ParisonError, "sorted unique"):
+            load_suite(self.plan)
+        unportable = self.case()
+        unportable["recipe"] = "../recipe.json"
+        self.write_plan_v2([unportable])
+        with self.assertRaisesRegex(ParisonError, "portable plan-relative"):
+            load_suite(self.plan)
+        self.write_plan_v2([self.case()])
+        with self.assertRaisesRegex(ParisonError, "contains no cases"):
+            list_suite(self.plan, tags=["missing"])
 
     def test_rejects_duplicates_unknown_fields_and_policy_drift(self):
         self.write_plan([self.case(), self.case()])

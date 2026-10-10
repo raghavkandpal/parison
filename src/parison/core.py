@@ -42,9 +42,19 @@ _SCHEMAS = {
     "preflight-v2": "preflight-v2.schema.json",
     "preflight-v3": "preflight-v3.schema.json",
     "suite": "suite-v1.schema.json",
+    "suite-v2": "suite-v2.schema.json",
     "suite-result": "suite-result-v1.schema.json",
     "suite-manifest": "suite-manifest-v1.schema.json",
 }
+
+_SUITE_LIMIT_DEFAULTS = {
+    "max_input_bytes": 1_000_000_000,
+    "max_decoded_bytes": 1_000_000_000,
+    "max_rows": 5_000_000,
+    "max_groups": 100_000,
+    "max_distinct_rows": 100_000,
+}
+_SUITE_LIMIT_KEYS = set(_SUITE_LIMIT_DEFAULTS)
 
 
 class ParisonError(ValueError):
@@ -106,10 +116,20 @@ def load_suite(path: str | Path) -> dict[str, Any]:
         suite = json.loads(suite_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read suite: {exc}") from exc
-    if not isinstance(suite, dict) or set(suite) != {"suite_version", "cases"}:
-        raise ParisonError("suite must contain exactly suite_version and cases")
-    if suite["suite_version"] != 1:
-        raise ParisonError("suite_version must be 1")
+    if not isinstance(suite, dict) or suite.get("suite_version") not in {1, 2}:
+        raise ParisonError("suite_version must be 1 or 2")
+    version = suite["suite_version"]
+    allowed_top = {"suite_version", "cases"} | ({"defaults"} if version == 2 else set())
+    if set(suite) - allowed_top or not {"suite_version", "cases"} <= set(suite):
+        raise ParisonError(f"suite v{version} has invalid fields")
+    defaults = suite.get("defaults", {})
+    if version == 2:
+        if not isinstance(defaults, dict) or set(defaults) - {"limits"}:
+            raise ParisonError("suite defaults may contain only limits")
+        default_limits = defaults.get("limits", {})
+        _validate_suite_limits(default_limits, "suite defaults")
+    else:
+        default_limits = {}
     cases = suite["cases"]
     if not isinstance(cases, list) or not 1 <= len(cases) <= 100:
         raise ParisonError("suite cases must be a nonempty array of at most 100 cases")
@@ -117,7 +137,8 @@ def load_suite(path: str | Path) -> dict[str, Any]:
     loaded, identifiers = [], set()
     for index, case in enumerate(cases):
         required = {"id", "recipe", "baseline", "candidate"}
-        if not isinstance(case, dict) or not required <= set(case) or set(case) - required != ({"expected_policy_sha256"} if "expected_policy_sha256" in case else set()):
+        optional = {"expected_policy_sha256"} | ({"tags", "description", "limits"} if version == 2 else set())
+        if not isinstance(case, dict) or not required <= set(case) or set(case) - required - optional:
             raise ParisonError(f"suite case {index} has invalid fields")
         identifier = case["id"]
         if not isinstance(identifier, str) or not identifier or any(character not in "abcdefghijklmnopqrstuvwxyz0123456789-" for character in identifier) or identifier.startswith("-") or identifier.endswith("-") or "--" in identifier:
@@ -126,10 +147,15 @@ def load_suite(path: str | Path) -> dict[str, Any]:
             raise ParisonError(f"duplicate suite case id: {identifier}")
         identifiers.add(identifier)
         resolved = {"id": identifier}
+        portable = {"id": identifier}
         for name in ("recipe", "baseline", "candidate"):
             value = case[name]
             if not isinstance(value, str) or not value or "\0" in value:
                 raise ParisonError(f"suite case {identifier} has an invalid {name} reference")
+            if version == 2:
+                reference = value.split("#", 1)[0].removeprefix("sqlite:")
+                if Path(reference).is_absolute() or ".." in Path(reference).parts:
+                    raise ParisonError(f"suite case {identifier} {name} must be a portable plan-relative reference")
             sqlite_source = _sqlite_source(value) if name != "recipe" else None
             source_path = sqlite_source[0] if sqlite_source else Path(value)
             if not source_path.is_absolute():
@@ -137,9 +163,10 @@ def load_suite(path: str | Path) -> dict[str, Any]:
             if source_path.is_symlink():
                 raise ParisonError(f"suite case {identifier} {name} must not be a symlink")
             resolved[name] = f"sqlite:{source_path}#{sqlite_source[1]}" if sqlite_source else str(source_path)
+            portable[name] = value
         recipe = load_recipe(resolved["recipe"])
         expected = case.get("expected_policy_sha256")
-        _checked_policy_sha256(recipe, expected)
+        policy_sha256 = _checked_policy_sha256(recipe, expected)
         for name in ("baseline", "candidate"):
             source_path = _source_path(resolved[name])
             if not source_path.is_file() and not source_path.is_dir():
@@ -147,8 +174,108 @@ def load_suite(path: str | Path) -> dict[str, Any]:
             _source_paths(resolved[name])
         if expected is not None:
             resolved["expected_policy_sha256"] = expected
+            portable["expected_policy_sha256"] = expected
+        if version == 2:
+            tags = case.get("tags", [])
+            if (
+                not isinstance(tags, list)
+                or len(tags) > 20
+                or tags != sorted(set(tags))
+                or not all(_portable_identifier(tag) and len(tag) <= 64 for tag in tags)
+            ):
+                raise ParisonError(f"suite case {identifier} tags must be sorted unique portable identifiers")
+            description = case.get("description")
+            if description is not None and (not isinstance(description, str) or not description or len(description) > 500):
+                raise ParisonError(f"suite case {identifier} has an invalid description")
+            limits = case.get("limits", {})
+            _validate_suite_limits(limits, f"suite case {identifier}")
+            effective_limits = {**_SUITE_LIMIT_DEFAULTS, **default_limits, **limits}
+            resolved.update({"tags": tags, "limits": effective_limits, "policy_sha256": policy_sha256})
+            portable.update({"tags": tags, "limits": effective_limits, "policy_sha256": policy_sha256})
+            if description is not None:
+                resolved["description"] = description
+                portable["description"] = description
         loaded.append(resolved)
-    return {"suite_version": 1, "cases": loaded}
+        if version == 2:
+            resolved["portable"] = portable
+    result = {"suite_version": version, "cases": loaded}
+    if version == 2:
+        effective = {"suite_version": 2, "cases": [case["portable"] for case in loaded]}
+        result["suite_policy_sha256"] = hashlib.sha256(
+            json.dumps(effective, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+    return result
+
+
+def _portable_identifier(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and bool(value)
+        and all(character in "abcdefghijklmnopqrstuvwxyz0123456789-" for character in value)
+        and not value.startswith("-")
+        and not value.endswith("-")
+        and "--" not in value
+    )
+
+
+def _validate_suite_limits(limits: Any, where: str) -> None:
+    if not isinstance(limits, dict) or set(limits) - _SUITE_LIMIT_KEYS:
+        raise ParisonError(f"{where} limits contain invalid fields")
+    if not all(isinstance(value, int) and not isinstance(value, bool) and value > 0 for value in limits.values()):
+        raise ParisonError(f"{where} limits must be positive integers")
+
+
+def select_suite_cases(
+    suite: dict[str, Any],
+    case_ids: list[str] | None = None,
+    tags: list[str] | None = None,
+    shard_index: int | None = None,
+    shard_count: int | None = None,
+) -> list[dict[str, Any]]:
+    """Select suite cases once, in plan order, for listing and execution."""
+    case_ids, tags = case_ids or [], tags or []
+    if suite["suite_version"] != 2 and (case_ids or tags or shard_index is not None or shard_count is not None):
+        raise ParisonError("selection and sharding require suite_version 2")
+    if len(case_ids) != len(set(case_ids)) or len(tags) != len(set(tags)):
+        raise ParisonError("case and tag filters must be unique")
+    if any(not _portable_identifier(value) for value in case_ids + tags):
+        raise ParisonError("case and tag filters must be portable identifiers")
+    if (shard_index is None) != (shard_count is None):
+        raise ParisonError("shard index and count must be provided together")
+    if shard_count is not None and (not 1 <= shard_count <= 100 or not 0 <= shard_index < shard_count):
+        raise ParisonError("shard count must be 1..100 and index must be within it")
+    selected = [
+        case for case in suite["cases"]
+        if (not case_ids or case["id"] in case_ids) and (not tags or all(tag in case.get("tags", []) for tag in tags))
+    ]
+    if shard_count is not None:
+        selected = [case for position, case in enumerate(selected) if position % shard_count == shard_index]
+    if not selected:
+        raise ParisonError("suite selection contains no cases")
+    return selected
+
+
+def list_suite(
+    plan: str | Path,
+    case_ids: list[str] | None = None,
+    tags: list[str] | None = None,
+    shard_index: int | None = None,
+    shard_count: int | None = None,
+) -> dict[str, Any]:
+    suite = load_suite(plan)
+    selected = select_suite_cases(suite, case_ids, tags, shard_index, shard_count)
+    return {
+        "suite_version": suite["suite_version"],
+        "suite_policy_sha256": suite.get("suite_policy_sha256"),
+        "total_cases": len(suite["cases"]),
+        "selected_cases": len(selected),
+        "selection": {"case_ids": case_ids or [], "tags": tags or [], "shard_index": shard_index, "shard_count": shard_count},
+        "cases": [
+            {name: case[name] for name in ("id", "tags", "description", "limits") if name in case}
+            | {"comparison_mode": load_recipe(case["recipe"])["comparison_mode"]}
+            for case in selected
+        ],
+    }
 
 
 def _runtime_info(paths: tuple[Any, Any] | None = None, contract: str = "keyed-v1") -> dict[str, Any]:

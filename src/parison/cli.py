@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, load_recipe, load_schema, load_suite, publish, run_suite, terminal_result, validate_inputs, verify_bundle
+from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, run_suite, terminal_result, validate_inputs, verify_bundle
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -60,9 +60,16 @@ def parser() -> argparse.ArgumentParser:
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
     explain.add_argument("recipe")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-result", "suite-manifest"))
+    schema.add_argument("name", choices=("recipe", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-v2", "suite-result", "suite-manifest"))
     suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
     suite.add_argument("plan")
+    suite_list = commands.add_parser("list-suite", help="list selected suite cases without reading inputs")
+    suite_list.add_argument("plan")
+    suite_list.add_argument("--case", action="append", default=[])
+    suite_list.add_argument("--tag", action="append", default=[])
+    suite_list.add_argument("--shard-index", type=int)
+    suite_list.add_argument("--shard-count", type=int)
+    suite_list.add_argument("--json", action="store_true")
     suite_run = commands.add_parser("run-suite", help="run an ordered comparison suite")
     suite_run.add_argument("--plan", required=True)
     suite_run.add_argument("--output", required=True)
@@ -173,6 +180,15 @@ def main(argv: list[str] | None = None) -> int:
             loaded = load_suite(args.plan)
             print(json.dumps({"status": "valid", "cases": len(loaded["cases"])}, sort_keys=True))
             print(f"Validated comparison suite: {args.plan}", file=sys.stderr)
+            return 0
+        if args.command == "list-suite":
+            result = list_suite(args.plan, args.case, args.tag, args.shard_index, args.shard_count)
+            if args.json:
+                print(json.dumps(result, indent=2, sort_keys=True))
+            else:
+                for case in result["cases"]:
+                    print(f"{case['id']}\t{case['comparison_mode']}\t{','.join(case.get('tags', []))}")
+            print(f"Selected {result['selected_cases']} of {result['total_cases']} suite cases.", file=sys.stderr)
             return 0
         if args.command == "run-suite":
             result = run_suite(
