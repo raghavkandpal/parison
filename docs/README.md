@@ -7,6 +7,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Boundary rationale and direction](0.12/88-boundaries-and-direction.md)
 - [0.12 roadmap](0.12/89-roadmap.md)
 - [Bounded local concurrency contract](0.12/90-concurrency-contract.md)
+- [0.12 engineering checkpoint](0.12/91-engineering-checkpoint.md)
 
 ## 0.11 — released
 
