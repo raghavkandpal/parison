@@ -162,6 +162,36 @@ class SuiteTests(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "failed integrity"):
             assemble_suite(self.plan, [shard_0, shard_1], self.root / "tampered")
 
+    def test_resume_reuses_only_verified_current_children(self):
+        self.write_plan_v2([self.case("first"), self.case("second")])
+        workspace = self.root / "workspace"
+        run_suite(self.plan, self.root / "initial", workspace=workspace)
+        with patch("parison.core.compare", side_effect=AssertionError("comparison should be reused")):
+            resumed = run_suite(self.plan, self.root / "resumed", workspace=workspace, resume=True)
+        self.assertEqual(resumed["outcome"], "PASS")
+        self.assertEqual(verify_bundle(self.root / "resumed")["kind"], "suite")
+
+        (self.root / "candidate.csv").write_text("id,value\na,2\n", encoding="utf-8")
+        calls = 0
+        from parison.core import compare as real_compare
+        def counted_compare(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            return real_compare(*args, **kwargs)
+        with patch("parison.core.compare", side_effect=counted_compare):
+            changed = run_suite(self.plan, self.root / "changed", workspace=workspace, resume=True)
+        self.assertEqual(calls, 2)
+        self.assertEqual(changed["outcome"], "FAIL")
+
+    def test_resume_rejects_implicit_or_unsafe_workspace(self):
+        self.write_plan_v2([self.case()])
+        with self.assertRaisesRegex(ParisonError, "requires --workspace"):
+            run_suite(self.plan, self.root / "output", resume=True)
+        workspace = self.root / "workspace"
+        workspace.mkdir()
+        with self.assertRaisesRegex(ParisonError, "already exists"):
+            run_suite(self.plan, self.root / "other", workspace=workspace)
+
     def test_rejects_duplicates_unknown_fields_and_policy_drift(self):
         self.write_plan([self.case(), self.case()])
         with self.assertRaisesRegex(ParisonError, "duplicate suite case id"):

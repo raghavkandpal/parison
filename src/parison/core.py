@@ -2673,6 +2673,65 @@ def _copy_verified_child(source: Path, target: Path) -> None:
     verify_bundle(target)
 
 
+def _checkpoint_data(case: dict[str, Any], child: Path, suite_sha256: str, limits: dict[str, int], sample_limit: int) -> dict[str, Any]:
+    result = _read_bundle_result(child)
+    return {
+        "case_id": case["id"],
+        "suite_policy_sha256": suite_sha256,
+        "policy_sha256": case["policy_sha256"],
+        "limits": limits,
+        "sample_limit": sample_limit,
+        "parison_version": _runtime_info()["parison_version"],
+        "inputs": {side: result.get("inputs", {}).get(side, {}).get("sha256") for side in ("baseline", "candidate")},
+        "manifest_sha256": _digest(child / "manifest.json"),
+    }
+
+
+def _write_checkpoint(path: Path, data: dict[str, Any]) -> None:
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}-", dir=path.parent, text=True)
+    temporary_path = Path(temporary)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(data, indent=2, sort_keys=True) + "\n")
+        os.replace(temporary_path, path)
+    finally:
+        try:
+            temporary_path.unlink()
+        except OSError:
+            pass
+
+
+def _reusable_workspace_child(
+    case: dict[str, Any], child: Path, checkpoint_path: Path, suite_sha256: str, limits: dict[str, int], sample_limit: int
+) -> bool:
+    try:
+        checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+        expected = _checkpoint_data(case, child, suite_sha256, limits, sample_limit)
+        verify_bundle(child)
+        child_result = _read_bundle_result(child)
+    except (OSError, json.JSONDecodeError, ParisonError):
+        return False
+    if checkpoint != expected:
+        return False
+    if checkpoint["inputs"] != {
+        "baseline": _source_digest(case["baseline"]),
+        "candidate": _source_digest(case["candidate"]),
+    }:
+        return False
+    resource_limits = child_result.get("resource_limits", {})
+    expected_resources = {
+        "max_input_bytes": limits["max_input_bytes"],
+        "max_decoded_bytes": limits["max_decoded_bytes"],
+        "max_rows_per_input": limits["max_rows"],
+    }
+    mode = load_recipe(case["recipe"])["comparison_mode"]
+    if mode == "aggregate":
+        expected_resources["max_groups_per_input"] = limits["max_groups"]
+    elif mode == "multiset":
+        expected_resources["max_distinct_rows_per_input"] = limits["max_distinct_rows"]
+    return resource_limits == expected_resources
+
+
 def run_suite(
     plan: str | Path,
     output: str | Path,
@@ -2686,13 +2745,35 @@ def run_suite(
     tags: list[str] | None = None,
     shard_index: int | None = None,
     shard_count: int | None = None,
+    workspace: str | Path | None = None,
+    resume: bool = False,
 ) -> dict[str, Any]:
     """Run a validated ordered suite and atomically publish its child bundles."""
     suite = load_suite(plan)
     selected = select_suite_cases(suite, case_ids, tags, shard_index, shard_count)
+    if (workspace is not None or resume) and suite["suite_version"] != 2:
+        raise ParisonError("suite workspaces require suite_version 2")
+    if resume and workspace is None:
+        raise ParisonError("--resume requires --workspace")
     output = Path(output)
     if output.exists():
         raise ParisonError(f"output already exists: {output}")
+    workspace_path = Path(workspace) if workspace is not None else None
+    if workspace_path is not None:
+        if workspace_path.absolute() == output.absolute():
+            raise ParisonError("workspace and output must be different directories")
+        if resume:
+            if workspace_path.is_symlink() or not workspace_path.is_dir():
+                raise ParisonError("resume workspace is not a regular directory")
+        elif workspace_path.exists():
+            raise ParisonError(f"workspace already exists: {workspace_path}")
+        else:
+            try:
+                (workspace_path / "cases").mkdir(parents=True)
+                (workspace_path / "checkpoints").mkdir()
+                os.chmod(workspace_path, 0o700)
+            except OSError as exc:
+                raise ParisonError(f"cannot prepare suite workspace: {exc}") from exc
     stage = None
     try:
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -2709,19 +2790,34 @@ def run_suite(
                 "max_groups": max_groups,
                 "max_distinct_rows": max_distinct_rows,
             })
-            try:
-                result = compare(
-                    case["recipe"], case["baseline"], case["candidate"], sample_limit,
-                    limits["max_input_bytes"], limits["max_rows"], case.get("expected_policy_sha256"),
-                    limits["max_decoded_bytes"], limits["max_groups"], limits["max_distinct_rows"],
-                )
-            except ParisonError as exc:
-                result = error_result(str(exc), recipe)
-            except KeyboardInterrupt:
-                result = terminal_result("INTERRUPTED", "comparison interrupted by user", recipe)
-                interrupted = True
             child = stage / "cases" / case["id"]
-            publish(child, result, recipe)
+            workspace_child = workspace_path / "cases" / case["id"] if workspace_path is not None else None
+            checkpoint = workspace_path / "checkpoints" / f"{case['id']}.json" if workspace_path is not None else None
+            reused = bool(
+                resume and workspace_child is not None and checkpoint is not None
+                and _reusable_workspace_child(case, workspace_child, checkpoint, suite["suite_policy_sha256"], limits, sample_limit)
+            )
+            if reused:
+                _copy_verified_child(workspace_child, child)
+                result = _read_bundle_result(child)
+            else:
+                if workspace_child is not None:
+                    shutil.rmtree(workspace_child, ignore_errors=True)
+                try:
+                    result = compare(
+                        case["recipe"], case["baseline"], case["candidate"], sample_limit,
+                        limits["max_input_bytes"], limits["max_rows"], case.get("expected_policy_sha256"),
+                        limits["max_decoded_bytes"], limits["max_groups"], limits["max_distinct_rows"],
+                    )
+                except ParisonError as exc:
+                    result = error_result(str(exc), recipe)
+                except KeyboardInterrupt:
+                    result = terminal_result("INTERRUPTED", "comparison interrupted by user", recipe)
+                    interrupted = True
+                publish(workspace_child or child, result, recipe)
+                if workspace_child is not None and checkpoint is not None:
+                    _write_checkpoint(checkpoint, _checkpoint_data(case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit))
+                    _copy_verified_child(workspace_child, child)
             cases.append({
                 "id": case["id"],
                 "outcome": result["outcome"],
