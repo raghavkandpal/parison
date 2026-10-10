@@ -2,7 +2,7 @@
 
 Date: 10 October 2026
 
-Status: **release candidate implemented**
+Status: **released**
 
 ## Focus: scalable suite execution and CI exchange
 

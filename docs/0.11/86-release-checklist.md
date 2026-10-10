@@ -1,6 +1,6 @@
 # Parison 0.11.0 release checklist
 
-Status: **candidate verification in progress**
+Status: **released**
 
 ## Scalable suite contract and implementation
 
@@ -18,10 +18,10 @@ Status: **candidate verification in progress**
 - [x] Suite-v1 mixed-mode behavior remains covered unchanged.
 - [x] Adversarial unit coverage includes selection errors, unsafe references, shard gaps, duplicate indexes, tampering, stale inputs and unsafe workspaces.
 - [x] Reproducible 10-, 25- and 100-case orchestration measurements verify clean, sharded, assembled and resumed paths.
-- [ ] Candidate CI passes Python 3.11–3.14 plus macOS and Windows from the release commit.
-- [ ] A clean wheel contains every v2 schema and passes the complete scalable-suite workflow.
-- [ ] Candidate wheel and source archive checksums are recorded.
-- [ ] The verified commit is merged to `main`, tagged `0.11.0` and published with checksums.
-- [ ] Published assets are downloaded, checksum-verified and smoke-tested in an empty environment.
+- [x] Candidate CI passes Python 3.11–3.14 plus macOS and Windows from the release commit.
+- [x] A clean wheel contains every v2 schema and passes the complete scalable-suite workflow.
+- [x] Candidate wheel and source archive checksums are recorded.
+- [x] The verified commit is merged to `main`, tagged `0.11.0` and published with checksums.
+- [x] Published assets are downloaded, checksum-verified and smoke-tested in an empty environment.
 
-Do not tag 0.11.0 until every release gate is complete.
+Released as [0.11.0](https://github.com/raghavkandpal/parison/releases/tag/0.11.0) from merged `main` commit `0417aa954774d62cb8195444b184defb99b92297`.
