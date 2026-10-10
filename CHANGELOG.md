@@ -4,6 +4,15 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.11.0 - 2026-10-10
+
+### Added
+
+- Strict suite-v2 plans with tags, deterministic selection, canonical plan fingerprints and effective per-case resource limits.
+- Portable suite-shard bundles, recursive verification and exact-coverage atomic assembly.
+- Conservative resumable workspaces that revalidate child integrity, policies, limits, versions and current input digests.
+- Bounded summary-safe Markdown and JUnit-style CI reports plus a sharded GitHub Actions reference workflow.
+
 ## 0.10.0 - 2026-10-09
 
 ### Added

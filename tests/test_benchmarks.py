@@ -7,10 +7,18 @@ from benchmarks.generate_cases import generate
 from benchmarks.generate_aggregate_cases import PROFILES as AGGREGATE_PROFILES, generate as generate_aggregate
 from benchmarks.generate_matrix import PROFILES, generate as generate_profile
 from benchmarks.run_cases import measure
+from benchmarks.run_suite_cases import measure_suite_scale
 from parison.core import compare
 
 
 class GeneratedBenchmarks(unittest.TestCase):
+    def test_suite_orchestration_measurement_verifies_all_paths(self):
+        result = measure_suite_scale(Path(__file__).parents[1], 2, 2)
+        self.assertEqual(result["accuracy"], "verified")
+        self.assertEqual(result["cases"], 2)
+        for name in ("clean_seconds", "sequential_shard_execution_seconds", "assembly_seconds", "resume_seconds"):
+            self.assertGreater(result[name], 0)
+
     def test_generated_accuracy_oracle_matches_engine(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

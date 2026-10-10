@@ -2,6 +2,14 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
+## 0.11 — planned
+
+- [Scalable-suite research](0.11/82-scalable-suite-research.md)
+- [0.11 roadmap](0.11/83-roadmap.md)
+- [Scalable suite v2 contract](0.11/84-scalable-suite-contract.md)
+- [Scalable suite user guide](0.11/85-user-guide.md)
+- [0.11 release checklist](0.11/86-release-checklist.md)
+
 ## 0.10 — released
 
 - [Comparison-suite research](0.10/76-suite-research.md)

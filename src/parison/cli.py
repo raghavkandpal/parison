@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, load_recipe, load_schema, load_suite, publish, run_suite, terminal_result, validate_inputs, verify_bundle
+from .core import OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -60,9 +60,16 @@ def parser() -> argparse.ArgumentParser:
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
     explain.add_argument("recipe")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-result", "suite-manifest"))
+    schema.add_argument("name", choices=("recipe", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2"))
     suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
     suite.add_argument("plan")
+    suite_list = commands.add_parser("list-suite", help="list selected suite cases without reading inputs")
+    suite_list.add_argument("plan")
+    suite_list.add_argument("--case", action="append", default=[])
+    suite_list.add_argument("--tag", action="append", default=[])
+    suite_list.add_argument("--shard-index", type=int)
+    suite_list.add_argument("--shard-count", type=int)
+    suite_list.add_argument("--json", action="store_true")
     suite_run = commands.add_parser("run-suite", help="run an ordered comparison suite")
     suite_run.add_argument("--plan", required=True)
     suite_run.add_argument("--output", required=True)
@@ -72,6 +79,20 @@ def parser() -> argparse.ArgumentParser:
     suite_run.add_argument("--max-rows", type=int, default=5_000_000)
     suite_run.add_argument("--max-groups", type=int, default=100_000)
     suite_run.add_argument("--max-distinct-rows", type=int, default=100_000)
+    suite_run.add_argument("--case", action="append", default=[])
+    suite_run.add_argument("--tag", action="append", default=[])
+    suite_run.add_argument("--shard-index", type=int)
+    suite_run.add_argument("--shard-count", type=int)
+    suite_run.add_argument("--workspace")
+    suite_run.add_argument("--resume", action="store_true")
+    suite_assemble = commands.add_parser("assemble-suite", help="assemble verified suite shards")
+    suite_assemble.add_argument("--plan", required=True)
+    suite_assemble.add_argument("--input", action="append", required=True)
+    suite_assemble.add_argument("--output", required=True)
+    ci_report = commands.add_parser("report-ci", help="export a safe CI projection from a verified suite")
+    ci_report.add_argument("bundle")
+    ci_report.add_argument("--format", choices=("markdown", "junit"), required=True)
+    ci_report.add_argument("--output", required=True)
     inputs = commands.add_parser("validate-inputs", help="validate input schemas and optionally records against a recipe")
     inputs.add_argument("--recipe", required=True)
     inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
@@ -174,14 +195,35 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"status": "valid", "cases": len(loaded["cases"])}, sort_keys=True))
             print(f"Validated comparison suite: {args.plan}", file=sys.stderr)
             return 0
+        if args.command == "list-suite":
+            result = list_suite(args.plan, args.case, args.tag, args.shard_index, args.shard_count)
+            if args.json:
+                print(json.dumps(result, indent=2, sort_keys=True))
+            else:
+                for case in result["cases"]:
+                    print(f"{case['id']}\t{case['comparison_mode']}\t{','.join(case.get('tags', []))}")
+            print(f"Selected {result['selected_cases']} of {result['total_cases']} suite cases.", file=sys.stderr)
+            return 0
         if args.command == "run-suite":
             result = run_suite(
                 args.plan, args.output, args.sample_limit, args.max_input_bytes, args.max_rows,
                 args.max_decoded_bytes, args.max_groups, args.max_distinct_rows,
+                args.case, args.tag, args.shard_index, args.shard_count,
+                args.workspace, args.resume,
             )
             print(json.dumps({"outcome": result["outcome"], "output": args.output, "cases": result["completed_cases"]}, sort_keys=True))
-            print(f"Parison suite {result['outcome']}: {result['completed_cases']} of {result['total_cases']} cases published to {args.output}", file=sys.stderr)
+            subject = "suite shard" if result.get("kind") == "suite-shard" else "suite"
+            denominator = result.get("selected_cases", result["total_cases"])
+            print(f"Parison {subject} {result['outcome']}: {result['completed_cases']} of {denominator} selected cases published to {args.output}", file=sys.stderr)
             return OUTCOME_CODES[result["outcome"]]
+        if args.command == "assemble-suite":
+            result = assemble_suite(args.plan, args.input, args.output)
+            print(json.dumps({"outcome": result["outcome"], "output": args.output, "cases": result["completed_cases"]}, sort_keys=True))
+            print(f"Assembled Parison suite {result['outcome']}: {result['completed_cases']} selected cases published to {args.output}", file=sys.stderr)
+            return OUTCOME_CODES[result["outcome"]]
+        if args.command == "report-ci":
+            print(json.dumps(report_ci(args.bundle, args.output, args.format), sort_keys=True))
+            return 0
         if args.command == "validate-inputs":
             result = validate_inputs(
                 args.recipe,

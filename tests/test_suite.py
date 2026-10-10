@@ -3,6 +3,7 @@ import json
 import os
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -11,7 +12,7 @@ from unittest.mock import patch
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, explain_recipe, export_evidence, inspect_bundle, load_schema, load_suite, run_suite, verify_bundle
+from parison.core import ParisonError, assemble_suite, explain_recipe, export_evidence, inspect_bundle, list_suite, load_schema, load_suite, report_ci, run_suite, verify_bundle
 
 
 RECIPE = {
@@ -43,6 +44,12 @@ class SuiteTests(unittest.TestCase):
     def write_plan(self, cases):
         self.plan.write_text(json.dumps({"suite_version": 1, "cases": cases}), encoding="utf-8")
 
+    def write_plan_v2(self, cases, defaults=None):
+        plan = {"suite_version": 2, "cases": cases}
+        if defaults is not None:
+            plan["defaults"] = defaults
+        self.plan.write_text(json.dumps(plan), encoding="utf-8")
+
     def case(self, identifier="orders"):
         return {"id": identifier, "recipe": "recipe.json", "baseline": "baseline.csv", "candidate": "candidate.csv"}
 
@@ -64,6 +71,161 @@ class SuiteTests(unittest.TestCase):
             self.assertEqual(main(["validate-suite", str(self.plan)]), 0)
         self.assertEqual(json.loads(stdout.getvalue()), {"cases": 1, "status": "valid"})
         self.assertIn("Validated comparison suite", stderr.getvalue())
+
+    def test_suite_v2_listing_selection_limits_and_fingerprint(self):
+        first = self.case("orders") | {"tags": ["critical", "finance"], "description": "Order totals", "limits": {"max_rows": 7}}
+        second = self.case("users") | {"tags": ["critical"]}
+        self.write_plan_v2([first, second], {"limits": {"max_input_bytes": 99}})
+        schema = load_schema("suite-v2")
+        Draft202012Validator.check_schema(schema)
+        Draft202012Validator(schema).validate(json.loads(self.plan.read_text(encoding="utf-8")))
+        listed = list_suite(self.plan, tags=["critical", "finance"])
+        self.assertEqual([case["id"] for case in listed["cases"]], ["orders"])
+        self.assertEqual(listed["cases"][0]["limits"]["max_rows"], 7)
+        self.assertEqual(listed["cases"][0]["limits"]["max_input_bytes"], 99)
+        self.assertRegex(listed["suite_policy_sha256"], "^[0-9a-f]{64}$")
+        self.assertEqual([case["id"] for case in list_suite(self.plan, shard_index=1, shard_count=2)["cases"]], ["users"])
+        stdout, stderr = StringIO(), StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(main(["list-suite", str(self.plan), "--tag", "critical", "--json"]), 0)
+        self.assertEqual(json.loads(stdout.getvalue())["selected_cases"], 2)
+
+    def test_suite_v2_rejects_unportable_and_ambiguous_metadata(self):
+        self.write_plan_v2([self.case() | {"tags": ["z", "a"]}])
+        with self.assertRaisesRegex(ParisonError, "sorted unique"):
+            load_suite(self.plan)
+        unportable = self.case()
+        unportable["recipe"] = str(self.root / "recipe.json")
+        self.write_plan_v2([unportable])
+        with self.assertRaisesRegex(ParisonError, "portable plan-relative"):
+            load_suite(self.plan)
+        self.write_plan_v2([self.case()])
+        with self.assertRaisesRegex(ParisonError, "contains no cases"):
+            list_suite(self.plan, tags=["missing"])
+        with self.assertRaisesRegex(ParisonError, "unknown suite case"):
+            list_suite(self.plan, case_ids=["orders", "missing"])
+
+    def test_suite_v2_run_selection_and_shard_are_explicit_and_verifiable(self):
+        self.write_plan_v2([
+            self.case("first") | {"tags": ["critical"]},
+            self.case("second") | {"tags": ["slow"]},
+            self.case("third") | {"tags": ["critical"]},
+        ])
+        shard = self.root / "shard"
+        result = run_suite(self.plan, shard, shard_index=0, shard_count=2)
+        self.assertEqual(result["kind"], "suite-shard")
+        self.assertTrue(result["execution_complete"])
+        self.assertFalse(result["scope_complete"])
+        self.assertEqual([case["id"] for case in result["cases"]], ["first", "third"])
+        self.assertEqual(verify_bundle(shard)["kind"], "suite-shard")
+        self.assertEqual(inspect_bundle(shard)["selection"]["shard_count"], 2)
+        Draft202012Validator(load_schema("suite-result-v2")).validate(result)
+        Draft202012Validator(load_schema("suite-manifest-v2")).validate(json.loads((shard / "manifest.json").read_text(encoding="utf-8")))
+
+        selected = self.root / "selected"
+        selected_result = run_suite(self.plan, selected, tags=["slow"])
+        self.assertEqual(selected_result["kind"], "suite")
+        self.assertFalse(selected_result["scope_complete"])
+        self.assertEqual([case["id"] for case in selected_result["cases"]], ["second"])
+
+    def test_suite_v2_case_limits_reach_child_result(self):
+        self.write_plan_v2([self.case() | {"limits": {"max_rows": 1}}])
+        output = self.root / "limited-v2"
+        run_suite(self.plan, output)
+        child = json.loads((output / "cases" / "orders" / "result.json").read_text(encoding="utf-8"))
+        self.assertEqual(child["resource_limits"]["max_rows_per_input"], 1)
+
+    def test_assemble_suite_proves_exact_coverage_and_plan_order(self):
+        self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])
+        shard_0, shard_1 = self.root / "shard-0", self.root / "shard-1"
+        run_suite(self.plan, shard_0, shard_index=0, shard_count=2)
+        run_suite(self.plan, shard_1, shard_index=1, shard_count=2)
+        output = self.root / "assembled"
+        result = assemble_suite(self.plan, [shard_1, shard_0], output)
+        self.assertEqual([case["id"] for case in result["cases"]], ["first", "second", "third"])
+        self.assertTrue(result["scope_complete"])
+        self.assertEqual(verify_bundle(output)["kind"], "suite")
+        stdout, stderr = StringIO(), StringIO()
+        cli_output = self.root / "assembled-cli"
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(main(["assemble-suite", "--plan", str(self.plan), "--input", str(shard_0), "--input", str(shard_1), "--output", str(cli_output)]), 0)
+        self.assertEqual(json.loads(stdout.getvalue())["cases"], 3)
+
+    def test_assemble_suite_rejects_gaps_duplicates_and_tampering(self):
+        self.write_plan_v2([self.case("first"), self.case("second")])
+        shard_0, shard_1 = self.root / "shard-0", self.root / "shard-1"
+        run_suite(self.plan, shard_0, shard_index=0, shard_count=2)
+        run_suite(self.plan, shard_1, shard_index=1, shard_count=2)
+        with self.assertRaisesRegex(ParisonError, "exact coverage"):
+            assemble_suite(self.plan, [shard_0], self.root / "gap")
+        with self.assertRaisesRegex(ParisonError, "duplicate suite shard index"):
+            assemble_suite(self.plan, [shard_0, shard_0], self.root / "duplicate")
+        child_result = shard_1 / "cases" / "second" / "result.json"
+        child_result.write_text(child_result.read_text(encoding="utf-8") + " ", encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "failed integrity"):
+            assemble_suite(self.plan, [shard_0, shard_1], self.root / "tampered")
+
+    def test_resume_reuses_only_verified_current_children(self):
+        self.write_plan_v2([self.case("first"), self.case("second")])
+        workspace = self.root / "workspace"
+        run_suite(self.plan, self.root / "initial", workspace=workspace)
+        with patch("parison.core.compare", side_effect=AssertionError("comparison should be reused")):
+            resumed = run_suite(self.plan, self.root / "resumed", workspace=workspace, resume=True)
+        self.assertEqual(resumed["outcome"], "PASS")
+        self.assertEqual(verify_bundle(self.root / "resumed")["kind"], "suite")
+
+        (self.root / "candidate.csv").write_text("id,value\na,2\n", encoding="utf-8")
+        calls = 0
+        from parison.core import compare as real_compare
+        def counted_compare(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            return real_compare(*args, **kwargs)
+        with patch("parison.core.compare", side_effect=counted_compare):
+            changed = run_suite(self.plan, self.root / "changed", workspace=workspace, resume=True)
+        self.assertEqual(calls, 2)
+        self.assertEqual(changed["outcome"], "FAIL")
+
+    def test_resume_rejects_implicit_or_unsafe_workspace(self):
+        self.write_plan_v2([self.case()])
+        with self.assertRaisesRegex(ParisonError, "requires --workspace"):
+            run_suite(self.plan, self.root / "output", resume=True)
+        workspace = self.root / "workspace"
+        workspace.mkdir()
+        with self.assertRaisesRegex(ParisonError, "already exists"):
+            run_suite(self.plan, self.root / "other", workspace=workspace)
+        empty_workspace = self.root / "empty-workspace"
+        empty_workspace.mkdir()
+        with self.assertRaisesRegex(ParisonError, "incomplete or unsafe"):
+            run_suite(self.plan, self.root / "third", workspace=empty_workspace, resume=True)
+
+    def test_ci_reports_are_bounded_safe_and_outcome_explicit(self):
+        passing = self.case("passing")
+        failing = self.case("failing")
+        failing["candidate"] = "different.csv"
+        self.write_plan_v2([passing, failing])
+        bundle = self.root / "bundle"
+        run_suite(self.plan, bundle)
+        markdown = self.root / "summary.md"
+        metadata = report_ci(bundle, markdown, "markdown")
+        self.assertLessEqual(metadata["bytes"], 1_000_000)
+        text = markdown.read_text(encoding="utf-8")
+        self.assertIn("**FAIL**", text)
+        self.assertIn("`failing`", text)
+        self.assertNotIn("a,2", text)
+        with self.assertRaisesRegex(ParisonError, "already exists"):
+            report_ci(bundle, markdown, "markdown")
+
+        junit = self.root / "junit.xml"
+        report_ci(bundle, junit, "junit")
+        root = ET.parse(junit).getroot()
+        self.assertEqual(root.attrib["failures"], "1")
+        outcomes = {node.attrib["name"]: node.find("./properties/property").attrib["value"] for node in root.findall("testcase")}
+        self.assertEqual(outcomes, {"passing": "PASS", "failing": "FAIL"})
+        stdout = StringIO()
+        with redirect_stdout(stdout), redirect_stderr(StringIO()):
+            self.assertEqual(main(["report-ci", str(bundle), "--format", "markdown", "--output", str(self.root / "cli.md")]), 0)
+        self.assertEqual(json.loads(stdout.getvalue())["format"], "markdown")
 
     def test_rejects_duplicates_unknown_fields_and_policy_drift(self):
         self.write_plan([self.case(), self.case()])

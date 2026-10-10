@@ -12,6 +12,7 @@ import shutil
 import sqlite3
 import tempfile
 import unicodedata
+import xml.etree.ElementTree as ET
 from collections import Counter
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -42,9 +43,21 @@ _SCHEMAS = {
     "preflight-v2": "preflight-v2.schema.json",
     "preflight-v3": "preflight-v3.schema.json",
     "suite": "suite-v1.schema.json",
+    "suite-v2": "suite-v2.schema.json",
     "suite-result": "suite-result-v1.schema.json",
+    "suite-result-v2": "suite-result-v2.schema.json",
     "suite-manifest": "suite-manifest-v1.schema.json",
+    "suite-manifest-v2": "suite-manifest-v2.schema.json",
 }
+
+_SUITE_LIMIT_DEFAULTS = {
+    "max_input_bytes": 1_000_000_000,
+    "max_decoded_bytes": 1_000_000_000,
+    "max_rows": 5_000_000,
+    "max_groups": 100_000,
+    "max_distinct_rows": 100_000,
+}
+_SUITE_LIMIT_KEYS = set(_SUITE_LIMIT_DEFAULTS)
 
 
 class ParisonError(ValueError):
@@ -106,10 +119,20 @@ def load_suite(path: str | Path) -> dict[str, Any]:
         suite = json.loads(suite_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read suite: {exc}") from exc
-    if not isinstance(suite, dict) or set(suite) != {"suite_version", "cases"}:
-        raise ParisonError("suite must contain exactly suite_version and cases")
-    if suite["suite_version"] != 1:
-        raise ParisonError("suite_version must be 1")
+    if not isinstance(suite, dict) or suite.get("suite_version") not in {1, 2}:
+        raise ParisonError("suite_version must be 1 or 2")
+    version = suite["suite_version"]
+    allowed_top = {"suite_version", "cases"} | ({"defaults"} if version == 2 else set())
+    if set(suite) - allowed_top or not {"suite_version", "cases"} <= set(suite):
+        raise ParisonError(f"suite v{version} has invalid fields")
+    defaults = suite.get("defaults", {})
+    if version == 2:
+        if not isinstance(defaults, dict) or set(defaults) - {"limits"}:
+            raise ParisonError("suite defaults may contain only limits")
+        default_limits = defaults.get("limits", {})
+        _validate_suite_limits(default_limits, "suite defaults")
+    else:
+        default_limits = {}
     cases = suite["cases"]
     if not isinstance(cases, list) or not 1 <= len(cases) <= 100:
         raise ParisonError("suite cases must be a nonempty array of at most 100 cases")
@@ -117,7 +140,8 @@ def load_suite(path: str | Path) -> dict[str, Any]:
     loaded, identifiers = [], set()
     for index, case in enumerate(cases):
         required = {"id", "recipe", "baseline", "candidate"}
-        if not isinstance(case, dict) or not required <= set(case) or set(case) - required != ({"expected_policy_sha256"} if "expected_policy_sha256" in case else set()):
+        optional = {"expected_policy_sha256"} | ({"tags", "description", "limits"} if version == 2 else set())
+        if not isinstance(case, dict) or not required <= set(case) or set(case) - required - optional:
             raise ParisonError(f"suite case {index} has invalid fields")
         identifier = case["id"]
         if not isinstance(identifier, str) or not identifier or any(character not in "abcdefghijklmnopqrstuvwxyz0123456789-" for character in identifier) or identifier.startswith("-") or identifier.endswith("-") or "--" in identifier:
@@ -126,10 +150,15 @@ def load_suite(path: str | Path) -> dict[str, Any]:
             raise ParisonError(f"duplicate suite case id: {identifier}")
         identifiers.add(identifier)
         resolved = {"id": identifier}
+        portable = {"id": identifier}
         for name in ("recipe", "baseline", "candidate"):
             value = case[name]
             if not isinstance(value, str) or not value or "\0" in value:
                 raise ParisonError(f"suite case {identifier} has an invalid {name} reference")
+            if version == 2:
+                reference = value.split("#", 1)[0].removeprefix("sqlite:")
+                if Path(reference).is_absolute():
+                    raise ParisonError(f"suite case {identifier} {name} must be a portable plan-relative reference")
             sqlite_source = _sqlite_source(value) if name != "recipe" else None
             source_path = sqlite_source[0] if sqlite_source else Path(value)
             if not source_path.is_absolute():
@@ -137,9 +166,10 @@ def load_suite(path: str | Path) -> dict[str, Any]:
             if source_path.is_symlink():
                 raise ParisonError(f"suite case {identifier} {name} must not be a symlink")
             resolved[name] = f"sqlite:{source_path}#{sqlite_source[1]}" if sqlite_source else str(source_path)
+            portable[name] = value
         recipe = load_recipe(resolved["recipe"])
         expected = case.get("expected_policy_sha256")
-        _checked_policy_sha256(recipe, expected)
+        policy_sha256 = _checked_policy_sha256(recipe, expected)
         for name in ("baseline", "candidate"):
             source_path = _source_path(resolved[name])
             if not source_path.is_file() and not source_path.is_dir():
@@ -147,8 +177,111 @@ def load_suite(path: str | Path) -> dict[str, Any]:
             _source_paths(resolved[name])
         if expected is not None:
             resolved["expected_policy_sha256"] = expected
+            portable["expected_policy_sha256"] = expected
+        if version == 2:
+            tags = case.get("tags", [])
+            if (
+                not isinstance(tags, list)
+                or len(tags) > 20
+                or tags != sorted(set(tags))
+                or not all(_portable_identifier(tag) and len(tag) <= 64 for tag in tags)
+            ):
+                raise ParisonError(f"suite case {identifier} tags must be sorted unique portable identifiers")
+            description = case.get("description")
+            if description is not None and (not isinstance(description, str) or not description or len(description) > 500):
+                raise ParisonError(f"suite case {identifier} has an invalid description")
+            limits = case.get("limits", {})
+            _validate_suite_limits(limits, f"suite case {identifier}")
+            effective_limits = {**_SUITE_LIMIT_DEFAULTS, **default_limits, **limits}
+            resolved.update({"tags": tags, "limits": effective_limits, "policy_sha256": policy_sha256})
+            portable.update({"tags": tags, "limits": effective_limits, "policy_sha256": policy_sha256})
+            if description is not None:
+                resolved["description"] = description
+                portable["description"] = description
         loaded.append(resolved)
-    return {"suite_version": 1, "cases": loaded}
+        if version == 2:
+            resolved["portable"] = portable
+    result = {"suite_version": version, "cases": loaded}
+    if version == 2:
+        effective = {"suite_version": 2, "cases": [case["portable"] for case in loaded]}
+        result["suite_policy_sha256"] = hashlib.sha256(
+            json.dumps(effective, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+    return result
+
+
+def _portable_identifier(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and bool(value)
+        and all(character in "abcdefghijklmnopqrstuvwxyz0123456789-" for character in value)
+        and not value.startswith("-")
+        and not value.endswith("-")
+        and "--" not in value
+    )
+
+
+def _validate_suite_limits(limits: Any, where: str) -> None:
+    if not isinstance(limits, dict) or set(limits) - _SUITE_LIMIT_KEYS:
+        raise ParisonError(f"{where} limits contain invalid fields")
+    if not all(isinstance(value, int) and not isinstance(value, bool) and value > 0 for value in limits.values()):
+        raise ParisonError(f"{where} limits must be positive integers")
+
+
+def select_suite_cases(
+    suite: dict[str, Any],
+    case_ids: list[str] | None = None,
+    tags: list[str] | None = None,
+    shard_index: int | None = None,
+    shard_count: int | None = None,
+) -> list[dict[str, Any]]:
+    """Select suite cases once, in plan order, for listing and execution."""
+    case_ids, tags = case_ids or [], tags or []
+    if suite["suite_version"] != 2 and (case_ids or tags or shard_index is not None or shard_count is not None):
+        raise ParisonError("selection and sharding require suite_version 2")
+    if len(case_ids) != len(set(case_ids)) or len(tags) != len(set(tags)):
+        raise ParisonError("case and tag filters must be unique")
+    if any(not _portable_identifier(value) for value in case_ids + tags):
+        raise ParisonError("case and tag filters must be portable identifiers")
+    unknown_cases = set(case_ids) - {case["id"] for case in suite["cases"]}
+    if unknown_cases:
+        raise ParisonError(f"unknown suite case filter(s): {', '.join(sorted(unknown_cases))}")
+    if (shard_index is None) != (shard_count is None):
+        raise ParisonError("shard index and count must be provided together")
+    if shard_count is not None and (not 1 <= shard_count <= 100 or not 0 <= shard_index < shard_count):
+        raise ParisonError("shard count must be 1..100 and index must be within it")
+    selected = [
+        case for case in suite["cases"]
+        if (not case_ids or case["id"] in case_ids) and (not tags or all(tag in case.get("tags", []) for tag in tags))
+    ]
+    if shard_count is not None:
+        selected = [case for position, case in enumerate(selected) if position % shard_count == shard_index]
+    if not selected:
+        raise ParisonError("suite selection contains no cases")
+    return selected
+
+
+def list_suite(
+    plan: str | Path,
+    case_ids: list[str] | None = None,
+    tags: list[str] | None = None,
+    shard_index: int | None = None,
+    shard_count: int | None = None,
+) -> dict[str, Any]:
+    suite = load_suite(plan)
+    selected = select_suite_cases(suite, case_ids, tags, shard_index, shard_count)
+    return {
+        "suite_version": suite["suite_version"],
+        "suite_policy_sha256": suite.get("suite_policy_sha256"),
+        "total_cases": len(suite["cases"]),
+        "selected_cases": len(selected),
+        "selection": {"case_ids": case_ids or [], "tags": tags or [], "shard_index": shard_index, "shard_count": shard_count},
+        "cases": [
+            {name: case[name] for name in ("id", "tags", "description", "limits") if name in case}
+            | {"comparison_mode": load_recipe(case["recipe"])["comparison_mode"]}
+            for case in selected
+        ],
+    }
 
 
 def _runtime_info(paths: tuple[Any, Any] | None = None, contract: str = "keyed-v1") -> dict[str, Any]:
@@ -2133,6 +2266,8 @@ def _verify_manifest_files(directory: Path, files: Any, required: set[str]) -> N
 
 
 def _verify_suite_bundle(directory: Path, manifest: dict[str, Any]) -> dict[str, Any]:
+    if manifest.get("schema_version") == 2:
+        return _verify_suite_bundle_v2(directory, manifest)
     if manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
         raise ParisonError("suite manifest is incomplete or unsupported")
     if manifest.get("outcome") not in OUTCOME_CODES or not isinstance(manifest.get("runtime"), dict):
@@ -2205,6 +2340,87 @@ def _verify_suite_bundle(directory: Path, manifest: dict[str, Any]) -> dict[str,
     return manifest
 
 
+def _verify_suite_bundle_v2(directory: Path, manifest: dict[str, Any]) -> dict[str, Any]:
+    if manifest.get("kind") not in {"suite", "suite-shard"} or manifest.get("complete") is not True:
+        raise ParisonError("suite v2 manifest is incomplete or unsupported")
+    if manifest.get("outcome") not in OUTCOME_CODES or not isinstance(manifest.get("runtime"), dict):
+        raise ParisonError("suite v2 manifest has invalid metadata")
+    _verify_manifest_files(directory, manifest.get("files"), {"suite-result.json", "effective-suite.json", "report.html"})
+    try:
+        result = json.loads((directory / "suite-result.json").read_text(encoding="utf-8"))
+        effective = json.loads((directory / "effective-suite.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read suite v2 metadata: {exc}") from exc
+    required = {
+        "schema_version", "suite_version", "kind", "outcome", "complete", "scope_complete", "execution_complete",
+        "runtime", "total_cases", "selected_cases", "completed_cases", "outcome_counts", "selection", "cases",
+        "suite_policy_sha256", "effective_suite_sha256",
+    }
+    if not isinstance(result, dict) or set(result) != required or result.get("schema_version") != 2 or result.get("suite_version") != 2:
+        raise ParisonError("suite v2 result is incomplete or unsupported")
+    for name in ("kind", "outcome", "runtime"):
+        if result.get(name) != manifest.get(name):
+            raise ParisonError(f"suite manifest {name} does not match result")
+    if not isinstance(effective, dict) or effective.get("suite_version") != 2 or set(effective) != {"suite_version", "cases"}:
+        raise ParisonError("effective suite v2 is invalid")
+    canonical_sha = hashlib.sha256(json.dumps(effective, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
+    if result["suite_policy_sha256"] != canonical_sha or result["effective_suite_sha256"] != _digest(directory / "effective-suite.json"):
+        raise ParisonError("suite v2 result has invalid plan digests")
+    selection = result.get("selection")
+    if not isinstance(selection, dict) or set(selection) != {"case_ids", "tags", "shard_index", "shard_count"}:
+        raise ParisonError("suite v2 result has invalid selection")
+    selected = select_suite_cases(effective, selection["case_ids"], selection["tags"], selection["shard_index"], selection["shard_count"])
+    cases, case_digests = result.get("cases"), manifest.get("cases")
+    if not isinstance(cases, list) or not isinstance(case_digests, dict) or len(cases) != len(case_digests):
+        raise ParisonError("suite v2 has invalid case metadata")
+    if [case.get("id") for case in cases if isinstance(case, dict)] != [case["id"] for case in selected[:len(cases)]]:
+        raise ParisonError("suite v2 result does not match selected plan order")
+    for case in cases:
+        _verify_suite_child(directory, case, case_digests)
+    expected_counts = {name: sum(case["outcome"] == name for case in cases) for name in OUTCOME_CODES}
+    if result["outcome_counts"] != expected_counts:
+        raise ParisonError("suite v2 result has invalid outcome counts")
+    precedence = {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2, "ERROR": 3, "INTERRUPTED": 4}
+    expected_outcome = max((case["outcome"] for case in cases), key=precedence.get)
+    execution_complete = len(cases) == len(selected) and all(case["complete"] for case in cases)
+    scope_complete = not selection["case_ids"] and not selection["tags"] and selection["shard_count"] is None
+    if (
+        result["outcome"] != expected_outcome
+        or result["completed_cases"] != len(cases)
+        or result["selected_cases"] != len(selected)
+        or result["total_cases"] != len(effective["cases"])
+        or result["execution_complete"] != execution_complete
+        or result["scope_complete"] != scope_complete
+        or result["complete"] != execution_complete
+        or result["kind"] != ("suite-shard" if selection["shard_count"] is not None else "suite")
+    ):
+        raise ParisonError("suite v2 result has invalid outcome, scope or completeness")
+    return manifest
+
+
+def _verify_suite_child(directory: Path, case: Any, case_digests: dict[str, Any]) -> None:
+    expected_fields = {"id", "outcome", "complete", "schema_version", "contract", "policy_sha256", "manifest_sha256", "bundle"}
+    if not isinstance(case, dict) or set(case) != expected_fields or not _portable_identifier(case.get("id")):
+        raise ParisonError("suite result contains invalid case fields")
+    identifier = case["id"]
+    if case["bundle"] != f"cases/{identifier}" or set(case_digests) != {entry for entry in case_digests if _portable_identifier(entry)}:
+        raise ParisonError("suite result contains an invalid child location")
+    child = directory / "cases" / identifier
+    child_manifest = verify_bundle(child)
+    digest = _digest(child / "manifest.json")
+    if digest != case_digests.get(identifier) or digest != case["manifest_sha256"]:
+        raise ParisonError(f"suite child manifest digest does not match: {identifier}")
+    child_result = _read_bundle_result(child)
+    if (
+        child_manifest.get("outcome") != case["outcome"]
+        or child_manifest.get("runtime", {}).get("contract") != case["contract"]
+        or child_result.get("schema_version") != case["schema_version"]
+        or child_result.get("policy_sha256") != case["policy_sha256"]
+        or child_result.get("complete") != case["complete"]
+    ):
+        raise ParisonError(f"suite child metadata does not match: {identifier}")
+
+
 def verify_bundle(directory: str | Path) -> dict[str, Any]:
     directory = Path(directory)
     manifest_path = directory / "manifest.json"
@@ -2216,7 +2432,7 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read manifest: {exc}") from exc
-    if isinstance(manifest, dict) and manifest.get("kind") == "suite":
+    if isinstance(manifest, dict) and manifest.get("kind") in {"suite", "suite-shard"}:
         return _verify_suite_bundle(directory, manifest)
     if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
         raise ParisonError("manifest is incomplete or unsupported")
@@ -2235,14 +2451,15 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
 def inspect_bundle(directory: str | Path) -> dict[str, Any]:
     """Return safe, schema-aware metadata from a verified bundle."""
     manifest = verify_bundle(directory)
-    if manifest.get("kind") == "suite":
+    if manifest.get("kind") in {"suite", "suite-shard"}:
         result = json.loads((Path(directory) / "suite-result.json").read_text(encoding="utf-8"))
         return {
-            "kind": "suite",
+            "kind": result.get("kind", "suite"),
             "schema_version": result["schema_version"],
             "suite_version": result["suite_version"],
             "outcome": result["outcome"],
             "complete": result["complete"],
+            **({"scope_complete": result["scope_complete"], "execution_complete": result["execution_complete"], "selection": result["selection"]} if result["schema_version"] == 2 else {}),
             "runtime": result["runtime"],
             "total_cases": result["total_cases"],
             "completed_cases": result["completed_cases"],
@@ -2334,6 +2551,81 @@ def export_evidence(
     return {"output": str(target), "items": len(items), "limit": limit, "classification": classification, "kind": kind, "name": name, "bundle_files": sorted(manifest.get("files", {}))}
 
 
+def report_ci(directory: str | Path, output: str | Path, format_name: str) -> dict[str, Any]:
+    """Write a bounded summary-only CI projection from a verified suite bundle."""
+    manifest = verify_bundle(directory)
+    if manifest.get("kind") not in {"suite", "suite-shard"}:
+        raise ParisonError("CI reports require a suite or suite-shard bundle")
+    result = json.loads((Path(directory) / "suite-result.json").read_text(encoding="utf-8"))
+    if format_name == "markdown":
+        scope = _suite_scope_label(result)
+        lines = [
+            f"# Parison {scope}", "", f"**{result['outcome']}** — {result['completed_cases']} of {result.get('selected_cases', result['total_cases'])} selected cases completed.", "",
+            "| Case | Outcome | Complete |", "|---|---:|:---:|",
+        ]
+        lines.extend(f"| `{case['id']}` | {case['outcome']} | {'yes' if case['complete'] else 'no'} |" for case in result["cases"])
+        content = "\n".join(lines) + "\n"
+    elif format_name == "junit":
+        cases = result["cases"]
+        root = ET.Element("testsuite", {
+            "name": f"parison-{result['kind']}", "tests": str(len(cases)),
+            "failures": str(sum(case["outcome"] == "FAIL" for case in cases)),
+            "errors": str(sum(case["outcome"] in {"ERROR", "INTERRUPTED"} for case in cases)),
+            "skipped": str(sum(case["outcome"] == "INCONCLUSIVE" for case in cases)),
+        })
+        properties = ET.SubElement(root, "properties")
+        ET.SubElement(properties, "property", {"name": "parison.outcome", "value": result["outcome"]})
+        ET.SubElement(properties, "property", {"name": "parison.scope", "value": _suite_scope_label(result)})
+        for case in cases:
+            node = ET.SubElement(root, "testcase", {"classname": "parison", "name": case["id"]})
+            case_properties = ET.SubElement(node, "properties")
+            ET.SubElement(case_properties, "property", {"name": "parison.outcome", "value": case["outcome"]})
+            if case["outcome"] == "FAIL":
+                ET.SubElement(node, "failure", {"message": "Parison comparison found required differences"})
+            elif case["outcome"] in {"ERROR", "INTERRUPTED"}:
+                ET.SubElement(node, "error", {"message": f"Parison {case['outcome'].lower()}"})
+            elif case["outcome"] == "INCONCLUSIVE":
+                ET.SubElement(node, "skipped", {"message": "Parison comparison was inconclusive"})
+        ET.indent(root)
+        content = ET.tostring(root, encoding="unicode", xml_declaration=True) + "\n"
+    else:
+        raise ParisonError("CI report format must be markdown or junit")
+    encoded = content.encode("utf-8")
+    if len(encoded) > 1_000_000:
+        raise ParisonError("CI report exceeds the 1,000,000-byte limit")
+    target = Path(output)
+    if target.exists():
+        raise ParisonError(f"output already exists: {target}")
+    stage = None
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, stage_name = tempfile.mkstemp(prefix=f".{target.name}-", dir=target.parent)
+        stage = Path(stage_name)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(encoded)
+        os.link(stage, target)
+    except FileExistsError as exc:
+        raise ParisonError(f"output already exists: {target}") from exc
+    except OSError as exc:
+        raise ParisonError(f"cannot write CI report: {exc}") from exc
+    finally:
+        if stage is not None:
+            try:
+                stage.unlink()
+            except OSError:
+                pass
+    return {"output": str(target), "format": format_name, "bytes": len(encoded), "cases": len(result["cases"]), "outcome": result["outcome"]}
+
+
+def _suite_scope_label(result: dict[str, Any]) -> str:
+    selection = result.get("selection", {})
+    if result.get("kind") == "suite-shard":
+        return f"shard {selection['shard_index'] + 1}/{selection['shard_count']}"
+    if result.get("schema_version") == 2 and not result.get("scope_complete"):
+        return "selected suite"
+    return "suite"
+
+
 def _suite_report(result: dict[str, Any]) -> str:
     rows = "".join(
         "<tr>" + "".join(f"<td>{html.escape(str(case[field]))}</td>" for field in ("id", "outcome", "complete", "contract", "bundle")) + "</tr>"
@@ -2345,18 +2637,47 @@ def _suite_report(result: dict[str, Any]) -> str:
 <table><thead><tr><th>Case</th><th>Outcome</th><th>Complete</th><th>Contract</th><th>Bundle</th></tr></thead><tbody>{rows}</tbody></table></body></html>"""
 
 
-def run_suite(
-    plan: str | Path,
-    output: str | Path,
-    sample_limit: int = 100,
-    max_input_bytes: int = 1_000_000_000,
-    max_rows: int = 5_000_000,
-    max_decoded_bytes: int = 1_000_000_000,
-    max_groups: int = 100_000,
-    max_distinct_rows: int = 100_000,
-) -> dict[str, Any]:
-    """Run a validated ordered suite and atomically publish its child bundles."""
+def assemble_suite(plan: str | Path, inputs: list[str | Path], output: str | Path) -> dict[str, Any]:
+    """Assemble a complete suite from an exact set of verified v2 shards."""
     suite = load_suite(plan)
+    if suite["suite_version"] != 2:
+        raise ParisonError("suite assembly requires suite_version 2")
+    if not inputs or len(inputs) > 100:
+        raise ParisonError("suite assembly requires 1..100 shard inputs")
+    shard_results, indexes, common = [], set(), None
+    for source in map(Path, inputs):
+        manifest = verify_bundle(source)
+        if manifest.get("kind") != "suite-shard":
+            raise ParisonError(f"assembly input is not a suite shard: {source}")
+        result = json.loads((source / "suite-result.json").read_text(encoding="utf-8"))
+        selection = result["selection"]
+        identity = {"case_ids": selection["case_ids"], "tags": selection["tags"], "shard_count": selection["shard_count"]}
+        if common is None:
+            common = identity
+        elif identity != common:
+            raise ParisonError("suite shards use different selections or shard counts")
+        index = selection["shard_index"]
+        if index in indexes:
+            raise ParisonError(f"duplicate suite shard index: {index}")
+        indexes.add(index)
+        if result["suite_policy_sha256"] != suite["suite_policy_sha256"]:
+            raise ParisonError("suite shard plan fingerprint does not match current plan")
+        if not result["execution_complete"]:
+            raise ParisonError(f"suite shard is not execution-complete: {source}")
+        shard_results.append((source, result))
+    assert common is not None
+    if indexes != set(range(common["shard_count"])):
+        raise ParisonError("suite shard indexes do not provide exact coverage")
+    selected = select_suite_cases(suite, common["case_ids"], common["tags"])
+    by_id: dict[str, tuple[Path, dict[str, Any]]] = {}
+    for source, result in shard_results:
+        for case in result["cases"]:
+            if case["id"] in by_id:
+                raise ParisonError(f"duplicate assembled suite case: {case['id']}")
+            by_id[case["id"]] = (source, case)
+    expected_ids = [case["id"] for case in selected]
+    if set(by_id) != set(expected_ids):
+        raise ParisonError("suite shards do not provide exact selected-case coverage")
     output = Path(output)
     if output.exists():
         raise ParisonError(f"output already exists: {output}")
@@ -2366,22 +2687,219 @@ def run_suite(
         stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
         os.chmod(stage, 0o700)
         (stage / "cases").mkdir()
-        cases, interrupted = [], False
-        for case in suite["cases"]:
-            recipe = load_recipe(case["recipe"])
+        cases = []
+        for identifier in expected_ids:
+            source, case = by_id[identifier]
+            child_source = source / case["bundle"]
+            child_target = stage / "cases" / identifier
+            _copy_verified_child(child_source, child_target)
+            copied = dict(case)
+            copied["manifest_sha256"] = _digest(child_target / "manifest.json")
+            cases.append(copied)
+        effective = {"suite_version": 2, "cases": [case["portable"] for case in suite["cases"]]}
+        (stage / "effective-suite.json").write_text(json.dumps(effective, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        precedence = {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2, "ERROR": 3, "INTERRUPTED": 4}
+        outcome = max((case["outcome"] for case in cases), key=precedence.get)
+        selection = {"case_ids": common["case_ids"], "tags": common["tags"], "shard_index": None, "shard_count": None}
+        result = {
+            "schema_version": 2,
+            "suite_version": 2,
+            "kind": "suite",
+            "outcome": outcome,
+            "complete": all(case["complete"] for case in cases),
+            "scope_complete": not common["case_ids"] and not common["tags"],
+            "execution_complete": True,
+            "runtime": _runtime_info(contract="suite-v2"),
+            "total_cases": len(suite["cases"]),
+            "selected_cases": len(cases),
+            "completed_cases": len(cases),
+            "outcome_counts": {name: sum(case["outcome"] == name for case in cases) for name in precedence},
+            "selection": selection,
+            "cases": cases,
+            "suite_policy_sha256": suite["suite_policy_sha256"],
+            "effective_suite_sha256": _digest(stage / "effective-suite.json"),
+        }
+        (stage / "suite-result.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        (stage / "report.html").write_text(_suite_report(result), encoding="utf-8")
+        manifest = {
+            "schema_version": 2,
+            "kind": "suite",
+            "complete": True,
+            "outcome": outcome,
+            "runtime": result["runtime"],
+            "files": {name: _digest(stage / name) for name in ("suite-result.json", "effective-suite.json", "report.html")},
+            "cases": {case["id"]: case["manifest_sha256"] for case in cases},
+        }
+        (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(stage, output)
+        return result
+    except OSError as exc:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+        raise ParisonError(f"cannot assemble suite: {exc}") from exc
+    except Exception:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+        raise
+
+
+def _copy_verified_child(source: Path, target: Path) -> None:
+    manifest = verify_bundle(source)
+    target.mkdir()
+    shutil.copy2(source / "manifest.json", target / "manifest.json")
+    for name in manifest["files"]:
+        shutil.copy2(source / name, target / name)
+    verify_bundle(target)
+
+
+def _checkpoint_data(case: dict[str, Any], child: Path, suite_sha256: str, limits: dict[str, int], sample_limit: int) -> dict[str, Any]:
+    result = _read_bundle_result(child)
+    return {
+        "case_id": case["id"],
+        "suite_policy_sha256": suite_sha256,
+        "policy_sha256": case["policy_sha256"],
+        "limits": limits,
+        "sample_limit": sample_limit,
+        "parison_version": _runtime_info()["parison_version"],
+        "inputs": {side: result.get("inputs", {}).get(side, {}).get("sha256") for side in ("baseline", "candidate")},
+        "manifest_sha256": _digest(child / "manifest.json"),
+    }
+
+
+def _write_checkpoint(path: Path, data: dict[str, Any]) -> None:
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}-", dir=path.parent, text=True)
+    temporary_path = Path(temporary)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(data, indent=2, sort_keys=True) + "\n")
+        os.replace(temporary_path, path)
+    finally:
+        try:
+            temporary_path.unlink()
+        except OSError:
+            pass
+
+
+def _reusable_workspace_child(
+    case: dict[str, Any], child: Path, checkpoint_path: Path, suite_sha256: str, limits: dict[str, int], sample_limit: int
+) -> bool:
+    try:
+        checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+        expected = _checkpoint_data(case, child, suite_sha256, limits, sample_limit)
+        verify_bundle(child)
+        child_result = _read_bundle_result(child)
+    except (OSError, json.JSONDecodeError, ParisonError):
+        return False
+    if checkpoint != expected:
+        return False
+    try:
+        current_inputs = {"baseline": _source_digest(case["baseline"]), "candidate": _source_digest(case["candidate"])}
+    except ParisonError:
+        return False
+    if checkpoint["inputs"] != current_inputs:
+        return False
+    resource_limits = child_result.get("resource_limits", {})
+    expected_resources = {
+        "max_input_bytes": limits["max_input_bytes"],
+        "max_decoded_bytes": limits["max_decoded_bytes"],
+        "max_rows_per_input": limits["max_rows"],
+    }
+    mode = load_recipe(case["recipe"])["comparison_mode"]
+    if mode == "aggregate":
+        expected_resources["max_groups_per_input"] = limits["max_groups"]
+    elif mode == "multiset":
+        expected_resources["max_distinct_rows_per_input"] = limits["max_distinct_rows"]
+    return resource_limits == expected_resources
+
+
+def run_suite(
+    plan: str | Path,
+    output: str | Path,
+    sample_limit: int = 100,
+    max_input_bytes: int = 1_000_000_000,
+    max_rows: int = 5_000_000,
+    max_decoded_bytes: int = 1_000_000_000,
+    max_groups: int = 100_000,
+    max_distinct_rows: int = 100_000,
+    case_ids: list[str] | None = None,
+    tags: list[str] | None = None,
+    shard_index: int | None = None,
+    shard_count: int | None = None,
+    workspace: str | Path | None = None,
+    resume: bool = False,
+) -> dict[str, Any]:
+    """Run a validated ordered suite and atomically publish its child bundles."""
+    suite = load_suite(plan)
+    selected = select_suite_cases(suite, case_ids, tags, shard_index, shard_count)
+    if (workspace is not None or resume) and suite["suite_version"] != 2:
+        raise ParisonError("suite workspaces require suite_version 2")
+    if resume and workspace is None:
+        raise ParisonError("--resume requires --workspace")
+    output = Path(output)
+    if output.exists():
+        raise ParisonError(f"output already exists: {output}")
+    workspace_path = Path(workspace) if workspace is not None else None
+    if workspace_path is not None:
+        if workspace_path.absolute() == output.absolute():
+            raise ParisonError("workspace and output must be different directories")
+        if resume:
+            if workspace_path.is_symlink() or not workspace_path.is_dir():
+                raise ParisonError("resume workspace is not a regular directory")
+            if any(path.is_symlink() or not path.is_dir() for path in (workspace_path / "cases", workspace_path / "checkpoints")):
+                raise ParisonError("resume workspace is incomplete or unsafe")
+        elif workspace_path.exists():
+            raise ParisonError(f"workspace already exists: {workspace_path}")
+        else:
             try:
-                result = compare(
-                    case["recipe"], case["baseline"], case["candidate"], sample_limit,
-                    max_input_bytes, max_rows, case.get("expected_policy_sha256"),
-                    max_decoded_bytes, max_groups, max_distinct_rows,
-                )
-            except ParisonError as exc:
-                result = error_result(str(exc), recipe)
-            except KeyboardInterrupt:
-                result = terminal_result("INTERRUPTED", "comparison interrupted by user", recipe)
-                interrupted = True
+                (workspace_path / "cases").mkdir(parents=True)
+                (workspace_path / "checkpoints").mkdir()
+                os.chmod(workspace_path, 0o700)
+            except OSError as exc:
+                raise ParisonError(f"cannot prepare suite workspace: {exc}") from exc
+    stage = None
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
+        os.chmod(stage, 0o700)
+        (stage / "cases").mkdir()
+        cases, interrupted = [], False
+        for case in selected:
+            recipe = load_recipe(case["recipe"])
+            limits = case.get("limits", {
+                "max_input_bytes": max_input_bytes,
+                "max_decoded_bytes": max_decoded_bytes,
+                "max_rows": max_rows,
+                "max_groups": max_groups,
+                "max_distinct_rows": max_distinct_rows,
+            })
             child = stage / "cases" / case["id"]
-            publish(child, result, recipe)
+            workspace_child = workspace_path / "cases" / case["id"] if workspace_path is not None else None
+            checkpoint = workspace_path / "checkpoints" / f"{case['id']}.json" if workspace_path is not None else None
+            reused = bool(
+                resume and workspace_child is not None and checkpoint is not None
+                and _reusable_workspace_child(case, workspace_child, checkpoint, suite["suite_policy_sha256"], limits, sample_limit)
+            )
+            if reused:
+                _copy_verified_child(workspace_child, child)
+                result = _read_bundle_result(child)
+            else:
+                if workspace_child is not None:
+                    shutil.rmtree(workspace_child, ignore_errors=True)
+                try:
+                    result = compare(
+                        case["recipe"], case["baseline"], case["candidate"], sample_limit,
+                        limits["max_input_bytes"], limits["max_rows"], case.get("expected_policy_sha256"),
+                        limits["max_decoded_bytes"], limits["max_groups"], limits["max_distinct_rows"],
+                    )
+                except ParisonError as exc:
+                    result = error_result(str(exc), recipe)
+                except KeyboardInterrupt:
+                    result = terminal_result("INTERRUPTED", "comparison interrupted by user", recipe)
+                    interrupted = True
+                publish(workspace_child or child, result, recipe)
+                if workspace_child is not None and checkpoint is not None:
+                    _write_checkpoint(checkpoint, _checkpoint_data(case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit))
+                    _copy_verified_child(workspace_child, child)
             cases.append({
                 "id": case["id"],
                 "outcome": result["outcome"],
@@ -2397,7 +2915,11 @@ def run_suite(
         precedence = {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2, "ERROR": 3, "INTERRUPTED": 4}
         outcome = max((case["outcome"] for case in cases), key=precedence.get)
         outcome_counts = {name: sum(case["outcome"] == name for case in cases) for name in precedence}
-        effective = json.loads(Path(plan).read_text(encoding="utf-8"))
+        effective = (
+            {"suite_version": 2, "cases": [case["portable"] for case in suite["cases"]]}
+            if suite["suite_version"] == 2
+            else json.loads(Path(plan).read_text(encoding="utf-8"))
+        )
         (stage / "effective-suite.json").write_text(json.dumps(effective, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         result = {
             "schema_version": 1,
@@ -2411,12 +2933,36 @@ def run_suite(
             "cases": cases,
             "suite_sha256": _digest(stage / "effective-suite.json"),
         }
+        kind = "suite"
+        if suite["suite_version"] == 2:
+            selection = {"case_ids": case_ids or [], "tags": tags or [], "shard_index": shard_index, "shard_count": shard_count}
+            scope_complete = not selection["case_ids"] and not selection["tags"] and shard_count is None
+            execution_complete = len(cases) == len(selected) and all(case["complete"] for case in cases)
+            kind = "suite-shard" if shard_count is not None else "suite"
+            result = {
+                "schema_version": 2,
+                "suite_version": 2,
+                "kind": kind,
+                "outcome": outcome,
+                "complete": execution_complete,
+                "scope_complete": scope_complete,
+                "execution_complete": execution_complete,
+                "runtime": _runtime_info(contract="suite-v2"),
+                "total_cases": len(suite["cases"]),
+                "selected_cases": len(selected),
+                "completed_cases": len(cases),
+                "outcome_counts": outcome_counts,
+                "selection": selection,
+                "cases": cases,
+                "suite_policy_sha256": suite["suite_policy_sha256"],
+                "effective_suite_sha256": _digest(stage / "effective-suite.json"),
+            }
         (stage / "suite-result.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         (stage / "report.html").write_text(_suite_report(result), encoding="utf-8")
         files = {name: _digest(stage / name) for name in ("suite-result.json", "effective-suite.json", "report.html")}
         manifest = {
-            "schema_version": 1,
-            "kind": "suite",
+            "schema_version": result["schema_version"],
+            "kind": kind,
             "complete": True,
             "outcome": outcome,
             "runtime": result["runtime"],

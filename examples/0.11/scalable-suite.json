@@ -1,0 +1,41 @@
+{
+  "suite_version": 2,
+  "defaults": {
+    "limits": {
+      "max_input_bytes": 1000000,
+      "max_decoded_bytes": 1000000,
+      "max_rows": 10000
+    }
+  },
+  "cases": [
+    {
+      "id": "orders-keyed",
+      "description": "Keyed order migration",
+      "tags": ["critical", "orders"],
+      "recipe": "../orders.recipe.json",
+      "baseline": "../baseline.csv",
+      "candidate": "../candidate.csv",
+      "expected_policy_sha256": "88de243927d26e234bff123a62f4b5f9d92a5a0df7024ed9c7b31d57466b6bf9"
+    },
+    {
+      "id": "revenue-aggregate",
+      "description": "Grouped revenue totals",
+      "tags": ["critical", "finance"],
+      "limits": {"max_groups": 1000},
+      "recipe": "../0.7/revenue.recipe.json",
+      "baseline": "../0.7/baseline.csv",
+      "candidate": "../0.7/candidate.jsonl",
+      "expected_policy_sha256": "19429586c21be02fc9163e96511e53e8926dc45157d95fe637f806e2ccf19e23"
+    },
+    {
+      "id": "orders-multiset",
+      "description": "Exact order-row multiplicities",
+      "tags": ["orders"],
+      "limits": {"max_distinct_rows": 1000},
+      "recipe": "../0.8/multiset.recipe.json",
+      "baseline": "../0.8/baseline.csv",
+      "candidate": "../0.8/candidate.jsonl",
+      "expected_policy_sha256": "6e8a0f82556390fb95cc4681479c76b9da59cdabbb73c10790316530cacc71bc"
+    }
+  ]
+}
