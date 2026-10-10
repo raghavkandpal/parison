@@ -52,3 +52,5 @@ This profile demonstrates useful local throughput, unlike the tiny fixtures, and
 1. Replace wait-for-workers interruption with bounded early worker termination while preserving staging cleanup and safe workspace reuse.
 Do not call 0.12 release-complete until bounded early worker termination is proven.
 
+The implementation decision and acceptance tests for that final gate are frozen in [the bounded interruption design](93-bounded-interruption-design.md).
+
