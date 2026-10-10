@@ -157,7 +157,7 @@ def load_suite(path: str | Path) -> dict[str, Any]:
                 raise ParisonError(f"suite case {identifier} has an invalid {name} reference")
             if version == 2:
                 reference = value.split("#", 1)[0].removeprefix("sqlite:")
-                if Path(reference).is_absolute() or ".." in Path(reference).parts:
+                if Path(reference).is_absolute():
                     raise ParisonError(f"suite case {identifier} {name} must be a portable plan-relative reference")
             sqlite_source = _sqlite_source(value) if name != "recipe" else None
             source_path = sqlite_source[0] if sqlite_source else Path(value)

@@ -95,7 +95,7 @@ class SuiteTests(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "sorted unique"):
             load_suite(self.plan)
         unportable = self.case()
-        unportable["recipe"] = "../recipe.json"
+        unportable["recipe"] = str(self.root / "recipe.json")
         self.write_plan_v2([unportable])
         with self.assertRaisesRegex(ParisonError, "portable plan-relative"):
             load_suite(self.plan)

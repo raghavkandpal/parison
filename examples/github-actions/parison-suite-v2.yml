@@ -1,0 +1,63 @@
+name: Parison sharded suite
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shard:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: python -m pip install '.[parquet]'
+      - run: >-
+          parison run-suite --plan examples/0.11/scalable-suite.json
+          --shard-index ${{ matrix.shard }} --shard-count 2
+          --output ${{ runner.temp }}/parison-shard
+      - run: parison verify ${{ runner.temp }}/parison-shard
+      - uses: actions/upload-artifact@v6
+        with:
+          name: parison-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/parison-shard
+          if-no-files-found: error
+          retention-days: 14
+
+  assemble:
+    needs: shard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: python -m pip install '.[parquet]'
+      - uses: actions/download-artifact@v7
+        with:
+          name: parison-shard-0
+          path: ${{ runner.temp }}/shards/0
+      - uses: actions/download-artifact@v7
+        with:
+          name: parison-shard-1
+          path: ${{ runner.temp }}/shards/1
+      - run: >-
+          parison assemble-suite --plan examples/0.11/scalable-suite.json
+          --input ${{ runner.temp }}/shards/0 --input ${{ runner.temp }}/shards/1
+          --output ${{ runner.temp }}/parison-suite
+      - run: parison verify ${{ runner.temp }}/parison-suite
+      - run: parison report-ci ${{ runner.temp }}/parison-suite --format markdown --output ${{ runner.temp }}/parison-summary.md
+      - run: cat ${{ runner.temp }}/parison-summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: parison-suite-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/parison-suite
+          if-no-files-found: error
+          retention-days: 14

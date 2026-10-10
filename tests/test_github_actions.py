@@ -11,9 +11,20 @@ from parison.core import verify_bundle
 
 
 WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison.yml"
+SUITE_WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison-suite-v2.yml"
 
 
 class GitHubActionsReference(unittest.TestCase):
+    def test_suite_reference_shards_then_verifies_assembly(self):
+        workflow = SUITE_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("matrix:\n        shard: [0, 1]", workflow)
+        self.assertIn("fail-fast: false", workflow)
+        self.assertLess(workflow.index("run-suite"), workflow.index("upload-artifact@v6"))
+        self.assertLess(workflow.index("download-artifact@v7"), workflow.index("assemble-suite"))
+        self.assertLess(workflow.index("assemble-suite"), workflow.index("report-ci"))
+        self.assertIn('>> "$GITHUB_STEP_SUMMARY"', workflow)
+        self.assertNotIn("pull_request_target:", workflow)
+
     def test_upload_precedes_restored_exit_code(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         capture = workflow.index('echo "exit-code=$code" >> "$GITHUB_OUTPUT"')

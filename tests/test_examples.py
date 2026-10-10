@@ -2,7 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
-from parison.core import compare, export_evidence, load_schema, publish, run_suite, verify_bundle
+from parison.core import assemble_suite, compare, export_evidence, load_schema, publish, report_ci, run_suite, verify_bundle
 from jsonschema import Draft202012Validator
 
 
@@ -90,6 +90,22 @@ class CheckedInExamples(unittest.TestCase):
             self.assertEqual(result["outcome"], "PASS")
             self.assertEqual([case["contract"] for case in result["cases"]], ["keyed-v1", "aggregate-v1", "multiset-v1"])
             self.assertEqual(verify_bundle(output)["kind"], "suite")
+
+    def test_0_11_suite_shards_assemble_and_export_ci(self):
+        root = Path(__file__).parents[1]
+        plan = root / "examples/0.11/scalable-suite.json"
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            temporary = Path(directory)
+            shards = [temporary / "shard-0", temporary / "shard-1"]
+            for index, output in enumerate(shards):
+                result = run_suite(plan, output, shard_index=index, shard_count=2)
+                self.assertEqual(result["kind"], "suite-shard")
+            assembled = temporary / "assembled"
+            result = assemble_suite(plan, list(reversed(shards)), assembled)
+            self.assertEqual(result["outcome"], "PASS")
+            self.assertTrue(result["scope_complete"])
+            report_ci(assembled, temporary / "summary.md", "markdown")
+            report_ci(assembled, temporary / "junit.xml", "junit")
 
 
 if __name__ == "__main__":

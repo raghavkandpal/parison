@@ -6,6 +6,8 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 - [Scalable-suite research](0.11/82-scalable-suite-research.md)
 - [0.11 roadmap](0.11/83-roadmap.md)
+- [Scalable suite v2 contract](0.11/84-scalable-suite-contract.md)
+- [Scalable suite user guide](0.11/85-user-guide.md)
 
 ## 0.10 — released
 

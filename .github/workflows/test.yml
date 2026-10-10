@@ -36,8 +36,11 @@ jobs:
       - run: parison schema result-v2
       - run: parison schema result-v3
       - run: parison schema suite
+      - run: parison schema suite-v2
       - run: parison schema suite-result
+      - run: parison schema suite-result-v2
       - run: parison schema suite-manifest
+      - run: parison schema suite-manifest-v2
       - run: parison validate-recipe examples/orders.recipe.json
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke
@@ -68,6 +71,15 @@ jobs:
       - run: parison run-suite --plan examples/0.10/mixed-suite.json --output /tmp/parison-0.10-suite
       - run: parison verify /tmp/parison-0.10-suite
       - run: parison inspect /tmp/parison-0.10-suite
+      - name: Exercise scalable suite v2
+        if: matrix.python-version == '3.14'
+        run: |
+          parison list-suite examples/0.11/scalable-suite.json --tag critical --json
+          parison run-suite --plan examples/0.11/scalable-suite.json --shard-index 0 --shard-count 2 --output /tmp/parison-0.11-shard-0
+          parison run-suite --plan examples/0.11/scalable-suite.json --shard-index 1 --shard-count 2 --output /tmp/parison-0.11-shard-1
+          parison assemble-suite --plan examples/0.11/scalable-suite.json --input /tmp/parison-0.11-shard-0 --input /tmp/parison-0.11-shard-1 --output /tmp/parison-0.11-suite
+          parison verify /tmp/parison-0.11-suite
+          parison report-ci /tmp/parison-0.11-suite --format markdown --output /tmp/parison-0.11-summary.md
       - name: Upload smoke evidence
         if: matrix.python-version == '3.14'
         uses: actions/upload-artifact@v6
