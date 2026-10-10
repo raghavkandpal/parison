@@ -11,7 +11,7 @@ from unittest.mock import patch
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, explain_recipe, export_evidence, inspect_bundle, list_suite, load_schema, load_suite, run_suite, verify_bundle
+from parison.core import ParisonError, assemble_suite, explain_recipe, export_evidence, inspect_bundle, list_suite, load_schema, load_suite, run_suite, verify_bundle
 
 
 RECIPE = {
@@ -131,6 +131,36 @@ class SuiteTests(unittest.TestCase):
         run_suite(self.plan, output)
         child = json.loads((output / "cases" / "orders" / "result.json").read_text(encoding="utf-8"))
         self.assertEqual(child["resource_limits"]["max_rows_per_input"], 1)
+
+    def test_assemble_suite_proves_exact_coverage_and_plan_order(self):
+        self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])
+        shard_0, shard_1 = self.root / "shard-0", self.root / "shard-1"
+        run_suite(self.plan, shard_0, shard_index=0, shard_count=2)
+        run_suite(self.plan, shard_1, shard_index=1, shard_count=2)
+        output = self.root / "assembled"
+        result = assemble_suite(self.plan, [shard_1, shard_0], output)
+        self.assertEqual([case["id"] for case in result["cases"]], ["first", "second", "third"])
+        self.assertTrue(result["scope_complete"])
+        self.assertEqual(verify_bundle(output)["kind"], "suite")
+        stdout, stderr = StringIO(), StringIO()
+        cli_output = self.root / "assembled-cli"
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(main(["assemble-suite", "--plan", str(self.plan), "--input", str(shard_0), "--input", str(shard_1), "--output", str(cli_output)]), 0)
+        self.assertEqual(json.loads(stdout.getvalue())["cases"], 3)
+
+    def test_assemble_suite_rejects_gaps_duplicates_and_tampering(self):
+        self.write_plan_v2([self.case("first"), self.case("second")])
+        shard_0, shard_1 = self.root / "shard-0", self.root / "shard-1"
+        run_suite(self.plan, shard_0, shard_index=0, shard_count=2)
+        run_suite(self.plan, shard_1, shard_index=1, shard_count=2)
+        with self.assertRaisesRegex(ParisonError, "exact coverage"):
+            assemble_suite(self.plan, [shard_0], self.root / "gap")
+        with self.assertRaisesRegex(ParisonError, "duplicate suite shard index"):
+            assemble_suite(self.plan, [shard_0, shard_0], self.root / "duplicate")
+        child_result = shard_1 / "cases" / "second" / "result.json"
+        child_result.write_text(child_result.read_text(encoding="utf-8") + " ", encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "failed integrity"):
+            assemble_suite(self.plan, [shard_0, shard_1], self.root / "tampered")
 
     def test_rejects_duplicates_unknown_fields_and_policy_drift(self):
         self.write_plan([self.case(), self.case()])

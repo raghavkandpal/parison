@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .core import OUTCOME_CODES, ParisonError, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, run_suite, terminal_result, validate_inputs, verify_bundle
+from .core import OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, run_suite, terminal_result, validate_inputs, verify_bundle
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -83,6 +83,10 @@ def parser() -> argparse.ArgumentParser:
     suite_run.add_argument("--tag", action="append", default=[])
     suite_run.add_argument("--shard-index", type=int)
     suite_run.add_argument("--shard-count", type=int)
+    suite_assemble = commands.add_parser("assemble-suite", help="assemble verified suite shards")
+    suite_assemble.add_argument("--plan", required=True)
+    suite_assemble.add_argument("--input", action="append", required=True)
+    suite_assemble.add_argument("--output", required=True)
     inputs = commands.add_parser("validate-inputs", help="validate input schemas and optionally records against a recipe")
     inputs.add_argument("--recipe", required=True)
     inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
@@ -204,6 +208,11 @@ def main(argv: list[str] | None = None) -> int:
             subject = "suite shard" if result.get("kind") == "suite-shard" else "suite"
             denominator = result.get("selected_cases", result["total_cases"])
             print(f"Parison {subject} {result['outcome']}: {result['completed_cases']} of {denominator} selected cases published to {args.output}", file=sys.stderr)
+            return OUTCOME_CODES[result["outcome"]]
+        if args.command == "assemble-suite":
+            result = assemble_suite(args.plan, args.input, args.output)
+            print(json.dumps({"outcome": result["outcome"], "output": args.output, "cases": result["completed_cases"]}, sort_keys=True))
+            print(f"Assembled Parison suite {result['outcome']}: {result['completed_cases']} selected cases published to {args.output}", file=sys.stderr)
             return OUTCOME_CODES[result["outcome"]]
         if args.command == "validate-inputs":
             result = validate_inputs(

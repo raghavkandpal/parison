@@ -2558,6 +2558,121 @@ def _suite_report(result: dict[str, Any]) -> str:
 <table><thead><tr><th>Case</th><th>Outcome</th><th>Complete</th><th>Contract</th><th>Bundle</th></tr></thead><tbody>{rows}</tbody></table></body></html>"""
 
 
+def assemble_suite(plan: str | Path, inputs: list[str | Path], output: str | Path) -> dict[str, Any]:
+    """Assemble a complete suite from an exact set of verified v2 shards."""
+    suite = load_suite(plan)
+    if suite["suite_version"] != 2:
+        raise ParisonError("suite assembly requires suite_version 2")
+    if not inputs or len(inputs) > 100:
+        raise ParisonError("suite assembly requires 1..100 shard inputs")
+    shard_results, indexes, common = [], set(), None
+    for source in map(Path, inputs):
+        manifest = verify_bundle(source)
+        if manifest.get("kind") != "suite-shard":
+            raise ParisonError(f"assembly input is not a suite shard: {source}")
+        result = json.loads((source / "suite-result.json").read_text(encoding="utf-8"))
+        selection = result["selection"]
+        identity = {"case_ids": selection["case_ids"], "tags": selection["tags"], "shard_count": selection["shard_count"]}
+        if common is None:
+            common = identity
+        elif identity != common:
+            raise ParisonError("suite shards use different selections or shard counts")
+        index = selection["shard_index"]
+        if index in indexes:
+            raise ParisonError(f"duplicate suite shard index: {index}")
+        indexes.add(index)
+        if result["suite_policy_sha256"] != suite["suite_policy_sha256"]:
+            raise ParisonError("suite shard plan fingerprint does not match current plan")
+        if not result["execution_complete"]:
+            raise ParisonError(f"suite shard is not execution-complete: {source}")
+        shard_results.append((source, result))
+    assert common is not None
+    if indexes != set(range(common["shard_count"])):
+        raise ParisonError("suite shard indexes do not provide exact coverage")
+    selected = select_suite_cases(suite, common["case_ids"], common["tags"])
+    by_id: dict[str, tuple[Path, dict[str, Any]]] = {}
+    for source, result in shard_results:
+        for case in result["cases"]:
+            if case["id"] in by_id:
+                raise ParisonError(f"duplicate assembled suite case: {case['id']}")
+            by_id[case["id"]] = (source, case)
+    expected_ids = [case["id"] for case in selected]
+    if set(by_id) != set(expected_ids):
+        raise ParisonError("suite shards do not provide exact selected-case coverage")
+    output = Path(output)
+    if output.exists():
+        raise ParisonError(f"output already exists: {output}")
+    stage = None
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
+        os.chmod(stage, 0o700)
+        (stage / "cases").mkdir()
+        cases = []
+        for identifier in expected_ids:
+            source, case = by_id[identifier]
+            child_source = source / case["bundle"]
+            child_target = stage / "cases" / identifier
+            _copy_verified_child(child_source, child_target)
+            copied = dict(case)
+            copied["manifest_sha256"] = _digest(child_target / "manifest.json")
+            cases.append(copied)
+        effective = {"suite_version": 2, "cases": [case["portable"] for case in suite["cases"]]}
+        (stage / "effective-suite.json").write_text(json.dumps(effective, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        precedence = {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2, "ERROR": 3, "INTERRUPTED": 4}
+        outcome = max((case["outcome"] for case in cases), key=precedence.get)
+        selection = {"case_ids": common["case_ids"], "tags": common["tags"], "shard_index": None, "shard_count": None}
+        result = {
+            "schema_version": 2,
+            "suite_version": 2,
+            "kind": "suite",
+            "outcome": outcome,
+            "complete": all(case["complete"] for case in cases),
+            "scope_complete": not common["case_ids"] and not common["tags"],
+            "execution_complete": True,
+            "runtime": _runtime_info(contract="suite-v2"),
+            "total_cases": len(suite["cases"]),
+            "selected_cases": len(cases),
+            "completed_cases": len(cases),
+            "outcome_counts": {name: sum(case["outcome"] == name for case in cases) for name in precedence},
+            "selection": selection,
+            "cases": cases,
+            "suite_policy_sha256": suite["suite_policy_sha256"],
+            "effective_suite_sha256": _digest(stage / "effective-suite.json"),
+        }
+        (stage / "suite-result.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        (stage / "report.html").write_text(_suite_report(result), encoding="utf-8")
+        manifest = {
+            "schema_version": 2,
+            "kind": "suite",
+            "complete": True,
+            "outcome": outcome,
+            "runtime": result["runtime"],
+            "files": {name: _digest(stage / name) for name in ("suite-result.json", "effective-suite.json", "report.html")},
+            "cases": {case["id"]: case["manifest_sha256"] for case in cases},
+        }
+        (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(stage, output)
+        return result
+    except OSError as exc:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+        raise ParisonError(f"cannot assemble suite: {exc}") from exc
+    except Exception:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+        raise
+
+
+def _copy_verified_child(source: Path, target: Path) -> None:
+    manifest = verify_bundle(source)
+    target.mkdir()
+    shutil.copy2(source / "manifest.json", target / "manifest.json")
+    for name in manifest["files"]:
+        shutil.copy2(source / name, target / name)
+    verify_bundle(target)
+
+
 def run_suite(
     plan: str | Path,
     output: str | Path,
