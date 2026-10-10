@@ -13,7 +13,13 @@ from unittest.mock import patch
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, assemble_suite, explain_recipe, export_evidence, inspect_bundle, list_suite, load_schema, load_suite, report_ci, run_suite, verify_bundle
+from parison.core import ParisonError, _execute_suite_case, assemble_suite, explain_recipe, export_evidence, inspect_bundle, list_suite, load_schema, load_suite, report_ci, run_suite, verify_bundle
+
+
+def _crashing_suite_worker(case, *args):
+    if case["id"] == "broken":
+        os._exit(17)
+    return _execute_suite_case(case, *args)
 
 
 RECIPE = {
@@ -186,6 +192,19 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(child["problems"], ["suite worker failed unexpectedly"])
         self.assertNotIn("source-value-must-not-leak", json.dumps(child))
         self.assertEqual(verify_bundle(self.root / "worker-failure")["outcome"], "ERROR")
+
+    def test_abrupt_worker_process_death_publishes_verifiable_evidence(self):
+        self.write_plan_v2([self.case("broken"), self.case("other")])
+        output = self.root / "abrupt-worker-death"
+        with patch("parison.core._execute_suite_case", _crashing_suite_worker):
+            result = run_suite(self.plan, output, jobs=2)
+        self.assertEqual(result["outcome"], "ERROR")
+        self.assertEqual(result["completed_cases"], 2)
+        self.assertEqual(result["cases"][0]["outcome"], "ERROR")
+        self.assertIn(result["cases"][1]["outcome"], {"PASS", "ERROR"})
+        self.assertEqual(verify_bundle(output)["outcome"], "ERROR")
+        for identifier in ("broken", "other"):
+            verify_bundle(output / "cases" / identifier)
 
     def test_assemble_suite_proves_exact_coverage_and_plan_order(self):
         self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])

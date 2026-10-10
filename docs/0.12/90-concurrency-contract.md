@@ -45,5 +45,5 @@ Runtime metadata may still contain already documented platform and version field
 
 ## Current hardening gate
 
-The initial implementation covers bounded spawned workers, deterministic reduction, ordinary comparison errors, generic worker-failure evidence, verified child publication, selection/shard composition, and concurrent resume. The 0.12 release remains blocked until injected parent interruption and real abrupt process-death tests prove bounded cleanup and explicit terminal evidence on Linux, macOS, and Windows.
+The implementation covers bounded spawned workers, deterministic reduction, ordinary comparison errors, generic worker-failure evidence, verified child publication, selection/shard composition, and concurrent resume. A real `os._exit` worker-death test proves that the parent completes without hanging, preserves any already valid child, and publishes verifiable generic ERROR evidence for every affected case. The 0.12 release remains blocked until parent interruption during active work proves bounded cleanup and safe resume on Linux, macOS, and Windows.
 

@@ -2950,9 +2950,15 @@ def run_suite(
                     try:
                         result = future.result()
                     except Exception:
-                        recipe = load_recipe(case["recipe"])
-                        result = error_result("suite worker failed unexpectedly", recipe)
-                        publish(workspace_child or child, result, recipe)
+                        destination = workspace_child or child
+                        try:
+                            verify_bundle(destination)
+                            result = _read_bundle_result(destination)
+                        except ParisonError:
+                            shutil.rmtree(destination, ignore_errors=True)
+                            recipe = load_recipe(case["recipe"])
+                            result = error_result("suite worker failed unexpectedly", recipe)
+                            publish(destination, result, recipe)
                     finish(case, child, workspace_child, checkpoint, limits, result)
 
         cases = [cases_by_id[case["id"]] for case in selected if case["id"] in cases_by_id]
