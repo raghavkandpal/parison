@@ -19,10 +19,11 @@ Status: **development checkpoint; not release-complete**
 
 ## Verification so far
 
-- 182 local tests pass on arm64 macOS with Python 3.12 and Polars 1.44.2.
+- 183 local tests pass on arm64 macOS with Python 3.12 and Polars 1.44.2.
 - Tests cover the CLI job bound, mixed PASS/FAIL equivalence, plan-order restoration, recursive verification, concurrent resume without checkpoint rewriting, generic worker-failure evidence, real abrupt process death, and unchanged sequential interruption behavior.
 - The existing 0.11 sharding, assembly, resume, reporting, examples, schemas, and benchmark tests pass unchanged.
 - GitHub Actions run [38039584289](https://github.com/raghavkandpal/parison/actions/runs/38039584289) passed from commit `ec004868e4e500771ce79b75b582c6e36b611e70`: Linux Python 3.11–3.14 and the macOS and Windows platform-smoke jobs were all green.
+- The latest checkpoint run [38058990764](https://github.com/raghavkandpal/parison/actions/runs/38058990764) also passed from commit `1a858e2eae4d8bcbec6ea8e968f6040ca575ccf5` after interruption recovery, mixed-mode performance/memory evidence, the user guide, and the bounded-termination design were added.
 - A locally built universal wheel installed into an empty Python 3.12 environment without the source checkout on `PYTHONPATH`. Its installed `parison` command ran the checked-in three-mode suite with `--jobs 2`, published three PASS children, and recursively verified the suite-v2 bundle. The package still reports 0.11.0 because the 0.12 version bump is intentionally a release-preparation step.
 
 ## First measurement
