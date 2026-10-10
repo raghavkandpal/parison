@@ -118,6 +118,7 @@ Start with the [documentation index](docs/README.md).
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
 - Latest release: [0.11 roadmap and record](docs/0.11/83-roadmap.md)
+- Next release: [0.12 bounded local concurrency roadmap](docs/0.12/89-roadmap.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
 - Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)
 - Safety model: [0.1 security and data handling](docs/0.1/07-security-and-data-handling.md)
