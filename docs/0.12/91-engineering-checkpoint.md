@@ -39,17 +39,16 @@ These numbers establish overhead, not throughput. They justify retaining jobs 1 
 
 A second measurement used nine CPU-heavy cases: three each of keyed, aggregate, and multiset comparison, with 100,000 rows per input. Every jobs 1/2/4 bundle recursively verified with the same ordered case outcomes.
 
-| Jobs | Elapsed | Command maximum RSS |
+| Jobs | Elapsed | Peak sampled process-tree RSS |
 | ---: | ---: | ---: |
-| 1 | 17.01 s | 276,627,456 bytes |
-| 2 | 9.79 s | 276,824,064 bytes |
-| 4 | 6.01 s | 278,806,528 bytes |
+| 1 | 17.278 s | 276,512,768 bytes |
+| 2 | 10.288 s | 599,621,632 bytes |
+| 4 | 6.384 s | 1,054,425,088 bytes |
 
-This profile demonstrates useful local throughput, unlike the tiny fixtures. `/usr/bin/time -l` reports command maximum RSS but does not establish aggregate process-tree peak memory, so the memory gate remains open. See [`benchmarks/results-2026-10-10-suite-concurrency-mixed-100k.json`](../../benchmarks/results-2026-10-10-suite-concurrency-mixed-100k.json).
+This profile demonstrates useful local throughput, unlike the tiny fixtures, and also shows why Parison does not choose a job count automatically: four workers used roughly 3.8 times the sampled process-tree memory of one. RSS was sampled from the parent and descendants approximately every 20 ms on Darwin, so it remains machine-specific evidence rather than a hard peak guarantee. See [`benchmarks/results-2026-10-10-suite-concurrency-mixed-100k.json`](../../benchmarks/results-2026-10-10-suite-concurrency-mixed-100k.json).
 
 ## Remaining release gates
 
 1. Replace wait-for-workers interruption with bounded early worker termination while preserving staging cleanup and safe workspace reuse.
-2. Add aggregate process-tree memory sampling for the completed representative keyed, aggregate, and multiset jobs 1/2/4 benchmark.
-Do not call 0.12 release-complete until both remaining gates close.
+Do not call 0.12 release-complete until bounded early worker termination is proven.
 
