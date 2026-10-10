@@ -2940,26 +2940,37 @@ def run_suite(
                 if interrupted:
                     break
         else:
-            with ProcessPoolExecutor(max_workers=jobs, mp_context=multiprocessing.get_context("spawn")) as executor:
-                futures = [
-                    (case, child, workspace_child, checkpoint, limits,
-                     executor.submit(_execute_suite_case, case, workspace_child or child, sample_limit, limits))
-                    for case, child, workspace_child, checkpoint, limits in pending
-                ]
-                for case, child, workspace_child, checkpoint, limits, future in futures:
-                    try:
-                        result = future.result()
-                    except Exception:
-                        destination = workspace_child or child
+            try:
+                with ProcessPoolExecutor(max_workers=jobs, mp_context=multiprocessing.get_context("spawn")) as executor:
+                    futures = [
+                        (case, child, workspace_child, checkpoint, limits,
+                         executor.submit(_execute_suite_case, case, workspace_child or child, sample_limit, limits))
+                        for case, child, workspace_child, checkpoint, limits in pending
+                    ]
+                    for case, child, workspace_child, checkpoint, limits, future in futures:
                         try:
-                            verify_bundle(destination)
-                            result = _read_bundle_result(destination)
-                        except ParisonError:
-                            shutil.rmtree(destination, ignore_errors=True)
-                            recipe = load_recipe(case["recipe"])
-                            result = error_result("suite worker failed unexpectedly", recipe)
-                            publish(destination, result, recipe)
-                    finish(case, child, workspace_child, checkpoint, limits, result)
+                            result = future.result()
+                        except Exception:
+                            destination = workspace_child or child
+                            try:
+                                verify_bundle(destination)
+                                result = _read_bundle_result(destination)
+                            except ParisonError:
+                                shutil.rmtree(destination, ignore_errors=True)
+                                recipe = load_recipe(case["recipe"])
+                                result = error_result("suite worker failed unexpectedly", recipe)
+                                publish(destination, result, recipe)
+                        finish(case, child, workspace_child, checkpoint, limits, result)
+            except KeyboardInterrupt:
+                for case, _child, workspace_child, checkpoint, limits in pending:
+                    if workspace_child is None or checkpoint is None:
+                        continue
+                    try:
+                        verify_bundle(workspace_child)
+                    except ParisonError:
+                        continue
+                    _write_checkpoint(checkpoint, _checkpoint_data(case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit))
+                raise
 
         cases = [cases_by_id[case["id"]] for case in selected if case["id"] in cases_by_id]
         precedence = {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2, "ERROR": 3, "INTERRUPTED": 4}

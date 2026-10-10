@@ -206,6 +206,36 @@ class SuiteTests(unittest.TestCase):
         for identifier in ("broken", "other"):
             verify_bundle(output / "cases" / identifier)
 
+    def test_concurrent_interruption_checkpoints_completed_workspace_children(self):
+        self.write_plan_v2([self.case("first"), self.case("second")])
+        workspace = self.root / "interrupted-workspace"
+
+        class InterruptingFuture:
+            def result(self):
+                raise KeyboardInterrupt
+
+        class InterruptingExecutor:
+            def __init__(self, **_kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def submit(self, function, *args):
+                function(*args)
+                return InterruptingFuture()
+
+        with patch("parison.core.ProcessPoolExecutor", InterruptingExecutor), self.assertRaises(KeyboardInterrupt):
+            run_suite(self.plan, self.root / "interrupted-output", workspace=workspace, jobs=2)
+        self.assertFalse((self.root / "interrupted-output").exists())
+        self.assertEqual(len(list((workspace / "checkpoints").glob("*.json"))), 2)
+        resumed = run_suite(self.plan, self.root / "resumed-after-interrupt", workspace=workspace, resume=True, jobs=2)
+        self.assertEqual(resumed["outcome"], "PASS")
+        self.assertEqual(verify_bundle(self.root / "resumed-after-interrupt")["kind"], "suite")
+
     def test_assemble_suite_proves_exact_coverage_and_plan_order(self):
         self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])
         shard_0, shard_1 = self.root / "shard-0", self.root / "shard-1"
