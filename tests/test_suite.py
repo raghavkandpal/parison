@@ -4,6 +4,7 @@ import os
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+from concurrent.futures import Future
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -155,6 +156,36 @@ class SuiteTests(unittest.TestCase):
         with redirect_stdout(stdout), redirect_stderr(StringIO()):
             self.assertEqual(main(["run-suite", "--plan", str(self.plan), "--output", str(self.root / "cli-concurrent"), "--jobs", "2"]), 0)
         self.assertEqual(json.loads(stdout.getvalue())["cases"], 2)
+
+    def test_concurrent_worker_failure_is_explicit_and_does_not_cancel_other_cases(self):
+        self.write_plan_v2([self.case("broken"), self.case("passing")])
+
+        class InjectedExecutor:
+            def __init__(self, **_kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def submit(self, function, case, *args):
+                future = Future()
+                if case["id"] == "broken":
+                    future.set_exception(RuntimeError("source-value-must-not-leak"))
+                else:
+                    future.set_result(function(case, *args))
+                return future
+
+        with patch("parison.core.ProcessPoolExecutor", InjectedExecutor):
+            result = run_suite(self.plan, self.root / "worker-failure", jobs=2)
+        self.assertEqual(result["outcome"], "ERROR")
+        self.assertEqual([case["outcome"] for case in result["cases"]], ["ERROR", "PASS"])
+        child = json.loads((self.root / "worker-failure" / "cases" / "broken" / "result.json").read_text(encoding="utf-8"))
+        self.assertEqual(child["problems"], ["suite worker failed unexpectedly"])
+        self.assertNotIn("source-value-must-not-leak", json.dumps(child))
+        self.assertEqual(verify_bundle(self.root / "worker-failure")["outcome"], "ERROR")
 
     def test_assemble_suite_proves_exact_coverage_and_plan_order(self):
         self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])

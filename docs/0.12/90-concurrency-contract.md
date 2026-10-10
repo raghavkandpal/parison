@@ -18,7 +18,7 @@ For `N > 1`, Parison starts at most `N` standard-library worker processes using 
 
 Cases are submitted in selected plan order. They may start and finish in another order. The parent verifies or digests each published child and reduces all case metadata back into selected plan order before it creates the suite result, report, and manifest.
 
-FAIL, INCONCLUSIVE, and ordinary comparison ERROR outcomes do not cancel other cases. Parison does not retry a case automatically.
+FAIL, INCONCLUSIVE, and ordinary comparison ERROR outcomes do not cancel other cases. An unexpected worker failure becomes a generic summary-safe case ERROR while unrelated cases continue; the original exception text is not published. Parison does not retry a case automatically.
 
 ## Resource meaning
 
@@ -45,5 +45,5 @@ Runtime metadata may still contain already documented platform and version field
 
 ## Current hardening gate
 
-The initial implementation covers bounded spawned workers, deterministic reduction, ordinary comparison errors, verified child publication, selection/shard composition, and concurrent resume. The 0.12 release remains blocked until injected parent interruption and abrupt worker-death tests prove bounded cleanup and explicit terminal evidence on Linux, macOS, and Windows.
+The initial implementation covers bounded spawned workers, deterministic reduction, ordinary comparison errors, generic worker-failure evidence, verified child publication, selection/shard composition, and concurrent resume. The 0.12 release remains blocked until injected parent interruption and real abrupt process-death tests prove bounded cleanup and explicit terminal evidence on Linux, macOS, and Windows.
 

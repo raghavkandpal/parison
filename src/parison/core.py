@@ -2947,7 +2947,13 @@ def run_suite(
                     for case, child, workspace_child, checkpoint, limits in pending
                 ]
                 for case, child, workspace_child, checkpoint, limits, future in futures:
-                    finish(case, child, workspace_child, checkpoint, limits, future.result())
+                    try:
+                        result = future.result()
+                    except Exception:
+                        recipe = load_recipe(case["recipe"])
+                        result = error_result("suite worker failed unexpectedly", recipe)
+                        publish(workspace_child or child, result, recipe)
+                    finish(case, child, workspace_child, checkpoint, limits, result)
 
         cases = [cases_by_id[case["id"]] for case in selected if case["id"] in cases_by_id]
         precedence = {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2, "ERROR": 3, "INTERRUPTED": 4}
