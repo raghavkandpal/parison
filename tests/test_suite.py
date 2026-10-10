@@ -102,6 +102,36 @@ class SuiteTests(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "contains no cases"):
             list_suite(self.plan, tags=["missing"])
 
+    def test_suite_v2_run_selection_and_shard_are_explicit_and_verifiable(self):
+        self.write_plan_v2([
+            self.case("first") | {"tags": ["critical"]},
+            self.case("second") | {"tags": ["slow"]},
+            self.case("third") | {"tags": ["critical"]},
+        ])
+        shard = self.root / "shard"
+        result = run_suite(self.plan, shard, shard_index=0, shard_count=2)
+        self.assertEqual(result["kind"], "suite-shard")
+        self.assertTrue(result["execution_complete"])
+        self.assertFalse(result["scope_complete"])
+        self.assertEqual([case["id"] for case in result["cases"]], ["first", "third"])
+        self.assertEqual(verify_bundle(shard)["kind"], "suite-shard")
+        self.assertEqual(inspect_bundle(shard)["selection"]["shard_count"], 2)
+        Draft202012Validator(load_schema("suite-result-v2")).validate(result)
+        Draft202012Validator(load_schema("suite-manifest-v2")).validate(json.loads((shard / "manifest.json").read_text(encoding="utf-8")))
+
+        selected = self.root / "selected"
+        selected_result = run_suite(self.plan, selected, tags=["slow"])
+        self.assertEqual(selected_result["kind"], "suite")
+        self.assertFalse(selected_result["scope_complete"])
+        self.assertEqual([case["id"] for case in selected_result["cases"]], ["second"])
+
+    def test_suite_v2_case_limits_reach_child_result(self):
+        self.write_plan_v2([self.case() | {"limits": {"max_rows": 1}}])
+        output = self.root / "limited-v2"
+        run_suite(self.plan, output)
+        child = json.loads((output / "cases" / "orders" / "result.json").read_text(encoding="utf-8"))
+        self.assertEqual(child["resource_limits"]["max_rows_per_input"], 1)
+
     def test_rejects_duplicates_unknown_fields_and_policy_drift(self):
         self.write_plan([self.case(), self.case()])
         with self.assertRaisesRegex(ParisonError, "duplicate suite case id"):
