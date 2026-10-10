@@ -10,6 +10,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [0.12 engineering checkpoint](0.12/91-engineering-checkpoint.md)
 - [Bounded local concurrency user guide](0.12/92-user-guide.md)
 - [Bounded concurrent interruption design](0.12/93-bounded-interruption-design.md)
+- [Post-0.12 feature opportunity research](0.12/94-feature-opportunity-research.md)
 
 ## 0.11 — released
 
