@@ -37,9 +37,19 @@ The checked-in 10-, 25-, and 100-case tiny-fixture measurement verifies equivale
 
 These numbers establish overhead, not throughput. They justify retaining jobs 1 as the default. See [`benchmarks/results-2026-10-10-suite-concurrency.json`](../../benchmarks/results-2026-10-10-suite-concurrency.json).
 
+A second measurement used nine CPU-heavy cases: three each of keyed, aggregate, and multiset comparison, with 100,000 rows per input. Every jobs 1/2/4 bundle recursively verified with the same ordered case outcomes.
+
+| Jobs | Elapsed | Command maximum RSS |
+| ---: | ---: | ---: |
+| 1 | 17.01 s | 276,627,456 bytes |
+| 2 | 9.79 s | 276,824,064 bytes |
+| 4 | 6.01 s | 278,806,528 bytes |
+
+This profile demonstrates useful local throughput, unlike the tiny fixtures. `/usr/bin/time -l` reports command maximum RSS but does not establish aggregate process-tree peak memory, so the memory gate remains open. See [`benchmarks/results-2026-10-10-suite-concurrency-mixed-100k.json`](../../benchmarks/results-2026-10-10-suite-concurrency-mixed-100k.json).
+
 ## Remaining release gates
 
 1. Replace wait-for-workers interruption with bounded early worker termination while preserving staging cleanup and safe workspace reuse.
-2. Run representative CPU-heavy keyed, aggregate, and multiset suites; publish elapsed time and peak process-tree memory for jobs 1, 2, and 4, including negative results.
+2. Add aggregate process-tree memory sampling for the completed representative keyed, aggregate, and multiset jobs 1/2/4 benchmark.
 Do not call 0.12 release-complete until both remaining gates close.
 

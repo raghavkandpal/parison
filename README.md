@@ -115,6 +115,8 @@ Suite-v2 orchestration can be measured with `python benchmarks/run_suite_cases.p
 
 The 0.12 harness also measures local `--jobs 2` and `--jobs 4` execution. The first [accuracy-verified concurrency result](benchmarks/results-2026-10-10-suite-concurrency.json) is intentionally based on tiny fixtures: process startup made both concurrent variants slower than `--jobs 1`. It is overhead evidence, not a throughput claim; representative CPU-heavy measurements are still required before release.
 
+A subsequent [mixed-mode 100k-row measurement](benchmarks/results-2026-10-10-suite-concurrency-mixed-100k.json) ran three keyed, three aggregate, and three multiset cases. All bundles verified with equivalent ordered outcomes; elapsed time was 17.01s with one job, 9.79s with two, and 6.01s with four. The recorded macOS maximum RSS is command-level evidence, not aggregate process-tree memory.
+
 ## Documentation
 
 Start with the [documentation index](docs/README.md).

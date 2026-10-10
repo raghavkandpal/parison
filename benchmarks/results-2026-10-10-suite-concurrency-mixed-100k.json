@@ -1,0 +1,22 @@
+{
+  "environment": {
+    "date": "2026-10-10",
+    "machine": "arm64",
+    "parison": "0.11.0+0.12.dev",
+    "platform": "Darwin",
+    "python": "3.12.5",
+    "measurement": "one warm-filesystem command per job count using /usr/bin/time -l; command maximum RSS is not aggregate process-tree memory; not a supported performance claim"
+  },
+  "suite": {
+    "cases": 9,
+    "cases_per_mode": 3,
+    "modes": ["keyed", "aggregate", "multiset"],
+    "rows_per_input": 100000,
+    "accuracy": "all bundles recursively verified with equivalent ordered case outcomes"
+  },
+  "runs": [
+    {"jobs": 1, "elapsed_seconds": 17.01, "maximum_resident_bytes": 276627456},
+    {"jobs": 2, "elapsed_seconds": 9.79, "maximum_resident_bytes": 276824064},
+    {"jobs": 4, "elapsed_seconds": 6.01, "maximum_resident_bytes": 278806528}
+  ]
+}
