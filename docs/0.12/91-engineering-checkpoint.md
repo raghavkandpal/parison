@@ -21,6 +21,7 @@ Status: **development checkpoint; not release-complete**
 - Tests cover the CLI job bound, mixed PASS/FAIL equivalence, plan-order restoration, recursive verification, concurrent resume without checkpoint rewriting, generic worker-failure evidence, real abrupt process death, and unchanged sequential interruption behavior.
 - The existing 0.11 sharding, assembly, resume, reporting, examples, schemas, and benchmark tests pass unchanged.
 - GitHub Actions run [38039584289](https://github.com/raghavkandpal/parison/actions/runs/38039584289) passed from commit `ec004868e4e500771ce79b75b582c6e36b611e70`: Linux Python 3.11–3.14 and the macOS and Windows platform-smoke jobs were all green.
+- A locally built universal wheel installed into an empty Python 3.12 environment without the source checkout on `PYTHONPATH`. Its installed `parison` command ran the checked-in three-mode suite with `--jobs 2`, published three PASS children, and recursively verified the suite-v2 bundle. The package still reports 0.11.0 because the 0.12 version bump is intentionally a release-preparation step.
 
 ## First measurement
 
@@ -38,8 +39,7 @@ These numbers establish overhead, not throughput. They justify retaining jobs 1 
 
 1. Inject parent interruption during active concurrent work and prove bounded shutdown, staging cleanup, and safe workspace reuse on the next run.
 2. Run representative CPU-heavy keyed, aggregate, and multiset suites; publish elapsed time and peak process-tree memory for jobs 1, 2, and 4, including negative results.
-3. Confirm concurrency from a built, installed wheel; source-checkout CI is already green on Linux, macOS, and Windows.
-4. Add a checked-in concurrent suite example and update the user guide after the interruption contract is proven.
+3. Add a checked-in concurrent suite example and update the user guide after the interruption contract is proven.
 
-Do not call 0.12 release-complete until all four gates close.
+Do not call 0.12 release-complete until all three gates close.
 
