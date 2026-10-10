@@ -14,6 +14,7 @@ Status: **development checkpoint; not release-complete**
 - Suite-v2 workspaces resolve reusable children before admission, then checkpoint newly published worker results in the parent.
 - Unexpected worker-future failures become generic summary-safe ERROR children; unrelated cases continue and exception text is not disclosed.
 - Parent staging cleanup now covers interruption as well as ordinary exceptions.
+- The checked-in GitHub Actions reference includes both a two-worker local suite and the released two-shard external workflow.
 
 ## Verification so far
 
@@ -39,7 +40,5 @@ These numbers establish overhead, not throughput. They justify retaining jobs 1 
 
 1. Inject parent interruption during active concurrent work and prove bounded shutdown, staging cleanup, and safe workspace reuse on the next run.
 2. Run representative CPU-heavy keyed, aggregate, and multiset suites; publish elapsed time and peak process-tree memory for jobs 1, 2, and 4, including negative results.
-3. Add a checked-in concurrent suite example and update the user guide after the interruption contract is proven.
-
-Do not call 0.12 release-complete until all three gates close.
+Do not call 0.12 release-complete until both remaining gates close.
 

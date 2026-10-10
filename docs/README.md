@@ -8,6 +8,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [0.12 roadmap](0.12/89-roadmap.md)
 - [Bounded local concurrency contract](0.12/90-concurrency-contract.md)
 - [0.12 engineering checkpoint](0.12/91-engineering-checkpoint.md)
+- [Bounded local concurrency user guide](0.12/92-user-guide.md)
 
 ## 0.11 — released
 
