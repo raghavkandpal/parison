@@ -2789,10 +2789,11 @@ def _reusable_workspace_child(
         return False
     if checkpoint != expected:
         return False
-    if checkpoint["inputs"] != {
-        "baseline": _source_digest(case["baseline"]),
-        "candidate": _source_digest(case["candidate"]),
-    }:
+    try:
+        current_inputs = {"baseline": _source_digest(case["baseline"]), "candidate": _source_digest(case["candidate"])}
+    except ParisonError:
+        return False
+    if checkpoint["inputs"] != current_inputs:
         return False
     resource_limits = child_result.get("resource_limits", {})
     expected_resources = {
@@ -2841,6 +2842,8 @@ def run_suite(
         if resume:
             if workspace_path.is_symlink() or not workspace_path.is_dir():
                 raise ParisonError("resume workspace is not a regular directory")
+            if any(path.is_symlink() or not path.is_dir() for path in (workspace_path / "cases", workspace_path / "checkpoints")):
+                raise ParisonError("resume workspace is incomplete or unsafe")
         elif workspace_path.exists():
             raise ParisonError(f"workspace already exists: {workspace_path}")
         else:

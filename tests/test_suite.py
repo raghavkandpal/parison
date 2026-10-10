@@ -192,6 +192,10 @@ class SuiteTests(unittest.TestCase):
         workspace.mkdir()
         with self.assertRaisesRegex(ParisonError, "already exists"):
             run_suite(self.plan, self.root / "other", workspace=workspace)
+        empty_workspace = self.root / "empty-workspace"
+        empty_workspace.mkdir()
+        with self.assertRaisesRegex(ParisonError, "incomplete or unsafe"):
+            run_suite(self.plan, self.root / "third", workspace=empty_workspace, resume=True)
 
     def test_ci_reports_are_bounded_safe_and_outcome_explicit(self):
         passing = self.case("passing")
