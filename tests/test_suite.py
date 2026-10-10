@@ -102,6 +102,8 @@ class SuiteTests(unittest.TestCase):
         self.write_plan_v2([self.case()])
         with self.assertRaisesRegex(ParisonError, "contains no cases"):
             list_suite(self.plan, tags=["missing"])
+        with self.assertRaisesRegex(ParisonError, "unknown suite case"):
+            list_suite(self.plan, case_ids=["orders", "missing"])
 
     def test_suite_v2_run_selection_and_shard_are_explicit_and_verifiable(self):
         self.write_plan_v2([

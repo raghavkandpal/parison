@@ -243,6 +243,9 @@ def select_suite_cases(
         raise ParisonError("case and tag filters must be unique")
     if any(not _portable_identifier(value) for value in case_ids + tags):
         raise ParisonError("case and tag filters must be portable identifiers")
+    unknown_cases = set(case_ids) - {case["id"] for case in suite["cases"]}
+    if unknown_cases:
+        raise ParisonError(f"unknown suite case filter(s): {', '.join(sorted(unknown_cases))}")
     if (shard_index is None) != (shard_count is None):
         raise ParisonError("shard index and count must be provided together")
     if shard_count is not None and (not 1 <= shard_count <= 100 or not 0 <= shard_index < shard_count):
