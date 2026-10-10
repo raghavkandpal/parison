@@ -64,6 +64,8 @@ Multiset-v1 execution uses recipe v3 files for exact keyless comparison where du
 
 Suite-v2 plans add tags, deterministic case selection and per-case limits. `run-suite` can publish independently verifiable external shards; `assemble-suite` requires exact non-overlapping coverage and restores plan order. Explicit workspaces support digest-validated `--resume`, while `report-ci` exports bounded Markdown or JUnit-style summaries from verified bundles. See the [scalable suite guide](docs/0.11/85-user-guide.md) and [suite-v2 contract](docs/0.11/84-scalable-suite-contract.md).
 
+Development builds for 0.12 can execute independent local suite cases with `run-suite --jobs N`, where `N` is between 1 and 16. Workers use isolated child destinations and final suite results remain in declared plan order. Existing resource limits apply to each active case, so peak resource use can approach `N` times one case; `--jobs 1` remains the default.
+
 `output.sensitivity` defaults to `summary`, which stores no source keys or values. Set it explicitly to `raw` to include a bounded discrepancy sample, and protect that output as sensitive data. `--sample-limit` controls the maximum number of raw field differences written. Comparison errors also publish a summary-only diagnostic bundle when the output destination is available.
 
 Every recipe must declare a source snapshot, extraction cutoff, intended filters, full-scope completeness, whether an empty scope is expected, and whether two non-key null values are equal. These are recorded provenance assertions; Parison cannot independently prove that upstream pipelines honored them.

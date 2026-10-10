@@ -207,6 +207,22 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(calls, 2)
         self.assertEqual(changed["outcome"], "FAIL")
 
+    def test_concurrent_resume_reuses_verified_children(self):
+        self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])
+        workspace = self.root / "concurrent-workspace"
+        run_suite(self.plan, self.root / "concurrent-initial", workspace=workspace, jobs=2)
+        manifests = {
+            case: (workspace / "cases" / case / "manifest.json").stat().st_mtime_ns
+            for case in ("first", "second", "third")
+        }
+        result = run_suite(self.plan, self.root / "concurrent-resumed", workspace=workspace, resume=True, jobs=3)
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(
+            manifests,
+            {case: (workspace / "cases" / case / "manifest.json").stat().st_mtime_ns for case in manifests},
+        )
+        self.assertEqual(verify_bundle(self.root / "concurrent-resumed")["kind"], "suite")
+
     def test_resume_rejects_implicit_or_unsafe_workspace(self):
         self.write_plan_v2([self.case()])
         with self.assertRaisesRegex(ParisonError, "requires --workspace"):

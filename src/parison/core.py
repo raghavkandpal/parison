@@ -3014,7 +3014,7 @@ def run_suite(
         if stage is not None:
             shutil.rmtree(stage, ignore_errors=True)
         raise ParisonError(f"cannot publish suite: {exc}") from exc
-    except Exception:
+    except BaseException:
         if stage is not None:
             shutil.rmtree(stage, ignore_errors=True)
         raise
