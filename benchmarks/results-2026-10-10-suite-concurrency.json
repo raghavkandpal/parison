@@ -1,0 +1,45 @@
+{
+  "cases": [
+    {
+      "accuracy": "verified",
+      "assembly_seconds": 0.022001,
+      "cases": 10,
+      "clean_seconds": 0.019455,
+      "jobs_2_seconds": 0.123636,
+      "jobs_4_seconds": 0.130587,
+      "resume_seconds": 0.02361,
+      "sequential_shard_execution_seconds": 0.027417,
+      "shards": 4
+    },
+    {
+      "accuracy": "verified",
+      "assembly_seconds": 0.047813,
+      "cases": 25,
+      "clean_seconds": 0.044721,
+      "jobs_2_seconds": 0.13628,
+      "jobs_4_seconds": 0.138427,
+      "resume_seconds": 0.057093,
+      "sequential_shard_execution_seconds": 0.056963,
+      "shards": 4
+    },
+    {
+      "accuracy": "verified",
+      "assembly_seconds": 0.180601,
+      "cases": 100,
+      "clean_seconds": 0.166075,
+      "jobs_2_seconds": 0.211975,
+      "jobs_4_seconds": 0.196269,
+      "resume_seconds": 0.219664,
+      "sequential_shard_execution_seconds": 0.203442,
+      "shards": 4
+    }
+  ],
+  "environment": {
+    "date": "2026-10-10",
+    "machine": "arm64",
+    "measurement": "single local run; jobs 1/2/4 plus sequential external shards; comparison, bundle copying and verification included; not a supported performance claim",
+    "parison": "0.11.0",
+    "platform": "Darwin",
+    "python": "3.12.5"
+  }
+}

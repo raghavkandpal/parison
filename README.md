@@ -113,6 +113,8 @@ The first recorded 10k/100k/250k accuracy and performance run is in [`benchmarks
 
 Suite-v2 orchestration can be measured with `python benchmarks/run_suite_cases.py`. The first accuracy-verified 10-, 25- and 100-case clean, sequential-shard, assembly and resume measurements are recorded in [`benchmarks/results-2026-10-10-suite-v2.json`](benchmarks/results-2026-10-10-suite-v2.json). They measure local orchestration overhead, not external parallel speedup or a supported performance guarantee.
 
+The 0.12 harness also measures local `--jobs 2` and `--jobs 4` execution. The first [accuracy-verified concurrency result](benchmarks/results-2026-10-10-suite-concurrency.json) is intentionally based on tiny fixtures: process startup made both concurrent variants slower than `--jobs 1`. It is overhead evidence, not a throughput claim; representative CPU-heavy measurements are still required before release.
+
 ## Documentation
 
 Start with the [documentation index](docs/README.md).
