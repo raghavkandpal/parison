@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**0.11.0 release candidate.** This release makes mixed-mode suites scalable through deterministic selection and sharding, exact verified assembly, conservative resume workspaces, per-case limits and safe CI reports.
+**0.11.0 released.** This release makes mixed-mode suites scalable through deterministic selection and sharding, exact verified assembly, conservative resume workspaces, per-case limits and safe CI reports.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -117,7 +117,7 @@ Start with the [documentation index](docs/README.md).
 
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
-- Latest release candidate: [0.11 roadmap](docs/0.11/83-roadmap.md)
+- Latest release: [0.11 roadmap and record](docs/0.11/83-roadmap.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
 - Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)
 - Safety model: [0.1 security and data handling](docs/0.1/07-security-and-data-handling.md)
