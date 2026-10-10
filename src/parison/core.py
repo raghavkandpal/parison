@@ -12,6 +12,7 @@ import shutil
 import sqlite3
 import tempfile
 import unicodedata
+import xml.etree.ElementTree as ET
 from collections import Counter
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -2545,6 +2546,81 @@ def export_evidence(
             except OSError:
                 pass
     return {"output": str(target), "items": len(items), "limit": limit, "classification": classification, "kind": kind, "name": name, "bundle_files": sorted(manifest.get("files", {}))}
+
+
+def report_ci(directory: str | Path, output: str | Path, format_name: str) -> dict[str, Any]:
+    """Write a bounded summary-only CI projection from a verified suite bundle."""
+    manifest = verify_bundle(directory)
+    if manifest.get("kind") not in {"suite", "suite-shard"}:
+        raise ParisonError("CI reports require a suite or suite-shard bundle")
+    result = json.loads((Path(directory) / "suite-result.json").read_text(encoding="utf-8"))
+    if format_name == "markdown":
+        scope = _suite_scope_label(result)
+        lines = [
+            f"# Parison {scope}", "", f"**{result['outcome']}** — {result['completed_cases']} of {result.get('selected_cases', result['total_cases'])} selected cases completed.", "",
+            "| Case | Outcome | Complete |", "|---|---:|:---:|",
+        ]
+        lines.extend(f"| `{case['id']}` | {case['outcome']} | {'yes' if case['complete'] else 'no'} |" for case in result["cases"])
+        content = "\n".join(lines) + "\n"
+    elif format_name == "junit":
+        cases = result["cases"]
+        root = ET.Element("testsuite", {
+            "name": f"parison-{result['kind']}", "tests": str(len(cases)),
+            "failures": str(sum(case["outcome"] == "FAIL" for case in cases)),
+            "errors": str(sum(case["outcome"] in {"ERROR", "INTERRUPTED"} for case in cases)),
+            "skipped": str(sum(case["outcome"] == "INCONCLUSIVE" for case in cases)),
+        })
+        properties = ET.SubElement(root, "properties")
+        ET.SubElement(properties, "property", {"name": "parison.outcome", "value": result["outcome"]})
+        ET.SubElement(properties, "property", {"name": "parison.scope", "value": _suite_scope_label(result)})
+        for case in cases:
+            node = ET.SubElement(root, "testcase", {"classname": "parison", "name": case["id"]})
+            case_properties = ET.SubElement(node, "properties")
+            ET.SubElement(case_properties, "property", {"name": "parison.outcome", "value": case["outcome"]})
+            if case["outcome"] == "FAIL":
+                ET.SubElement(node, "failure", {"message": "Parison comparison found required differences"})
+            elif case["outcome"] in {"ERROR", "INTERRUPTED"}:
+                ET.SubElement(node, "error", {"message": f"Parison {case['outcome'].lower()}"})
+            elif case["outcome"] == "INCONCLUSIVE":
+                ET.SubElement(node, "skipped", {"message": "Parison comparison was inconclusive"})
+        ET.indent(root)
+        content = ET.tostring(root, encoding="unicode", xml_declaration=True) + "\n"
+    else:
+        raise ParisonError("CI report format must be markdown or junit")
+    encoded = content.encode("utf-8")
+    if len(encoded) > 1_000_000:
+        raise ParisonError("CI report exceeds the 1,000,000-byte limit")
+    target = Path(output)
+    if target.exists():
+        raise ParisonError(f"output already exists: {target}")
+    stage = None
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, stage_name = tempfile.mkstemp(prefix=f".{target.name}-", dir=target.parent)
+        stage = Path(stage_name)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(encoded)
+        os.link(stage, target)
+    except FileExistsError as exc:
+        raise ParisonError(f"output already exists: {target}") from exc
+    except OSError as exc:
+        raise ParisonError(f"cannot write CI report: {exc}") from exc
+    finally:
+        if stage is not None:
+            try:
+                stage.unlink()
+            except OSError:
+                pass
+    return {"output": str(target), "format": format_name, "bytes": len(encoded), "cases": len(result["cases"]), "outcome": result["outcome"]}
+
+
+def _suite_scope_label(result: dict[str, Any]) -> str:
+    selection = result.get("selection", {})
+    if result.get("kind") == "suite-shard":
+        return f"shard {selection['shard_index'] + 1}/{selection['shard_count']}"
+    if result.get("schema_version") == 2 and not result.get("scope_complete"):
+        return "selected suite"
+    return "suite"
 
 
 def _suite_report(result: dict[str, Any]) -> str:

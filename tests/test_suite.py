@@ -3,6 +3,7 @@ import json
 import os
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -11,7 +12,7 @@ from unittest.mock import patch
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, assemble_suite, explain_recipe, export_evidence, inspect_bundle, list_suite, load_schema, load_suite, run_suite, verify_bundle
+from parison.core import ParisonError, assemble_suite, explain_recipe, export_evidence, inspect_bundle, list_suite, load_schema, load_suite, report_ci, run_suite, verify_bundle
 
 
 RECIPE = {
@@ -191,6 +192,34 @@ class SuiteTests(unittest.TestCase):
         workspace.mkdir()
         with self.assertRaisesRegex(ParisonError, "already exists"):
             run_suite(self.plan, self.root / "other", workspace=workspace)
+
+    def test_ci_reports_are_bounded_safe_and_outcome_explicit(self):
+        passing = self.case("passing")
+        failing = self.case("failing")
+        failing["candidate"] = "different.csv"
+        self.write_plan_v2([passing, failing])
+        bundle = self.root / "bundle"
+        run_suite(self.plan, bundle)
+        markdown = self.root / "summary.md"
+        metadata = report_ci(bundle, markdown, "markdown")
+        self.assertLessEqual(metadata["bytes"], 1_000_000)
+        text = markdown.read_text(encoding="utf-8")
+        self.assertIn("**FAIL**", text)
+        self.assertIn("`failing`", text)
+        self.assertNotIn("a,2", text)
+        with self.assertRaisesRegex(ParisonError, "already exists"):
+            report_ci(bundle, markdown, "markdown")
+
+        junit = self.root / "junit.xml"
+        report_ci(bundle, junit, "junit")
+        root = ET.parse(junit).getroot()
+        self.assertEqual(root.attrib["failures"], "1")
+        outcomes = {node.attrib["name"]: node.find("./properties/property").attrib["value"] for node in root.findall("testcase")}
+        self.assertEqual(outcomes, {"passing": "PASS", "failing": "FAIL"})
+        stdout = StringIO()
+        with redirect_stdout(stdout), redirect_stderr(StringIO()):
+            self.assertEqual(main(["report-ci", str(bundle), "--format", "markdown", "--output", str(self.root / "cli.md")]), 0)
+        self.assertEqual(json.loads(stdout.getvalue())["format"], "markdown")
 
     def test_rejects_duplicates_unknown_fields_and_policy_drift(self):
         self.write_plan([self.case(), self.case()])

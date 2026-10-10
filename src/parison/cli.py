@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .core import OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, run_suite, terminal_result, validate_inputs, verify_bundle
+from .core import OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -89,6 +89,10 @@ def parser() -> argparse.ArgumentParser:
     suite_assemble.add_argument("--plan", required=True)
     suite_assemble.add_argument("--input", action="append", required=True)
     suite_assemble.add_argument("--output", required=True)
+    ci_report = commands.add_parser("report-ci", help="export a safe CI projection from a verified suite")
+    ci_report.add_argument("bundle")
+    ci_report.add_argument("--format", choices=("markdown", "junit"), required=True)
+    ci_report.add_argument("--output", required=True)
     inputs = commands.add_parser("validate-inputs", help="validate input schemas and optionally records against a recipe")
     inputs.add_argument("--recipe", required=True)
     inputs.add_argument("--baseline", required=True, help="baseline file, SQLite locator or partition directory")
@@ -217,6 +221,9 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"outcome": result["outcome"], "output": args.output, "cases": result["completed_cases"]}, sort_keys=True))
             print(f"Assembled Parison suite {result['outcome']}: {result['completed_cases']} selected cases published to {args.output}", file=sys.stderr)
             return OUTCOME_CODES[result["outcome"]]
+        if args.command == "report-ci":
+            print(json.dumps(report_ci(args.bundle, args.output, args.format), sort_keys=True))
+            return 0
         if args.command == "validate-inputs":
             result = validate_inputs(
                 args.recipe,
