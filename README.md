@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**0.13.0 release candidate.** Parison adds genuinely offline editor schema export and an explicit zero-custody local catalog for finding verified runs by outcome, kind, policy fingerprint and live state.
+**0.13.0 released.** Parison adds genuinely offline editor schema export and an explicit zero-custody local catalog for finding verified runs by outcome, kind, policy fingerprint and live state.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -125,8 +125,8 @@ Start with the [documentation index](docs/README.md).
 
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
-- Latest release candidate: [0.13 roadmap and record](docs/0.13/96-roadmap.md)
-- Next release: [0.12 bounded local concurrency roadmap](docs/0.12/89-roadmap.md)
+- Latest release: [0.13 roadmap and record](docs/0.13/96-roadmap.md)
+- Next release research: [post-0.12 feature opportunities](docs/0.12/94-feature-opportunity-research.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
 - Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)
 - Safety model: [0.1 security and data handling](docs/0.1/07-security-and-data-handling.md)
