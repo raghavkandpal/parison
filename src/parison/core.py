@@ -35,6 +35,7 @@ _NORMALIZATIONS = {"trim", "casefold", "unicode_nfc"}
 _RAW_VALUE = object()
 _FILE_FORMATS = {".csv": "csv", ".tsv": "tsv", ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".pq": "parquet"}
 _SCHEMAS = {
+    "recipe-authoring": "recipe-authoring.schema.json",
     "recipe": "recipe-v1.schema.json",
     "recipe-v2": "recipe-v2.schema.json",
     "recipe-v3": "recipe-v3.schema.json",
@@ -46,6 +47,7 @@ _SCHEMAS = {
     "preflight-v2": "preflight-v2.schema.json",
     "preflight-v3": "preflight-v3.schema.json",
     "suite": "suite-v1.schema.json",
+    "suite-authoring": "suite-authoring.schema.json",
     "suite-v2": "suite-v2.schema.json",
     "suite-result": "suite-result-v1.schema.json",
     "suite-result-v2": "suite-result-v2.schema.json",
@@ -115,6 +117,36 @@ def load_schema(name: str) -> dict[str, Any]:
     if name not in _SCHEMAS:
         raise ParisonError(f"unknown schema {name!r}; choose {', '.join(_SCHEMAS)}")
     return json.loads(resources.files("parison").joinpath("schemas", _SCHEMAS[name]).read_text(encoding="utf-8"))
+
+
+def export_editor_schemas(output: str | Path) -> dict[str, Any]:
+    """Atomically export offline recipe and suite authoring schema sets."""
+    target = Path(output)
+    if target.exists():
+        raise ParisonError(f"output already exists: {target}")
+    exports = {
+        "recipe.schema.json": "recipe-authoring",
+        "recipe-v1.schema.json": "recipe",
+        "recipe-v2.schema.json": "recipe-v2",
+        "recipe-v3.schema.json": "recipe-v3",
+        "suite.schema.json": "suite-authoring",
+        "suite-v1.schema.json": "suite",
+        "suite-v2.schema.json": "suite-v2",
+    }
+    stage = None
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        stage = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent))
+        for filename, name in exports.items():
+            schema = load_schema(name)
+            schema.pop("$id")
+            (stage / filename).write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(stage, target)
+        return {"output": str(target), "files": sorted(exports)}
+    except OSError as exc:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+        raise ParisonError(f"cannot export editor schemas: {exc}") from exc
 
 
 def load_suite(path: str | Path) -> dict[str, Any]:

@@ -6,7 +6,8 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .core import OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
+from .catalog import add as catalog_add, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
+from .core import OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -60,7 +61,9 @@ def parser() -> argparse.ArgumentParser:
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
     explain.add_argument("recipe")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2"))
+    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2"))
+    schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
+    schema_export.add_argument("--output", required=True)
     suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
     suite.add_argument("plan")
     suite_list = commands.add_parser("list-suite", help="list selected suite cases without reading inputs")
@@ -131,6 +134,23 @@ operator and null policy. Suggestions are starting points, not approved policy."
     verify.add_argument("--json", action="store_true", help="print verified manifest metadata as JSON")
     inspect = commands.add_parser("inspect", help="inspect safe metadata from a verified run bundle")
     inspect.add_argument("run_directory")
+    catalog = commands.add_parser("catalog", help="index safe metadata from verified bundles locally")
+    catalog_commands = catalog.add_subparsers(dest="catalog_command", required=True)
+    catalog_add_parser = catalog_commands.add_parser("add", help="verify and index a bundle")
+    catalog_add_parser.add_argument("bundle")
+    catalog_add_parser.add_argument("--database", required=True)
+    catalog_list_parser = catalog_commands.add_parser("list", help="list indexed bundles and their current state")
+    catalog_list_parser.add_argument("--database", required=True)
+    catalog_list_parser.add_argument("--outcome", choices=tuple(OUTCOME_CODES))
+    catalog_list_parser.add_argument("--kind", choices=("run", "suite", "suite-shard"))
+    catalog_list_parser.add_argument("--policy-sha256")
+    catalog_list_parser.add_argument("--state", choices=("current", "modified", "missing"))
+    catalog_show_parser = catalog_commands.add_parser("show", help="show one indexed bundle by path")
+    catalog_show_parser.add_argument("bundle")
+    catalog_show_parser.add_argument("--database", required=True)
+    catalog_remove_parser = catalog_commands.add_parser("remove", help="remove an indexed path without deleting its bundle")
+    catalog_remove_parser.add_argument("bundle")
+    catalog_remove_parser.add_argument("--database", required=True)
     export = commands.add_parser("export-evidence", help="export bounded raw evidence from a verified bundle")
     export.add_argument("run_directory")
     export.add_argument("--output", required=True)
@@ -167,6 +187,20 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "inspect":
             print(json.dumps(inspect_bundle(args.run_directory), indent=2, sort_keys=True))
             return 0
+        if args.command == "catalog":
+            if args.catalog_command == "add":
+                result = catalog_add(args.database, args.bundle)
+            elif args.catalog_command == "list":
+                result = {"runs": catalog_list(
+                    args.database, args.outcome, args.kind,
+                    policy_sha256=args.policy_sha256, state=args.state,
+                )}
+            elif args.catalog_command == "show":
+                result = catalog_show(args.database, args.bundle)
+            else:
+                result = catalog_remove(args.database, args.bundle)
+            print(json.dumps(result, indent=2, sort_keys=True))
+            return 0
         if args.command == "export-evidence":
             print(json.dumps(export_evidence(args.run_directory, args.output, args.classification, args.limit, kind=args.kind, name=args.name), sort_keys=True))
             return 0
@@ -190,6 +224,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "schema":
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))
+            return 0
+        if args.command == "export-editor-schemas":
+            print(json.dumps(export_editor_schemas(args.output), sort_keys=True))
             return 0
         if args.command == "validate-suite":
             loaded = load_suite(args.plan)

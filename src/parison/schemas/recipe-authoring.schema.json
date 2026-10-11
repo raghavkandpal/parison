@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/raghavkandpal/parison/main/src/parison/schemas/recipe-authoring.schema.json",
+  "title": "Parison recipe",
+  "description": "Editor schema for every supported Parison recipe version. Runtime validation remains authoritative.",
+  "oneOf": [
+    {"$ref": "recipe-v1.schema.json"},
+    {"$ref": "recipe-v2.schema.json"},
+    {"$ref": "recipe-v3.schema.json"}
+  ],
+  "examples": [
+    {
+      "recipe_version": 1,
+      "comparison_mode": "keyed",
+      "keys": ["id"],
+      "scope": {"snapshot": "reviewed-snapshot", "cutoff": "2026-10-11T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": false},
+      "identity": {"null_keys": "reject", "duplicates": "reject"},
+      "nulls_equal": true,
+      "columns": {"id": {"type": "string"}, "value": {"type": "decimal", "scale": 2}},
+      "output": {"sensitivity": "summary"}
+    },
+    {
+      "recipe_version": 2,
+      "comparison_mode": "aggregate",
+      "group_by": ["category"],
+      "measures": {"rows": {"operator": "count"}},
+      "scope": {"snapshot": "reviewed-snapshot", "cutoff": "2026-10-11T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": false},
+      "columns": {"category": {"type": "string"}},
+      "output": {"sensitivity": "summary"}
+    },
+    {
+      "recipe_version": 3,
+      "comparison_mode": "multiset",
+      "scope": {"snapshot": "reviewed-snapshot", "cutoff": "2026-10-11T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": false},
+      "columns": {"id": {"type": "string"}},
+      "output": {"sensitivity": "summary"}
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "json.schemas": [
+    {
+      "fileMatch": ["**/*.recipe.json"],
+      "url": "./.parison/recipe.schema.json"
+    },
+    {
+      "fileMatch": ["**/*.suite.json", "**/*-suite.json"],
+      "url": "./.parison/suite.schema.json"
+    }
+  ]
+}

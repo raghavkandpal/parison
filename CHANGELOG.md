@@ -4,6 +4,13 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.13.0 - 2026-10-11
+
+### Added
+
+- Offline editor schemas spanning every supported recipe and suite version, with stable raw-content identifiers, descriptions, examples, atomic local export and a VS Code association example.
+- An explicit local SQLite run catalog with add, outcome/kind/policy/state filtering, show and non-destructive remove operations that store only verified safe inspection metadata and report current, modified, missing and duplicate bundle paths.
+
 ## 0.12.0 - 2026-10-11
 
 ### Added

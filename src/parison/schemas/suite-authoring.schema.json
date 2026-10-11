@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/raghavkandpal/parison/main/src/parison/schemas/suite-authoring.schema.json",
+  "title": "Parison comparison suite",
+  "description": "Editor schema for every supported Parison suite-plan version. Runtime validation remains authoritative.",
+  "oneOf": [
+    {"$ref": "suite-v1.schema.json"},
+    {"$ref": "suite-v2.schema.json"}
+  ],
+  "examples": [
+    {
+      "suite_version": 2,
+      "defaults": {"limits": {"max_rows": 100000}},
+      "cases": [
+        {
+          "id": "orders",
+          "description": "Reviewed order migration",
+          "tags": ["critical"],
+          "recipe": "orders.recipe.json",
+          "baseline": "snapshots/baseline.csv",
+          "candidate": "snapshots/candidate.csv"
+        }
+      ]
+    }
+  ]
+}

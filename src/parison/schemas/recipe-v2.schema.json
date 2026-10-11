@@ -1,15 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/raghavkandpal/parison/schemas/recipe-v2.schema.json",
+  "$id": "https://raw.githubusercontent.com/raghavkandpal/parison/main/src/parison/schemas/recipe-v2.schema.json",
   "title": "Parison aggregate recipe v2",
+  "description": "A strict global or grouped aggregate comparison policy with explicit measures and null handling.",
   "type": "object",
   "additionalProperties": false,
   "required": ["recipe_version", "comparison_mode", "group_by", "measures", "scope", "columns"],
   "properties": {
     "recipe_version": {"const": 2},
     "comparison_mode": {"const": "aggregate"},
-    "group_by": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "group_by": {"description": "Canonical columns defining groups; an empty array requests one global group.", "type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
     "measures": {
+      "description": "Named count, sum, minimum or maximum measures compared per group.",
       "type": "object",
       "minProperties": 1,
       "propertyNames": {"minLength": 1},

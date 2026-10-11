@@ -26,6 +26,7 @@ jobs:
       - run: python -m pip install 'jsonschema>=4,<5'
       - run: parison --version
       - run: parison schema recipe
+      - run: parison schema recipe-authoring
       - run: parison schema result
       - run: parison schema manifest
       - run: parison schema preflight
@@ -36,15 +37,22 @@ jobs:
       - run: parison schema result-v2
       - run: parison schema result-v3
       - run: parison schema suite
+      - run: parison schema suite-authoring
       - run: parison schema suite-v2
       - run: parison schema suite-result
       - run: parison schema suite-result-v2
       - run: parison schema suite-manifest
       - run: parison schema suite-manifest-v2
+      - run: parison export-editor-schemas --output /tmp/parison-editor-schemas
       - run: parison validate-recipe examples/orders.recipe.json
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke
       - run: parison verify /tmp/parison-smoke
+      - name: Exercise local run catalog
+        if: matrix.python-version == '3.14'
+        run: |
+          parison catalog add --database /tmp/parison-catalog.sqlite /tmp/parison-smoke
+          parison catalog list --database /tmp/parison-catalog.sqlite --outcome PASS --kind run
       - run: parison validate-inputs --recipe examples/0.3/migration.recipe.json --baseline examples/0.3/baseline --candidate examples/0.3/candidate.jsonl
       - run: parison compare --recipe examples/0.3/migration.recipe.json --baseline examples/0.3/baseline --candidate examples/0.3/candidate.jsonl --output /tmp/parison-0.3-smoke
       - run: parison validate-inputs --recipe examples/0.5/migration.recipe.json --baseline examples/0.5/baseline.tsv.gz --candidate examples/0.5/candidate.csv
