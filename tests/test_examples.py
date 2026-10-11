@@ -120,6 +120,21 @@ class CheckedInExamples(unittest.TestCase):
             self.assertEqual(multiset["counts"]["common_occurrences"], 3)
             verify_bundle(output)
 
+    def test_0_15_payout_suite_passes_and_bad_ledger_fails_both_layers(self):
+        root = Path(__file__).parents[1] / "examples" / "0.15"
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            output = Path(directory) / "payout"
+            result = run_suite(root / "payout-suite.json", output)
+            self.assertEqual(result["outcome"], "PASS")
+            self.assertEqual(result["outcome_counts"]["PASS"], 2)
+            verify_bundle(output)
+        aggregate = compare(root / "payout-aggregate.recipe.json", root / "processor.csv", root / "ledger-with-error.csv")
+        keyed = compare(root / "payout-keyed.recipe.json", root / "processor.csv", root / "ledger-with-error.csv")
+        self.assertEqual(aggregate["outcome"], "FAIL")
+        self.assertEqual(keyed["outcome"], "FAIL")
+        self.assertEqual(aggregate["measure_counts"]["net_amount"]["different"], 1)
+        self.assertEqual(keyed["discrepancy_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

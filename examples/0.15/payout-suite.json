@@ -1,0 +1,21 @@
+{
+  "suite_version": 2,
+  "cases": [
+    {
+      "id": "category-conservation",
+      "recipe": "payout-aggregate.recipe.json",
+      "baseline": "processor.csv",
+      "candidate": "ledger.csv",
+      "tags": ["critical", "finance"],
+      "description": "Conserve available transaction counts and exact net amounts by currency and reporting category."
+    },
+    {
+      "id": "transaction-parity",
+      "recipe": "payout-keyed.recipe.json",
+      "baseline": "processor.csv",
+      "candidate": "ledger.csv",
+      "tags": ["critical", "finance"],
+      "description": "Match every supplied balance transaction to one ledger row by stable transaction identifier."
+    }
+  ]
+}
