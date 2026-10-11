@@ -7,6 +7,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [0.15 roadmap](0.15/100-roadmap.md)
 - [Catalog history and safe diff contract](0.15/101-catalog-history-contract.md)
 - [Rehearsal history guide](0.15/102-user-guide.md)
+- [0.15 engineering checkpoint](0.15/103-engineering-checkpoint.md)
 
 ## 0.14 — released
 
