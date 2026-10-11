@@ -101,6 +101,10 @@ class CatalogTests(unittest.TestCase):
             connection.execute("PRAGMA user_version = 99")
         with self.assertRaisesRegex(ParisonError, "version is unsupported"):
             list_runs(future)
+        with sqlite3.connect(self.database) as connection:
+            connection.execute("UPDATE runs SET metadata = 'not-json'")
+        with self.assertRaisesRegex(ParisonError, "invalid metadata"):
+            list_runs(self.database)
 
 
 if __name__ == "__main__":

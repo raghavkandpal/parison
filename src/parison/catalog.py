@@ -26,6 +26,7 @@ CREATE INDEX IF NOT EXISTS runs_bundle_sha256 ON runs(bundle_sha256);
 
 def _open(database: str | Path) -> sqlite3.Connection:
     path = Path(database)
+    existed = path.exists()
     if path.is_symlink() or (path.exists() and not path.is_file()):
         raise ParisonError(f"catalog is not a regular file: {path}")
     connection = None
@@ -39,7 +40,8 @@ def _open(database: str | Path) -> sqlite3.Connection:
         connection.executescript(_SCHEMA)
         connection.execute("PRAGMA user_version = 1")
         connection.commit()
-        os.chmod(path, 0o600)
+        if not existed:
+            os.chmod(path, 0o600)
         return connection
     except (OSError, sqlite3.Error) as exc:
         if connection is not None:
@@ -100,18 +102,21 @@ def list_runs(database: str | Path, outcome: str | None = None, kind: str | None
             duplicates = dict(connection.execute("SELECT bundle_sha256, COUNT(*) FROM runs GROUP BY bundle_sha256"))
     except sqlite3.Error as exc:
         raise ParisonError(f"cannot read catalog: {exc}") from exc
-    return [
-        {
-            "path": path,
-            "bundle_sha256": digest,
-            "kind": row_kind,
-            "outcome": row_outcome,
-            "state": _state(path, digest),
-            "duplicate_paths": duplicates[digest],
-            "metadata": json.loads(metadata),
-        }
-        for path, digest, row_kind, row_outcome, metadata in rows
-    ]
+    try:
+        return [
+            {
+                "path": path,
+                "bundle_sha256": digest,
+                "kind": row_kind,
+                "outcome": row_outcome,
+                "state": _state(path, digest),
+                "duplicate_paths": duplicates[digest],
+                "metadata": json.loads(metadata),
+            }
+            for path, digest, row_kind, row_outcome, metadata in rows
+        ]
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise ParisonError(f"catalog contains invalid metadata: {exc}") from exc
 
 
 def show(database: str | Path, bundle: str | Path) -> dict[str, Any]:
