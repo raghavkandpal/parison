@@ -66,6 +66,8 @@ Suite-v2 plans add tags, deterministic case selection and per-case limits. `run-
 
 Parison 0.12 can execute independent local suite cases with `run-suite --jobs N`, where `N` is between 1 and 16. Workers use isolated child destinations and final suite results remain in declared plan order. Existing resource limits apply to each active case, so peak resource use can approach `N` times one case; `--jobs 1` remains the default. Interruption stops new admission, bounds worker shutdown and preserves only verified children for explicit resume. See the [concurrency guide](docs/0.12/92-user-guide.md) and [frozen contract](docs/0.12/90-concurrency-contract.md).
 
+Development builds for 0.13 add installed union schemas for offline editor validation and an explicit local SQLite catalog of verified safe run metadata. Use `parison schema recipe-authoring|suite-authoring` for editor files, then `parison catalog add|list|show --database PATH` for zero-custody run discovery. See the [0.13 guide](docs/0.13/98-user-guide.md).
+
 `output.sensitivity` defaults to `summary`, which stores no source keys or values. Set it explicitly to `raw` to include a bounded discrepancy sample, and protect that output as sensitive data. `--sample-limit` controls the maximum number of raw field differences written. Comparison errors also publish a summary-only diagnostic bundle when the output destination is available.
 
 Every recipe must declare a source snapshot, extraction cutoff, intended filters, full-scope completeness, whether an empty scope is expected, and whether two non-key null values are equal. These are recorded provenance assertions; Parison cannot independently prove that upstream pipelines honored them.
