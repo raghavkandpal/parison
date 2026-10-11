@@ -141,6 +141,8 @@ operator and null policy. Suggestions are starting points, not approved policy."
     catalog_list_parser.add_argument("--database", required=True)
     catalog_list_parser.add_argument("--outcome", choices=tuple(OUTCOME_CODES))
     catalog_list_parser.add_argument("--kind", choices=("run", "suite", "suite-shard"))
+    catalog_list_parser.add_argument("--policy-sha256")
+    catalog_list_parser.add_argument("--state", choices=("current", "modified", "missing"))
     catalog_show_parser = catalog_commands.add_parser("show", help="show one indexed bundle by path")
     catalog_show_parser.add_argument("bundle")
     catalog_show_parser.add_argument("--database", required=True)
@@ -187,7 +189,10 @@ def main(argv: list[str] | None = None) -> int:
             if args.catalog_command == "add":
                 result = catalog_add(args.database, args.bundle)
             elif args.catalog_command == "list":
-                result = {"runs": catalog_list(args.database, args.outcome, args.kind)}
+                result = {"runs": catalog_list(
+                    args.database, args.outcome, args.kind,
+                    policy_sha256=args.policy_sha256, state=args.state,
+                )}
             elif args.catalog_command == "show":
                 result = catalog_show(args.database, args.bundle)
             else:

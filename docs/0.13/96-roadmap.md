@@ -15,7 +15,7 @@ The release remains one workflow slice: **author a reviewed policy, run it local
 1. Installed `recipe-authoring` and `suite-authoring` Draft 2020-12 schemas select the correct existing versioned schema offline.
 2. Stable raw-content `$id` values, descriptions, examples and a VS Code association example support validation, completion and hover help without a YAML dialect.
 3. `parison catalog add --database DB RUN` verifies a bundle before storing its safe `inspect` projection.
-4. `catalog list` filters by outcome and kind, rechecks each bundle and reports `current`, `modified` or `missing` deterministically.
+4. `catalog list` filters by outcome, kind, policy fingerprint and live state, rechecks each bundle and reports `current`, `modified` or `missing` deterministically.
 5. `catalog show` selects one normalized local path and exposes duplicate-path counts for copied bundles; `catalog remove` deletes only that index entry.
 6. Catalog writes are explicit, transactional and local. Comparison commands never mutate a catalog implicitly.
 

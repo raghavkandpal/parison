@@ -122,9 +122,33 @@ def _entries(database: str | Path, outcome: str | None = None, kind: str | None 
         raise ParisonError(f"catalog contains invalid metadata: {exc}") from exc
 
 
-def list_runs(database: str | Path, outcome: str | None = None, kind: str | None = None) -> list[dict[str, Any]]:
+def _policy_matches(metadata: dict[str, Any], policy_sha256: str) -> bool:
+    return metadata.get("policy_sha256") == policy_sha256 or any(
+        case.get("policy_sha256") == policy_sha256 for case in metadata.get("cases", [])
+    )
+
+
+def list_runs(
+    database: str | Path,
+    outcome: str | None = None,
+    kind: str | None = None,
+    *,
+    policy_sha256: str | None = None,
+    state: str | None = None,
+) -> list[dict[str, Any]]:
     """Return compact path-ordered entries with a live deterministic state."""
-    return [{name: value for name, value in entry.items() if name != "metadata"} for entry in _entries(database, outcome, kind)]
+    if policy_sha256 is not None and (
+        len(policy_sha256) != 64 or any(character not in "0123456789abcdef" for character in policy_sha256)
+    ):
+        raise ParisonError("catalog policy filter must be a lowercase SHA-256 digest")
+    if state is not None and state not in {"current", "modified", "missing"}:
+        raise ParisonError("catalog state filter must be current, modified or missing")
+    entries = _entries(database, outcome, kind)
+    if policy_sha256 is not None:
+        entries = [entry for entry in entries if _policy_matches(entry["metadata"], policy_sha256)]
+    if state is not None:
+        entries = [entry for entry in entries if entry["state"] == state]
+    return [{name: value for name, value in entry.items() if name != "metadata"} for entry in entries]
 
 
 def show(database: str | Path, bundle: str | Path) -> dict[str, Any]:

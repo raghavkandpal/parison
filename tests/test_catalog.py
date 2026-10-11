@@ -9,7 +9,7 @@ from pathlib import Path
 
 from parison.catalog import add, list_runs, remove, show
 from parison.cli import main
-from parison.core import ParisonError, compare, publish
+from parison.core import ParisonError, compare, publish, run_suite
 
 
 RECIPE = {
@@ -72,6 +72,11 @@ class CatalogTests(unittest.TestCase):
         })
         self.assertTrue(all(entry["duplicate_paths"] == 3 for entry in entries))
         self.assertEqual(list_runs(self.database, outcome="PASS"), [])
+        policy = show(self.database, self.bundle)["metadata"]["policy_sha256"]
+        self.assertEqual(len(list_runs(self.database, policy_sha256=policy, state="current")), 1)
+        self.assertEqual(len(list_runs(self.database, state="modified")), 1)
+        self.assertEqual(len(list_runs(self.database, state="missing")), 1)
+        self.assertEqual(list_runs(self.database, policy_sha256="0" * 64), [])
 
     def test_cli_add_list_and_show_emit_machine_readable_results(self):
         stdout = StringIO()
@@ -100,6 +105,22 @@ class CatalogTests(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "not in catalog"):
             remove(self.database, self.bundle)
 
+    def test_policy_filter_finds_matching_cases_inside_suites(self):
+        plan = self.root / "suite.json"
+        plan.write_text(json.dumps({
+            "suite_version": 1,
+            "cases": [{
+                "id": "raw-difference", "recipe": "recipe.json",
+                "baseline": "baseline.csv", "candidate": "candidate.csv",
+            }],
+        }), encoding="utf-8")
+        suite = self.root / "suite-run"
+        run_suite(plan, suite)
+        add(self.database, suite)
+        policy = show(self.database, suite)["metadata"]["cases"][0]["policy_sha256"]
+        matches = list_runs(self.database, policy_sha256=policy)
+        self.assertEqual([entry["path"] for entry in matches], [str(suite)])
+
     def test_catalog_rejects_unverified_bundles_unknown_entries_and_unsafe_database(self):
         with self.assertRaises(ParisonError):
             add(self.database, self.root / "missing")
@@ -121,6 +142,8 @@ class CatalogTests(unittest.TestCase):
             connection.execute("UPDATE runs SET metadata = 'not-json'")
         with self.assertRaisesRegex(ParisonError, "invalid metadata"):
             list_runs(self.database)
+        with self.assertRaisesRegex(ParisonError, "lowercase SHA-256"):
+            list_runs(self.root / "other.sqlite", policy_sha256="INVALID")
 
 
 if __name__ == "__main__":

@@ -24,6 +24,7 @@ The checked-in settings example associates `*.recipe.json` and common suite file
 parison catalog add --database runs/catalog.sqlite runs/orders
 parison catalog list --database runs/catalog.sqlite
 parison catalog list --database runs/catalog.sqlite --outcome FAIL --kind run
+parison catalog list --database runs/catalog.sqlite --policy-sha256 HASH --state current
 parison catalog show --database runs/catalog.sqlite runs/orders
 parison catalog remove --database runs/catalog.sqlite runs/orders
 ```
