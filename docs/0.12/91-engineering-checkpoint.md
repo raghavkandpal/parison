@@ -2,7 +2,7 @@
 
 Date: 11 October 2026
 
-Status: **release candidate; cross-platform CI pending**
+Status: **release candidate verified**
 
 ## Implemented
 
@@ -24,7 +24,8 @@ Status: **release candidate; cross-platform CI pending**
 - The existing 0.11 sharding, assembly, resume, reporting, examples, schemas, and benchmark tests pass unchanged.
 - GitHub Actions run [38039584289](https://github.com/raghavkandpal/parison/actions/runs/38039584289) passed from commit `ec004868e4e500771ce79b75b582c6e36b611e70`: Linux Python 3.11–3.14 and the macOS and Windows platform-smoke jobs were all green.
 - The latest checkpoint run [38058990764](https://github.com/raghavkandpal/parison/actions/runs/38058990764) also passed from commit `1a858e2eae4d8bcbec6ea8e968f6040ca575ccf5` after interruption recovery, mixed-mode performance/memory evidence, the user guide, and the bounded-termination design were added.
-- A locally built universal wheel installed into an empty Python 3.12 environment without the source checkout on `PYTHONPATH`. Its installed `parison` command ran the checked-in three-mode suite with `--jobs 2`, published three PASS children, and recursively verified the suite-v2 bundle. The package still reports 0.11.0 because the 0.12 version bump is intentionally a release-preparation step.
+- Release-candidate run [38127624460](https://github.com/raghavkandpal/parison/actions/runs/38127624460) passed from commit `c925f9d376ca0ca925d832afb5970c321b5fba0f`: Linux Python 3.11–3.14 plus macOS and Windows all passed the 184-test suite, including bounded termination and forced-kill coverage.
+- A locally built universal wheel installed into an empty Python 3.12 environment without the source checkout on `PYTHONPATH`. Its installed `parison` command ran the checked-in three-mode suite with `--jobs 2`, published three PASS children, and recursively verified the suite-v2 bundle. The release-preparation commit advances the package version to 0.12.0.
 
 ## First measurement
 
@@ -48,9 +49,9 @@ A second measurement used nine CPU-heavy cases: three each of keyed, aggregate, 
 
 This profile demonstrates useful local throughput, unlike the tiny fixtures, and also shows why Parison does not choose a job count automatically: four workers used roughly 3.8 times the sampled process-tree memory of one. RSS was sampled from the parent and descendants approximately every 20 ms on Darwin, so it remains machine-specific evidence rather than a hard peak guarantee. See [`benchmarks/results-2026-10-10-suite-concurrency-mixed-100k.json`](../../benchmarks/results-2026-10-10-suite-concurrency-mixed-100k.json).
 
-## Remaining release gate
+## Release gate result
 
-Run the new process-lifecycle tests on Linux Python 3.11–3.14, macOS, and Windows, then repeat the installed-wheel smoke test. Do not call 0.12 release-complete until that CI run is green.
+All implementation gates are green. The versioned release commit, immutable artifacts, checksums and post-upload installation check remain release operations rather than product gates.
 
 The implementation decision and acceptance evidence are recorded in [the bounded interruption design](93-bounded-interruption-design.md).
 

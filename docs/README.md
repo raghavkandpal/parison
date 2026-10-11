@@ -2,7 +2,7 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-## 0.12 — planned
+## 0.12 — release candidate
 
 - [Boundary rationale and direction](0.12/88-boundaries-and-direction.md)
 - [0.12 roadmap](0.12/89-roadmap.md)
@@ -11,6 +11,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Bounded local concurrency user guide](0.12/92-user-guide.md)
 - [Bounded concurrent interruption design](0.12/93-bounded-interruption-design.md)
 - [Post-0.12 feature opportunity research](0.12/94-feature-opportunity-research.md)
+- [0.12.0 release checklist](0.12/95-release-checklist.md)
 
 ## 0.11 — released
 
