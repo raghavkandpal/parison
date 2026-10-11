@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from decimal import Decimal
 from datetime import date, datetime, timezone
+from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
@@ -232,6 +233,15 @@ class MultisetRecipeTests(unittest.TestCase):
         keyed_path.write_text(json.dumps(keyed), encoding="utf-8")
         with self.assertRaisesRegex(ParisonError, "only multiset"):
             compare(keyed_path, left, left, engine="sqlite")
+
+    def test_sqlite_engine_cleans_workspace_when_interrupted(self):
+        source = Path(self.tmp.name) / "rows.csv"
+        source.write_text("region,amount\na,1.00\n", encoding="utf-8")
+        spill = Path(self.tmp.name) / "spill"
+        spill.mkdir()
+        with patch("parison.core._iter_input_rows", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+            compare(self.path, source, source, engine="sqlite", temp_directory=spill)
+        self.assertEqual(list(spill.iterdir()), [])
 
 
 if __name__ == "__main__":

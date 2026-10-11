@@ -39,4 +39,4 @@ Existing input byte, decoded byte, row and distinct-row limits still apply. `max
 
 ## Interruption
 
-Ordinary exception paths clean the private workspace. Process termination that bypasses Python cleanup can leave an orphan. Release qualification must test Ctrl-C behavior and document any platform-specific residue before the engine is declared supported.
+Ordinary exception and Ctrl-C paths clean the private workspace. Suite cases place spill directories inside the suite's private staging or explicit workspace; forced worker shutdown removes those directories before publication or preserves no published reference to them. An uncatchable process or host termination can still leave an orphan, so operators should periodically inspect an explicitly selected parent.

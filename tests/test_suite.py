@@ -182,6 +182,7 @@ class SuiteTests(unittest.TestCase):
         child = json.loads((output / "cases" / "orders" / "result.json").read_text(encoding="utf-8"))
         self.assertEqual(child["runtime"]["execution_engine"], "sqlite")
         self.assertEqual(child["resource_limits"]["max_temp_bytes"], 1_000_000)
+        self.assertFalse(any(path.name.startswith("parison-spill-") for path in output.rglob("*")))
         verify_bundle(output)
 
         self.write_plan_v2([self.case() | {"execution": {"engine": "sqlite"}}])

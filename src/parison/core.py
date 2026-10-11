@@ -2998,6 +2998,7 @@ def _execute_suite_case(case: dict[str, Any], destination: Path, sample_limit: i
             limits["max_decoded_bytes"], limits["max_groups"], limits["max_distinct_rows"],
             case.get("execution", {}).get("engine", "memory"),
             case.get("execution", {}).get("max_temp_bytes", 5_000_000_000),
+            destination.parent if case.get("execution") else None,
         )
     except ParisonError as exc:
         result = error_result(str(exc), recipe)
@@ -3048,6 +3049,9 @@ def _clean_interrupted_workspace_case(case: dict[str, Any], destination: Path) -
                 scratch.unlink()
             except OSError:
                 pass
+    for spill in destination.parent.glob("parison-spill-*"):
+        if spill.is_dir() and not spill.is_symlink():
+            shutil.rmtree(spill, ignore_errors=True)
 
 
 def run_suite(
