@@ -139,6 +139,7 @@ Start with the [documentation index](docs/README.md).
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
 - Latest release: [0.14 roadmap and record](docs/0.14/95-roadmap.md)
 - Active development: [0.15 roadmap](docs/0.15/100-roadmap.md)
+- Product direction and release arc: [accepted direction](docs/0.15/104-product-direction-and-release-arc.md)
 - Next opportunities: [real-world application research](docs/0.14/94-real-world-application-research.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
 - Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)
