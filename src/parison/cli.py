@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import __version__
 from .catalog import add as catalog_add, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
-from .core import OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
+from .core import OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -62,6 +62,8 @@ def parser() -> argparse.ArgumentParser:
     explain.add_argument("recipe")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
     schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2"))
+    schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
+    schema_export.add_argument("--output", required=True)
     suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
     suite.add_argument("plan")
     suite_list = commands.add_parser("list-suite", help="list selected suite cases without reading inputs")
@@ -222,6 +224,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "schema":
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))
+            return 0
+        if args.command == "export-editor-schemas":
+            print(json.dumps(export_editor_schemas(args.output), sort_keys=True))
             return 0
         if args.command == "validate-suite":
             loaded = load_suite(args.plan)

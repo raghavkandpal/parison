@@ -119,6 +119,36 @@ def load_schema(name: str) -> dict[str, Any]:
     return json.loads(resources.files("parison").joinpath("schemas", _SCHEMAS[name]).read_text(encoding="utf-8"))
 
 
+def export_editor_schemas(output: str | Path) -> dict[str, Any]:
+    """Atomically export offline recipe and suite authoring schema sets."""
+    target = Path(output)
+    if target.exists():
+        raise ParisonError(f"output already exists: {target}")
+    exports = {
+        "recipe.schema.json": "recipe-authoring",
+        "recipe-v1.schema.json": "recipe",
+        "recipe-v2.schema.json": "recipe-v2",
+        "recipe-v3.schema.json": "recipe-v3",
+        "suite.schema.json": "suite-authoring",
+        "suite-v1.schema.json": "suite",
+        "suite-v2.schema.json": "suite-v2",
+    }
+    stage = None
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        stage = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent))
+        for filename, name in exports.items():
+            schema = load_schema(name)
+            schema.pop("$id")
+            (stage / filename).write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(stage, target)
+        return {"output": str(target), "files": sorted(exports)}
+    except OSError as exc:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+        raise ParisonError(f"cannot export editor schemas: {exc}") from exc
+
+
 def load_suite(path: str | Path) -> dict[str, Any]:
     suite_path = Path(path)
     try:

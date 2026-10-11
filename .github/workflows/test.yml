@@ -43,6 +43,7 @@ jobs:
       - run: parison schema suite-result-v2
       - run: parison schema suite-manifest
       - run: parison schema suite-manifest-v2
+      - run: parison export-editor-schemas --output /tmp/parison-editor-schemas
       - run: parison validate-recipe examples/orders.recipe.json
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke

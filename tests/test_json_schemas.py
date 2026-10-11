@@ -1,11 +1,14 @@
 import json
+import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 
 from jsonschema import Draft202012Validator, RefResolver
 
 from parison.cli import main
-from parison.core import compare, error_result, load_schema, validate_inputs
+from parison.core import ParisonError, compare, error_result, export_editor_schemas, load_schema, validate_inputs
 
 
 ROOT = Path(__file__).parents[1]
@@ -102,13 +105,36 @@ class JsonSchemas(unittest.TestCase):
         Draft202012Validator(self.preflight_schema).validate(result)
 
     def test_cli_prints_installed_schemas(self):
-        from contextlib import redirect_stdout
-        from io import StringIO
-
         stdout = StringIO()
         with redirect_stdout(stdout):
             self.assertEqual(main(["schema", "recipe-authoring"]), 0)
         self.assertEqual(json.loads(stdout.getvalue())["title"], "Parison recipe")
+
+    def test_editor_schema_export_is_atomic_complete_and_offline(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "schemas"
+            exported = export_editor_schemas(output)
+            self.assertEqual(len(exported["files"]), 7)
+            recipe_schema = json.loads((output / "recipe.schema.json").read_text(encoding="utf-8"))
+            suite_schema = json.loads((output / "suite.schema.json").read_text(encoding="utf-8"))
+            self.assertNotIn("$id", recipe_schema)
+            self.assertNotIn("$id", json.loads((output / "recipe-v1.schema.json").read_text(encoding="utf-8")))
+            recipe_validator = Draft202012Validator(
+                recipe_schema,
+                resolver=RefResolver((output / "recipe.schema.json").as_uri(), recipe_schema),
+            )
+            suite_validator = Draft202012Validator(
+                suite_schema,
+                resolver=RefResolver((output / "suite.schema.json").as_uri(), suite_schema),
+            )
+            recipe_validator.validate(json.loads((ROOT / "examples/orders.recipe.json").read_text(encoding="utf-8")))
+            suite_validator.validate(json.loads((ROOT / "examples/0.11/scalable-suite.json").read_text(encoding="utf-8")))
+            with self.assertRaisesRegex(ParisonError, "already exists"):
+                export_editor_schemas(output)
+            cli_output, stdout = Path(temporary) / "cli-schemas", StringIO()
+            with redirect_stdout(stdout):
+                self.assertEqual(main(["export-editor-schemas", "--output", str(cli_output)]), 0)
+            self.assertEqual(len(json.loads(stdout.getvalue())["files"]), 7)
 
 
 if __name__ == "__main__":

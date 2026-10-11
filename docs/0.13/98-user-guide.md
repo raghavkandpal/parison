@@ -6,17 +6,11 @@ Export the installed union schemas into your workspace:
 
 ```sh
 mkdir -p .parison .vscode
-parison schema recipe-authoring > .parison/recipe.schema.json
-parison schema suite-authoring > .parison/suite.schema.json
-parison schema recipe > .parison/recipe-v1.schema.json
-parison schema recipe-v2 > .parison/recipe-v2.schema.json
-parison schema recipe-v3 > .parison/recipe-v3.schema.json
-parison schema suite > .parison/suite-v1.schema.json
-parison schema suite-v2 > .parison/suite-v2.schema.json
+parison export-editor-schemas --output .parison
 cp examples/editor/vscode-settings.json .vscode/settings.json
 ```
 
-The checked-in settings example associates `*.recipe.json` and common suite filenames with those local files. Keep the five versioned sibling schemas beside the two union schemas so all references resolve without network access. Editor diagnostics are assistance; keep `validate-recipe` and `validate-suite` as execution gates.
+The export atomically writes two union schemas and their five versioned siblings without remote base identifiers, so all references resolve inside `.parison` without network access. It refuses to overwrite an existing directory. The checked-in settings example associates `*.recipe.json` and common suite filenames with those local files. Editor diagnostics are assistance; keep `validate-recipe` and `validate-suite` as execution gates.
 
 ## Index a verified run explicitly
 
