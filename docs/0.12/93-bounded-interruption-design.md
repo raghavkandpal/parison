@@ -1,8 +1,8 @@
 # Bounded concurrent interruption design
 
-Date: 10 October 2026
+Date: 11 October 2026
 
-Status: **implementation-ready; final 0.12 release gate**
+Status: **implemented; cross-platform CI pending**
 
 ## Observed behavior
 
@@ -14,7 +14,7 @@ This is safe but not bounded early termination: a very long case can delay Ctrl-
 
 Replace `ProcessPoolExecutor` with a small private spawn-process coordinator built from public `multiprocessing` primitives. Do not expose a scheduler interface and do not add a dependency.
 
-The coordinator owns at most `jobs` `Process` objects and one result queue. Each process still calls the existing `_execute_suite_case` seam and owns one destination. The parent remains the only writer of checkpoints and parent-suite artifacts.
+The coordinator owns at most `jobs` `Process` objects and one one-way result pipe per active case. Each process still calls the existing `_execute_suite_case` seam and owns one destination. The parent remains the only writer of checkpoints and parent-suite artifacts.
 
 ## State machine
 
@@ -58,6 +58,8 @@ The deadline controls process shutdown only. Filesystem verification and checkpo
 5. A process that ignores terminate is killed or causes a fail-closed diagnostic without parent publication.
 6. Abrupt worker death still becomes generic ERROR evidence during ordinary non-interrupted execution.
 7. Jobs 1 retains the released sequential interruption behavior.
+
+The local suite now exercises all seven conditions. A real worker that installs a SIGTERM ignore handler is killed after the first pool-wide two-second deadline; the parent returns in about 2.2 seconds, does not admit the waiting third case, and leaves neither output nor parent staging. Another real-process test preserves one completed child, removes two terminated children, and proves that explicit resume reuses the checkpoint. Cross-platform CI is the remaining release evidence.
 
 ## Non-goals
 

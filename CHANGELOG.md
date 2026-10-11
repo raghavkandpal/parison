@@ -12,9 +12,7 @@ All notable changes will be documented in this file.
 ### Fixed
 
 - Unexpected or abruptly terminated suite workers now produce verifiable summary-safe ERROR evidence without disclosing arbitrary exception text.
-- Interrupted concurrent runs checkpoint every completed verified workspace child before returning exit 130, allowing conservative reuse on the next explicit resume.
-
-Bounded early worker termination remains required before the 0.12 release; current interruption waits for active workers to finish safely.
+- Interrupted concurrent runs stop admission, terminate the active worker set within a fixed shutdown bound, remove incomplete scratch, and checkpoint every completed verified workspace child before returning exit 130.
 
 ## 0.11.0 - 2026-10-10
 

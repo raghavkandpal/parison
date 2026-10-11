@@ -1,6 +1,6 @@
 # Bounded local concurrency contract
 
-Date: 10 October 2026
+Date: 11 October 2026
 
 Status: **development contract**
 
@@ -43,7 +43,9 @@ Given the same current inputs, plan, policy, limits, Parison version, and select
 
 Runtime metadata may still contain already documented platform and version fields.
 
-## Current hardening gate
+## Interruption and failure isolation
 
-The implementation covers bounded spawned workers, deterministic reduction, ordinary comparison errors, generic worker-failure evidence, verified child publication, selection/shard composition, and concurrent resume. A real `os._exit` worker-death test proves that the parent completes without hanging, preserves any already valid child, and publishes verifiable generic ERROR evidence for every affected case. On parent interruption, every worker is currently allowed to finish; verified workspace children are then checkpointed before exit 130, so the next `--resume` can reuse them. Bounded early worker termination remains the final concurrency safety gate.
+The parent owns a private coordinator made only from public `multiprocessing` processes and one-way pipes. On interruption it stops admission, terminates the active set, waits against one pool-wide two-second deadline, kills survivors, and waits against a second two-second deadline. It never publishes the partial parent suite. Valid atomically published workspace children are checkpointed for explicit resume; incomplete children and publication scratch are removed.
+
+An unexpected exception or abrupt `os._exit` becomes a generic summary-safe ERROR child without cancelling unrelated cases. Exception values are not sent across the worker boundary or published. A worker that ignores termination is killed, and a waiting case is never admitted after interruption.
 

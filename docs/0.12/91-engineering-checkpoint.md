@@ -1,8 +1,8 @@
 # Parison 0.12 engineering checkpoint
 
-Date: 10 October 2026
+Date: 11 October 2026
 
-Status: **development checkpoint; not release-complete**
+Status: **release candidate; cross-platform CI pending**
 
 ## Implemented
 
@@ -14,13 +14,13 @@ Status: **development checkpoint; not release-complete**
 - Suite-v2 workspaces resolve reusable children before admission, then checkpoint newly published worker results in the parent.
 - Unexpected worker-future failures become generic summary-safe ERROR children; unrelated cases continue and exception text is not disclosed.
 - Parent staging cleanup now covers interruption as well as ordinary exceptions.
-- Parent SIGINT returns 130 without publishing the requested output. Completed workspace children are verified and checkpointed before exit, and the next resume reuses them.
+- Parent SIGINT stops admission and bounds active-worker shutdown to two pool-wide two-second phases. It never publishes the requested output; completed workspace children are verified and checkpointed for resume, while incomplete children and scratch are removed.
 - The checked-in GitHub Actions reference includes both a two-worker local suite and the released two-shard external workflow.
 
 ## Verification so far
 
-- 183 local tests pass on arm64 macOS with Python 3.12 and Polars 1.44.2.
-- Tests cover the CLI job bound, mixed PASS/FAIL equivalence, plan-order restoration, recursive verification, concurrent resume without checkpoint rewriting, generic worker-failure evidence, real abrupt process death, and unchanged sequential interruption behavior.
+- 184 local tests pass on arm64 macOS; optional Parquet tests are skipped when Polars is absent.
+- Tests cover the CLI job bound, mixed PASS/FAIL equivalence, plan-order restoration, recursive verification, concurrent resume without checkpoint rewriting, generic worker-failure evidence, real abrupt process death, bounded interruption, forced kill of workers that ignore termination, no post-interrupt admission, scratch cleanup, and unchanged sequential interruption behavior.
 - The existing 0.11 sharding, assembly, resume, reporting, examples, schemas, and benchmark tests pass unchanged.
 - GitHub Actions run [38039584289](https://github.com/raghavkandpal/parison/actions/runs/38039584289) passed from commit `ec004868e4e500771ce79b75b582c6e36b611e70`: Linux Python 3.11–3.14 and the macOS and Windows platform-smoke jobs were all green.
 - The latest checkpoint run [38058990764](https://github.com/raghavkandpal/parison/actions/runs/38058990764) also passed from commit `1a858e2eae4d8bcbec6ea8e968f6040ca575ccf5` after interruption recovery, mixed-mode performance/memory evidence, the user guide, and the bounded-termination design were added.
@@ -48,10 +48,9 @@ A second measurement used nine CPU-heavy cases: three each of keyed, aggregate, 
 
 This profile demonstrates useful local throughput, unlike the tiny fixtures, and also shows why Parison does not choose a job count automatically: four workers used roughly 3.8 times the sampled process-tree memory of one. RSS was sampled from the parent and descendants approximately every 20 ms on Darwin, so it remains machine-specific evidence rather than a hard peak guarantee. See [`benchmarks/results-2026-10-10-suite-concurrency-mixed-100k.json`](../../benchmarks/results-2026-10-10-suite-concurrency-mixed-100k.json).
 
-## Remaining release gates
+## Remaining release gate
 
-1. Replace wait-for-workers interruption with bounded early worker termination while preserving staging cleanup and safe workspace reuse.
-Do not call 0.12 release-complete until bounded early worker termination is proven.
+Run the new process-lifecycle tests on Linux Python 3.11–3.14, macOS, and Windows, then repeat the installed-wheel smoke test. Do not call 0.12 release-complete until that CI run is green.
 
-The implementation decision and acceptance tests for that final gate are frozen in [the bounded interruption design](93-bounded-interruption-design.md).
+The implementation decision and acceptance evidence are recorded in [the bounded interruption design](93-bounded-interruption-design.md).
 

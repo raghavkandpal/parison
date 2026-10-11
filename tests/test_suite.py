@@ -1,12 +1,14 @@
 import hashlib
 import json
 import os
+import signal
 import tempfile
+import time
 import unittest
 import xml.etree.ElementTree as ET
-from concurrent.futures import Future
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
+from multiprocessing.connection import wait as process_wait
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,6 +21,25 @@ from parison.core import ParisonError, _execute_suite_case, assemble_suite, expl
 def _crashing_suite_worker(case, *args):
     if case["id"] == "broken":
         os._exit(17)
+    return _execute_suite_case(case, *args)
+
+
+def _raising_suite_worker(case, *args):
+    if case["id"] == "broken":
+        raise RuntimeError("source-value-must-not-leak")
+    return _execute_suite_case(case, *args)
+
+
+def _slow_suite_worker(case, *args):
+    if case["id"] != "first":
+        time.sleep(30)
+    return _execute_suite_case(case, *args)
+
+
+def _stubborn_suite_worker(case, *args):
+    (Path(case["recipe"]).parent / f".{case['id']}.started").touch()
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    time.sleep(30)
     return _execute_suite_case(case, *args)
 
 
@@ -165,26 +186,7 @@ class SuiteTests(unittest.TestCase):
 
     def test_concurrent_worker_failure_is_explicit_and_does_not_cancel_other_cases(self):
         self.write_plan_v2([self.case("broken"), self.case("passing")])
-
-        class InjectedExecutor:
-            def __init__(self, **_kwargs):
-                pass
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *_args):
-                return False
-
-            def submit(self, function, case, *args):
-                future = Future()
-                if case["id"] == "broken":
-                    future.set_exception(RuntimeError("source-value-must-not-leak"))
-                else:
-                    future.set_result(function(case, *args))
-                return future
-
-        with patch("parison.core.ProcessPoolExecutor", InjectedExecutor):
+        with patch("parison.core._execute_suite_case", _raising_suite_worker):
             result = run_suite(self.plan, self.root / "worker-failure", jobs=2)
         self.assertEqual(result["outcome"], "ERROR")
         self.assertEqual([case["outcome"] for case in result["cases"]], ["ERROR", "PASS"])
@@ -207,34 +209,49 @@ class SuiteTests(unittest.TestCase):
             verify_bundle(output / "cases" / identifier)
 
     def test_concurrent_interruption_checkpoints_completed_workspace_children(self):
-        self.write_plan_v2([self.case("first"), self.case("second")])
+        self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])
         workspace = self.root / "interrupted-workspace"
-
-        class InterruptingFuture:
-            def result(self):
+        def interrupt_after_checkpoint(readers, timeout):
+            if (workspace / "checkpoints" / "first.json").exists():
                 raise KeyboardInterrupt
+            return process_wait(readers, timeout)
 
-        class InterruptingExecutor:
-            def __init__(self, **_kwargs):
-                pass
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *_args):
-                return False
-
-            def submit(self, function, *args):
-                function(*args)
-                return InterruptingFuture()
-
-        with patch("parison.core.ProcessPoolExecutor", InterruptingExecutor), self.assertRaises(KeyboardInterrupt):
+        started = time.monotonic()
+        with (
+            patch("parison.core._execute_suite_case", _slow_suite_worker),
+            patch("parison.core.wait", interrupt_after_checkpoint),
+            self.assertRaises(KeyboardInterrupt),
+        ):
             run_suite(self.plan, self.root / "interrupted-output", workspace=workspace, jobs=2)
+        self.assertLess(time.monotonic() - started, 6)
         self.assertFalse((self.root / "interrupted-output").exists())
-        self.assertEqual(len(list((workspace / "checkpoints").glob("*.json"))), 2)
+        self.assertEqual([path.stem for path in (workspace / "checkpoints").glob("*.json")], ["first"])
+        self.assertEqual([path.name for path in (workspace / "cases").iterdir()], ["first"])
         resumed = run_suite(self.plan, self.root / "resumed-after-interrupt", workspace=workspace, resume=True, jobs=2)
         self.assertEqual(resumed["outcome"], "PASS")
         self.assertEqual(verify_bundle(self.root / "resumed-after-interrupt")["kind"], "suite")
+
+    def test_concurrent_interruption_kills_stubborn_workers_without_admitting_waiting_case(self):
+        self.write_plan_v2([self.case("first"), self.case("second"), self.case("waiting")])
+        markers = [self.root / f".{identifier}.started" for identifier in ("first", "second")]
+
+        def interrupt_when_running(readers, timeout):
+            if all(marker.exists() for marker in markers):
+                raise KeyboardInterrupt
+            return process_wait(readers, timeout)
+
+        started = time.monotonic()
+        with (
+            patch("parison.core._execute_suite_case", _stubborn_suite_worker),
+            patch("parison.core.wait", interrupt_when_running),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            run_suite(self.plan, self.root / "stubborn-output", jobs=2)
+        self.assertLess(time.monotonic() - started, 6)
+        self.assertTrue(all(marker.exists() for marker in markers))
+        self.assertFalse((self.root / ".waiting.started").exists())
+        self.assertFalse((self.root / "stubborn-output").exists())
+        self.assertFalse(any(path.name.startswith(".stubborn-output-") for path in self.root.iterdir()))
 
     def test_assemble_suite_proves_exact_coverage_and_plan_order(self):
         self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])
