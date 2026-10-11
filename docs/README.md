@@ -2,7 +2,7 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-## 0.14 — release candidate
+## 0.14 — released
 
 - [Real-world applications and adoption research](0.14/94-real-world-application-research.md)
 - [0.14 roadmap](0.14/95-roadmap.md)
