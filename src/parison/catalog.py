@@ -55,7 +55,11 @@ def _kind(metadata: dict[str, Any]) -> str:
 
 def add(database: str | Path, bundle: str | Path) -> dict[str, Any]:
     """Verify a bundle and explicitly index only its safe inspection projection."""
-    path = str(Path(bundle).absolute())
+    bundle_path = Path(bundle).absolute()
+    database_path = Path(database).absolute()
+    if bundle_path == database_path or bundle_path in database_path.parents:
+        raise ParisonError("catalog database must be outside the indexed bundle")
+    path = str(bundle_path)
     metadata = inspect_bundle(path)
     encoded = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
     try:
@@ -83,8 +87,7 @@ def _state(path: str, expected_digest: str) -> str:
     return "current" if current["bundle_sha256"] == expected_digest else "modified"
 
 
-def list_runs(database: str | Path, outcome: str | None = None, kind: str | None = None) -> list[dict[str, Any]]:
-    """Return stored safe metadata plus a live deterministic bundle state."""
+def _entries(database: str | Path, outcome: str | None = None, kind: str | None = None) -> list[dict[str, Any]]:
     clauses, parameters = [], []
     if outcome is not None:
         clauses.append("outcome = ?")
@@ -119,10 +122,15 @@ def list_runs(database: str | Path, outcome: str | None = None, kind: str | None
         raise ParisonError(f"catalog contains invalid metadata: {exc}") from exc
 
 
+def list_runs(database: str | Path, outcome: str | None = None, kind: str | None = None) -> list[dict[str, Any]]:
+    """Return compact path-ordered entries with a live deterministic state."""
+    return [{name: value for name, value in entry.items() if name != "metadata"} for entry in _entries(database, outcome, kind)]
+
+
 def show(database: str | Path, bundle: str | Path) -> dict[str, Any]:
     """Return one catalog entry selected by its normalized bundle path."""
     path = str(Path(bundle).absolute())
-    matches = [entry for entry in list_runs(database) if entry["path"] == path]
+    matches = [entry for entry in _entries(database) if entry["path"] == path]
     if not matches:
         raise ParisonError(f"bundle is not in catalog: {path}")
     return matches[0]

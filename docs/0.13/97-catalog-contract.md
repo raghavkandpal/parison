@@ -8,6 +8,8 @@ Status: **development contract**
 
 A catalog is an ordinary user-selected SQLite file. Parison creates its parent directory when needed, rejects a symlink or non-file database path, restricts a newly opened database to owner read/write permissions where supported, and rejects unknown schema versions.
 
+The database must be outside every bundle it indexes so catalog mutation cannot place untracked operational state inside an evidence directory.
+
 The catalog is disposable derived state. It never becomes part of bundle verification, comparison semantics or resume identity.
 
 ## Stored projection

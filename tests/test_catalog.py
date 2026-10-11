@@ -54,6 +54,7 @@ class CatalogTests(unittest.TestCase):
         self.assertNotIn(b"secret-key", stored)
         self.assertNotIn(b"secret-baseline", stored)
         self.assertNotIn(b"secret-candidate", stored)
+        self.assertNotIn("metadata", list_runs(self.database)[0])
 
     def test_list_reports_duplicate_modified_and_missing_paths_deterministically(self):
         copied = self.root / "copied-run"
@@ -89,6 +90,8 @@ class CatalogTests(unittest.TestCase):
     def test_catalog_rejects_unverified_bundles_unknown_entries_and_unsafe_database(self):
         with self.assertRaises(ParisonError):
             add(self.database, self.root / "missing")
+        with self.assertRaisesRegex(ParisonError, "outside the indexed bundle"):
+            add(self.bundle / "catalog.sqlite", self.bundle)
         add(self.database, self.bundle)
         with self.assertRaisesRegex(ParisonError, "not in catalog"):
             show(self.database, self.root / "other")
