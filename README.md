@@ -8,6 +8,8 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **0.13.0 released.** Parison adds genuinely offline editor schema export and an explicit zero-custody local catalog for finding verified runs by outcome, kind, policy fingerprint and live state.
 
+**0.14 is in development.** An explicit SQLite-backed multiset engine targets exact local migration and backfill comparisons that exceed comfortable process memory, while preserving the existing semantic contract and bounded evidence.
+
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
 ## Try it
@@ -68,6 +70,10 @@ Parison 0.12 can execute independent local suite cases with `run-suite --jobs N`
 
 Parison 0.13 adds installed union schemas for offline editor validation and an explicit local SQLite catalog of verified safe run metadata. Use `parison export-editor-schemas --output .parison`, then `parison catalog add|list|show|remove --database PATH` for zero-custody run discovery. See the [0.13 guide](docs/0.13/98-user-guide.md).
 
+The developing 0.14 engine can run multiset-v1 comparison through a bounded disposable SQLite workspace: add `--engine sqlite --max-temp-bytes BYTES`, and optionally select a protected parent with `--temp-directory DIR`. Suite-v2 cases can record the same choice under `execution`. See the [development contract](docs/0.14/96-spill-engine-contract.md); do not treat the prototype as a released scale guarantee yet.
+
+The first [SQLite-engine benchmark](benchmarks/results-2026-10-11-spill.json) compares fresh processes at 10k and 100k high-cardinality rows. On the recorded 100k case, SQLite traded roughly 3× runtime and 33 MiB of temporary disk for an approximately 87% lower process peak RSS. This is machine-specific evidence, not a supported capacity claim.
+
 `output.sensitivity` defaults to `summary`, which stores no source keys or values. Set it explicitly to `raw` to include a bounded discrepancy sample, and protect that output as sensitive data. `--sample-limit` controls the maximum number of raw field differences written. Comparison errors also publish a summary-only diagnostic bundle when the output destination is available.
 
 Every recipe must declare a source snapshot, extraction cutoff, intended filters, full-scope completeness, whether an empty scope is expected, and whether two non-key null values are equal. These are recorded provenance assertions; Parison cannot independently prove that upstream pipelines honored them.
@@ -126,7 +132,7 @@ Start with the [documentation index](docs/README.md).
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
 - Latest release: [0.13 roadmap and record](docs/0.13/96-roadmap.md)
-- Next release research: [post-0.12 feature opportunities](docs/0.12/94-feature-opportunity-research.md)
+- Next release: [0.14 large local comparison roadmap](docs/0.14/95-roadmap.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
 - Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)
 - Safety model: [0.1 security and data handling](docs/0.1/07-security-and-data-handling.md)
