@@ -2,7 +2,7 @@
 
 Date: 11 October 2026
 
-Status: **development guide**
+Status: **release-candidate guide**
 
 Use the SQLite engine when distinct multiset rows are too numerous for the default in-memory counter and local disk is an acceptable sensitive workspace.
 

@@ -2,13 +2,14 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-## 0.14 — in development
+## 0.14 — release candidate
 
 - [Real-world applications and adoption research](0.14/94-real-world-application-research.md)
 - [0.14 roadmap](0.14/95-roadmap.md)
 - [SQLite multiset execution contract](0.14/96-spill-engine-contract.md)
 - [Large local multiset comparison guide](0.14/97-user-guide.md)
 - [SQLite multiset engineering checkpoint](0.14/98-engineering-checkpoint.md)
+- [0.14.0 release checklist](0.14/99-release-checklist.md)
 
 ## 0.13 — released
 

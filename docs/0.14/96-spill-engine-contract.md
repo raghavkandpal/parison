@@ -2,7 +2,7 @@
 
 Date: 11 October 2026
 
-Status: **development contract**
+Status: **release-candidate contract**
 
 ## Selection and scope
 
