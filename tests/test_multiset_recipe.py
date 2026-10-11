@@ -2,14 +2,17 @@ import json
 import hashlib
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from decimal import Decimal
 from datetime import date, datetime, timezone
 from unittest.mock import patch
+from io import StringIO
 
 from jsonschema import Draft202012Validator
 
 from parison.core import ParisonError, _multiset_encoding, compare, error_result, export_evidence, explain_recipe, inspect_bundle, load_recipe, load_schema, publish, validate_inputs, verify_bundle
+from parison.cli import main
 
 
 RECIPE = {
@@ -242,6 +245,21 @@ class MultisetRecipeTests(unittest.TestCase):
         with patch("parison.core._iter_input_rows", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
             compare(self.path, source, source, engine="sqlite", temp_directory=spill)
         self.assertEqual(list(spill.iterdir()), [])
+
+    def test_sqlite_cli_error_bundle_records_engine_and_limit(self):
+        source = Path(self.tmp.name) / "rows.csv"
+        source.write_text("region,amount\na,1.00\n", encoding="utf-8")
+        output = Path(self.tmp.name) / "error-run"
+        with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+            code = main([
+                "compare", "--recipe", str(self.path), "--baseline", str(source), "--candidate", str(source),
+                "--engine", "sqlite", "--max-temp-bytes", "1", "--output", str(output),
+            ])
+        self.assertEqual(code, 2)
+        result = json.loads((output / "result.json").read_text(encoding="utf-8"))
+        self.assertEqual(result["runtime"]["execution_engine"], "sqlite")
+        self.assertEqual(result["resource_limits"]["max_temp_bytes"], 1)
+        self.assertEqual(verify_bundle(output)["outcome"], "ERROR")
 
 
 if __name__ == "__main__":

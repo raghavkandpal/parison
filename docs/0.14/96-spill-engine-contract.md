@@ -23,7 +23,7 @@ Parison parses and normalizes every field and produces the existing typed-length
 
 The engine must produce the same outcome, counts, discrepancy count and bounded raw sample as the memory engine for the same ordered input snapshots and limits. Discrepancy rows are ordered by canonical encoding.
 
-Runtime metadata records `execution_engine`. A SQLite result also records `temporary_bytes` and `max_temp_bytes`; these operational fields are expected cross-engine differences. With journaling disabled, the database grows monotonically, so its final size is the invocation's peak database size.
+Runtime metadata records `execution_engine` and, after successful SQLite execution, `temporary_bytes`. Resource-limit metadata records `max_temp_bytes`, including in handled ERROR and INTERRUPTED bundles. These operational fields are expected cross-engine differences. With journaling disabled, the database grows monotonically, so its final size is the invocation's peak database size.
 
 ## Storage and cleanup
 

@@ -64,6 +64,7 @@ _SUITE_LIMIT_DEFAULTS = {
 }
 _SUITE_LIMIT_KEYS = set(_SUITE_LIMIT_DEFAULTS)
 _MAX_SUITE_JOBS = 16
+DEFAULT_MAX_TEMP_BYTES = 5_000_000_000
 
 
 class ParisonError(ValueError):
@@ -1711,7 +1712,7 @@ def compare(
     max_groups: int = 100_000,
     max_distinct_rows: int = 100_000,
     engine: str = "memory",
-    max_temp_bytes: int = 5_000_000_000,
+    max_temp_bytes: int = DEFAULT_MAX_TEMP_BYTES,
     temp_directory: str | Path | None = None,
 ) -> dict[str, Any]:
     if sample_limit < 0:
@@ -2119,26 +2120,10 @@ def _sqlite_multiset_counts(
                     "WHERE candidate.side = 1 AND NOT EXISTS (SELECT 1 FROM counts AS baseline WHERE baseline.side = 0 AND baseline.encoded = candidate.encoded) "
                     "ORDER BY 1"
                 )
-                summary = {
-                    "baseline_rows": row_totals[0], "candidate_rows": row_totals[1],
-                    "common_occurrences": 0, "baseline_only_occurrences": 0, "candidate_only_occurrences": 0,
-                    "baseline_distinct_rows": 0, "candidate_distinct_rows": 0,
-                    "baseline_surplus_shapes": 0, "candidate_surplus_shapes": 0,
-                }
-                differing: list[dict[str, Any]] = []
-                differing_count = 0
-                for _, row_json, left, right in records:
-                    summary["baseline_distinct_rows"] += left > 0
-                    summary["candidate_distinct_rows"] += right > 0
-                    summary["common_occurrences"] += min(left, right)
-                    summary["baseline_only_occurrences"] += max(left - right, 0)
-                    summary["candidate_only_occurrences"] += max(right - left, 0)
-                    summary["baseline_surplus_shapes"] += left > right
-                    summary["candidate_surplus_shapes"] += right > left
-                    if left != right:
-                        differing_count += 1
-                        if recipe["output"]["sensitivity"] == "raw" and len(differing) < sample_limit:
-                            differing.append({"row": json.loads(row_json), "baseline_count": left, "candidate_count": right, "classification": "baseline_surplus" if left > right else "candidate_surplus"})
+                summary, differing, differing_count = _summarize_multiset(
+                    ((json.loads(row_json), left, right) for _, row_json, left, right in records),
+                    row_totals[0], row_totals[1], recipe["output"]["sensitivity"] == "raw", sample_limit,
+                )
                 return summary, differing, differing_count, database.stat().st_size
             finally:
                 connection.close()
@@ -2152,7 +2137,31 @@ def _sqlite_multiset_counts(
         raise ParisonError(f"cannot use spill directory: {exc}") from exc
 
 
-def _compare_multiset(recipe_path: Path, recipe: dict[str, Any], baseline_path: str | Path, candidate_path: str | Path, sample_limit: int, max_input_bytes: int, max_rows: int, max_decoded_bytes: int, max_distinct_rows: int, policy_sha256: str, engine: str = "memory", max_temp_bytes: int = 5_000_000_000, temp_directory: str | Path | None = None) -> dict[str, Any]:
+def _summarize_multiset(records, baseline_rows: int, candidate_rows: int, raw: bool, sample_limit: int) -> tuple[dict[str, int], list[dict[str, Any]], int]:
+    summary = {
+        "baseline_rows": baseline_rows, "candidate_rows": candidate_rows,
+        "common_occurrences": 0, "baseline_only_occurrences": 0, "candidate_only_occurrences": 0,
+        "baseline_distinct_rows": 0, "candidate_distinct_rows": 0,
+        "baseline_surplus_shapes": 0, "candidate_surplus_shapes": 0,
+    }
+    sample: list[dict[str, Any]] = []
+    differing = 0
+    for row, left, right in records:
+        summary["baseline_distinct_rows"] += left > 0
+        summary["candidate_distinct_rows"] += right > 0
+        summary["common_occurrences"] += min(left, right)
+        summary["baseline_only_occurrences"] += max(left - right, 0)
+        summary["candidate_only_occurrences"] += max(right - left, 0)
+        summary["baseline_surplus_shapes"] += left > right
+        summary["candidate_surplus_shapes"] += right > left
+        if left != right:
+            differing += 1
+            if raw and len(sample) < sample_limit:
+                sample.append({"row": row, "baseline_count": left, "candidate_count": right, "classification": "baseline_surplus" if left > right else "candidate_surplus"})
+    return summary, sample, differing
+
+
+def _compare_multiset(recipe_path: Path, recipe: dict[str, Any], baseline_path: str | Path, candidate_path: str | Path, sample_limit: int, max_input_bytes: int, max_rows: int, max_decoded_bytes: int, max_distinct_rows: int, policy_sha256: str, engine: str = "memory", max_temp_bytes: int = DEFAULT_MAX_TEMP_BYTES, temp_directory: str | Path | None = None) -> dict[str, Any]:
     if _source_bytes(baseline_path) + _source_bytes(candidate_path) > max_input_bytes:
         raise ParisonError(f"combined input size exceeds limit {max_input_bytes} bytes")
     decoded_sizes = _decoded_sizes((baseline_path, candidate_path), max_decoded_bytes)
@@ -2173,17 +2182,17 @@ def _compare_multiset(recipe_path: Path, recipe: dict[str, Any], baseline_path: 
             return values, len(rows)
         left, baseline_rows = counted(baseline_path, "baseline")
         right, candidate_rows = counted(candidate_path, "candidate")
-        all_rows = set(left) | set(right)
-        differing = [row for row in all_rows if left[row] != right[row]]
-        counts = {"baseline_rows": baseline_rows, "candidate_rows": candidate_rows, "common_occurrences": sum(min(left[row], right[row]) for row in all_rows), "baseline_only_occurrences": sum(max(left[row] - right[row], 0) for row in all_rows), "candidate_only_occurrences": sum(max(right[row] - left[row], 0) for row in all_rows), "baseline_distinct_rows": len(left), "candidate_distinct_rows": len(right), "baseline_surplus_shapes": sum(left[row] > right[row] for row in all_rows), "candidate_surplus_shapes": sum(right[row] > left[row] for row in all_rows)}
         sort_key = lambda row: _multiset_encoding(row, names, recipe)
-        differing_rows = [{"row": {name: _json_value(value) for name, value in zip(names, row)}, "baseline_count": left[row], "candidate_count": right[row], "classification": "baseline_surplus" if left[row] > right[row] else "candidate_surplus"} for row in sorted(differing, key=sort_key)]
-        differing_count = len(differing)
+        all_rows = sorted(set(left) | set(right), key=sort_key)
+        counts, differing_rows, differing_count = _summarize_multiset(
+            (({name: _json_value(value) for name, value in zip(names, row)}, left[row], right[row]) for row in all_rows),
+            baseline_rows, candidate_rows, recipe["output"]["sensitivity"] == "raw", sample_limit,
+        )
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being read")
     problems = ["nonempty multiset inputs are required"] if not baseline_rows and not candidate_rows and not recipe["scope"]["expected_empty"] else []
     raw = recipe["output"]["sensitivity"] == "raw"
-    sample = differing_rows[:sample_limit] if raw else []
+    sample = differing_rows if raw else []
     runtime = _runtime_info((baseline_path, candidate_path), "multiset-v1")
     runtime["execution_engine"] = engine
     if engine == "sqlite":
@@ -2298,11 +2307,23 @@ def _multiset_report(result: dict[str, Any]) -> str:
     return f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Parison multiset report: {esc(result['outcome'])}</title><style>body{{font:16px system-ui;max-width:1000px;margin:2rem auto;padding:0 1rem}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left}}</style><main><h1>{esc(result['outcome'])}</h1><p>Complete multiset evaluation: <strong>{str(result['complete']).lower()}</strong>.</p><table>{counts}</table><h2>Issues</h2><ul>{problems}</ul><h2>Evidence and privacy</h2>{evidence}</main></html>"""
 
 
-def terminal_result(outcome: str, message: str, recipe: dict[str, Any] | None = None) -> dict[str, Any]:
+def terminal_result(
+    outcome: str,
+    message: str,
+    recipe: dict[str, Any] | None = None,
+    execution_engine: str | None = None,
+    max_temp_bytes: int | None = None,
+) -> dict[str, Any]:
     if recipe and recipe.get("comparison_mode") == "multiset":
+        runtime = _runtime_info(contract="multiset-v1")
+        resource_limits = {}
+        if execution_engine is not None:
+            runtime["execution_engine"] = execution_engine
+        if execution_engine == "sqlite" and max_temp_bytes is not None:
+            resource_limits["max_temp_bytes"] = max_temp_bytes
         return {
             "schema_version": 3, "outcome": outcome, "complete": False, "sensitivity": "summary",
-            "runtime": _runtime_info(contract="multiset-v1"), "resource_limits": {}, "scope": recipe.get("scope"),
+            "runtime": runtime, "resource_limits": resource_limits, "scope": recipe.get("scope"),
             "policy": {}, "column_policies": recipe.get("columns", {}), "column_mappings": recipe.get("column_mappings", {}),
             "problems": [message], "counts": {}, "discrepancy_count": 0, "discrepancy_sample": [],
             "discrepancy_sample_limit": 0, "excluded_columns": recipe.get("excluded_columns", {}), "inputs": {},
@@ -2360,8 +2381,8 @@ def terminal_result(outcome: str, message: str, recipe: dict[str, Any] | None = 
     }
 
 
-def error_result(message: str, recipe: dict[str, Any] | None = None) -> dict[str, Any]:
-    return terminal_result("ERROR", message, recipe)
+def error_result(message: str, recipe: dict[str, Any] | None = None, execution_engine: str | None = None, max_temp_bytes: int | None = None) -> dict[str, Any]:
+    return terminal_result("ERROR", message, recipe, execution_engine, max_temp_bytes)
 
 
 def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] | None) -> None:
@@ -2984,7 +3005,7 @@ def _reusable_workspace_child(
     elif mode == "multiset":
         expected_resources["max_distinct_rows_per_input"] = limits["max_distinct_rows"]
         if case.get("execution"):
-            expected_resources["max_temp_bytes"] = case["execution"].get("max_temp_bytes", 5_000_000_000)
+            expected_resources["max_temp_bytes"] = case["execution"].get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES)
     return resource_limits == expected_resources
 
 
@@ -2997,11 +3018,15 @@ def _execute_suite_case(case: dict[str, Any], destination: Path, sample_limit: i
             limits["max_input_bytes"], limits["max_rows"], case.get("expected_policy_sha256"),
             limits["max_decoded_bytes"], limits["max_groups"], limits["max_distinct_rows"],
             case.get("execution", {}).get("engine", "memory"),
-            case.get("execution", {}).get("max_temp_bytes", 5_000_000_000),
+            case.get("execution", {}).get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES),
             destination.parent if case.get("execution") else None,
         )
     except ParisonError as exc:
-        result = error_result(str(exc), recipe)
+        execution = case.get("execution", {})
+        result = error_result(
+            str(exc), recipe, execution.get("engine", "memory"),
+            execution.get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES),
+        )
     publish(destination, result, recipe)
     return result
 

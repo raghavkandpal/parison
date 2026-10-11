@@ -144,4 +144,6 @@ jobs:
       - run: parison validate-suite examples/0.14/backfill-suite.json
       - run: parison run-suite --plan examples/0.14/backfill-suite.json --output ${{ runner.temp }}/parison-0.14-suite
       - run: parison verify ${{ runner.temp }}/parison-0.14-suite
+      - run: python benchmarks/generate_spill_cases.py --output ${{ runner.temp }}/parison-spill-bench --rows 1000
+      - run: python benchmarks/run_spill_cases.py --repeats 1 ${{ runner.temp }}/parison-spill-bench/multiset-1000
       - run: python -m unittest discover -s tests -v

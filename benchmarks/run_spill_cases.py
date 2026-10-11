@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import argparse
 import json
 import platform
@@ -12,6 +14,33 @@ from pathlib import Path
 
 from parison import __version__
 from parison.core import compare
+
+
+def peak_rss_bytes() -> int | None:
+    try:
+        import resource
+        rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        return rss if platform.system() == "Darwin" else rss * 1024
+    except ImportError:
+        if platform.system() != "Windows":
+            return None
+        import ctypes
+        from ctypes import wintypes
+
+        class ProcessMemoryCounters(ctypes.Structure):
+            _fields_ = [
+                ("cb", wintypes.DWORD), ("page_fault_count", wintypes.DWORD),
+                ("peak_working_set_size", ctypes.c_size_t), ("working_set_size", ctypes.c_size_t),
+                ("quota_peak_paged_pool_usage", ctypes.c_size_t), ("quota_paged_pool_usage", ctypes.c_size_t),
+                ("quota_peak_non_paged_pool_usage", ctypes.c_size_t), ("quota_non_paged_pool_usage", ctypes.c_size_t),
+                ("pagefile_usage", ctypes.c_size_t), ("peak_pagefile_usage", ctypes.c_size_t),
+            ]
+
+        counters = ProcessMemoryCounters()
+        counters.cb = ctypes.sizeof(counters)
+        if not ctypes.windll.psapi.GetProcessMemoryInfo(ctypes.windll.kernel32.GetCurrentProcess(), ctypes.byref(counters), counters.cb):
+            return None
+        return counters.peak_working_set_size
 
 
 def measure(case: Path, engine: str) -> dict:
@@ -28,16 +57,10 @@ def measure(case: Path, engine: str) -> dict:
     counts = result["counts"]
     if result["outcome"] != expected["outcome"] or counts["baseline_rows"] != expected["rows"] or counts["baseline_distinct_rows"] != expected["distinct_rows"]:
         raise SystemExit(f"accuracy check failed for {case} with {engine}")
-    try:
-        import resource
-        rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        rss_bytes = rss if platform.system() == "Darwin" else rss * 1024
-    except ImportError:
-        rss_bytes = None
     return {
         "elapsed_seconds": elapsed,
         "peak_python_bytes": peak,
-        "peak_rss_bytes": rss_bytes,
+        "peak_rss_bytes": peak_rss_bytes(),
         "temporary_bytes": result["runtime"].get("temporary_bytes", 0),
         "counts": counts,
     }
