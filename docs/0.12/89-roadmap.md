@@ -2,7 +2,7 @@
 
 Date: 10 October 2026
 
-Status: **release candidate implemented**
+Status: **released in 0.12.0**
 
 ## Focus: bounded local suite concurrency
 
