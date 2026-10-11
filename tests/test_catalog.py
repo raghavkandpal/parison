@@ -3,7 +3,7 @@ import shutil
 import sqlite3
 import tempfile
 import unittest
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import closing, redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 
@@ -134,11 +134,11 @@ class CatalogTests(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "not a regular file"):
             list_runs(unsafe)
         future = self.root / "future.sqlite"
-        with sqlite3.connect(future) as connection:
+        with closing(sqlite3.connect(future)) as connection, connection:
             connection.execute("PRAGMA user_version = 99")
         with self.assertRaisesRegex(ParisonError, "version is unsupported"):
             list_runs(future)
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             connection.execute("UPDATE runs SET metadata = 'not-json'")
         with self.assertRaisesRegex(ParisonError, "invalid metadata"):
             list_runs(self.database)
