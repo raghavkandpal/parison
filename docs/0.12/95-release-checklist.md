@@ -2,7 +2,7 @@
 
 Date: 11 October 2026
 
-Status: **candidate verified; publication pending**
+Status: **released**
 
 ## Feature and safety gates
 
@@ -21,10 +21,10 @@ Status: **candidate verified; publication pending**
 
 ## Publication
 
-- [ ] Merge the versioned candidate to `main` after final CI.
-- [ ] Tag the merge commit `0.12.0`.
-- [ ] Build the wheel and source archive from the tag and publish both with `SHA256SUMS.txt` on GitHub.
-- [ ] Download the immutable release wheel, verify its checksum, install it in an empty environment, rerun the concurrent suite and verify the result.
-- [ ] Mark 0.12 released in the README and documentation index.
+- [x] Merged release pull request [#18](https://github.com/raghavkandpal/parison/pull/18) to `main` at `c96ee7027ac0750200aedf974738056abda40f56` after all checks passed.
+- [x] Tagged the merge commit `0.12.0`.
+- [x] Published the wheel, source archive and `SHA256SUMS.txt` on the [GitHub release](https://github.com/raghavkandpal/parison/releases/tag/0.12.0).
+- [x] Downloaded both immutable archives, verified their checksums, installed the wheel in an empty Python 3.12 environment, confirmed `parison 0.12.0`, reran the concurrent three-mode suite and recursively verified the PASS bundle.
+- [x] Marked 0.12 released in the README and documentation index.
 
 PyPI publication remains intentionally deferred.

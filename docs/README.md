@@ -2,7 +2,7 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-## 0.12 — release candidate
+## 0.12 — released
 
 - [Boundary rationale and direction](0.12/88-boundaries-and-direction.md)
 - [0.12 roadmap](0.12/89-roadmap.md)
