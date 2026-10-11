@@ -2,7 +2,7 @@
 
 Date: 11 October 2026
 
-Status: **candidate verified; publication pending**
+Status: **released**
 
 ## Feature and safety gates
 
@@ -22,9 +22,10 @@ Status: **candidate verified; publication pending**
 
 ## Publication
 
-- [ ] Pass the versioned release commit through the full matrix.
-- [ ] Merge to `main`, tag `0.13.0`, and publish wheel, source archive and checksums.
-- [ ] Download the immutable wheel, verify its checksum, install it cleanly and repeat editor export plus catalog smoke tests.
-- [ ] Mark the release complete in the README and documentation index.
+- [x] Versioned release commit `5632209` passed [the full matrix](https://github.com/raghavkandpal/parison/actions/runs/38128767709) on Linux Python 3.11–3.14, macOS and Windows.
+- [x] Pull request [#20](https://github.com/raghavkandpal/parison/pull/20) merged to `main` as `3cde49a2ab0b404e1f16fee45005ca3edb207b03`; annotated tag `0.13.0` and the [GitHub release](https://github.com/raghavkandpal/parison/releases/tag/0.13.0) publish the wheel, source archive and checksums.
+- [x] Downloaded release assets matched their published checksums. The wheel SHA-256 was `2cb1b6372871249a75ca2f7086fb8483759243b5e15639842ea197a6fddacfd2`; the source archive SHA-256 was `8398bf859604f32d66cc9a8e3bce20c69fde1776c2f3e10e2080ffa2e24c477f`.
+- [x] A clean install from the downloaded wheel reported `parison 0.13.0`, exported all seven offline schemas, and added and listed an existing verified suite in a fresh catalog.
+- [x] The README and documentation index mark the release complete.
 
 PyPI publication remains intentionally deferred.
