@@ -2,7 +2,7 @@
 
 Date: 11 October 2026
 
-Status: **release candidate implemented**
+Status: **released**
 
 ## Focus: exact local comparison beyond process memory
 
