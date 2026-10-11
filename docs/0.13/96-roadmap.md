@@ -2,7 +2,7 @@
 
 Date: 11 October 2026
 
-Status: **in development**
+Status: **release candidate implemented**
 
 ## Focus: reviewed authoring and zero-custody run discovery
 

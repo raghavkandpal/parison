@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.13.0 - 2026-10-11
+
 ### Added
 
 - Offline editor schemas spanning every supported recipe and suite version, with stable raw-content identifiers, descriptions, examples, atomic local export and a VS Code association example.
