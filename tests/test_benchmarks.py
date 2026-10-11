@@ -5,6 +5,8 @@ from pathlib import Path
 
 from benchmarks.generate_cases import generate
 from benchmarks.generate_aggregate_cases import PROFILES as AGGREGATE_PROFILES, generate as generate_aggregate
+from benchmarks.generate_spill_cases import generate as generate_spill
+from benchmarks.run_spill_cases import measure as measure_spill
 from benchmarks.generate_matrix import PROFILES, generate as generate_profile
 from benchmarks.run_cases import measure
 from benchmarks.run_suite_cases import measure_suite_scale
@@ -50,6 +52,16 @@ class GeneratedBenchmarks(unittest.TestCase):
                 self.assertEqual(result["counts"], expected["counts"], profile)
                 measurement = measure(case)
                 self.assertGreater(measurement["elapsed_seconds"], 0)
+
+    def test_spill_case_matches_memory_and_reports_temporary_bytes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            case = generate_spill(Path(temporary), 100)
+            memory = measure_spill(case, "memory")
+            sqlite = measure_spill(case, "sqlite")
+            self.assertEqual(memory["counts"], sqlite["counts"])
+            self.assertEqual(memory["temporary_bytes"], 0)
+            self.assertGreater(sqlite["temporary_bytes"], 0)
+            self.assertGreater(sqlite["elapsed_seconds"], 0)
 
     def test_adversarial_profiles_match_their_oracles(self):
         with tempfile.TemporaryDirectory() as temporary:
