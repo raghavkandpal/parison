@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .catalog import add as catalog_add, list_runs as catalog_list, show as catalog_show
+from .catalog import add as catalog_add, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
 from .core import OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
 
 
@@ -144,6 +144,9 @@ operator and null policy. Suggestions are starting points, not approved policy."
     catalog_show_parser = catalog_commands.add_parser("show", help="show one indexed bundle by path")
     catalog_show_parser.add_argument("bundle")
     catalog_show_parser.add_argument("--database", required=True)
+    catalog_remove_parser = catalog_commands.add_parser("remove", help="remove an indexed path without deleting its bundle")
+    catalog_remove_parser.add_argument("bundle")
+    catalog_remove_parser.add_argument("--database", required=True)
     export = commands.add_parser("export-evidence", help="export bounded raw evidence from a verified bundle")
     export.add_argument("run_directory")
     export.add_argument("--output", required=True)
@@ -185,8 +188,10 @@ def main(argv: list[str] | None = None) -> int:
                 result = catalog_add(args.database, args.bundle)
             elif args.catalog_command == "list":
                 result = {"runs": catalog_list(args.database, args.outcome, args.kind)}
-            else:
+            elif args.catalog_command == "show":
                 result = catalog_show(args.database, args.bundle)
+            else:
+                result = catalog_remove(args.database, args.bundle)
             print(json.dumps(result, indent=2, sort_keys=True))
             return 0
         if args.command == "export-evidence":

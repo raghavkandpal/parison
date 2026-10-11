@@ -33,6 +33,8 @@ It does not store discrepancy samples, source records, keys, values or bundle fi
 
 Copied bundles may share a digest. `duplicate_paths` reports how many indexed paths share it; duplicates are not deleted or collapsed. Results are ordered by normalized path, independent of insertion order.
 
+`remove` deletes one normalized path from the disposable index. It never deletes or edits the referenced bundle.
+
 ## Failure and privacy behavior
 
 Invalid bundles are rejected before a write. SQLite and filesystem failures are controlled `parison:` errors. Listing a new database yields an empty catalog. An incompatible catalog version fails closed.

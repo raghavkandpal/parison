@@ -134,3 +134,16 @@ def show(database: str | Path, bundle: str | Path) -> dict[str, Any]:
     if not matches:
         raise ParisonError(f"bundle is not in catalog: {path}")
     return matches[0]
+
+
+def remove(database: str | Path, bundle: str | Path) -> dict[str, Any]:
+    """Remove one normalized path from the disposable index, never the bundle."""
+    path = str(Path(bundle).absolute())
+    try:
+        with closing(_open(database)) as connection, connection:
+            removed = connection.execute("DELETE FROM runs WHERE path = ?", (path,)).rowcount
+    except sqlite3.Error as exc:
+        raise ParisonError(f"cannot update catalog: {exc}") from exc
+    if not removed:
+        raise ParisonError(f"bundle is not in catalog: {path}")
+    return {"status": "removed", "path": path}

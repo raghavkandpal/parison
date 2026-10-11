@@ -7,7 +7,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 
-from parison.catalog import add, list_runs, show
+from parison.catalog import add, list_runs, remove, show
 from parison.cli import main
 from parison.core import ParisonError, compare, publish
 
@@ -86,6 +86,19 @@ class CatalogTests(unittest.TestCase):
         with redirect_stdout(stdout):
             self.assertEqual(main(["catalog", "show", "--database", str(self.database), str(self.bundle)]), 0)
         self.assertEqual(json.loads(stdout.getvalue())["state"], "current")
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            self.assertEqual(main(["catalog", "remove", "--database", str(self.database), str(self.bundle)]), 0)
+        self.assertEqual(json.loads(stdout.getvalue())["status"], "removed")
+        self.assertTrue(self.bundle.is_dir())
+        self.assertEqual(list_runs(self.database), [])
+
+    def test_remove_changes_only_the_disposable_index(self):
+        add(self.database, self.bundle)
+        self.assertEqual(remove(self.database, self.bundle)["status"], "removed")
+        self.assertTrue(self.bundle.is_dir())
+        with self.assertRaisesRegex(ParisonError, "not in catalog"):
+            remove(self.database, self.bundle)
 
     def test_catalog_rejects_unverified_bundles_unknown_entries_and_unsafe_database(self):
         with self.assertRaises(ParisonError):
