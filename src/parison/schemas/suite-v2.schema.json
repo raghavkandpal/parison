@@ -44,6 +44,15 @@
           "expected_policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
           "tags": {"type": "array", "maxItems": 20, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
           "description": {"type": "string", "minLength": 1, "maxLength": 500},
+          "execution": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["engine"],
+            "properties": {
+              "engine": {"const": "sqlite"},
+              "max_temp_bytes": {"type": "integer", "minimum": 1}
+            }
+          },
           "limits": {"$ref": "#/$defs/limits"}
         }
       }

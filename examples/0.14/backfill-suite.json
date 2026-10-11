@@ -1,0 +1,25 @@
+{
+  "suite_version": 2,
+  "cases": [
+    {
+      "id": "aggregate-conservation",
+      "recipe": "backfill-aggregate.recipe.json",
+      "baseline": "baseline.csv",
+      "candidate": "candidate.csv",
+      "tags": ["backfill", "critical"],
+      "description": "Check row and amount conservation by region before exact diagnosis."
+    },
+    {
+      "id": "all-rows-exactly-once",
+      "recipe": "backfill-multiset.recipe.json",
+      "baseline": "baseline.csv",
+      "candidate": "candidate.csv",
+      "tags": ["backfill", "critical"],
+      "description": "Compare complete row occurrence counts with bounded local disk storage.",
+      "execution": {
+        "engine": "sqlite",
+        "max_temp_bytes": 10000000
+      }
+    }
+  ]
+}

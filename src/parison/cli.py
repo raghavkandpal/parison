@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import __version__
 from .catalog import add as catalog_add, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
-from .core import OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
+from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -169,6 +169,9 @@ operator and null policy. Suggestions are starting points, not approved policy."
     run.add_argument("--max-rows", type=int, default=5_000_000, help="maximum rows in either input (default: 5 million)")
     run.add_argument("--max-groups", type=int, default=100_000, help="maximum groups in either aggregate input (default: 100,000)")
     run.add_argument("--max-distinct-rows", type=int, default=100_000, help="maximum distinct rows in either multiset input (default: 100,000)")
+    run.add_argument("--engine", choices=("memory", "sqlite"), default="memory", help="execution engine; sqlite currently supports multiset recipes (default: memory)")
+    run.add_argument("--max-temp-bytes", type=int, default=DEFAULT_MAX_TEMP_BYTES, help="maximum SQLite spill database size (default: 5 GB)")
+    run.add_argument("--temp-directory", help="existing directory in which to create and clean up the private spill workspace")
     run.add_argument("--expected-policy-sha256", help="require this effective-policy fingerprint before reading inputs")
     return root
 
@@ -324,6 +327,9 @@ def main(argv: list[str] | None = None) -> int:
             args.max_decoded_bytes,
             args.max_groups,
             args.max_distinct_rows,
+            args.engine,
+            args.max_temp_bytes,
+            args.temp_directory,
         )
         publish(args.output, result, recipe)
         print(json.dumps({"outcome": result["outcome"], "output": args.output}))
@@ -331,7 +337,7 @@ def main(argv: list[str] | None = None) -> int:
         return OUTCOME_CODES[result["outcome"]]
     except ParisonError as exc:
         if args.command == "compare":
-            result = error_result(str(exc), recipe)
+            result = error_result(str(exc), recipe, args.engine, args.max_temp_bytes)
             try:
                 publish(args.output, result, recipe)
                 _print_summary(result, args.output)
@@ -341,7 +347,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     except KeyboardInterrupt:
         if args.command == "compare":
-            result = terminal_result("INTERRUPTED", "comparison interrupted by user", recipe)
+            result = terminal_result("INTERRUPTED", "comparison interrupted by user", recipe, args.engine, args.max_temp_bytes)
             try:
                 publish(args.output, result, recipe)
                 _print_summary(result, args.output)

@@ -88,6 +88,12 @@ jobs:
           parison assemble-suite --plan examples/0.11/scalable-suite.json --input /tmp/parison-0.11-shard-0 --input /tmp/parison-0.11-shard-1 --output /tmp/parison-0.11-suite
           parison verify /tmp/parison-0.11-suite
           parison report-ci /tmp/parison-0.11-suite --format markdown --output /tmp/parison-0.11-summary.md
+      - name: Exercise SQLite-backed multiset suite
+        if: matrix.python-version == '3.14'
+        run: |
+          parison validate-suite examples/0.14/backfill-suite.json
+          parison run-suite --plan examples/0.14/backfill-suite.json --output /tmp/parison-0.14-suite
+          parison verify /tmp/parison-0.14-suite
       - name: Upload smoke evidence
         if: matrix.python-version == '3.14'
         uses: actions/upload-artifact@v6
@@ -101,6 +107,11 @@ jobs:
       - run: python benchmarks/run_cases.py --repeats 1 --max-memory-per-row 6000 /tmp/parison-bench/rows-1000
       - run: python benchmarks/generate_aggregate_cases.py --output /tmp/parison-aggregate-bench --rows 1000
       - run: python benchmarks/run_cases.py --repeats 1 --max-memory-per-row 6000 /tmp/parison-aggregate-bench/aggregate-global-1000 /tmp/parison-aggregate-bench/aggregate-low-1000 /tmp/parison-aggregate-bench/aggregate-high-1000
+      - name: Check SQLite multiset benchmark accuracy
+        if: matrix.python-version == '3.14'
+        run: |
+          python benchmarks/generate_spill_cases.py --output /tmp/parison-spill-bench --rows 1000
+          python benchmarks/run_spill_cases.py --repeats 1 /tmp/parison-spill-bench/multiset-1000
 
   platform-smoke:
     runs-on: ${{ matrix.os }}
@@ -130,4 +141,9 @@ jobs:
       - run: parison run-suite --plan examples/0.10/mixed-suite.json --output ${{ runner.temp }}/parison-suite-smoke
       - run: parison verify ${{ runner.temp }}/parison-suite-smoke
       - run: parison inspect ${{ runner.temp }}/parison-suite-smoke
+      - run: parison validate-suite examples/0.14/backfill-suite.json
+      - run: parison run-suite --plan examples/0.14/backfill-suite.json --output ${{ runner.temp }}/parison-0.14-suite
+      - run: parison verify ${{ runner.temp }}/parison-0.14-suite
+      - run: python benchmarks/generate_spill_cases.py --output ${{ runner.temp }}/parison-spill-bench --rows 1000
+      - run: python benchmarks/run_spill_cases.py --repeats 1 ${{ runner.temp }}/parison-spill-bench/multiset-1000
       - run: python -m unittest discover -s tests -v

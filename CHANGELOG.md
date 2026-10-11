@@ -4,6 +4,19 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.14.0 - 2026-10-11
+
+### Added
+
+- An explicit SQLite-backed multiset engine with canonical typed equality, deterministic evidence, a hard database-size ceiling and private-workspace cleanup.
+- Suite-v2 execution policy for disk-backed multiset cases, plus a synthetic warehouse-backfill workflow combining aggregate conservation and exact occurrence matching.
+- Reproducible cross-engine benchmarks recording accuracy, elapsed time, Python allocation, process peak RSS and SQLite storage.
+
+### Fixed
+
+- SQLite ERROR and INTERRUPTED bundles retain the selected engine and temporary-storage ceiling.
+- Suite interruption contains disposable spill state inside the suite staging area or explicit workspace.
+
 ## 0.13.0 - 2026-10-11
 
 ### Added

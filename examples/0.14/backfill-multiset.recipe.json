@@ -1,0 +1,17 @@
+{
+  "recipe_version": 3,
+  "comparison_mode": "multiset",
+  "scope": {
+    "snapshot": "synthetic-backfill-cutoff-2026-10-11",
+    "cutoff": "2026-10-11T00:00:00Z",
+    "filters": [],
+    "completeness": "full",
+    "expected_empty": false
+  },
+  "columns": {
+    "order_id": {"type": "string"},
+    "region": {"type": "string"},
+    "amount": {"type": "decimal", "scale": 2}
+  },
+  "output": {"sensitivity": "summary"}
+}

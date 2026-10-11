@@ -163,6 +163,32 @@ class SuiteTests(unittest.TestCase):
         child = json.loads((output / "cases" / "orders" / "result.json").read_text(encoding="utf-8"))
         self.assertEqual(child["resource_limits"]["max_rows_per_input"], 1)
 
+    def test_suite_v2_can_select_sqlite_for_a_multiset_case(self):
+        recipe = dict(RECIPE)
+        recipe.pop("keys")
+        recipe.pop("identity")
+        recipe.pop("nulls_equal")
+        recipe.update(recipe_version=3, comparison_mode="multiset")
+        (self.root / "multiset.json").write_text(json.dumps(recipe), encoding="utf-8")
+        case = self.case() | {
+            "recipe": "multiset.json",
+            "execution": {"engine": "sqlite", "max_temp_bytes": 1_000_000},
+        }
+        self.write_plan_v2([case])
+        loaded = load_suite(self.plan)
+        self.assertEqual(loaded["cases"][0]["execution"]["engine"], "sqlite")
+        output = self.root / "sqlite-suite"
+        run_suite(self.plan, output)
+        child = json.loads((output / "cases" / "orders" / "result.json").read_text(encoding="utf-8"))
+        self.assertEqual(child["runtime"]["execution_engine"], "sqlite")
+        self.assertEqual(child["resource_limits"]["max_temp_bytes"], 1_000_000)
+        self.assertFalse(any(path.name.startswith("parison-spill-") for path in output.rglob("*")))
+        verify_bundle(output)
+
+        self.write_plan_v2([self.case() | {"execution": {"engine": "sqlite"}}])
+        with self.assertRaisesRegex(ParisonError, "requires a multiset"):
+            load_suite(self.plan)
+
     def test_concurrent_suite_matches_sequential_semantics_and_plan_order(self):
         passing = self.case("first")
         failing = self.case("second") | {"candidate": "different.csv"}

@@ -2,13 +2,17 @@ import json
 import hashlib
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from decimal import Decimal
 from datetime import date, datetime, timezone
+from unittest.mock import patch
+from io import StringIO
 
 from jsonschema import Draft202012Validator
 
 from parison.core import ParisonError, _multiset_encoding, compare, error_result, export_evidence, explain_recipe, inspect_bundle, load_recipe, load_schema, publish, validate_inputs, verify_bundle
+from parison.cli import main
 
 
 RECIPE = {
@@ -184,6 +188,78 @@ class MultisetRecipeTests(unittest.TestCase):
         right.write_text("area,amount\nb,2.01\nc,3.01\na,1.00\n", encoding="utf-8")
         second = compare(self.path, left, right, sample_limit=2)
         self.assertEqual(first["discrepancy_sample"], second["discrepancy_sample"])
+
+    def test_sqlite_engine_matches_memory_and_cleans_private_workspace(self):
+        recipe = json.loads(json.dumps(RECIPE))
+        recipe["output"]["sensitivity"] = "raw"
+        self.path.write_text(json.dumps(recipe), encoding="utf-8")
+        left = Path(self.tmp.name) / "left.csv"
+        right = Path(self.tmp.name) / "right.csv"
+        spill = Path(self.tmp.name) / "spill"
+        spill.mkdir()
+        left.write_text("region,amount\nb,2.00\na,1.00\na,1.00\n", encoding="utf-8")
+        right.write_text("area,amount\nc,3.00\na,1.00\n", encoding="utf-8")
+
+        memory = compare(self.path, left, right, sample_limit=10)
+        sqlite_result = compare(
+            self.path, left, right, sample_limit=10, engine="sqlite",
+            max_temp_bytes=1_000_000, temp_directory=spill,
+        )
+
+        self.assertEqual(sqlite_result["outcome"], memory["outcome"])
+        self.assertEqual(sqlite_result["counts"], memory["counts"])
+        self.assertEqual(sqlite_result["discrepancy_count"], memory["discrepancy_count"])
+        self.assertEqual(sqlite_result["discrepancy_sample"], memory["discrepancy_sample"])
+        self.assertEqual(sqlite_result["runtime"]["execution_engine"], "sqlite")
+        self.assertGreater(sqlite_result["runtime"]["temporary_bytes"], 0)
+        self.assertEqual(memory["runtime"]["execution_engine"], "memory")
+        self.assertEqual(sqlite_result["resource_limits"]["max_temp_bytes"], 1_000_000)
+        self.assertEqual(list(spill.iterdir()), [])
+
+    def test_sqlite_engine_limits_and_mode_are_explicit(self):
+        left = Path(self.tmp.name) / "left.csv"
+        right = Path(self.tmp.name) / "right.csv"
+        left.write_text("region,amount\na,1.00\n", encoding="utf-8")
+        right.write_text("area,amount\na,1.00\n", encoding="utf-8")
+        spill = Path(self.tmp.name) / "spill"
+        spill.mkdir()
+        with self.assertRaisesRegex(ParisonError, "temporary storage limit"):
+            compare(self.path, left, right, engine="sqlite", max_temp_bytes=1, temp_directory=spill)
+        self.assertEqual(list(spill.iterdir()), [])
+        with self.assertRaisesRegex(ParisonError, "temp_directory requires"):
+            compare(self.path, left, right, temp_directory=spill)
+
+        keyed = json.loads(json.dumps(RECIPE))
+        keyed.update(recipe_version=1, comparison_mode="keyed", keys=["region"], identity={"null_keys": "reject", "duplicates": "reject"}, nulls_equal=True)
+        keyed.pop("column_mappings")
+        keyed_path = Path(self.tmp.name) / "keyed.json"
+        keyed_path.write_text(json.dumps(keyed), encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "only multiset"):
+            compare(keyed_path, left, left, engine="sqlite")
+
+    def test_sqlite_engine_cleans_workspace_when_interrupted(self):
+        source = Path(self.tmp.name) / "rows.csv"
+        source.write_text("region,amount\na,1.00\n", encoding="utf-8")
+        spill = Path(self.tmp.name) / "spill"
+        spill.mkdir()
+        with patch("parison.core._iter_input_rows", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+            compare(self.path, source, source, engine="sqlite", temp_directory=spill)
+        self.assertEqual(list(spill.iterdir()), [])
+
+    def test_sqlite_cli_error_bundle_records_engine_and_limit(self):
+        source = Path(self.tmp.name) / "rows.csv"
+        source.write_text("region,amount\na,1.00\n", encoding="utf-8")
+        output = Path(self.tmp.name) / "error-run"
+        with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+            code = main([
+                "compare", "--recipe", str(self.path), "--baseline", str(source), "--candidate", str(source),
+                "--engine", "sqlite", "--max-temp-bytes", "1", "--output", str(output),
+            ])
+        self.assertEqual(code, 2)
+        result = json.loads((output / "result.json").read_text(encoding="utf-8"))
+        self.assertEqual(result["runtime"]["execution_engine"], "sqlite")
+        self.assertEqual(result["resource_limits"]["max_temp_bytes"], 1)
+        self.assertEqual(verify_bundle(output)["outcome"], "ERROR")
 
 
 if __name__ == "__main__":

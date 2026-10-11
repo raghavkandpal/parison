@@ -1,0 +1,52 @@
+{
+  "cases": [
+    {
+      "case": "multiset-10000",
+      "distinct_rows": 10000,
+      "engines": {
+        "memory": {
+          "median_elapsed_seconds": 0.513105,
+          "median_peak_python_bytes": 9573622,
+          "median_peak_rss_bytes": 51134464,
+          "median_temporary_bytes": 0
+        },
+        "sqlite": {
+          "median_elapsed_seconds": 1.574517,
+          "median_peak_python_bytes": 1596073,
+          "median_peak_rss_bytes": 34095104,
+          "median_temporary_bytes": 4849664
+        }
+      },
+      "outcome": "PASS",
+      "rows": 10000
+    },
+    {
+      "case": "multiset-100000",
+      "distinct_rows": 100000,
+      "engines": {
+        "memory": {
+          "median_elapsed_seconds": 5.441608,
+          "median_peak_python_bytes": 97843819,
+          "median_peak_rss_bytes": 275300352,
+          "median_temporary_bytes": 0
+        },
+        "sqlite": {
+          "median_elapsed_seconds": 16.548538,
+          "median_peak_python_bytes": 2245765,
+          "median_peak_rss_bytes": 35749888,
+          "median_temporary_bytes": 34705408
+        }
+      },
+      "outcome": "PASS",
+      "rows": 100000
+    }
+  ],
+  "environment": {
+    "date": "2026-10-11",
+    "machine": "arm64",
+    "measurement": "median of fresh subprocess runs after one warm-up; accuracy checked; machine-specific, not a supported scale claim",
+    "parison": "0.13.0",
+    "platform": "Darwin",
+    "python": "3.12.5"
+  }
+}
