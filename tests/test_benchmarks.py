@@ -16,7 +16,7 @@ class GeneratedBenchmarks(unittest.TestCase):
         result = measure_suite_scale(Path(__file__).parents[1], 2, 2)
         self.assertEqual(result["accuracy"], "verified")
         self.assertEqual(result["cases"], 2)
-        for name in ("clean_seconds", "sequential_shard_execution_seconds", "assembly_seconds", "resume_seconds"):
+        for name in ("clean_seconds", "jobs_2_seconds", "jobs_4_seconds", "sequential_shard_execution_seconds", "assembly_seconds", "resume_seconds"):
             self.assertGreater(result[name], 0)
 
     def test_generated_accuracy_oracle_matches_engine(self):

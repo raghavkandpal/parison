@@ -1,18 +1,46 @@
 import hashlib
 import json
 import os
+import signal
 import tempfile
+import time
 import unittest
 import xml.etree.ElementTree as ET
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
+from multiprocessing.connection import wait as process_wait
 from pathlib import Path
 from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, assemble_suite, explain_recipe, export_evidence, inspect_bundle, list_suite, load_schema, load_suite, report_ci, run_suite, verify_bundle
+from parison.core import ParisonError, _execute_suite_case, assemble_suite, explain_recipe, export_evidence, inspect_bundle, list_suite, load_schema, load_suite, report_ci, run_suite, verify_bundle
+
+
+def _crashing_suite_worker(case, *args):
+    if case["id"] == "broken":
+        os._exit(17)
+    return _execute_suite_case(case, *args)
+
+
+def _raising_suite_worker(case, *args):
+    if case["id"] == "broken":
+        raise RuntimeError("source-value-must-not-leak")
+    return _execute_suite_case(case, *args)
+
+
+def _slow_suite_worker(case, *args):
+    if case["id"] != "first":
+        time.sleep(30)
+    return _execute_suite_case(case, *args)
+
+
+def _stubborn_suite_worker(case, *args):
+    (Path(case["recipe"]).parent / f".{case['id']}.started").touch()
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    time.sleep(30)
+    return _execute_suite_case(case, *args)
 
 
 RECIPE = {
@@ -135,6 +163,96 @@ class SuiteTests(unittest.TestCase):
         child = json.loads((output / "cases" / "orders" / "result.json").read_text(encoding="utf-8"))
         self.assertEqual(child["resource_limits"]["max_rows_per_input"], 1)
 
+    def test_concurrent_suite_matches_sequential_semantics_and_plan_order(self):
+        passing = self.case("first")
+        failing = self.case("second") | {"candidate": "different.csv"}
+        self.write_plan_v2([passing, failing, self.case("third")])
+        sequential = run_suite(self.plan, self.root / "sequential")
+        concurrent = run_suite(self.plan, self.root / "concurrent", jobs=2)
+        self.assertEqual(concurrent["outcome"], sequential["outcome"])
+        self.assertEqual(concurrent["outcome_counts"], sequential["outcome_counts"])
+        self.assertEqual([case["id"] for case in concurrent["cases"]], ["first", "second", "third"])
+        self.assertEqual([case["outcome"] for case in concurrent["cases"]], ["PASS", "FAIL", "PASS"])
+        self.assertEqual(verify_bundle(self.root / "concurrent")["kind"], "suite")
+
+    def test_concurrent_suite_validates_job_bound_and_cli(self):
+        self.write_plan_v2([self.case("first"), self.case("second")])
+        with self.assertRaisesRegex(ParisonError, "jobs must be between 1 and 16"):
+            run_suite(self.plan, self.root / "invalid", jobs=0)
+        stdout = StringIO()
+        with redirect_stdout(stdout), redirect_stderr(StringIO()):
+            self.assertEqual(main(["run-suite", "--plan", str(self.plan), "--output", str(self.root / "cli-concurrent"), "--jobs", "2"]), 0)
+        self.assertEqual(json.loads(stdout.getvalue())["cases"], 2)
+
+    def test_concurrent_worker_failure_is_explicit_and_does_not_cancel_other_cases(self):
+        self.write_plan_v2([self.case("broken"), self.case("passing")])
+        with patch("parison.core._execute_suite_case", _raising_suite_worker):
+            result = run_suite(self.plan, self.root / "worker-failure", jobs=2)
+        self.assertEqual(result["outcome"], "ERROR")
+        self.assertEqual([case["outcome"] for case in result["cases"]], ["ERROR", "PASS"])
+        child = json.loads((self.root / "worker-failure" / "cases" / "broken" / "result.json").read_text(encoding="utf-8"))
+        self.assertEqual(child["problems"], ["suite worker failed unexpectedly"])
+        self.assertNotIn("source-value-must-not-leak", json.dumps(child))
+        self.assertEqual(verify_bundle(self.root / "worker-failure")["outcome"], "ERROR")
+
+    def test_abrupt_worker_process_death_publishes_verifiable_evidence(self):
+        self.write_plan_v2([self.case("broken"), self.case("other")])
+        output = self.root / "abrupt-worker-death"
+        with patch("parison.core._execute_suite_case", _crashing_suite_worker):
+            result = run_suite(self.plan, output, jobs=2)
+        self.assertEqual(result["outcome"], "ERROR")
+        self.assertEqual(result["completed_cases"], 2)
+        self.assertEqual(result["cases"][0]["outcome"], "ERROR")
+        self.assertIn(result["cases"][1]["outcome"], {"PASS", "ERROR"})
+        self.assertEqual(verify_bundle(output)["outcome"], "ERROR")
+        for identifier in ("broken", "other"):
+            verify_bundle(output / "cases" / identifier)
+
+    def test_concurrent_interruption_checkpoints_completed_workspace_children(self):
+        self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])
+        workspace = self.root / "interrupted-workspace"
+        def interrupt_after_checkpoint(readers, timeout):
+            if (workspace / "checkpoints" / "first.json").exists():
+                raise KeyboardInterrupt
+            return process_wait(readers, timeout)
+
+        started = time.monotonic()
+        with (
+            patch("parison.core._execute_suite_case", _slow_suite_worker),
+            patch("parison.core.wait", interrupt_after_checkpoint),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            run_suite(self.plan, self.root / "interrupted-output", workspace=workspace, jobs=2)
+        self.assertLess(time.monotonic() - started, 6)
+        self.assertFalse((self.root / "interrupted-output").exists())
+        self.assertEqual([path.stem for path in (workspace / "checkpoints").glob("*.json")], ["first"])
+        self.assertEqual([path.name for path in (workspace / "cases").iterdir()], ["first"])
+        resumed = run_suite(self.plan, self.root / "resumed-after-interrupt", workspace=workspace, resume=True, jobs=2)
+        self.assertEqual(resumed["outcome"], "PASS")
+        self.assertEqual(verify_bundle(self.root / "resumed-after-interrupt")["kind"], "suite")
+
+    def test_concurrent_interruption_kills_stubborn_workers_without_admitting_waiting_case(self):
+        self.write_plan_v2([self.case("first"), self.case("second"), self.case("waiting")])
+        markers = [self.root / f".{identifier}.started" for identifier in ("first", "second")]
+
+        def interrupt_when_running(readers, timeout):
+            if all(marker.exists() for marker in markers):
+                raise KeyboardInterrupt
+            return process_wait(readers, timeout)
+
+        started = time.monotonic()
+        with (
+            patch("parison.core._execute_suite_case", _stubborn_suite_worker),
+            patch("parison.core.wait", interrupt_when_running),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            run_suite(self.plan, self.root / "stubborn-output", jobs=2)
+        self.assertLess(time.monotonic() - started, 6)
+        self.assertTrue(all(marker.exists() for marker in markers))
+        self.assertFalse((self.root / ".waiting.started").exists())
+        self.assertFalse((self.root / "stubborn-output").exists())
+        self.assertFalse(any(path.name.startswith(".stubborn-output-") for path in self.root.iterdir()))
+
     def test_assemble_suite_proves_exact_coverage_and_plan_order(self):
         self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])
         shard_0, shard_1 = self.root / "shard-0", self.root / "shard-1"
@@ -185,6 +303,22 @@ class SuiteTests(unittest.TestCase):
             changed = run_suite(self.plan, self.root / "changed", workspace=workspace, resume=True)
         self.assertEqual(calls, 2)
         self.assertEqual(changed["outcome"], "FAIL")
+
+    def test_concurrent_resume_reuses_verified_children(self):
+        self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])
+        workspace = self.root / "concurrent-workspace"
+        run_suite(self.plan, self.root / "concurrent-initial", workspace=workspace, jobs=2)
+        manifests = {
+            case: (workspace / "cases" / case / "manifest.json").stat().st_mtime_ns
+            for case in ("first", "second", "third")
+        }
+        result = run_suite(self.plan, self.root / "concurrent-resumed", workspace=workspace, resume=True, jobs=3)
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(
+            manifests,
+            {case: (workspace / "cases" / case / "manifest.json").stat().st_mtime_ns for case in manifests},
+        )
+        self.assertEqual(verify_bundle(self.root / "concurrent-resumed")["kind"], "suite")
 
     def test_resume_rejects_implicit_or_unsafe_workspace(self):
         self.write_plan_v2([self.case()])

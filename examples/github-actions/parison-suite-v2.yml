@@ -7,6 +7,19 @@ permissions:
   contents: read
 
 jobs:
+  local-concurrent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: python -m pip install '.[parquet]'
+      - run: >-
+          parison run-suite --plan examples/0.11/scalable-suite.json
+          --jobs 2 --output ${{ runner.temp }}/parison-local-suite
+      - run: parison verify ${{ runner.temp }}/parison-local-suite
+
   shard:
     runs-on: ubuntu-latest
     strategy:

@@ -4,6 +4,18 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.12.0 - 2026-10-11
+
+### Added
+
+- Bounded local suite concurrency through `run-suite --jobs N`, using cross-platform spawned workers and deterministic plan-order reduction.
+- Concurrent workspace resume, a local-concurrency GitHub Actions example, and verified tiny-fixture plus mixed-mode 100k-row performance/memory evidence.
+
+### Fixed
+
+- Unexpected or abruptly terminated suite workers now produce verifiable summary-safe ERROR evidence without disclosing arbitrary exception text.
+- Interrupted concurrent runs stop admission, terminate the active worker set within a fixed shutdown bound, remove incomplete scratch, and checkpoint every completed verified workspace child before returning exit 130.
+
 ## 0.11.0 - 2026-10-10
 
 ### Added

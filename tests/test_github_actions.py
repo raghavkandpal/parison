@@ -17,6 +17,8 @@ SUITE_WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "pa
 class GitHubActionsReference(unittest.TestCase):
     def test_suite_reference_shards_then_verifies_assembly(self):
         workflow = SUITE_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("local-concurrent:", workflow)
+        self.assertIn("--jobs 2", workflow)
         self.assertIn("matrix:\n        shard: [0, 1]", workflow)
         self.assertIn("fail-fast: false", workflow)
         self.assertLess(workflow.index("run-suite"), workflow.index("upload-artifact@v6"))

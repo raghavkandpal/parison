@@ -6,7 +6,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 ## Project status
 
-**0.11.0 released.** This release makes mixed-mode suites scalable through deterministic selection and sharding, exact verified assembly, conservative resume workspaces, per-case limits and safe CI reports.
+**0.12.0 release candidate.** Parison can run independent suite cases concurrently with an explicit local worker bound while preserving deterministic results, conservative resume, isolated failure evidence and bounded interruption.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -16,7 +16,7 @@ Python 3.11 or newer is required.
 
 ```sh
 python -m pip install \
-  https://github.com/raghavkandpal/parison/releases/download/0.11.0/parison-0.11.0-py3-none-any.whl
+  https://github.com/raghavkandpal/parison/releases/download/0.12.0/parison-0.12.0-py3-none-any.whl
 parison --version
 parison validate-recipe examples/orders.recipe.json
 parison validate-inputs --recipe examples/orders.recipe.json \
@@ -38,7 +38,7 @@ Recipes can map renamed source columns to one canonical field. Keys, policies, c
 
 A generated PASS bundle is checked in under [`examples/output`](examples/output), containing [`result.json`](examples/output/result.json), [`effective-recipe.json`](examples/output/effective-recipe.json), [`report.html`](examples/output/report.html), and [`manifest.json`](examples/output/manifest.json). It is summary-only and contains no source keys or raw values.
 
-To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/0.11.0/parison-0.11.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md) and read-only [SQLite table](docs/0.2/24-sqlite-contract.md) inputs are also supported, including mixed-format comparisons. Recipes are strict JSON; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars versions without recording hostnames.
+To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/0.12.0/parison-0.12.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md) and read-only [SQLite table](docs/0.2/24-sqlite-contract.md) inputs are also supported, including mixed-format comparisons. Recipes are strict JSON; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars versions without recording hostnames.
 
 A baseline or candidate may also be a directory of same-format CSV, TSV, JSON Lines or Parquet files. Parison treats its immediate files as one logical input and enforces limits, schemas and identity across partitions. See the [partitioned-input contract](docs/0.3/30-partitioned-input-contract.md).
 
@@ -63,6 +63,8 @@ Multiset-v1 execution uses recipe v3 files for exact keyless comparison where du
 `parison validate-suite PLAN` validates an ordered migration-level plan, and `parison run-suite --plan PLAN --output DIRECTORY` runs its keyed, aggregate and multiset cases sequentially into one atomic parent bundle. `verify` recursively checks every child; `inspect` reports safe suite metadata. See the [suite user guide](docs/0.10/79-suite-user-guide.md) and [suite-v1 contract](docs/0.10/78-suite-contract.md).
 
 Suite-v2 plans add tags, deterministic case selection and per-case limits. `run-suite` can publish independently verifiable external shards; `assemble-suite` requires exact non-overlapping coverage and restores plan order. Explicit workspaces support digest-validated `--resume`, while `report-ci` exports bounded Markdown or JUnit-style summaries from verified bundles. See the [scalable suite guide](docs/0.11/85-user-guide.md) and [suite-v2 contract](docs/0.11/84-scalable-suite-contract.md).
+
+Parison 0.12 can execute independent local suite cases with `run-suite --jobs N`, where `N` is between 1 and 16. Workers use isolated child destinations and final suite results remain in declared plan order. Existing resource limits apply to each active case, so peak resource use can approach `N` times one case; `--jobs 1` remains the default. Interruption stops new admission, bounds worker shutdown and preserves only verified children for explicit resume. See the [concurrency guide](docs/0.12/92-user-guide.md) and [frozen contract](docs/0.12/90-concurrency-contract.md).
 
 `output.sensitivity` defaults to `summary`, which stores no source keys or values. Set it explicitly to `raw` to include a bounded discrepancy sample, and protect that output as sensitive data. `--sample-limit` controls the maximum number of raw field differences written. Comparison errors also publish a summary-only diagnostic bundle when the output destination is available.
 
@@ -111,13 +113,18 @@ The first recorded 10k/100k/250k accuracy and performance run is in [`benchmarks
 
 Suite-v2 orchestration can be measured with `python benchmarks/run_suite_cases.py`. The first accuracy-verified 10-, 25- and 100-case clean, sequential-shard, assembly and resume measurements are recorded in [`benchmarks/results-2026-10-10-suite-v2.json`](benchmarks/results-2026-10-10-suite-v2.json). They measure local orchestration overhead, not external parallel speedup or a supported performance guarantee.
 
+The 0.12 harness also measures local `--jobs 2` and `--jobs 4` execution. The first [accuracy-verified concurrency result](benchmarks/results-2026-10-10-suite-concurrency.json) is intentionally based on tiny fixtures: process startup made both concurrent variants slower than `--jobs 1`. It is overhead evidence, not a throughput claim; representative CPU-heavy measurements are still required before release.
+
+A subsequent [mixed-mode 100k-row measurement](benchmarks/results-2026-10-10-suite-concurrency-mixed-100k.json) ran three keyed, three aggregate, and three multiset cases. All bundles verified with equivalent ordered outcomes. Jobs 1, 2, and 4 took 17.278s, 10.288s, and 6.384s while sampled aggregate process-tree RSS rose from about 264 MiB to 572 MiB and 1.0 GiB respectively. This is machine-specific evidence, not a performance or memory guarantee.
+
 ## Documentation
 
 Start with the [documentation index](docs/README.md).
 
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
-- Latest release: [0.11 roadmap and record](docs/0.11/83-roadmap.md)
+- Latest release candidate: [0.12 roadmap and record](docs/0.12/89-roadmap.md)
+- Next release: [0.12 bounded local concurrency roadmap](docs/0.12/89-roadmap.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
 - Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)
 - Safety model: [0.1 security and data handling](docs/0.1/07-security-and-data-handling.md)
