@@ -1,7 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/raghavkandpal/parison/schemas/suite-v1.schema.json",
+  "$id": "https://raw.githubusercontent.com/raghavkandpal/parison/main/src/parison/schemas/suite-v1.schema.json",
   "title": "Parison comparison suite v1",
+  "description": "An ordered local plan of independently verifiable Parison comparisons.",
   "type": "object",
   "additionalProperties": false,
   "required": ["suite_version", "cases"],

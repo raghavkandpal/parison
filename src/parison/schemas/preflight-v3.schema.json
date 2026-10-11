@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/raghavkandpal/parison/schemas/preflight-v3.schema.json",
+  "$id": "https://raw.githubusercontent.com/raghavkandpal/parison/main/src/parison/schemas/preflight-v3.schema.json",
   "title": "Parison multiset preflight result v3",
   "type": "object", "additionalProperties": false,
   "required": ["schema_version", "status", "comparison_mode", "max_distinct_rows", "canonical_columns", "policy_sha256", "inputs"],

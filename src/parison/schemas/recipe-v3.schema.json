@@ -1,7 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/raghavkandpal/parison/schemas/recipe-v3.schema.json",
+  "$id": "https://raw.githubusercontent.com/raghavkandpal/parison/main/src/parison/schemas/recipe-v3.schema.json",
   "title": "Parison multiset recipe v3",
+  "description": "A strict keyless comparison policy where complete canonical rows and duplicate occurrence counts matter.",
   "type": "object",
   "additionalProperties": false,
   "required": ["recipe_version", "comparison_mode", "scope", "columns"],
@@ -27,7 +28,7 @@
         "candidate": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
       }
     },
-    "columns": {"type": "object", "minProperties": 1, "propertyNames": {"minLength": 1}, "additionalProperties": {"$ref": "#/$defs/column"}},
+    "columns": {"description": "Canonical columns that together define each complete multiset row.", "type": "object", "minProperties": 1, "propertyNames": {"minLength": 1}, "additionalProperties": {"$ref": "#/$defs/column"}},
     "column_mappings": {
       "type": "object",
       "additionalProperties": {

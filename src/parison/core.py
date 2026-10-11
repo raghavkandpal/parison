@@ -35,6 +35,7 @@ _NORMALIZATIONS = {"trim", "casefold", "unicode_nfc"}
 _RAW_VALUE = object()
 _FILE_FORMATS = {".csv": "csv", ".tsv": "tsv", ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".pq": "parquet"}
 _SCHEMAS = {
+    "recipe-authoring": "recipe-authoring.schema.json",
     "recipe": "recipe-v1.schema.json",
     "recipe-v2": "recipe-v2.schema.json",
     "recipe-v3": "recipe-v3.schema.json",
@@ -46,6 +47,7 @@ _SCHEMAS = {
     "preflight-v2": "preflight-v2.schema.json",
     "preflight-v3": "preflight-v3.schema.json",
     "suite": "suite-v1.schema.json",
+    "suite-authoring": "suite-authoring.schema.json",
     "suite-v2": "suite-v2.schema.json",
     "suite-result": "suite-result-v1.schema.json",
     "suite-result-v2": "suite-result-v2.schema.json",
