@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .catalog import add as catalog_add, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
+from .catalog import add as catalog_add, diff as catalog_diff, history as catalog_history, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
 from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
 
 
@@ -148,6 +148,13 @@ operator and null policy. Suggestions are starting points, not approved policy."
     catalog_show_parser = catalog_commands.add_parser("show", help="show one indexed bundle by path")
     catalog_show_parser.add_argument("bundle")
     catalog_show_parser.add_argument("--database", required=True)
+    catalog_history_parser = catalog_commands.add_parser("history", help="show insertion-ordered runs and transitions for one policy")
+    catalog_history_parser.add_argument("--database", required=True)
+    catalog_history_parser.add_argument("--policy-sha256", required=True)
+    catalog_diff_parser = catalog_commands.add_parser("diff", help="compare safe projections of two same-policy runs")
+    catalog_diff_parser.add_argument("left_bundle")
+    catalog_diff_parser.add_argument("right_bundle")
+    catalog_diff_parser.add_argument("--database", required=True)
     catalog_remove_parser = catalog_commands.add_parser("remove", help="remove an indexed path without deleting its bundle")
     catalog_remove_parser.add_argument("bundle")
     catalog_remove_parser.add_argument("--database", required=True)
@@ -200,6 +207,10 @@ def main(argv: list[str] | None = None) -> int:
                 )}
             elif args.catalog_command == "show":
                 result = catalog_show(args.database, args.bundle)
+            elif args.catalog_command == "history":
+                result = catalog_history(args.database, args.policy_sha256)
+            elif args.catalog_command == "diff":
+                result = catalog_diff(args.database, args.left_bundle, args.right_bundle)
             else:
                 result = catalog_remove(args.database, args.bundle)
             print(json.dumps(result, indent=2, sort_keys=True))

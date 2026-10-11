@@ -2679,6 +2679,10 @@ def inspect_bundle(directory: str | Path) -> dict[str, Any]:
         "discrepancy_sample_limit": result.get("discrepancy_sample_limit", 0),
         "problems": result.get("problems", []),
         "resource_limits": result.get("resource_limits", {}),
+        "input_sha256": {
+            side: metadata.get("sha256") for side, metadata in result.get("inputs", {}).items()
+            if metadata.get("sha256") is not None
+        },
         "policy_sha256": result.get("policy_sha256"),
         "bundle_sha256": _digest(Path(directory) / "manifest.json"),
         "manifest_files": sorted(manifest.get("files", {})),

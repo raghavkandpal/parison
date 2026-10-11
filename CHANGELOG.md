@@ -4,6 +4,12 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Policy-locked catalog history with deterministic insertion order and explicit outcome and discrepancy-count transitions.
+- Safe catalog diff for two ordinary run bundles with matching effective-policy fingerprints.
+- Baseline and candidate content digests in verified safe run inspection metadata.
+
 ## 0.14.0 - 2026-10-11
 
 ### Added

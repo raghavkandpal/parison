@@ -87,7 +87,13 @@ def _state(path: str, expected_digest: str) -> str:
     return "current" if current["bundle_sha256"] == expected_digest else "modified"
 
 
-def _entries(database: str | Path, outcome: str | None = None, kind: str | None = None) -> list[dict[str, Any]]:
+def _entries(
+    database: str | Path,
+    outcome: str | None = None,
+    kind: str | None = None,
+    *,
+    insertion_order: bool = False,
+) -> list[dict[str, Any]]:
     clauses, parameters = [], []
     if outcome is not None:
         clauses.append("outcome = ?")
@@ -95,10 +101,10 @@ def _entries(database: str | Path, outcome: str | None = None, kind: str | None 
     if kind is not None:
         clauses.append("kind = ?")
         parameters.append(kind)
-    query = "SELECT path, bundle_sha256, kind, outcome, metadata FROM runs"
+    query = "SELECT rowid, path, bundle_sha256, kind, outcome, metadata FROM runs"
     if clauses:
         query += " WHERE " + " AND ".join(clauses)
-    query += " ORDER BY path"
+    query += " ORDER BY rowid, path" if insertion_order else " ORDER BY path"
     try:
         with closing(_open(database)) as connection:
             rows = connection.execute(query, parameters).fetchall()
@@ -108,6 +114,7 @@ def _entries(database: str | Path, outcome: str | None = None, kind: str | None 
     try:
         return [
             {
+                "catalog_order": rowid,
                 "path": path,
                 "bundle_sha256": digest,
                 "kind": row_kind,
@@ -116,7 +123,7 @@ def _entries(database: str | Path, outcome: str | None = None, kind: str | None 
                 "duplicate_paths": duplicates[digest],
                 "metadata": json.loads(metadata),
             }
-            for path, digest, row_kind, row_outcome, metadata in rows
+            for rowid, path, digest, row_kind, row_outcome, metadata in rows
         ]
     except (json.JSONDecodeError, TypeError) as exc:
         raise ParisonError(f"catalog contains invalid metadata: {exc}") from exc
@@ -148,7 +155,70 @@ def list_runs(
         entries = [entry for entry in entries if _policy_matches(entry["metadata"], policy_sha256)]
     if state is not None:
         entries = [entry for entry in entries if entry["state"] == state]
-    return [{name: value for name, value in entry.items() if name != "metadata"} for entry in entries]
+    return [{name: value for name, value in entry.items() if name not in {"metadata", "catalog_order"}} for entry in entries]
+
+
+def history(database: str | Path, policy_sha256: str) -> dict[str, Any]:
+    """Return insertion-ordered safe run summaries and outcome transitions for one policy."""
+    if len(policy_sha256) != 64 or any(character not in "0123456789abcdef" for character in policy_sha256):
+        raise ParisonError("catalog policy filter must be a lowercase SHA-256 digest")
+    entries = [
+        entry for entry in _entries(database, kind="run", insertion_order=True)
+        if entry["metadata"].get("policy_sha256") == policy_sha256
+    ]
+    runs = [
+        {
+            "catalog_order": entry["catalog_order"],
+            "path": entry["path"],
+            "bundle_sha256": entry["bundle_sha256"],
+            "state": entry["state"],
+            **{name: entry["metadata"].get(name) for name in (
+                "outcome", "complete", "counts", "discrepancy_count", "runtime", "resource_limits", "input_sha256",
+            )},
+        }
+        for entry in entries
+    ]
+    transitions = [
+        {
+            "from_catalog_order": before["catalog_order"],
+            "to_catalog_order": after["catalog_order"],
+            "outcome": {"before": before["outcome"], "after": after["outcome"]},
+            "discrepancy_count": {
+                "before": before["discrepancy_count"], "after": after["discrepancy_count"],
+                "delta": after["discrepancy_count"] - before["discrepancy_count"],
+            },
+        }
+        for before, after in zip(runs, runs[1:])
+    ]
+    return {"policy_sha256": policy_sha256, "runs": runs, "transitions": transitions}
+
+
+def diff(database: str | Path, left_bundle: str | Path, right_bundle: str | Path) -> dict[str, Any]:
+    """Compare safe stored projections for two run bundles with exactly the same policy."""
+    left, right = show(database, left_bundle), show(database, right_bundle)
+    if left["kind"] != "run" or right["kind"] != "run":
+        raise ParisonError("catalog diff currently supports run bundles only")
+    left_policy = left["metadata"].get("policy_sha256")
+    right_policy = right["metadata"].get("policy_sha256")
+    if not left_policy or left_policy != right_policy:
+        raise ParisonError("catalog diff requires matching policy SHA-256 digests")
+    names = ("outcome", "complete", "counts", "discrepancy_count", "runtime", "resource_limits", "input_sha256")
+
+    def projection(entry: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "path": entry["path"], "bundle_sha256": entry["bundle_sha256"], "state": entry["state"],
+            **{name: entry["metadata"].get(name) for name in names},
+        }
+
+    left_projection, right_projection = projection(left), projection(right)
+    changes = {
+        name: {"before": left_projection[name], "after": right_projection[name]}
+        for name in names if left_projection[name] != right_projection[name]
+    }
+    return {
+        "policy_sha256": left_policy, "changed": bool(changes), "changes": changes,
+        "left": left_projection, "right": right_projection,
+    }
 
 
 def show(database: str | Path, bundle: str | Path) -> dict[str, Any]:
@@ -157,7 +227,7 @@ def show(database: str | Path, bundle: str | Path) -> dict[str, Any]:
     matches = [entry for entry in _entries(database) if entry["path"] == path]
     if not matches:
         raise ParisonError(f"bundle is not in catalog: {path}")
-    return matches[0]
+    return {name: value for name, value in matches[0].items() if name != "catalog_order"}
 
 
 def remove(database: str | Path, bundle: str | Path) -> dict[str, Any]:
