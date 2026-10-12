@@ -70,6 +70,9 @@ class GitHubActionsReference(unittest.TestCase):
         self.assertLess(workflow.index("parison statement"), workflow.index("cosign sign-blob"))
         self.assertLess(workflow.index("cosign verify-blob"), workflow.index("parison verify-statement"))
         self.assertLess(workflow.index("parison verify-statement"), workflow.index("actions/upload-artifact"))
+        acceptance = (Path(__file__).parents[1] / ".github" / "workflows" / "evidence-signing.yml").read_text(encoding="utf-8")
+        for required in ("workflow_dispatch:", "id-token: write", "cosign sign-blob", "cosign verify-blob", "parison verify-statement"):
+            self.assertIn(required, acceptance)
 
     def test_every_ci_outcome_publishes_a_verifiable_bundle(self):
         recipe = {
