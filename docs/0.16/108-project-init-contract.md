@@ -6,7 +6,7 @@ Status: **development contract**
 
 ## Interface
 
-`parison init DIRECTORY` creates one minimal keyed CSV comparison project. `DIRECTORY` may be missing or an existing empty directory. A file or non-empty directory is rejected before any project file is written.
+`parison init DIRECTORY` creates one minimal keyed CSV comparison project. `DIRECTORY` may be missing or an existing empty directory. A file, symlink or non-empty directory is rejected before any project file is written.
 
 Successful JSON output reports the destination exactly as supplied and a sorted file list. Human-readable stderr names the next step. The command performs no input discovery, network access or environment inspection.
 

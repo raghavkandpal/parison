@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -63,6 +64,22 @@ class ProjectInit(unittest.TestCase):
             with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
                 self.assertEqual(main(["init", str(destination)]), 2)
             self.assertEqual(destination.read_text(encoding="utf-8"), "keep me\n")
+
+    def test_init_refuses_directory_symlink(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "target"
+            target.mkdir()
+            link = root / "linked-project"
+            try:
+                os.symlink(target, link, target_is_directory=True)
+            except (OSError, NotImplementedError) as exc:
+                self.skipTest(f"directory symlinks unavailable: {exc}")
+            stderr = StringIO()
+            with redirect_stdout(StringIO()), redirect_stderr(stderr):
+                self.assertEqual(main(["init", str(link)]), 2)
+            self.assertEqual(list(target.iterdir()), [])
+            self.assertIn("must not be a symlink", stderr.getvalue())
 
 
 if __name__ == "__main__":

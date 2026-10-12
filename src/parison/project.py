@@ -49,6 +49,8 @@ until your extraction process provides that guarantee.
 
 def init_project(directory: str | Path) -> list[str]:
     destination = Path(directory)
+    if destination.is_symlink():
+        raise ParisonError(f"project destination must not be a symlink: {destination}")
     if destination.exists():
         if not destination.is_dir():
             raise ParisonError(f"project destination is not a directory: {destination}")

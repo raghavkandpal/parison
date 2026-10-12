@@ -6,7 +6,7 @@ Status: **adoption workflow implemented on `develop`; release review pending**
 
 ## Implemented
 
-- `parison init DIRECTORY` creates a deterministic, runnable keyed migration starter in a missing or empty directory and refuses all overwrite cases.
+- `parison init DIRECTORY` creates a deterministic, runnable keyed migration starter in a missing or empty directory and refuses overwrite and symlink destinations.
 - The starter contains a valid summary-only recipe, synthetic smoke inputs and explicit validate, preflight, compare and verify commands.
 - Failed ordinary comparisons print platform-native verification and inspection commands. Raw-sensitivity failures additionally offer bounded evidence export; summary-only failures do not.
 - Non-passing suite and assembled-suite results point to verification, safe inspection and bounded Markdown CI reporting.
