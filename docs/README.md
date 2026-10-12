@@ -7,6 +7,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Signing and evidence-handoff research](0.17/113-signing-research.md)
 - [0.17 roadmap](0.17/114-roadmap.md)
 - [Evidence Statement contract](0.17/115-statement-contract.md)
+- [Evidence handoff guide](0.17/116-evidence-handoff-guide.md)
 
 ## 0.16 — released
 

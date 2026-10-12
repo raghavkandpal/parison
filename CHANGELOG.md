@@ -4,6 +4,12 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Deterministic unsigned in-toto Statements for verified run, suite and suite-shard bundles, with a strict installed schema and atomic no-overwrite export.
+- Semantic verification that binds an already-authenticated Statement to a recursively verified local bundle without adding cryptography, OIDC or network dependencies.
+- Evidence handoff guidance for identity-constrained detached Cosign signatures and source-owned extraction receipts.
+
 ## 0.16.0 - 2026-10-12
 
 ### Added
