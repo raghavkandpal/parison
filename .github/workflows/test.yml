@@ -43,11 +43,17 @@ jobs:
       - run: parison schema suite-result-v2
       - run: parison schema suite-manifest
       - run: parison schema suite-manifest-v2
+      - run: parison schema statement
       - run: parison export-editor-schemas --output /tmp/parison-editor-schemas
       - run: parison validate-recipe examples/orders.recipe.json
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke
       - run: parison verify /tmp/parison-smoke
+      - name: Exercise evidence handoff
+        run: |
+          parison statement /tmp/parison-smoke --output /tmp/parison-statement.json
+          parison verify-statement /tmp/parison-smoke /tmp/parison-statement.json
+          parison report-cutover /tmp/parison-smoke --output /tmp/parison-cutover.md
       - name: Exercise initialized-project quickstart
         if: matrix.python-version == '3.14'
         run: |
@@ -153,12 +159,18 @@ jobs:
       - run: parison schema recipe
       - run: parison schema recipe-v2
       - run: parison schema recipe-v3
+      - run: parison schema statement
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/0.7/revenue.recipe.json --baseline examples/0.7/baseline.csv --candidate examples/0.7/candidate.jsonl --output ${{ runner.temp }}/parison-aggregate-smoke
       - run: parison schema result-v3
       - run: parison schema preflight-v3
       - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output ${{ runner.temp }}/parison-multiset-smoke
       - run: parison inspect ${{ runner.temp }}/parison-multiset-smoke
+      - name: Exercise evidence handoff
+        run: |
+          parison statement ${{ runner.temp }}/parison-multiset-smoke --output ${{ runner.temp }}/parison-statement.json
+          parison verify-statement ${{ runner.temp }}/parison-multiset-smoke ${{ runner.temp }}/parison-statement.json
+          parison report-cutover ${{ runner.temp }}/parison-multiset-smoke --output ${{ runner.temp }}/parison-cutover.md
       - run: parison validate-suite examples/0.10/mixed-suite.json
       - run: parison run-suite --plan examples/0.10/mixed-suite.json --output ${{ runner.temp }}/parison-suite-smoke
       - run: parison verify ${{ runner.temp }}/parison-suite-smoke
