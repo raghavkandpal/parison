@@ -82,6 +82,8 @@ The synthetic [payout reconciliation starter suite](examples/0.15) layers catego
 
 The [feature-pipeline parity starter suite](examples/0.15/features) combines keyed feature tolerances with exact duplicate-aware checking for a keyless batch, while explicitly excluding statistical drift and model-quality claims.
 
+The [orchestrator integration guide](docs/0.16/110-orchestrator-integration-guide.md) and [tested references](examples/integrations) show how generic CI, dbt, Airflow and Dagster can invoke Parison after coordinated user-owned extraction without giving Parison warehouse credentials.
+
 Parison 0.14 can run multiset-v1 comparison through a bounded disposable SQLite workspace: add `--engine sqlite --max-temp-bytes BYTES`, and optionally select a protected parent with `--temp-directory DIR`. Suite-v2 cases can record the same choice under `execution`. See the [released contract](docs/0.14/96-spill-engine-contract.md); benchmark measurements remain evidence, not a universal scale guarantee.
 
 The first [SQLite-engine benchmark](benchmarks/results-2026-10-11-spill.json) compares fresh processes at 10k and 100k high-cardinality rows. On the recorded 100k case, SQLite traded roughly 3× runtime and 33 MiB of temporary disk for an approximately 87% lower process peak RSS. This is machine-specific evidence, not a supported capacity claim.

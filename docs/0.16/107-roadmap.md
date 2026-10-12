@@ -8,7 +8,7 @@ Parison 0.15 made repeated rehearsal results easier to interpret. Version 0.16 r
 
 ## Planned slices
 
-1. Create a minimal, runnable migration project with `parison init`.
+1. Create a minimal, runnable migration project with `parison init`. **Implemented.**
 2. Improve failed-run terminal guidance with exact safe investigation commands. **Implemented.**
 3. Add tested reference integrations for generic CI, dbt, Airflow and Dagster without making those tools runtime dependencies. **Implemented.**
 4. Prove the documented quickstart from a clean installed wheel. **Implemented in Python 3.14 Linux, macOS and Windows CI lanes.**
