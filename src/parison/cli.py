@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import __version__
 from .catalog import add as catalog_add, diff as catalog_diff, history as catalog_history, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
-from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
+from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, export_statement, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle, verify_statement
 from .project import init_project
 
 
@@ -85,7 +85,7 @@ def parser() -> argparse.ArgumentParser:
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
     explain.add_argument("recipe")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2"))
+    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2", "statement"))
     schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
     schema_export.add_argument("--output", required=True)
     suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
@@ -158,6 +158,12 @@ operator and null policy. Suggestions are starting points, not approved policy."
     verify.add_argument("--json", action="store_true", help="print verified manifest metadata as JSON")
     inspect = commands.add_parser("inspect", help="inspect safe metadata from a verified run bundle")
     inspect.add_argument("run_directory")
+    statement = commands.add_parser("statement", help="export an unsigned in-toto Statement for a verified bundle")
+    statement.add_argument("bundle")
+    statement.add_argument("--output", required=True)
+    statement_verify = commands.add_parser("verify-statement", help="match an authenticated Statement to a verified bundle")
+    statement_verify.add_argument("bundle")
+    statement_verify.add_argument("statement")
     catalog = commands.add_parser("catalog", help="index safe metadata from verified bundles locally")
     catalog_commands = catalog.add_subparsers(dest="catalog_command", required=True)
     catalog_add_parser = catalog_commands.add_parser("add", help="verify and index a bundle")
@@ -226,6 +232,14 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "inspect":
             print(json.dumps(inspect_bundle(args.run_directory), indent=2, sort_keys=True))
+            return 0
+        if args.command == "statement":
+            print(json.dumps(export_statement(args.bundle, args.output), sort_keys=True))
+            print("Exported unsigned Statement; authenticate it with an external signer.", file=sys.stderr)
+            return 0
+        if args.command == "verify-statement":
+            print(json.dumps(verify_statement(args.bundle, args.statement), sort_keys=True))
+            print("Statement semantics match the verified bundle; signature authentication is external.", file=sys.stderr)
             return 0
         if args.command == "catalog":
             if args.catalog_command == "add":
