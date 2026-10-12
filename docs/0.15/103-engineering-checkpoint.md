@@ -2,7 +2,7 @@
 
 Date: 11 October 2026
 
-Status: **release-candidate implementation complete on `develop`**
+Status: **released in 0.15.0 on 12 October 2026**
 
 ## Implemented
 
@@ -18,12 +18,10 @@ Status: **release-candidate implementation complete on `develop`**
 
 - Local dependency-complete suite after review fixes: **208 passed, 6 skipped**. The skips are the expected optional-Polars cases in the non-Parquet environment.
 - Push CI for commits before this checkpoint passed on Python 3.11–3.14, macOS and Windows.
-- The implementation adds no runtime dependency, remote service or catalog schema migration.
+- The implementation adds no runtime dependency or remote service. Catalog schema v1 migrates locally to schema v2 to record durable insertion order.
 
-## Remaining before 0.15 release
+## Release evidence
 
-1. Push the review fixes and require installed-wheel CI on every supported Python and operating-system lane.
-2. Prepare version metadata and the release checklist.
-3. Build from the reviewed commit, verify artifact contents and checksums, and run a clean installed-wheel history/diff workflow.
-
-Do not release from this checkpoint alone. The branch is deliberately left at a coherent, resumable boundary.
+- Pull request [#24](https://github.com/raghavkandpal/parison/pull/24) merged the reviewed candidate as `1fba80e4458bab328b8767dd7df1bcf6649649a4`.
+- The annotated `0.15.0` tag names that merge commit.
+- The public wheel and source archive checksums were verified after download, and the downloaded wheel passed both 0.15 starter suites in a fresh Python 3.12 environment.
