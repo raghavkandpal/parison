@@ -18,10 +18,10 @@ Status: **release candidate**
 
 - [x] Two-axis review against `0.14.0` found three contract gaps and three maintainability concerns; all were fixed and re-reviewed.
 - [x] Post-review local suite: **208 passed, 6 skipped** optional-Polars tests.
-- [ ] Exact candidate passes installed-wheel CI on Python 3.11–3.14, macOS and Windows.
-- [ ] Clean archive build contains only intended files and produces reproducible wheel/source checksums.
-- [ ] A clean environment installs the wheel, reports `parison 0.15.0`, runs two same-policy rehearsals, adds them to a catalog, and exercises history and diff.
-- [ ] Payout and feature-pipeline suites run and recursively verify from the installed wheel.
+- [x] Candidate `8278071` passed [GitHub Actions run 38216124378](https://github.com/raghavkandpal/parison/actions/runs/38216124378) on Python 3.11–3.14, macOS and Windows.
+- [x] A clean `git archive` build contained only intended package/source files. Candidate wheel SHA-256: `2af9a6f539958a9b03cde075d12a47f122144f2fb44e39bc8a9345ad4bd202a2`; source archive: `638acaac229162cedfbe0f6157f445cf3937392adb270aeb5b0b7ec131424906`.
+- [x] A clean Python 3.12 environment installed the wheel, reported `parison 0.15.0`, ran two same-policy rehearsals, added them to a schema-v2 catalog, and exercised unchanged history and diff.
+- [x] Payout and feature-pipeline suites ran to PASS and recursively verified from the installed wheel.
 
 ## Publication
 
