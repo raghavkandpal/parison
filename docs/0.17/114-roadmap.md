@@ -1,6 +1,6 @@
 # Parison 0.17 roadmap
 
-Status: **in progress**
+Status: **release candidate**
 
 ## Theme: evidence handoff
 

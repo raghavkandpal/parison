@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.17.0 - 2026-10-12
+
 ### Added
 
 - Deterministic unsigned in-toto Statements for verified run, suite and suite-shard bundles, with a strict installed schema and atomic no-overwrite export.

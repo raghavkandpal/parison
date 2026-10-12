@@ -14,7 +14,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **0.16.0 released.** Fast project adoption includes a safe, runnable `parison init` workflow, actionable failure guidance and tested external-orchestrator patterns.
 
-**0.17.0 in development.** Evidence handoff adds deterministic unsigned in-toto Statements that existing CI identity systems can authenticate, without adding cryptography, credentials or network access to Parison.
+**0.17.0 release candidate.** Evidence handoff adds deterministic unsigned in-toto Statements that existing CI identity systems can authenticate, without adding cryptography, credentials or network access to Parison.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
