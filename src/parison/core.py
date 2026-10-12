@@ -2724,11 +2724,22 @@ _EVIDENCE_PREDICATE_TYPE = "https://parison.dev/attestations/evidence/v1"
 def evidence_statement(directory: str | Path) -> dict[str, Any]:
     """Build the deterministic unsigned Statement for a verified bundle."""
     directory = Path(directory)
+    manifest_path = directory / "manifest.json"
     manifest = verify_bundle(directory)
+    manifest_digest = _digest(manifest_path)
     is_suite = manifest.get("kind") in {"suite", "suite-shard"}
-    result = json.loads(
-        (directory / ("suite-result.json" if is_suite else "result.json")).read_text(encoding="utf-8")
-    )
+    result_name = "suite-result.json" if is_suite else "result.json"
+    try:
+        result_bytes = (directory / result_name).read_bytes()
+        result = json.loads(result_bytes)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read Statement source result: {exc}") from exc
+    if (
+        hashlib.sha256(result_bytes).hexdigest() != manifest["files"].get(result_name)
+        or _digest(directory / result_name) != manifest["files"].get(result_name)
+        or _digest(manifest_path) != manifest_digest
+    ):
+        raise ParisonError("bundle changed while preparing Statement")
     kind = manifest.get("kind", "run")
     parison_version = result.get("runtime", {}).get("parison_version")
     if not isinstance(parison_version, str) or not parison_version:
@@ -2764,7 +2775,7 @@ def evidence_statement(directory: str | Path) -> dict[str, Any]:
         })
     return {
         "_type": _STATEMENT_TYPE,
-        "subject": [{"name": "manifest.json", "digest": {"sha256": _digest(directory / "manifest.json")}}],
+        "subject": [{"name": "manifest.json", "digest": {"sha256": manifest_digest}}],
         "predicateType": _EVIDENCE_PREDICATE_TYPE,
         "predicate": predicate,
     }

@@ -4,6 +4,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
@@ -94,6 +95,22 @@ class StatementTests(unittest.TestCase):
         duplicate.write_text('{"_type":"first","_type":"second"}', encoding="utf-8")
         with self.assertRaisesRegex(ParisonError, "duplicate JSON field"):
             verify_statement(self.bundle, duplicate)
+
+    def test_statement_rejects_bundle_change_during_projection(self):
+        original = Path.read_bytes
+        changed = False
+
+        def mutate_result(path):
+            nonlocal changed
+            value = original(path)
+            if path.name == "result.json" and not changed:
+                changed = True
+                path.write_text("{}", encoding="utf-8")
+            return value
+
+        with patch.object(Path, "read_bytes", mutate_result):
+            with self.assertRaisesRegex(ParisonError, "changed while preparing Statement"):
+                evidence_statement(self.bundle)
 
     def test_suite_statement_has_suite_policy_and_scope(self):
         plan = self.root / "suite.json"
