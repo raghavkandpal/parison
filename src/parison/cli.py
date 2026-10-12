@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import __version__
 from .catalog import add as catalog_add, diff as catalog_diff, history as catalog_history, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
-from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, export_statement, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle, verify_statement
+from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, export_statement, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, report_cutover, run_suite, terminal_result, validate_inputs, verify_bundle, verify_statement
 from .project import init_project
 
 
@@ -164,6 +164,9 @@ operator and null policy. Suggestions are starting points, not approved policy."
     statement_verify = commands.add_parser("verify-statement", help="match an authenticated Statement to a verified bundle")
     statement_verify.add_argument("bundle")
     statement_verify.add_argument("statement")
+    cutover_report = commands.add_parser("report-cutover", help="export a safe Markdown cover sheet from verified evidence")
+    cutover_report.add_argument("bundle")
+    cutover_report.add_argument("--output", required=True)
     catalog = commands.add_parser("catalog", help="index safe metadata from verified bundles locally")
     catalog_commands = catalog.add_subparsers(dest="catalog_command", required=True)
     catalog_add_parser = catalog_commands.add_parser("add", help="verify and index a bundle")
@@ -240,6 +243,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "verify-statement":
             print(json.dumps(verify_statement(args.bundle, args.statement), sort_keys=True))
             print("Statement semantics match the verified bundle; signature authentication is external.", file=sys.stderr)
+            return 0
+        if args.command == "report-cutover":
+            print(json.dumps(report_cutover(args.bundle, args.output), sort_keys=True))
+            print("Exported verified metadata cover sheet; cutover approval remains external.", file=sys.stderr)
             return 0
         if args.command == "catalog":
             if args.catalog_command == "add":

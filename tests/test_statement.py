@@ -8,7 +8,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, evidence_statement, export_statement, load_schema, run_suite, verify_statement
+from parison.core import ParisonError, evidence_statement, export_statement, load_schema, report_cutover, run_suite, verify_statement
 
 
 RECIPE = {
@@ -118,6 +118,37 @@ class StatementTests(unittest.TestCase):
             self.assertEqual(main(["verify-statement", str(self.bundle), str(output)]), 0)
         self.assertEqual(json.loads(stdout.getvalue())["status"], "valid")
         self.assertIn("signature authentication is external", stderr.getvalue())
+
+    def test_cutover_report_is_safe_deterministic_and_no_overwrite(self):
+        output = self.root / "reports" / "cutover.md"
+        metadata = report_cutover(self.bundle, output)
+        report = output.read_text(encoding="utf-8")
+        self.assertIn("# Parison cutover evidence", report)
+        self.assertIn("| Outcome | PASS |", report)
+        self.assertIn("| Comparison contract | keyed-v1 |", report)
+        self.assertIn(metadata["bundle_sha256"], report)
+        self.assertIn("evidence, not cutover approval", report)
+        self.assertNotIn(str(self.root), report)
+        self.assertNotIn("statement-fixture", report)
+        with self.assertRaisesRegex(ParisonError, "already exists"):
+            report_cutover(self.bundle, output)
+
+    def test_suite_cutover_report_lists_ordered_cases_and_scope(self):
+        plan = self.root / "report-suite.json"
+        plan.write_text(json.dumps({
+            "suite_version": 2,
+            "cases": [{
+                "id": "orders", "recipe": "recipe.json", "baseline": "baseline.csv", "candidate": "candidate.csv",
+            }],
+        }), encoding="utf-8")
+        suite = self.root / "report-suite"
+        run_suite(plan, suite)
+        output = self.root / "suite-cutover.md"
+        report_cutover(suite, output)
+        report = output.read_text(encoding="utf-8")
+        self.assertIn("| Bundle kind | suite |", report)
+        self.assertIn("| Scope complete | true |", report)
+        self.assertIn("| orders | PASS | true |", report)
 
 
 if __name__ == "__main__":

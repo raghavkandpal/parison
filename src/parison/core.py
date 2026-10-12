@@ -2822,6 +2822,83 @@ def verify_statement(directory: str | Path, statement_path: str | Path) -> dict[
     return {"status": "valid", "bundle_sha256": expected["subject"][0]["digest"]["sha256"]}
 
 
+def report_cutover(directory: str | Path, output: str | Path) -> dict[str, Any]:
+    """Write a deterministic safe Markdown cover sheet for verified evidence."""
+    statement = evidence_statement(directory)
+    inspected = inspect_bundle(directory)
+    predicate = statement["predicate"]
+    rows = [
+        ("Bundle kind", predicate["bundleKind"]),
+        ("Manifest SHA-256", statement["subject"][0]["digest"]["sha256"]),
+        ("Outcome", predicate["outcome"]),
+        ("Complete", str(predicate["complete"]).lower()),
+        ("Result schema", predicate["schemaVersion"]),
+        ("Produced by Parison", predicate["parisonVersion"]),
+    ]
+    if predicate["bundleKind"] == "run":
+        rows.extend([
+            ("Comparison contract", predicate["contract"]),
+            ("Policy SHA-256", predicate["policySha256"] or "unavailable"),
+            ("Sensitivity", predicate["sensitivity"]),
+        ])
+        summary = [(name.replace("_", " "), value) for name, value in sorted(inspected["counts"].items())]
+        summary.append(("discrepancy count", inspected["discrepancy_count"]))
+    else:
+        rows.extend([
+            ("Suite version", predicate["suiteVersion"]),
+            ("Suite policy SHA-256", predicate["suitePolicySha256"] or "unavailable"),
+            ("Scope complete", str(predicate["scopeComplete"]).lower()),
+        ])
+        summary = [
+            ("completed cases", inspected["completed_cases"]),
+            ("total cases", inspected["total_cases"]),
+            *[(f"{name} cases", value) for name, value in inspected["outcome_counts"].items()],
+        ]
+    lines = [
+        "# Parison cutover evidence", "",
+        "> Verified metadata cover sheet. This report is evidence, not cutover approval.", "",
+        "| Field | Value |", "| --- | --- |",
+        *[f"| {name} | {value} |" for name, value in rows], "",
+        "## Result summary", "", "| Measure | Value |", "| --- | ---: |",
+        *[f"| {name} | {value} |" for name, value in summary],
+    ]
+    if predicate["bundleKind"] != "run":
+        lines.extend(["", "## Cases", "", "| Case | Outcome | Complete |", "| --- | --- | --- |"])
+        lines.extend(
+            f"| {case['id']} | {case['outcome']} | {str(case['complete']).lower()} |"
+            for case in inspected["cases"]
+        )
+    lines.extend([
+        "", "## Independent checks still required", "",
+        "- Authenticate the canonical Statement and authorize its signer identity and issuer.",
+        "- Require the reviewed policy fingerprint, outcome, completeness and suite scope.",
+        "- Validate source-owned extraction snapshot, watermark and completeness guarantees.", "",
+    ])
+    target = Path(output)
+    if target.exists():
+        raise ParisonError(f"output already exists: {target}")
+    stage = None
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, stage_name = tempfile.mkstemp(prefix=f".{target.name}-", dir=target.parent)
+        stage = Path(stage_name)
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write("\n".join(lines))
+        os.link(stage, target)
+        stage.unlink()
+    except FileExistsError as exc:
+        raise ParisonError(f"output already exists: {target}") from exc
+    except OSError as exc:
+        raise ParisonError(f"cannot write cutover report: {exc}") from exc
+    finally:
+        if stage is not None:
+            try:
+                stage.unlink()
+            except OSError:
+                pass
+    return {"output": str(target), "bundle_sha256": statement["subject"][0]["digest"]["sha256"]}
+
+
 def export_evidence(
     directory: str | Path,
     output: str | Path,

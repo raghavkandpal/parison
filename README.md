@@ -93,6 +93,7 @@ In a 0.17 development checkout:
 ```sh
 parison statement runs/orders-example --output parison-statement.json
 parison verify-statement runs/orders-example parison-statement.json
+parison report-cutover runs/orders-example --output cutover.md
 ```
 
 Parison 0.14 can run multiset-v1 comparison through a bounded disposable SQLite workspace: add `--engine sqlite --max-temp-bytes BYTES`, and optionally select a protected parent with `--temp-directory DIR`. Suite-v2 cases can record the same choice under `execution`. See the [released contract](docs/0.14/96-spill-engine-contract.md); benchmark measurements remain evidence, not a universal scale guarantee.

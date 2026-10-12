@@ -8,6 +8,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [0.17 roadmap](0.17/114-roadmap.md)
 - [Evidence Statement contract](0.17/115-statement-contract.md)
 - [Evidence handoff guide](0.17/116-evidence-handoff-guide.md)
+- [Cutover evidence report contract](0.17/117-cutover-report-contract.md)
 
 ## 0.16 — released
 
