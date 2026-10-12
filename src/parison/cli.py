@@ -18,6 +18,13 @@ def _shell_command(parts: list[str]) -> str:
     return subprocess.list2cmdline(parts) if os.name == "nt" else shlex.join(parts)
 
 
+def _print_suite_next(output: str) -> None:
+    print("Next:", file=sys.stderr)
+    print(f"  {_shell_command(['parison', 'verify', output])}", file=sys.stderr)
+    print(f"  {_shell_command(['parison', 'inspect', output])}", file=sys.stderr)
+    print(f"  {_shell_command(['parison', 'report-ci', output, '--format', 'markdown', '--output', 'parison-summary.md'])}", file=sys.stderr)
+
+
 def _print_summary(result: dict, output: str) -> None:
     counts = result["counts"]
     print(f"Parison {result['outcome']} (complete: {str(result['complete']).lower()})", file=sys.stderr)
@@ -289,11 +296,15 @@ def main(argv: list[str] | None = None) -> int:
             subject = "suite shard" if result.get("kind") == "suite-shard" else "suite"
             denominator = result.get("selected_cases", result["total_cases"])
             print(f"Parison {subject} {result['outcome']}: {result['completed_cases']} of {denominator} selected cases published to {args.output}", file=sys.stderr)
+            if result["outcome"] != "PASS":
+                _print_suite_next(args.output)
             return OUTCOME_CODES[result["outcome"]]
         if args.command == "assemble-suite":
             result = assemble_suite(args.plan, args.input, args.output)
             print(json.dumps({"outcome": result["outcome"], "output": args.output, "cases": result["completed_cases"]}, sort_keys=True))
             print(f"Assembled Parison suite {result['outcome']}: {result['completed_cases']} selected cases published to {args.output}", file=sys.stderr)
+            if result["outcome"] != "PASS":
+                _print_suite_next(args.output)
             return OUTCOME_CODES[result["outcome"]]
         if args.command == "report-ci":
             print(json.dumps(report_ci(args.bundle, args.output, args.format), sort_keys=True))

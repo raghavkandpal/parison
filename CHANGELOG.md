@@ -7,7 +7,7 @@ All notable changes will be documented in this file.
 ### Added
 
 - `parison init DIRECTORY` creates a no-overwrite, runnable keyed migration starter with summary-only evidence defaults.
-- Failed comparisons print copyable bundle verification and safe inspection commands, plus evidence export only for raw-sensitivity bundles.
+- Failed comparisons print copyable bundle verification and safe inspection commands, plus evidence export only for raw-sensitivity bundles; non-passing suites also point to a bounded Markdown CI report.
 - Installed-wheel CI runs the generated-project quickstart on Linux, macOS and Windows; the public GitHub Actions example now pins the latest release.
 - Tested dbt, Airflow and Dagster references keep snapshot extraction and credentials outside Parison while treating the verified bundle as the portable gate artifact.
 

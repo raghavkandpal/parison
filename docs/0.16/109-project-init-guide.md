@@ -20,3 +20,5 @@ Before using real outputs, replace both CSV files and review every policy field.
 Keep real data, raw-sensitivity bundles and credentials out of source control. Summary-only bundles omit source values, but their counts, policy and provenance are still operational metadata that should receive appropriate access control.
 
 When a comparison completes with differences, the terminal prints copyable `verify` and `inspect` commands for its bundle. A raw-sensitivity run also prints an `export-evidence` command; summary-only runs do not, because they deliberately contain no source-level discrepancy sample.
+
+Non-passing suite runs and assembled suites similarly print `verify`, `inspect` and Markdown `report-ci` commands. These commands inspect already-published evidence; they do not rerun comparisons or change the recorded outcome.
