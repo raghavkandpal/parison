@@ -5,7 +5,7 @@ Parison is a gate after extraction, not an extraction framework. A dbt, Airflow,
 1. materialize the old and new implementations;
 2. export both outputs at one coordinated logical snapshot;
 3. run a reviewed Parison recipe;
-4. retain the complete evidence directory regardless of exit code; and
+4. preserve the comparison exit code, verify and retain the complete evidence directory regardless of outcome; and
 5. allow only PASS (`0`) to advance the cutover.
 
 The copyable [integration examples](../../examples/integrations) keep Parison outside the orchestrator process and pass only local file paths. This preserves the zero-custody boundary and leaves credential rotation, retries, scheduling and warehouse-specific snapshot coordination with the system that already owns them.

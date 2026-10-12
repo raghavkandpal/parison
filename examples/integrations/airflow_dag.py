@@ -14,9 +14,10 @@ with DAG(
     compare_outputs = BashOperator(
         task_id="compare_outputs",
         bash_command=(
-            'parison compare --recipe "$PARISON_RECIPE" '
+            'set +e; parison compare --recipe "$PARISON_RECIPE" '
             '--baseline "$PARISON_BASELINE" --candidate "$PARISON_CANDIDATE" '
-            '--output "$PARISON_OUTPUT"'
+            '--output "$PARISON_OUTPUT"; code=$?; set -e; '
+            'parison verify "$PARISON_OUTPUT"; exit "$code"'
         ),
         env={
             "PARISON_RECIPE": "/data/migration.recipe.json",
@@ -26,12 +27,3 @@ with DAG(
         },
         append_env=True,
     )
-
-    verify_evidence = BashOperator(
-        task_id="verify_evidence",
-        bash_command='parison verify "$PARISON_OUTPUT"',
-        env={"PARISON_OUTPUT": "/evidence/parison-run"},
-        append_env=True,
-    )
-
-    compare_outputs >> verify_evidence

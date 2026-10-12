@@ -22,8 +22,18 @@ class IntegrationReferences(unittest.TestCase):
         self.assertLess(source.index("dbt build"), source.index("EXPORT_PARITY_INPUTS"))
         self.assertLess(source.index("EXPORT_PARITY_INPUTS"), source.index("parison compare"))
         self.assertLess(source.index("parison compare"), source.index("parison verify"))
+        self.assertLess(source.index("comparison_code=$?"), source.index("parison verify"))
+        self.assertLess(source.index("parison verify"), source.index('exit "$comparison_code"'))
         for variable in ("PARISON_RECIPE", "PARISON_BASELINE", "PARISON_CANDIDATE", "PARISON_OUTPUT"):
             self.assertIn(f'"${{{variable}', source)
+
+    def test_orchestrators_verify_before_restoring_nonzero_comparison(self):
+        airflow = (ROOT / "airflow_dag.py").read_text(encoding="utf-8")
+        self.assertLess(airflow.index("code=$?"), airflow.index("parison verify"))
+        self.assertLess(airflow.index("parison verify"), airflow.index('exit "$code"'))
+        dagster = (ROOT / "dagster_assets.py").read_text(encoding="utf-8")
+        self.assertLess(dagster.index("check=False"), dagster.index('"parison", "verify"'))
+        self.assertLess(dagster.index('"parison", "verify"'), dagster.index("comparison.returncode"))
 
     def test_readme_states_snapshot_and_credential_boundaries(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
