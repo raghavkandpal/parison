@@ -18,10 +18,14 @@ def _shell_command(parts: list[str]) -> str:
     return subprocess.list2cmdline(parts) if os.name == "nt" else shlex.join(parts)
 
 
-def _print_suite_next(output: str) -> None:
+def _print_bundle_next(output: str) -> None:
     print("Next:", file=sys.stderr)
     print(f"  {_shell_command(['parison', 'verify', output])}", file=sys.stderr)
     print(f"  {_shell_command(['parison', 'inspect', output])}", file=sys.stderr)
+
+
+def _print_suite_next(output: str) -> None:
+    _print_bundle_next(output)
     print(f"  {_shell_command(['parison', 'report-ci', output, '--format', 'markdown', '--output', 'parison-summary.md'])}", file=sys.stderr)
 
 
@@ -65,9 +69,7 @@ def _print_summary(result: dict, output: str) -> None:
     print(f"Bundle: {output}", file=sys.stderr)
     if result["outcome"] == "FAIL":
         print("Exit 1 means the comparison completed and found required differences.", file=sys.stderr)
-        print("Next:", file=sys.stderr)
-        print(f"  {_shell_command(['parison', 'verify', output])}", file=sys.stderr)
-        print(f"  {_shell_command(['parison', 'inspect', output])}", file=sys.stderr)
+        _print_bundle_next(output)
         if result["sensitivity"] == "raw":
             print(f"  {_shell_command(['parison', 'export-evidence', output, '--output', 'evidence.jsonl'])}", file=sys.stderr)
 

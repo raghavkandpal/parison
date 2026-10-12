@@ -42,6 +42,10 @@ jobs:
           echo "exit-code=$code" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Verify published evidence
+        if: always() && steps.compare.outputs.exit-code != ''
+        run: parison verify "$PARISON_RUN"
+
       - name: Upload evidence bundle
         if: always()
         uses: actions/upload-artifact@v6

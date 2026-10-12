@@ -1,12 +1,11 @@
-from datetime import datetime
-
+import pendulum
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import DAG
 
 
 with DAG(
     dag_id="parison_migration_gate",
-    start_date=datetime(2026, 1, 1),
+    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
     schedule=None,
     catchup=False,
 ) as dag:

@@ -3,7 +3,7 @@ import subprocess
 import dagster as dg
 
 
-@dg.asset(deps=["candidate_output"])
+@dg.asset(deps=["baseline_output", "candidate_output"])
 def parison_evidence() -> dg.MaterializeResult:
     """Replace paths and attach this asset to both coordinated extraction assets."""
     output = "/evidence/parison-run"

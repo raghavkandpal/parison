@@ -2,7 +2,7 @@
 
 These examples run Parison as an external CLI after user-owned tasks produce baseline and candidate files. Parison receives no warehouse, orchestrator or cloud credentials.
 
-- `dbt-paration-gate.sh` shows the ordering around `dbt build`, extraction and comparison.
+- `dbt-parison-gate.sh` shows the ordering around `dbt build`, extraction and comparison.
 - `airflow_dag.py` uses Airflow's standard-provider `BashOperator` for the comparison gate.
 - `dagster_assets.py` materializes a verified evidence directory as a downstream asset.
 

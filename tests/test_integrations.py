@@ -16,6 +16,10 @@ class IntegrationReferences(unittest.TestCase):
                 self.assertIn("compare", source)
                 self.assertIn("verify", source)
                 self.assertNotIn("shell=True", source)
+        airflow = (ROOT / "airflow_dag.py").read_text(encoding="utf-8")
+        self.assertIn('pendulum.datetime(2026, 1, 1, tz="UTC")', airflow)
+        dagster = (ROOT / "dagster_assets.py").read_text(encoding="utf-8")
+        self.assertIn('deps=["baseline_output", "candidate_output"]', dagster)
 
     def test_dbt_example_preserves_build_extract_compare_verify_order(self):
         source = (ROOT / "dbt-parison-gate.sh").read_text(encoding="utf-8")

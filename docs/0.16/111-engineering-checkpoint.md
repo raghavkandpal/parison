@@ -28,3 +28,5 @@ Status: **adoption workflow implemented on `develop`; release review pending**
 3. Update version and release records only after candidate CI is green.
 
 Do not release from this checkpoint alone.
+
+The subsequent release review found and corrected two acceptance gaps: the generic CI reference now verifies evidence before upload and outcome restoration, and macOS/Windows build and install the wheel before executing the quickstart. Final post-review run evidence replaces the earlier run above during candidate preparation.
