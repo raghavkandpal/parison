@@ -2,7 +2,7 @@
 
 Date: 12 October 2026
 
-Status: **release-candidate implementation complete on `develop`**
+Status: **released in 0.16.0 on 12 October 2026**
 
 ## Implemented
 
@@ -21,12 +21,10 @@ Status: **release-candidate implementation complete on `develop`**
 - The 3.14 Linux lane and both platform lanes created, validated, compared and recursively verified an initialized project from the installed package.
 - Integration references are syntax-compiled or structurally checked without adding orchestrator packages to Parison's dependency graph.
 
-## Remaining release gates
+## Release evidence
 
-1. Build candidate archives from the reviewed commit and repeat the initialized-project workflow in a fresh environment.
-2. Require candidate CI to pass every supported Python and operating-system lane.
-3. Merge, build from the exact merge commit, tag and publish only after those checks pass.
+- Pull request [#26](https://github.com/raghavkandpal/parison/pull/26) merged the reviewed candidate as `09628e8bc56dae38b2f859cf0e1acfdd477fa919`.
+- Annotated tag `0.16.0` identifies that merge commit.
+- Exact-merge artifacts were published with checksums and re-downloaded; the public wheel passed the complete initialized-project workflow in a fresh Python 3.12 environment.
 
-Do not release from this checkpoint alone.
-
-The subsequent release review found and corrected two acceptance gaps: the generic CI reference now verifies evidence before upload and outcome restoration, and macOS/Windows build and install the wheel before executing the quickstart. Post-review GitHub Actions run [38247890734](https://github.com/raghavkandpal/parison/actions/runs/38247890734) passed all supported lanes.
+The release review found and corrected two acceptance gaps: the generic CI reference now verifies evidence before upload and outcome restoration, and macOS/Windows build and install the wheel before executing the quickstart. Post-review GitHub Actions run [38247890734](https://github.com/raghavkandpal/parison/actions/runs/38247890734) passed all supported lanes.

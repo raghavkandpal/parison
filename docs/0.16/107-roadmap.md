@@ -1,6 +1,6 @@
 # Parison 0.16 roadmap
 
-Status: **release candidate**
+Status: **released in 0.16.0 on 12 October 2026**
 
 ## Theme: fast project adoption
 
