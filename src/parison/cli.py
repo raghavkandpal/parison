@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shlex
+import subprocess
 import sys
 from pathlib import Path
 
@@ -10,6 +12,10 @@ from . import __version__
 from .catalog import add as catalog_add, diff as catalog_diff, history as catalog_history, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
 from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
 from .project import init_project
+
+
+def _shell_command(parts: list[str]) -> str:
+    return subprocess.list2cmdline(parts) if os.name == "nt" else shlex.join(parts)
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -53,10 +59,10 @@ def _print_summary(result: dict, output: str) -> None:
     if result["outcome"] == "FAIL":
         print("Exit 1 means the comparison completed and found required differences.", file=sys.stderr)
         print("Next:", file=sys.stderr)
-        print(f"  {shlex.join(['parison', 'verify', output])}", file=sys.stderr)
-        print(f"  {shlex.join(['parison', 'inspect', output])}", file=sys.stderr)
+        print(f"  {_shell_command(['parison', 'verify', output])}", file=sys.stderr)
+        print(f"  {_shell_command(['parison', 'inspect', output])}", file=sys.stderr)
         if result["sensitivity"] == "raw":
-            print(f"  {shlex.join(['parison', 'export-evidence', output, '--output', 'evidence.jsonl'])}", file=sys.stderr)
+            print(f"  {_shell_command(['parison', 'export-evidence', output, '--output', 'evidence.jsonl'])}", file=sys.stderr)
 
 
 def parser() -> argparse.ArgumentParser:
