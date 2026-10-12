@@ -18,9 +18,9 @@ Status: **release candidate**
 - [x] Manual review corrected the integration filename, Airflow timezone and Dagster two-input dependency examples.
 - [x] Post-review local suite: **218 passed, 6 skipped** optional-Polars tests.
 - [x] Post-review [GitHub Actions run 38247890734](https://github.com/raghavkandpal/parison/actions/runs/38247890734) passed Python 3.11–3.14, macOS and Windows using built-wheel quickstarts.
-- [ ] Candidate archives are built from the reviewed commit, inspected and checksummed.
-- [ ] A fresh Python 3.12 environment installs the candidate wheel and completes the generated-project quickstart.
-- [ ] Candidate commit CI passes every supported lane.
+- [x] Clean `git archive` candidate `66bec21` produced an inspected wheel and source archive with no repository or local-research state. Wheel SHA-256: `d443429e7f98f67a4507a01bd277e29bf492916edd6f5d980b450b09bdbb9f4f`; source archive: `493ee9b1d2007165a54fdd5ea6fabe8f7c0551d5216a4144265a680f9b251121`.
+- [x] A fresh Python 3.12 environment installed the candidate wheel, reported `parison 0.16.0`, and completed init, recipe validation, record preflight, PASS comparison and recursive verification.
+- [x] Candidate [GitHub Actions run 38248176578](https://github.com/raghavkandpal/parison/actions/runs/38248176578) passed every supported Python and operating-system lane.
 
 ## Publication
 
