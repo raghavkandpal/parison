@@ -7,6 +7,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [0.16 roadmap](0.16/107-roadmap.md)
 - [`parison init` contract](0.16/108-project-init-contract.md)
 - [Project initialization guide](0.16/109-project-init-guide.md)
+- [Orchestrator integration guide](0.16/110-orchestrator-integration-guide.md)
 
 ## 0.15 — released
 
