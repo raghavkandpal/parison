@@ -1,6 +1,6 @@
 # Parison 0.15 roadmap
 
-Status: **active implementation**
+Status: **release candidate**
 
 ## Theme: repeatable operational evidence
 

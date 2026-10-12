@@ -10,7 +10,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **0.14.0 released.** An explicit SQLite-backed multiset engine targets exact local migration and backfill comparisons that exceed comfortable process memory, while preserving the existing semantic contract and bounded evidence.
 
-**0.15 in development.** Policy-locked catalog history and safe run-summary diff target repeated migration rehearsals and backfill validation without adding hosted storage or reading raw evidence.
+**0.15.0 release candidate.** Policy-locked catalog history and safe run-summary diff target repeated migration rehearsals and backfill validation without adding hosted storage or parsing raw evidence.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 

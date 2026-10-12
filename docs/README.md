@@ -9,6 +9,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Rehearsal history guide](0.15/102-user-guide.md)
 - [0.15 engineering checkpoint](0.15/103-engineering-checkpoint.md)
 - [Product direction and release arc](0.15/104-product-direction-and-release-arc.md)
+- [0.15.0 release checklist](0.15/106-release-checklist.md)
 
 ## 0.14 — released
 

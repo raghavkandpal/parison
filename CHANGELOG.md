@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.15.0 - 2026-10-12
+
 ### Added
 
 - Policy-locked catalog history with deterministic insertion order and explicit outcome and discrepancy-count transitions.
