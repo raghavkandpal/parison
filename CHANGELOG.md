@@ -8,6 +8,7 @@ All notable changes will be documented in this file.
 
 - `parison init DIRECTORY` creates a no-overwrite, runnable keyed migration starter with summary-only evidence defaults.
 - Failed comparisons print copyable bundle verification and safe inspection commands, plus evidence export only for raw-sensitivity bundles.
+- Installed-wheel CI runs the generated-project quickstart on Linux, macOS and Windows; the public GitHub Actions example now pins the latest release.
 
 ## 0.15.0 - 2026-10-12
 

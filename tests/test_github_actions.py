@@ -42,7 +42,14 @@ class GitHubActionsReference(unittest.TestCase):
         self.assertIn("['output']['sensitivity'] == 'summary'", workflow)
         self.assertIn("github.run_id", workflow)
         self.assertIn("github.run_attempt", workflow)
+        self.assertIn("releases/download/0.15.0/parison-0.15.0-py3-none-any.whl", workflow)
         self.assertNotIn("pull_request_target:", workflow)
+
+    def test_installed_wheel_ci_runs_initialized_project_quickstart(self):
+        workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+        for command in ("parison init", "parison validate-recipe", "parison validate-inputs", "parison compare", "parison verify"):
+            self.assertGreaterEqual(workflow.count(command), 2)
+        self.assertIn("platform-smoke:", workflow)
 
     def test_every_ci_outcome_publishes_a_verifiable_bundle(self):
         recipe = {

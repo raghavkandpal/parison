@@ -48,6 +48,14 @@ jobs:
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke
       - run: parison verify /tmp/parison-smoke
+      - name: Exercise initialized-project quickstart
+        if: matrix.python-version == '3.14'
+        run: |
+          parison init /tmp/parison-quickstart
+          parison validate-recipe /tmp/parison-quickstart/recipe.json
+          parison validate-inputs --recipe /tmp/parison-quickstart/recipe.json --baseline /tmp/parison-quickstart/baseline.csv --candidate /tmp/parison-quickstart/candidate.csv --records
+          parison compare --recipe /tmp/parison-quickstart/recipe.json --baseline /tmp/parison-quickstart/baseline.csv --candidate /tmp/parison-quickstart/candidate.csv --output /tmp/parison-quickstart/run
+          parison verify /tmp/parison-quickstart/run
       - name: Exercise local run catalog
         if: matrix.python-version == '3.14'
         run: |
@@ -152,6 +160,11 @@ jobs:
       - run: parison run-suite --plan examples/0.10/mixed-suite.json --output ${{ runner.temp }}/parison-suite-smoke
       - run: parison verify ${{ runner.temp }}/parison-suite-smoke
       - run: parison inspect ${{ runner.temp }}/parison-suite-smoke
+      - run: parison init ${{ runner.temp }}/parison-quickstart
+      - run: parison validate-recipe ${{ runner.temp }}/parison-quickstart/recipe.json
+      - run: parison validate-inputs --recipe ${{ runner.temp }}/parison-quickstart/recipe.json --baseline ${{ runner.temp }}/parison-quickstart/baseline.csv --candidate ${{ runner.temp }}/parison-quickstart/candidate.csv --records
+      - run: parison compare --recipe ${{ runner.temp }}/parison-quickstart/recipe.json --baseline ${{ runner.temp }}/parison-quickstart/baseline.csv --candidate ${{ runner.temp }}/parison-quickstart/candidate.csv --output ${{ runner.temp }}/parison-quickstart/run
+      - run: parison verify ${{ runner.temp }}/parison-quickstart/run
       - run: parison validate-suite examples/0.14/backfill-suite.json
       - run: parison run-suite --plan examples/0.14/backfill-suite.json --output ${{ runner.temp }}/parison-0.14-suite
       - run: parison verify ${{ runner.temp }}/parison-0.14-suite
