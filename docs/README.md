@@ -2,6 +2,12 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
+## 0.17 — in progress
+
+- [Signing and evidence-handoff research](0.17/113-signing-research.md)
+- [0.17 roadmap](0.17/114-roadmap.md)
+- [Evidence Statement contract](0.17/115-statement-contract.md)
+
 ## 0.16 — released
 
 - [0.16 roadmap](0.16/107-roadmap.md)
