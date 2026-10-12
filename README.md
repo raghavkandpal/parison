@@ -12,7 +12,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **0.15.0 released.** Policy-locked catalog history and safe run-summary diff support repeated migration rehearsals and backfill validation without adding hosted storage or parsing raw evidence.
 
-**0.16.0 in development.** Fast project adoption begins with a safe, runnable `parison init` starter workflow.
+**0.16.0 release candidate.** Fast project adoption includes a safe, runnable `parison init` workflow, actionable failure guidance and tested external-orchestrator patterns.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 

@@ -9,6 +9,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 - [Project initialization guide](0.16/109-project-init-guide.md)
 - [Orchestrator integration guide](0.16/110-orchestrator-integration-guide.md)
 - [0.16 engineering checkpoint](0.16/111-engineering-checkpoint.md)
+- [0.16.0 release checklist](0.16/112-release-checklist.md)
 
 ## 0.15 — released
 

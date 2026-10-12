@@ -2,7 +2,7 @@
 
 Date: 12 October 2026
 
-Status: **adoption workflow implemented on `develop`; release review pending**
+Status: **release-candidate implementation complete on `develop`**
 
 ## Implemented
 
@@ -23,10 +23,10 @@ Status: **adoption workflow implemented on `develop`; release review pending**
 
 ## Remaining release gates
 
-1. Review the complete 0.16 diff against the development contracts and repository standards.
-2. Build candidate archives from the reviewed commit and repeat the initialized-project workflow in a fresh environment.
-3. Update version and release records only after candidate CI is green.
+1. Build candidate archives from the reviewed commit and repeat the initialized-project workflow in a fresh environment.
+2. Require candidate CI to pass every supported Python and operating-system lane.
+3. Merge, build from the exact merge commit, tag and publish only after those checks pass.
 
 Do not release from this checkpoint alone.
 
-The subsequent release review found and corrected two acceptance gaps: the generic CI reference now verifies evidence before upload and outcome restoration, and macOS/Windows build and install the wheel before executing the quickstart. Final post-review run evidence replaces the earlier run above during candidate preparation.
+The subsequent release review found and corrected two acceptance gaps: the generic CI reference now verifies evidence before upload and outcome restoration, and macOS/Windows build and install the wheel before executing the quickstart. Post-review GitHub Actions run [38247890734](https://github.com/raghavkandpal/parison/actions/runs/38247890734) passed all supported lanes.

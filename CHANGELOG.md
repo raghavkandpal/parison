@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.16.0 - 2026-10-12
+
 ### Added
 
 - `parison init DIRECTORY` creates a no-overwrite, runnable keyed migration starter with summary-only evidence defaults.

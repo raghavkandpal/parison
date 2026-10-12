@@ -1,6 +1,6 @@
 # Parison 0.16 roadmap
 
-Status: **active development**
+Status: **release candidate**
 
 ## Theme: fast project adoption
 
