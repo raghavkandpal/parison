@@ -2460,6 +2460,33 @@ def _verify_manifest_files(directory: Path, files: Any, required: set[str]) -> N
             raise ParisonError(f"bundle file failed integrity check: {name}")
 
 
+def bundle_integrity_matches(directory: str | Path, expected_manifest_digest: str) -> bool:
+    """Check recursively manifest-covered bytes without decoding result evidence."""
+    directory = Path(directory)
+    manifest_path = directory / "manifest.json"
+    try:
+        if directory.is_symlink() or not directory.is_dir() or manifest_path.is_symlink() or not manifest_path.is_file():
+            return False
+        if _digest(manifest_path) != expected_manifest_digest:
+            return False
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if not isinstance(manifest, dict):
+            return False
+        _verify_manifest_files(directory, manifest.get("files"), set())
+        cases = manifest.get("cases", {})
+        if not isinstance(cases, dict):
+            return False
+        return all(
+            isinstance(identifier, str)
+            and Path(identifier).name == identifier
+            and isinstance(digest, str)
+            and bundle_integrity_matches(directory / "cases" / identifier, digest)
+            for identifier, digest in cases.items()
+        )
+    except (OSError, json.JSONDecodeError, ParisonError, TypeError):
+        return False
+
+
 def _verify_suite_bundle(directory: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     if manifest.get("schema_version") == 2:
         return _verify_suite_bundle_v2(directory, manifest)
@@ -2679,6 +2706,10 @@ def inspect_bundle(directory: str | Path) -> dict[str, Any]:
         "discrepancy_sample_limit": result.get("discrepancy_sample_limit", 0),
         "problems": result.get("problems", []),
         "resource_limits": result.get("resource_limits", {}),
+        "input_sha256": {
+            side: metadata.get("sha256") for side, metadata in result.get("inputs", {}).items()
+            if metadata.get("sha256") is not None
+        },
         "policy_sha256": result.get("policy_sha256"),
         "bundle_sha256": _digest(Path(directory) / "manifest.json"),
         "manifest_files": sorted(manifest.get("files", {})),

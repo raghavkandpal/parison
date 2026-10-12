@@ -120,6 +120,33 @@ class CheckedInExamples(unittest.TestCase):
             self.assertEqual(multiset["counts"]["common_occurrences"], 3)
             verify_bundle(output)
 
+    def test_0_15_payout_suite_passes_and_bad_ledger_fails_both_layers(self):
+        root = Path(__file__).parents[1] / "examples" / "0.15"
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            output = Path(directory) / "payout"
+            result = run_suite(root / "payout-suite.json", output)
+            self.assertEqual(result["outcome"], "PASS")
+            self.assertEqual(result["outcome_counts"]["PASS"], 2)
+            verify_bundle(output)
+        aggregate = compare(root / "payout-aggregate.recipe.json", root / "processor.csv", root / "ledger-with-error.csv")
+        keyed = compare(root / "payout-keyed.recipe.json", root / "processor.csv", root / "ledger-with-error.csv")
+        self.assertEqual(aggregate["outcome"], "FAIL")
+        self.assertEqual(keyed["outcome"], "FAIL")
+        self.assertEqual(aggregate["measure_counts"]["net_amount"]["different"], 1)
+        self.assertEqual(keyed["discrepancy_count"], 1)
+
+    def test_0_15_feature_pipeline_suite_layers_tolerance_and_occurrence_parity(self):
+        root = Path(__file__).parents[1] / "examples" / "0.15" / "features"
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            output = Path(directory) / "features"
+            result = run_suite(root / "feature-suite.json", output)
+            self.assertEqual(result["outcome"], "PASS")
+            keyed = json.loads((output / "cases/entity-feature-parity/result.json").read_text(encoding="utf-8"))
+            multiset = json.loads((output / "cases/batch-occurrence-parity/result.json").read_text(encoding="utf-8"))
+            self.assertEqual(keyed["counts"]["matched_within_tolerance"], 1)
+            self.assertEqual(multiset["counts"]["common_occurrences"], 3)
+            verify_bundle(output)
+
 
 if __name__ == "__main__":
     unittest.main()

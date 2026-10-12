@@ -10,6 +10,8 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **0.14.0 released.** An explicit SQLite-backed multiset engine targets exact local migration and backfill comparisons that exceed comfortable process memory, while preserving the existing semantic contract and bounded evidence.
 
+**0.15.0 release candidate.** Policy-locked catalog history and safe run-summary diff target repeated migration rehearsals and backfill validation without adding hosted storage or parsing raw evidence.
+
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
 ## Try it
@@ -18,7 +20,7 @@ Python 3.11 or newer is required.
 
 ```sh
 python -m pip install \
-  https://github.com/raghavkandpal/parison/releases/download/0.13.0/parison-0.13.0-py3-none-any.whl
+  https://github.com/raghavkandpal/parison/releases/download/0.14.0/parison-0.14.0-py3-none-any.whl
 parison --version
 parison validate-recipe examples/orders.recipe.json
 parison validate-inputs --recipe examples/orders.recipe.json \
@@ -40,7 +42,7 @@ Recipes can map renamed source columns to one canonical field. Keys, policies, c
 
 A generated PASS bundle is checked in under [`examples/output`](examples/output), containing [`result.json`](examples/output/result.json), [`effective-recipe.json`](examples/output/effective-recipe.json), [`report.html`](examples/output/report.html), and [`manifest.json`](examples/output/manifest.json). It is summary-only and contains no source keys or raw values.
 
-To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/0.13.0/parison-0.13.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md) and read-only [SQLite table](docs/0.2/24-sqlite-contract.md) inputs are also supported, including mixed-format comparisons. Recipes are strict JSON; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars versions without recording hostnames.
+To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/0.14.0/parison-0.14.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md) and read-only [SQLite table](docs/0.2/24-sqlite-contract.md) inputs are also supported, including mixed-format comparisons. Recipes are strict JSON; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars versions without recording hostnames.
 
 A baseline or candidate may also be a directory of same-format CSV, TSV, JSON Lines or Parquet files. Parison treats its immediate files as one logical input and enforces limits, schemas and identity across partitions. See the [partitioned-input contract](docs/0.3/30-partitioned-input-contract.md).
 
@@ -69,6 +71,12 @@ Suite-v2 plans add tags, deterministic case selection and per-case limits. `run-
 Parison 0.12 can execute independent local suite cases with `run-suite --jobs N`, where `N` is between 1 and 16. Workers use isolated child destinations and final suite results remain in declared plan order. Existing resource limits apply to each active case, so peak resource use can approach `N` times one case; `--jobs 1` remains the default. Interruption stops new admission, bounds worker shutdown and preserves only verified children for explicit resume. See the [concurrency guide](docs/0.12/92-user-guide.md) and [frozen contract](docs/0.12/90-concurrency-contract.md).
 
 Parison 0.13 adds installed union schemas for offline editor validation and an explicit local SQLite catalog of verified safe run metadata. Use `parison export-editor-schemas --output .parison`, then `parison catalog add|list|show|remove --database PATH` for zero-custody run discovery. See the [0.13 guide](docs/0.13/98-user-guide.md).
+
+Parison 0.15 extends that catalog with `history --policy-sha256 HASH` and `diff LEFT RIGHT`. History uses catalog insertion order and reports same-policy outcome transitions; diff refuses policy mismatch and compares only stored safe projections. See the [rehearsal history guide](docs/0.15/102-user-guide.md).
+
+The synthetic [payout reconciliation starter suite](examples/0.15) layers category-level count and exact-decimal conservation with transaction-level diagnosis. It includes an intentionally failing ledger fixture and states the settlement and extraction guarantees that remain upstream responsibilities.
+
+The [feature-pipeline parity starter suite](examples/0.15/features) combines keyed feature tolerances with exact duplicate-aware checking for a keyless batch, while explicitly excluding statistical drift and model-quality claims.
 
 Parison 0.14 can run multiset-v1 comparison through a bounded disposable SQLite workspace: add `--engine sqlite --max-temp-bytes BYTES`, and optionally select a protected parent with `--temp-directory DIR`. Suite-v2 cases can record the same choice under `execution`. See the [released contract](docs/0.14/96-spill-engine-contract.md); benchmark measurements remain evidence, not a universal scale guarantee.
 
@@ -132,6 +140,8 @@ Start with the [documentation index](docs/README.md).
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
 - Latest release: [0.14 roadmap and record](docs/0.14/95-roadmap.md)
+- Active development: [0.15 roadmap](docs/0.15/100-roadmap.md)
+- Product direction and release arc: [accepted direction](docs/0.15/104-product-direction-and-release-arc.md)
 - Next opportunities: [real-world application research](docs/0.14/94-real-world-application-research.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
 - Comparison contract: [0.1 semantics](docs/0.1/05-comparison-semantics.md)

@@ -51,8 +51,13 @@ jobs:
       - name: Exercise local run catalog
         if: matrix.python-version == '3.14'
         run: |
+          parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke-2
           parison catalog add --database /tmp/parison-catalog.sqlite /tmp/parison-smoke
+          parison catalog add --database /tmp/parison-catalog.sqlite /tmp/parison-smoke-2
           parison catalog list --database /tmp/parison-catalog.sqlite --outcome PASS --kind run
+          policy=$(parison explain examples/orders.recipe.json | python -c 'import json, sys; print(json.load(sys.stdin)["policy_sha256"])')
+          parison catalog history --database /tmp/parison-catalog.sqlite --policy-sha256 "$policy"
+          parison catalog diff --database /tmp/parison-catalog.sqlite /tmp/parison-smoke /tmp/parison-smoke-2
       - run: parison validate-inputs --recipe examples/0.3/migration.recipe.json --baseline examples/0.3/baseline --candidate examples/0.3/candidate.jsonl
       - run: parison compare --recipe examples/0.3/migration.recipe.json --baseline examples/0.3/baseline --candidate examples/0.3/candidate.jsonl --output /tmp/parison-0.3-smoke
       - run: parison validate-inputs --recipe examples/0.5/migration.recipe.json --baseline examples/0.5/baseline.tsv.gz --candidate examples/0.5/candidate.csv
@@ -94,6 +99,12 @@ jobs:
           parison validate-suite examples/0.14/backfill-suite.json
           parison run-suite --plan examples/0.14/backfill-suite.json --output /tmp/parison-0.14-suite
           parison verify /tmp/parison-0.14-suite
+      - name: Exercise payout reconciliation suite
+        if: matrix.python-version == '3.14'
+        run: |
+          parison validate-suite examples/0.15/payout-suite.json
+          parison run-suite --plan examples/0.15/payout-suite.json --output /tmp/parison-0.15-suite
+          parison verify /tmp/parison-0.15-suite
       - name: Upload smoke evidence
         if: matrix.python-version == '3.14'
         uses: actions/upload-artifact@v6

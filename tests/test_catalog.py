@@ -6,8 +6,9 @@ import unittest
 from contextlib import closing, redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
-from parison.catalog import add, list_runs, remove, show
+from parison.catalog import add, diff, history, list_runs, remove, show
 from parison.cli import main
 from parison.core import ParisonError, compare, publish, run_suite
 
@@ -105,6 +106,88 @@ class CatalogTests(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "not in catalog"):
             remove(self.database, self.bundle)
 
+    def test_history_orders_same_policy_runs_and_reports_transitions(self):
+        passing = self.root / "passing-run"
+        publish(passing, compare(self.recipe, self.baseline, self.baseline), RECIPE)
+        add(self.database, self.bundle)
+        add(self.database, passing)
+        policy = show(self.database, self.bundle)["metadata"]["policy_sha256"]
+        result = history(self.database, policy)
+        self.assertEqual([Path(run["path"]).name for run in result["runs"]], ["run", "passing-run"])
+        self.assertEqual([run["catalog_order"] for run in result["runs"]], [1, 2])
+        self.assertEqual(result["transitions"], [{
+            "from_catalog_order": 1,
+            "to_catalog_order": 2,
+            "outcome": {"before": "FAIL", "after": "PASS"},
+            "discrepancy_count": {"before": 1, "after": 0, "delta": -1},
+        }])
+        self.assertEqual(result["runs"][0]["input_sha256"]["baseline"], result["runs"][1]["input_sha256"]["baseline"])
+
+    def test_catalog_order_survives_deletion_and_vacuum(self):
+        copies = [self.root / f"run-{index}" for index in range(3)]
+        for copy in copies:
+            shutil.copytree(self.bundle, copy)
+            add(self.database, copy)
+        policy = show(self.database, copies[0])["metadata"]["policy_sha256"]
+        remove(self.database, copies[1])
+        with closing(sqlite3.connect(self.database)) as connection:
+            connection.execute("VACUUM")
+        fourth = self.root / "run-3"
+        shutil.copytree(self.bundle, fourth)
+        add(self.database, fourth)
+        self.assertEqual([run["catalog_order"] for run in history(self.database, policy)["runs"]], [1, 3, 4])
+
+    def test_paths_are_lexically_normalized_without_resolving_symlinks(self):
+        (self.root / "unused").mkdir()
+        result = add(self.database, self.root / "unused" / ".." / "run")
+        self.assertEqual(result["path"], str(self.bundle))
+        self.assertEqual(show(self.database, self.bundle)["path"], str(self.bundle))
+
+    def test_live_state_hashes_integrity_without_reinspection(self):
+        add(self.database, self.bundle)
+        with patch("parison.catalog.inspect_bundle", side_effect=AssertionError("must not parse result evidence")):
+            self.assertEqual(list_runs(self.database)[0]["state"], "current")
+
+    def test_schema_v1_catalog_migrates_to_explicit_order(self):
+        add(self.database, self.bundle)
+        metadata = show(self.database, self.bundle)["metadata"]
+        self.database.unlink()
+        with closing(sqlite3.connect(self.database)) as connection, connection:
+            connection.executescript("""
+                CREATE TABLE runs (
+                    path TEXT PRIMARY KEY, bundle_sha256 TEXT NOT NULL, kind TEXT NOT NULL,
+                    outcome TEXT NOT NULL, metadata TEXT NOT NULL
+                );
+                PRAGMA user_version = 1;
+            """)
+            connection.execute(
+                "INSERT INTO runs(path, bundle_sha256, kind, outcome, metadata) VALUES (?, ?, ?, ?, ?)",
+                (str(self.bundle), metadata["bundle_sha256"], "run", metadata["outcome"], json.dumps(metadata)),
+            )
+        self.assertEqual(show(self.database, self.bundle)["state"], "current")
+        with closing(sqlite3.connect(self.database)) as connection:
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
+            self.assertEqual(connection.execute("SELECT catalog_order FROM runs").fetchone()[0], 1)
+
+    def test_diff_is_safe_and_requires_matching_run_policies(self):
+        passing = self.root / "passing-run"
+        publish(passing, compare(self.recipe, self.baseline, self.baseline), RECIPE)
+        add(self.database, self.bundle)
+        add(self.database, passing)
+        result = diff(self.database, self.bundle, passing)
+        self.assertTrue(result["changed"])
+        self.assertEqual(result["changes"]["outcome"], {"before": "FAIL", "after": "PASS"})
+        self.assertNotIn("secret", json.dumps(result))
+
+        other_recipe = self.root / "other-recipe.json"
+        changed_recipe = {**RECIPE, "scope": {**RECIPE["scope"], "snapshot": "other"}}
+        other_recipe.write_text(json.dumps(changed_recipe), encoding="utf-8")
+        other = self.root / "other-run"
+        publish(other, compare(other_recipe, self.baseline, self.baseline), changed_recipe)
+        add(self.database, other)
+        with self.assertRaisesRegex(ParisonError, "matching policy"):
+            diff(self.database, self.bundle, other)
+
     def test_policy_filter_finds_matching_cases_inside_suites(self):
         plan = self.root / "suite.json"
         plan.write_text(json.dumps({
@@ -120,6 +203,21 @@ class CatalogTests(unittest.TestCase):
         policy = show(self.database, suite)["metadata"]["cases"][0]["policy_sha256"]
         matches = list_runs(self.database, policy_sha256=policy)
         self.assertEqual([entry["path"] for entry in matches], [str(suite)])
+
+    def test_cli_history_and_diff_emit_machine_readable_results(self):
+        passing = self.root / "passing-run"
+        publish(passing, compare(self.recipe, self.baseline, self.baseline), RECIPE)
+        add(self.database, self.bundle)
+        add(self.database, passing)
+        policy = show(self.database, self.bundle)["metadata"]["policy_sha256"]
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            self.assertEqual(main(["catalog", "history", "--database", str(self.database), "--policy-sha256", policy]), 0)
+        self.assertEqual(len(json.loads(stdout.getvalue())["runs"]), 2)
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            self.assertEqual(main(["catalog", "diff", "--database", str(self.database), str(self.bundle), str(passing)]), 0)
+        self.assertTrue(json.loads(stdout.getvalue())["changed"])
 
     def test_catalog_rejects_unverified_bundles_unknown_entries_and_unsafe_database(self):
         with self.assertRaises(ParisonError):

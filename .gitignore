@@ -78,6 +78,7 @@ docs/_build/
 target/
 runs/
 benchmarks/generated/
+local-research/
 
 # Jupyter Notebook
 .ipynb_checkpoints

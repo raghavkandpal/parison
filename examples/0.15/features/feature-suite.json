@@ -1,0 +1,21 @@
+{
+  "suite_version": 2,
+  "cases": [
+    {
+      "id": "entity-feature-parity",
+      "recipe": "keyed.recipe.json",
+      "baseline": "baseline.csv",
+      "candidate": "candidate.csv",
+      "tags": ["critical", "ml"],
+      "description": "Compare materialized entity features with reviewed numeric tolerances."
+    },
+    {
+      "id": "batch-occurrence-parity",
+      "recipe": "multiset.recipe.json",
+      "baseline": "keyless-baseline.csv",
+      "candidate": "keyless-candidate.csv",
+      "tags": ["critical", "ml"],
+      "description": "Require every keyless batch row to occur the same number of times."
+    }
+  ]
+}

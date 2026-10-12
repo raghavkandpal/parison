@@ -1,0 +1,28 @@
+{
+  "recipe_version": 1,
+  "comparison_mode": "keyed",
+  "keys": ["transaction_id"],
+  "scope": {
+    "snapshot": "synthetic-payout-po-demo-001",
+    "cutoff": "2026-10-11T00:00:00Z",
+    "filters": ["payout_id = 'po_demo_001'", "status = 'available'"],
+    "completeness": "full",
+    "expected_empty": false
+  },
+  "identity": {"null_keys": "reject", "duplicates": "reject"},
+  "nulls_equal": true,
+  "columns": {
+    "transaction_id": {"type": "string", "comparison": "exact"},
+    "payout_id": {"type": "string", "comparison": "exact"},
+    "currency": {"type": "string", "comparison": "exact"},
+    "reporting_category": {"type": "string", "comparison": "exact"},
+    "net_amount": {
+      "type": "decimal",
+      "scale": 2,
+      "comparison": "numeric",
+      "tolerance": {"formula": "symmetric-v1", "absolute": "0", "relative": "0"}
+    },
+    "status": {"type": "string", "comparison": "exact"}
+  },
+  "output": {"sensitivity": "summary"}
+}
