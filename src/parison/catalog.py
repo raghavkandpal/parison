@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import json
-import hashlib
 import os
 import sqlite3
 from contextlib import closing
 from pathlib import Path
 from typing import Any
 
-from .core import ParisonError, inspect_bundle
+from .core import ParisonError, bundle_integrity_matches, inspect_bundle
 
 
 _SCHEMA = """
@@ -93,36 +92,6 @@ def add(database: str | Path, bundle: str | Path) -> dict[str, Any]:
     return {"status": status, "path": path, "bundle_sha256": metadata["bundle_sha256"], "kind": _kind(metadata), "outcome": metadata["outcome"]}
 
 
-def _digest(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def _bundle_integrity_matches(directory: Path, expected_manifest_digest: str) -> bool:
-    manifest_path = directory / "manifest.json"
-    if manifest_path.is_symlink() or not manifest_path.is_file() or _digest(manifest_path) != expected_manifest_digest:
-        return False
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    files = manifest.get("files")
-    if not isinstance(files, dict):
-        return False
-    for name, expected in files.items():
-        path = directory / name
-        if Path(name).name != name or path.is_symlink() or not path.is_file() or _digest(path) != expected:
-            return False
-    cases = manifest.get("cases", {})
-    if not isinstance(cases, dict):
-        return False
-    return all(
-        isinstance(identifier, str) and isinstance(digest, str)
-        and _bundle_integrity_matches(directory / "cases" / identifier, digest)
-        for identifier, digest in cases.items()
-    )
-
-
 def _state(path: str, expected_digest: str) -> str:
     directory = Path(path)
     if not directory.is_dir():
@@ -130,7 +99,7 @@ def _state(path: str, expected_digest: str) -> str:
     if directory.is_symlink():
         return "modified"
     try:
-        current = _bundle_integrity_matches(directory, expected_digest)
+        current = bundle_integrity_matches(directory, expected_digest)
     except (OSError, json.JSONDecodeError, TypeError):
         return "modified"
     return "current" if current else "modified"
