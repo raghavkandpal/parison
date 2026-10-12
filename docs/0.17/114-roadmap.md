@@ -8,10 +8,10 @@ Parison 0.17 makes a verified comparison bundle portable across an organizationa
 
 ## Planned slices
 
-1. Export a deterministic, schema-validated in-toto Statement from a verified run, suite or suite-shard bundle.
-2. Recompute and verify the semantics of an already-authenticated Statement against a local bundle.
+1. Export a deterministic, schema-validated in-toto Statement from a verified run, suite or suite-shard bundle. **Implemented.**
+2. Recompute and verify the semantics of an already-authenticated Statement against a local bundle. **Implemented.**
 3. Document and test detached Sigstore Cosign workflows, including identity-constrained GitHub Actions keyless signing.
-4. Document extraction receipts and produce a concise cutover evidence report from verified metadata.
+4. Document extraction receipts and produce a concise cutover evidence report from verified metadata. **Implemented.**
 
 ## Acceptance gates
 

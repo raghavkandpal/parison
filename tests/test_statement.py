@@ -70,6 +70,12 @@ class StatementTests(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "already exists"):
             export_statement(self.bundle, output)
 
+    def test_checked_in_statement_fixture_is_byte_exact(self):
+        repository = Path(__file__).parents[1]
+        output = self.root / "fixture.json"
+        export_statement(repository / "examples" / "output", output)
+        self.assertEqual(output.read_bytes(), (repository / "examples" / "0.17" / "parison-statement.json").read_bytes())
+
     def test_statement_rejects_semantic_or_bundle_substitution(self):
         output = self.root / "statement.json"
         export_statement(self.bundle, output)
