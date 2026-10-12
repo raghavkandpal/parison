@@ -47,6 +47,8 @@ https://github.com/OWNER/REPOSITORY/.github/workflows/evidence.yml@refs/tags/TAG
 
 Organizations can customize GitHub's OIDC subject. Record the identity your actual protected workflow emits; do not infer it from the repository name. Pin third-party actions by commit and protect the signing workflow and release environment.
 
+The [copyable GitHub Actions reference](../../examples/github-actions/parison-evidence-signing.yml) pins the installer action and Cosign v3.1.3, authenticates the exact Statement with the job's full `GITHUB_WORKFLOW_REF`, rebinds it to the verified evidence, and retains all handoff files together. Replace its synthetic comparison with your coordinated extraction and pin a released Parison wheel before production use.
+
 Cosign also supports DSSE in-toto blob attestations. Use that route only when the receiving integration passes the authenticated Statement payload—not a separately reconstructed JSON object—to Parison's semantic check. The opaque-blob workflow above makes this exact-byte boundary explicit.
 
 ## Apply the gate
