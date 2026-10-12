@@ -16,8 +16,8 @@ Status: **adoption workflow implemented on `develop`; release review pending**
 
 ## Verification
 
-- Local suite: **217 passed, 6 skipped** optional-Polars tests in the non-Parquet environment.
-- GitHub Actions run [38218492379](https://github.com/raghavkandpal/parison/actions/runs/38218492379) passed Python 3.11–3.14 plus macOS and Windows after the platform-native command-rendering correction.
+- Local suite: **218 passed, 6 skipped** optional-Polars tests in the non-Parquet environment.
+- Final GitHub Actions run [38218894935](https://github.com/raghavkandpal/parison/actions/runs/38218894935) passed Python 3.11–3.14 plus macOS and Windows after the platform-native command-rendering and symlink-destination corrections.
 - The 3.14 Linux lane and both platform lanes created, validated, compared and recursively verified an initialized project from the installed package.
 - Integration references are syntax-compiled or structurally checked without adding orchestrator packages to Parison's dependency graph.
 
