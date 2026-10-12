@@ -12,11 +12,15 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **0.15.0 released.** Policy-locked catalog history and safe run-summary diff support repeated migration rehearsals and backfill validation without adding hosted storage or parsing raw evidence.
 
+**0.16.0 release candidate.** Fast project adoption includes a safe, runnable `parison init` workflow, actionable failure guidance and tested external-orchestrator patterns.
+
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
 ## Try it
 
 Python 3.11 or newer is required.
+
+Start a new local migration check with `parison init migration-check`. The command writes a minimal keyed recipe, matching smoke-test inputs and a short workflow guide into a missing or empty directory; it never overwrites an existing project.
 
 ```sh
 python -m pip install \
@@ -77,6 +81,8 @@ Parison 0.15 extends that catalog with `history --policy-sha256 HASH` and `diff 
 The synthetic [payout reconciliation starter suite](examples/0.15) layers category-level count and exact-decimal conservation with transaction-level diagnosis. It includes an intentionally failing ledger fixture and states the settlement and extraction guarantees that remain upstream responsibilities.
 
 The [feature-pipeline parity starter suite](examples/0.15/features) combines keyed feature tolerances with exact duplicate-aware checking for a keyless batch, while explicitly excluding statistical drift and model-quality claims.
+
+The [orchestrator integration guide](docs/0.16/110-orchestrator-integration-guide.md) and [tested references](examples/integrations) show how generic CI, dbt, Airflow and Dagster can invoke Parison after coordinated user-owned extraction without giving Parison warehouse credentials.
 
 Parison 0.14 can run multiset-v1 comparison through a bounded disposable SQLite workspace: add `--engine sqlite --max-temp-bytes BYTES`, and optionally select a protected parent with `--temp-directory DIR`. Suite-v2 cases can record the same choice under `execution`. See the [released contract](docs/0.14/96-spill-engine-contract.md); benchmark measurements remain evidence, not a universal scale guarantee.
 
@@ -139,8 +145,8 @@ Start with the [documentation index](docs/README.md).
 
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
-- Latest release: [0.14 roadmap and record](docs/0.14/95-roadmap.md)
-- Active development: [0.15 roadmap](docs/0.15/100-roadmap.md)
+- Latest release: [0.15 roadmap and record](docs/0.15/100-roadmap.md)
+- Active development: [0.16 roadmap](docs/0.16/107-roadmap.md)
 - Product direction and release arc: [accepted direction](docs/0.15/104-product-direction-and-release-arc.md)
 - Next opportunities: [real-world application research](docs/0.14/94-real-world-application-research.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)

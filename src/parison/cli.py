@@ -2,12 +2,31 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import shlex
+import subprocess
 import sys
 from pathlib import Path
 
 from . import __version__
 from .catalog import add as catalog_add, diff as catalog_diff, history as catalog_history, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
 from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
+from .project import init_project
+
+
+def _shell_command(parts: list[str]) -> str:
+    return subprocess.list2cmdline(parts) if os.name == "nt" else shlex.join(parts)
+
+
+def _print_bundle_next(output: str) -> None:
+    print("Next:", file=sys.stderr)
+    print(f"  {_shell_command(['parison', 'verify', output])}", file=sys.stderr)
+    print(f"  {_shell_command(['parison', 'inspect', output])}", file=sys.stderr)
+
+
+def _print_suite_next(output: str) -> None:
+    _print_bundle_next(output)
+    print(f"  {_shell_command(['parison', 'report-ci', output, '--format', 'markdown', '--output', 'parison-summary.md'])}", file=sys.stderr)
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -50,12 +69,17 @@ def _print_summary(result: dict, output: str) -> None:
     print(f"Bundle: {output}", file=sys.stderr)
     if result["outcome"] == "FAIL":
         print("Exit 1 means the comparison completed and found required differences.", file=sys.stderr)
+        _print_bundle_next(output)
+        if result["sensitivity"] == "raw":
+            print(f"  {_shell_command(['parison', 'export-evidence', output, '--output', 'evidence.jsonl'])}", file=sys.stderr)
 
 
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="parison", description="Compare data-pipeline outputs deterministically")
     root.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = root.add_subparsers(dest="command", required=True)
+    init = commands.add_parser("init", help="create a minimal keyed migration project")
+    init.add_argument("directory")
     validate = commands.add_parser("validate-recipe", help="validate a JSON recipe")
     validate.add_argument("recipe")
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
@@ -187,6 +211,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     recipe = None
     try:
+        if args.command == "init":
+            files = init_project(args.directory)
+            print(json.dumps({"directory": args.directory, "files": files}))
+            print(f"Created Parison project: {args.directory}", file=sys.stderr)
+            print(f"Next: cd {args.directory} and follow README.md", file=sys.stderr)
+            return 0
         if args.command == "verify":
             manifest = verify_bundle(args.run_directory)
             print(json.dumps(manifest, sort_keys=True) if args.json else "valid")
@@ -268,11 +298,15 @@ def main(argv: list[str] | None = None) -> int:
             subject = "suite shard" if result.get("kind") == "suite-shard" else "suite"
             denominator = result.get("selected_cases", result["total_cases"])
             print(f"Parison {subject} {result['outcome']}: {result['completed_cases']} of {denominator} selected cases published to {args.output}", file=sys.stderr)
+            if result["outcome"] != "PASS":
+                _print_suite_next(args.output)
             return OUTCOME_CODES[result["outcome"]]
         if args.command == "assemble-suite":
             result = assemble_suite(args.plan, args.input, args.output)
             print(json.dumps({"outcome": result["outcome"], "output": args.output, "cases": result["completed_cases"]}, sort_keys=True))
             print(f"Assembled Parison suite {result['outcome']}: {result['completed_cases']} selected cases published to {args.output}", file=sys.stderr)
+            if result["outcome"] != "PASS":
+                _print_suite_next(args.output)
             return OUTCOME_CODES[result["outcome"]]
         if args.command == "report-ci":
             print(json.dumps(report_ci(args.bundle, args.output, args.format), sort_keys=True))

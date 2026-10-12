@@ -444,7 +444,12 @@ class SuiteTests(unittest.TestCase):
         with redirect_stdout(stdout), redirect_stderr(stderr):
             self.assertEqual(main(["run-suite", "--plan", str(self.plan), "--output", str(self.root / "cli-run")]), 1)
         self.assertEqual(json.loads(stdout.getvalue())["cases"], 2)
-        self.assertIn("Parison suite FAIL", stderr.getvalue())
+        guidance = stderr.getvalue()
+        self.assertIn("Parison suite FAIL", guidance)
+        self.assertIn("parison verify", guidance)
+        self.assertIn("parison inspect", guidance)
+        self.assertIn("parison report-ci", guidance)
+        self.assertIn(str(self.root / "cli-run"), guidance)
         with self.assertRaisesRegex(ParisonError, "output already exists"):
             run_suite(self.plan, output)
         child_result = output / "cases" / "passing" / "result.json"

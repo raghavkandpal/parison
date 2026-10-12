@@ -30,8 +30,11 @@ class GitHubActionsReference(unittest.TestCase):
     def test_upload_precedes_restored_exit_code(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         capture = workflow.index('echo "exit-code=$code" >> "$GITHUB_OUTPUT"')
+        verify = workflow.index('parison verify "$PARISON_RUN"')
         upload = workflow.index("uses: actions/upload-artifact@v6")
         restore = workflow.index('run: exit "${{ steps.compare.outputs.exit-code }}"')
+        self.assertLess(capture, verify)
+        self.assertLess(verify, upload)
         self.assertLess(capture, upload)
         self.assertLess(upload, restore)
         self.assertIn("if-no-files-found: error", workflow)
@@ -42,7 +45,18 @@ class GitHubActionsReference(unittest.TestCase):
         self.assertIn("['output']['sensitivity'] == 'summary'", workflow)
         self.assertIn("github.run_id", workflow)
         self.assertIn("github.run_attempt", workflow)
+        self.assertIn("releases/download/0.15.0/parison-0.15.0-py3-none-any.whl", workflow)
         self.assertNotIn("pull_request_target:", workflow)
+
+    def test_installed_wheel_ci_runs_initialized_project_quickstart(self):
+        workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+        for command in ("parison init", "parison validate-recipe", "parison validate-inputs", "parison compare", "parison verify"):
+            self.assertGreaterEqual(workflow.count(command), 2)
+        self.assertIn("platform-smoke:", workflow)
+        platform = workflow[workflow.index("platform-smoke:"):]
+        self.assertIn("python -m build", platform)
+        self.assertIn("dist/parison-*.whl", platform)
+        self.assertNotIn("pip install '.[parquet,test]'", platform)
 
     def test_every_ci_outcome_publishes_a_verifiable_bundle(self):
         recipe = {
