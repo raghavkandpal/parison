@@ -2,6 +2,12 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
+## 0.16 — active
+
+- [0.16 roadmap](0.16/107-roadmap.md)
+- [`parison init` contract](0.16/108-project-init-contract.md)
+- [Project initialization guide](0.16/109-project-init-guide.md)
+
 ## 0.15 — released
 
 - [0.15 roadmap](0.15/100-roadmap.md)

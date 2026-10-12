@@ -8,6 +8,7 @@ from pathlib import Path
 from . import __version__
 from .catalog import add as catalog_add, diff as catalog_diff, history as catalog_history, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
 from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, run_suite, terminal_result, validate_inputs, verify_bundle
+from .project import init_project
 
 
 def _print_summary(result: dict, output: str) -> None:
@@ -56,6 +57,8 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="parison", description="Compare data-pipeline outputs deterministically")
     root.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = root.add_subparsers(dest="command", required=True)
+    init = commands.add_parser("init", help="create a minimal keyed migration project")
+    init.add_argument("directory")
     validate = commands.add_parser("validate-recipe", help="validate a JSON recipe")
     validate.add_argument("recipe")
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
@@ -187,6 +190,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     recipe = None
     try:
+        if args.command == "init":
+            files = init_project(args.directory)
+            print(json.dumps({"directory": args.directory, "files": files}))
+            print(f"Created Parison project: {args.directory}", file=sys.stderr)
+            print(f"Next: cd {args.directory} and follow README.md", file=sys.stderr)
+            return 0
         if args.command == "verify":
             manifest = verify_bundle(args.run_directory)
             print(json.dumps(manifest, sort_keys=True) if args.json else "valid")
