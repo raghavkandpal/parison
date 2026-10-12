@@ -191,7 +191,10 @@ class ParisonTests(unittest.TestCase):
         self.assertEqual(result["field_discrepancy_count"], 2)
         self.assertEqual(len(result["discrepancy_sample"]), 1)
         output = self.root / "raw-run"
-        self.assertEqual(main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output), "--sample-limit", "1"]), 1)
+        stderr = StringIO()
+        with redirect_stderr(stderr):
+            self.assertEqual(main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output), "--sample-limit", "1"]), 1)
+        self.assertIn(f"parison export-evidence {output} --output evidence.jsonl", stderr.getvalue())
         report = (output / "report.html").read_text(encoding="utf-8")
         self.assertNotIn("<script>old</script>", report)
         self.assertIn("&lt;script&gt;old&lt;/script&gt;", report)
@@ -338,6 +341,9 @@ class ParisonTests(unittest.TestCase):
         summary = stderr.getvalue()
         for expected in ("Parison FAIL", "Rows:", "Matches:", "Sensitivity: summary", f"Bundle: {output}", "Exit 1 means the comparison completed"):
             self.assertIn(expected, summary)
+        self.assertIn(f"parison verify {output}", summary)
+        self.assertIn(f"parison inspect {output}", summary)
+        self.assertNotIn("export-evidence", summary)
         for secret in ("secret-key", "old-secret", "new-secret"):
             self.assertNotIn(secret, summary)
 

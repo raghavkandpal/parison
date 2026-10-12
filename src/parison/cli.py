@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import sys
 from pathlib import Path
 
@@ -51,6 +52,11 @@ def _print_summary(result: dict, output: str) -> None:
     print(f"Bundle: {output}", file=sys.stderr)
     if result["outcome"] == "FAIL":
         print("Exit 1 means the comparison completed and found required differences.", file=sys.stderr)
+        print("Next:", file=sys.stderr)
+        print(f"  {shlex.join(['parison', 'verify', output])}", file=sys.stderr)
+        print(f"  {shlex.join(['parison', 'inspect', output])}", file=sys.stderr)
+        if result["sensitivity"] == "raw":
+            print(f"  {shlex.join(['parison', 'export-evidence', output, '--output', 'evidence.jsonl'])}", file=sys.stderr)
 
 
 def parser() -> argparse.ArgumentParser:

@@ -7,6 +7,7 @@ All notable changes will be documented in this file.
 ### Added
 
 - `parison init DIRECTORY` creates a no-overwrite, runnable keyed migration starter with summary-only evidence defaults.
+- Failed comparisons print copyable bundle verification and safe inspection commands, plus evidence export only for raw-sensitivity bundles.
 
 ## 0.15.0 - 2026-10-12
 

@@ -18,3 +18,5 @@ The checked-in sample should PASS. It proves that the local installation and wor
 Before using real outputs, replace both CSV files and review every policy field. In particular, record the shared extraction snapshot and cutoff, state all filters, confirm full-scope completeness, choose stable unique keys, and declare each compared column's type and comparison. If the real files have different shapes, `draft-recipe` may provide a separate starting point, but its suggestions require the same review.
 
 Keep real data, raw-sensitivity bundles and credentials out of source control. Summary-only bundles omit source values, but their counts, policy and provenance are still operational metadata that should receive appropriate access control.
+
+When a comparison completes with differences, the terminal prints copyable `verify` and `inspect` commands for its bundle. A raw-sensitivity run also prints an `export-evidence` command; summary-only runs do not, because they deliberately contain no source-level discrepancy sample.
