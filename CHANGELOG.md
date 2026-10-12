@@ -10,6 +10,7 @@ All notable changes will be documented in this file.
 - Safe catalog diff for two ordinary run bundles with matching effective-policy fingerprints.
 - Baseline and candidate content digests in verified safe run inspection metadata.
 - A synthetic payout-reconciliation starter suite with aggregate conservation, keyed diagnosis and an intentionally failing fixture.
+- A synthetic feature-pipeline parity suite combining reviewed numeric tolerances and exact keyless occurrence matching.
 
 ## 0.14.0 - 2026-10-11
 

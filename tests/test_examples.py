@@ -135,6 +135,18 @@ class CheckedInExamples(unittest.TestCase):
         self.assertEqual(aggregate["measure_counts"]["net_amount"]["different"], 1)
         self.assertEqual(keyed["discrepancy_count"], 1)
 
+    def test_0_15_feature_pipeline_suite_layers_tolerance_and_occurrence_parity(self):
+        root = Path(__file__).parents[1] / "examples" / "0.15" / "features"
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            output = Path(directory) / "features"
+            result = run_suite(root / "feature-suite.json", output)
+            self.assertEqual(result["outcome"], "PASS")
+            keyed = json.loads((output / "cases/entity-feature-parity/result.json").read_text(encoding="utf-8"))
+            multiset = json.loads((output / "cases/batch-occurrence-parity/result.json").read_text(encoding="utf-8"))
+            self.assertEqual(keyed["counts"]["matched_within_tolerance"], 1)
+            self.assertEqual(multiset["counts"]["common_occurrences"], 3)
+            verify_bundle(output)
+
 
 if __name__ == "__main__":
     unittest.main()

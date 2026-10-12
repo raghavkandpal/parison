@@ -1,0 +1,16 @@
+{
+  "recipe_version": 3,
+  "comparison_mode": "multiset",
+  "scope": {
+    "snapshot": "synthetic-keyless-feature-batch-2026-10-12",
+    "cutoff": "2026-10-12T00:00:00Z",
+    "filters": [],
+    "completeness": "full",
+    "expected_empty": false
+  },
+  "columns": {
+    "risk_band": {"type": "string"},
+    "event_count": {"type": "integer"}
+  },
+  "output": {"sensitivity": "summary"}
+}

@@ -1,0 +1,4 @@
+entity_id,risk_score,event_count,segment
+e-100,0.1250,3,new
+e-101,0.7010,12,returning
+e-102,0.3300,5,returning
