@@ -2,7 +2,7 @@
 
 Date: 12 October 2026
 
-Status: **release candidate**
+Status: **released**
 
 ## Feature and safety gates
 
@@ -25,10 +25,10 @@ Status: **release candidate**
 
 ## Publication
 
-- [ ] Merge the reviewed candidate to `main`.
-- [ ] Create annotated tag `0.15.0` from the merge commit.
-- [ ] Publish wheel, source archive and SHA-256 checksums on the GitHub release.
-- [ ] Download the published artifacts, verify checksums and repeat the installed-wheel smoke workflow.
-- [ ] Mark the roadmap, checklist, README and documentation index released.
+- [x] Pull request [#24](https://github.com/raghavkandpal/parison/pull/24) merged the reviewed candidate to `main` as `1fba80e4458bab328b8767dd7df1bcf6649649a4`.
+- [x] Annotated tag `0.15.0` identifies the merge commit.
+- [x] The [GitHub release](https://github.com/raghavkandpal/parison/releases/tag/0.15.0) publishes the wheel, source archive and checksum file. Exact-release wheel SHA-256: `148379a574ab8e1e9d8762aac1598475424f665763ecd629b5bb1b34a58a7213`; source archive: `915b84af7376a48958b3b6e6efb9dfe6b75bcf52d16b1d21e08ee2270e97be02`.
+- [x] Freshly downloaded artifacts passed `SHA256SUMS.txt` verification. A clean Python 3.12 environment installed the downloaded wheel, reported `parison 0.15.0`, ran the payout and feature-pipeline suites to PASS, and recursively verified both bundles.
+- [x] The roadmap, checklist, README and documentation index identify 0.15.0 as released.
 
 PyPI publication remains intentionally deferred.

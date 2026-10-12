@@ -2,7 +2,7 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
-## 0.15 — active
+## 0.15 — released
 
 - [0.15 roadmap](0.15/100-roadmap.md)
 - [Catalog history and safe diff contract](0.15/101-catalog-history-contract.md)
