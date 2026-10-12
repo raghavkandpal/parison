@@ -19,7 +19,7 @@ Parison 0.14 made exact high-cardinality local comparisons practical at lower pe
 - History is limited to ordinary run bundles with exactly one requested policy fingerprint.
 - Ordering is catalog insertion order, not a claim about execution chronology.
 - Diff rejects policy mismatch and suite bundles rather than producing misleading output.
-- Neither command reads discrepancy evidence or source data.
+- Neither command opens source data or parses discrepancy evidence; live-state checks may hash manifest-covered files without interpreting their content.
 - Modified and missing live bundle states remain visible; stored metadata is identified as the last verified projection.
 - Output is deterministic JSON and adds no dependency or network access.
 

@@ -12,6 +12,11 @@ All notable changes will be documented in this file.
 - A synthetic payout-reconciliation starter suite with aggregate conservation, keyed diagnosis and an intentionally failing fixture.
 - A synthetic feature-pipeline parity suite combining reviewed numeric tolerances and exact keyless occurrence matching.
 
+### Fixed
+
+- Catalog history now uses a durable explicit sequence that survives deletion and `VACUUM`, with automatic schema-v1 migration.
+- Catalog paths are normalized lexically, safe history/diff projections share one disclosure boundary, and live-state checks no longer parse result evidence.
+
 ## 0.14.0 - 2026-10-11
 
 ### Added

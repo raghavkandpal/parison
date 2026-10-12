@@ -6,6 +6,7 @@ import unittest
 from contextlib import closing, redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 from parison.catalog import add, diff, history, list_runs, remove, show
 from parison.cli import main
@@ -121,6 +122,52 @@ class CatalogTests(unittest.TestCase):
             "discrepancy_count": {"before": 1, "after": 0, "delta": -1},
         }])
         self.assertEqual(result["runs"][0]["input_sha256"]["baseline"], result["runs"][1]["input_sha256"]["baseline"])
+
+    def test_catalog_order_survives_deletion_and_vacuum(self):
+        copies = [self.root / f"run-{index}" for index in range(3)]
+        for copy in copies:
+            shutil.copytree(self.bundle, copy)
+            add(self.database, copy)
+        policy = show(self.database, copies[0])["metadata"]["policy_sha256"]
+        remove(self.database, copies[1])
+        with closing(sqlite3.connect(self.database)) as connection:
+            connection.execute("VACUUM")
+        fourth = self.root / "run-3"
+        shutil.copytree(self.bundle, fourth)
+        add(self.database, fourth)
+        self.assertEqual([run["catalog_order"] for run in history(self.database, policy)["runs"]], [1, 3, 4])
+
+    def test_paths_are_lexically_normalized_without_resolving_symlinks(self):
+        (self.root / "unused").mkdir()
+        result = add(self.database, self.root / "unused" / ".." / "run")
+        self.assertEqual(result["path"], str(self.bundle))
+        self.assertEqual(show(self.database, self.bundle)["path"], str(self.bundle))
+
+    def test_live_state_hashes_integrity_without_reinspection(self):
+        add(self.database, self.bundle)
+        with patch("parison.catalog.inspect_bundle", side_effect=AssertionError("must not parse result evidence")):
+            self.assertEqual(list_runs(self.database)[0]["state"], "current")
+
+    def test_schema_v1_catalog_migrates_to_explicit_order(self):
+        add(self.database, self.bundle)
+        metadata = show(self.database, self.bundle)["metadata"]
+        self.database.unlink()
+        with closing(sqlite3.connect(self.database)) as connection, connection:
+            connection.executescript("""
+                CREATE TABLE runs (
+                    path TEXT PRIMARY KEY, bundle_sha256 TEXT NOT NULL, kind TEXT NOT NULL,
+                    outcome TEXT NOT NULL, metadata TEXT NOT NULL
+                );
+                PRAGMA user_version = 1;
+            """)
+            connection.execute(
+                "INSERT INTO runs(path, bundle_sha256, kind, outcome, metadata) VALUES (?, ?, ?, ?, ?)",
+                (str(self.bundle), metadata["bundle_sha256"], "run", metadata["outcome"], json.dumps(metadata)),
+            )
+        self.assertEqual(show(self.database, self.bundle)["state"], "current")
+        with closing(sqlite3.connect(self.database)) as connection:
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
+            self.assertEqual(connection.execute("SELECT catalog_order FROM runs").fetchone()[0], 1)
 
     def test_diff_is_safe_and_requires_matching_run_policies(self):
         passing = self.root / "passing-run"

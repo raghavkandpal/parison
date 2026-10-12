@@ -13,7 +13,7 @@ Both commands read the disposable local catalog. They do not mutate bundles or r
 
 ## History
 
-`history` accepts exactly one lowercase SHA-256 policy fingerprint and includes ordinary run bundles whose last verified inspection projection has that fingerprint. Results are ordered by SQLite row identity assigned when a path was first added. Updating the same path retains its position.
+`history` accepts exactly one lowercase SHA-256 policy fingerprint and includes ordinary run bundles whose last verified inspection projection has that fingerprint. Results are ordered by an explicit immutable catalog sequence assigned when a normalized path is first added. Updating the same path retains its position. Existing schema-v1 catalogs migrate their current row order once to schema v2; deletion and `VACUUM` do not renumber surviving entries.
 
 Each run contains its catalog order, normalized local path, bundle digest, live state, outcome, completeness, counts, discrepancy count, runtime, resource limits and baseline/candidate content digests. Adjacent entries produce explicit outcome and discrepancy-count transitions.
 
@@ -25,7 +25,7 @@ Catalog order is reproducible for one database but is not an execution timestamp
 
 The result contains left and right safe projections plus a `changes` object for differing outcome, completeness, counts, discrepancy count, runtime, resource limits or input content digests. Paths, bundle digests and live states identify the operands but are not themselves treated as semantic changes.
 
-The operation uses only metadata captured after bundle verification by `catalog add`. It never opens raw inputs, samples or exported evidence. `state` still checks the current path: `modified` or `missing` warns that the stored projection no longer describes a currently verified bundle at that location.
+The operation uses only metadata captured after bundle verification by `catalog add`. It never opens raw inputs or parses samples or exported evidence. Live state hashes the manifest-covered bundle files and recursively checks child-manifest digests without decoding result content. `modified` or `missing` warns that the stored projection no longer describes byte-identical evidence at that location.
 
 ## Security and interpretation
 
