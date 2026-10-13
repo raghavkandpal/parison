@@ -209,7 +209,7 @@ operator and null policy. Suggestions are starting points, not approved policy."
     run.add_argument("--max-rows", type=int, default=5_000_000, help="maximum rows in either input (default: 5 million)")
     run.add_argument("--max-groups", type=int, default=100_000, help="maximum groups in either aggregate input (default: 100,000)")
     run.add_argument("--max-distinct-rows", type=int, default=100_000, help="maximum distinct rows in either multiset input (default: 100,000)")
-    run.add_argument("--engine", choices=("memory", "sqlite"), default="memory", help="execution engine; sqlite currently supports multiset recipes (default: memory)")
+    run.add_argument("--engine", choices=("memory", "sqlite"), default="memory", help="execution engine; sqlite supports keyed and multiset recipes (default: memory)")
     run.add_argument("--max-temp-bytes", type=int, default=DEFAULT_MAX_TEMP_BYTES, help="maximum SQLite spill database size (default: 5 GB)")
     run.add_argument("--temp-directory", help="existing directory in which to create and clean up the private spill workspace")
     run.add_argument("--expected-policy-sha256", help="require this effective-policy fingerprint before reading inputs")

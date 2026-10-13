@@ -4,6 +4,10 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Explicit SQLite-backed keyed comparison with the existing keyed-v1 semantics, deterministic evidence ordering, a hard temporary-storage ceiling and private-workspace cleanup.
+
 ## 0.17.0 - 2026-10-13
 
 ### Added

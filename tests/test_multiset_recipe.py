@@ -229,14 +229,6 @@ class MultisetRecipeTests(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "temp_directory requires"):
             compare(self.path, left, right, temp_directory=spill)
 
-        keyed = json.loads(json.dumps(RECIPE))
-        keyed.update(recipe_version=1, comparison_mode="keyed", keys=["region"], identity={"null_keys": "reject", "duplicates": "reject"}, nulls_equal=True)
-        keyed.pop("column_mappings")
-        keyed_path = Path(self.tmp.name) / "keyed.json"
-        keyed_path.write_text(json.dumps(keyed), encoding="utf-8")
-        with self.assertRaisesRegex(ParisonError, "only multiset"):
-            compare(keyed_path, left, left, engine="sqlite")
-
     def test_sqlite_engine_cleans_workspace_when_interrupted(self):
         source = Path(self.tmp.name) / "rows.csv"
         source.write_text("region,amount\na,1.00\n", encoding="utf-8")

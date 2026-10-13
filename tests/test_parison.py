@@ -73,6 +73,73 @@ class ParisonTests(unittest.TestCase):
         right = self.csv("right.csv", rows[:1])
         self.assertEqual(compare(self.recipe, left, right)["outcome"], "INCONCLUSIVE")
 
+    def test_sqlite_keyed_engine_matches_memory_and_cleans_workspace(self):
+        recipe = json.loads(json.dumps(RECIPE))
+        recipe["output"]["sensitivity"] = "raw"
+        recipe["column_mappings"] = {"status": {"baseline": "legacy_status", "candidate": "status"}}
+        self.recipe.write_text(json.dumps(recipe), encoding="utf-8")
+        left = self.root / "left.csv"
+        right = self.root / "right.csv"
+        spill = self.root / "spill"
+        spill.mkdir()
+        left.write_text(
+            "order_id,legacy_status,total\n"
+            "b,old,2.00\na,ok,1.00\nd,ok,4.00\n",
+            encoding="utf-8",
+        )
+        right.write_text(
+            "order_id,status,total\n"
+            "c,new,3.00\na,ok,1.01\nd,,4.00\n",
+            encoding="utf-8",
+        )
+        memory = compare(self.recipe, left, right, sample_limit=10)
+        sqlite_result = compare(
+            self.recipe, left, right, sample_limit=10, engine="sqlite",
+            max_temp_bytes=1_000_000, temp_directory=spill,
+        )
+        for result in (memory, sqlite_result):
+            result["runtime"].pop("execution_engine")
+        sqlite_result["runtime"].pop("temporary_bytes")
+        sqlite_result["resource_limits"].pop("max_temp_bytes")
+        self.assertEqual(
+            json.dumps(sqlite_result, sort_keys=True, separators=(",", ":")),
+            json.dumps(memory, sort_keys=True, separators=(",", ":")),
+        )
+        self.assertEqual(list(spill.iterdir()), [])
+
+    def test_sqlite_keyed_engine_preserves_identity_failures_and_limits(self):
+        left = self.csv("left.csv", [
+            {"order_id": "001", "status": "ok", "total": "1"},
+            {"order_id": "001", "status": "changed", "total": "2"},
+        ])
+        right = self.csv("right.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
+        memory = compare(self.recipe, left, right)
+        sqlite_result = compare(self.recipe, left, right, engine="sqlite")
+        self.assertEqual(sqlite_result["outcome"], "INCONCLUSIVE")
+        self.assertEqual(sqlite_result["problems"], memory["problems"])
+        spill = self.root / "spill"
+        spill.mkdir()
+        with self.assertRaisesRegex(ParisonError, "temporary storage limit"):
+            compare(self.recipe, right, right, engine="sqlite", max_temp_bytes=1, temp_directory=spill)
+        self.assertEqual(list(spill.iterdir()), [])
+
+    def test_sqlite_keyed_engine_matches_pass_with_nulls_and_cleans_interruption(self):
+        recipe = json.loads(json.dumps(RECIPE))
+        recipe["null_tokens"] = {"baseline": ["NULL"], "candidate": ["NULL"]}
+        self.recipe.write_text(json.dumps(recipe), encoding="utf-8")
+        left = self.csv("left.csv", [{"order_id": "001", "status": "NULL", "total": "1"}])
+        right = self.csv("right.csv", [{"order_id": "001", "status": "NULL", "total": "1"}])
+        memory = compare(self.recipe, left, right)
+        sqlite_result = compare(self.recipe, left, right, engine="sqlite")
+        self.assertEqual(memory["outcome"], "PASS")
+        self.assertEqual(sqlite_result["counts"], memory["counts"])
+        self.assertEqual(sqlite_result["field_counts"], memory["field_counts"])
+        spill = self.root / "spill"
+        spill.mkdir()
+        with patch("parison.core._iter_input_rows", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+            compare(self.recipe, left, right, engine="sqlite", temp_directory=spill)
+        self.assertEqual(list(spill.iterdir()), [])
+
     def test_strict_recipe_and_atomic_bundle(self):
         invalid = dict(RECIPE, surprise=True)
         self.recipe.write_text(json.dumps(invalid), encoding="utf-8")

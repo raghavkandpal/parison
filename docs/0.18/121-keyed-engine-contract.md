@@ -15,6 +15,14 @@ Engine choice is operational policy. It does not change recipe semantics,
 effective-policy fingerprints, comparison classifications, evidence sensitivity
 or publication rules. Parison never selects SQLite from input size.
 
+```console
+parison compare --recipe recipe.json --baseline old.csv --candidate new.csv \
+  --engine sqlite --max-temp-bytes 5000000000 --output run
+```
+
+Use `--temp-directory` to select an existing trusted local parent for the
+private scratch directory. Omitting it uses the platform temporary directory.
+
 ## Semantic ownership
 
 Parison parses, normalizes and compares every value under the existing keyed-v1
