@@ -1,8 +1,8 @@
 # Parison 0.17 engineering checkpoint
 
-Date: 12 October 2026
+Date: 13 October 2026
 
-Status: **release candidate**
+Status: **released**
 
 ## Implemented
 
@@ -15,12 +15,14 @@ Status: **release candidate**
 
 ## Verification
 
-- Local suite: **228 passed, 6 skipped** optional-Polars tests in the non-Parquet environment.
+- Local suite: **230 passed, 6 skipped** optional-Polars tests in the non-Parquet environment after release hardening.
 - GitHub Actions run [38251780359](https://github.com/raghavkandpal/parison/actions/runs/38251780359) passed Python 3.11–3.14 plus installed-wheel macOS and Windows lanes after Statement source-stability hardening.
 - Every platform lane exports, semantically verifies and reports a Statement from an installed wheel. Tests regenerate the checked-in canonical Statement byte for byte.
 - A temporary checksum-verified Cosign v3.1.3 binary signed the canonical Statement with a local key into a Sigstore bundle, verified that signature under the explicit no-transparency-log test policy, and then passed `parison verify-statement` against the checked-in bundle.
 - The manual GitHub OIDC acceptance workflow pins the Cosign installer action by commit, pins Cosign v3.1.3, constrains verification to its exact `GITHUB_WORKFLOW_REF` and the GitHub issuer, and retains the complete handoff.
 
-## Remaining release gate
+## Release evidence
 
-Merge the candidate to `main`, dispatch the protected keyless acceptance workflow there, and record its successful run before tagging. Local-key verification proves cryptographic interoperability; only the GitHub run proves the documented OIDC identity path.
+- Pull request [#28](https://github.com/raghavkandpal/parison/pull/28) merged as `f13fa089f023aedf2b140acac31f2116a165dd7e` after independent standards and contract review.
+- Exact-merge [CI run 38361610482](https://github.com/raghavkandpal/parison/actions/runs/38361610482) and keyless [OIDC acceptance run 38361652874](https://github.com/raghavkandpal/parison/actions/runs/38361652874) passed.
+- The [0.17.0 release](https://github.com/raghavkandpal/parison/releases/tag/0.17.0) publishes exact-merge wheel, source archive and checksums. Re-downloaded assets passed checksums, fresh Python 3.14 installation, Statement export and verification, and cutover reporting.

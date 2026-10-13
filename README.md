@@ -14,7 +14,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **0.16.0 released.** Fast project adoption includes a safe, runnable `parison init` workflow, actionable failure guidance and tested external-orchestrator patterns.
 
-**0.17.0 release candidate.** Evidence handoff adds deterministic unsigned in-toto Statements that existing CI identity systems can authenticate, without adding cryptography, credentials or network access to Parison.
+**0.17.0 released.** Evidence handoff adds deterministic unsigned in-toto Statements that existing CI identity systems can authenticate, without adding cryptography, credentials or network access to Parison.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -157,8 +157,8 @@ Start with the [documentation index](docs/README.md).
 
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
-- Latest release: [0.16 roadmap and record](docs/0.16/107-roadmap.md)
-- Next release direction: [0.17 evidence handoff roadmap](docs/0.17/114-roadmap.md)
+- Latest release: [0.17 evidence handoff roadmap and record](docs/0.17/114-roadmap.md)
+- Next release direction: [0.18 larger keyed comparisons](docs/0.18/120-roadmap.md)
 - Product direction and release arc: [accepted direction](docs/0.15/104-product-direction-and-release-arc.md)
 - Next opportunities: [real-world application research](docs/0.14/94-real-world-application-research.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)

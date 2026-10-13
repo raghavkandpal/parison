@@ -4,7 +4,11 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
-## 0.17 — in progress
+## 0.18 — in progress
+
+- [0.18 roadmap](0.18/120-roadmap.md)
+
+## 0.17 — released
 
 - [Signing and evidence-handoff research](0.17/113-signing-research.md)
 - [0.17 roadmap](0.17/114-roadmap.md)

@@ -4,7 +4,7 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
-## 0.17.0 - Unreleased
+## 0.17.0 - 2026-10-13
 
 ### Added
 
