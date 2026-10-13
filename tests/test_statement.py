@@ -96,6 +96,13 @@ class StatementTests(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "duplicate JSON field"):
             verify_statement(self.bundle, duplicate)
 
+        typed = self.root / "typed.json"
+        statement = evidence_statement(self.bundle)
+        statement["predicate"]["complete"] = 1
+        typed.write_text(json.dumps(statement), encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "does not match"):
+            verify_statement(self.bundle, typed)
+
     def test_statement_rejects_bundle_change_during_projection(self):
         original = Path.read_bytes
         changed = False
@@ -110,6 +117,22 @@ class StatementTests(unittest.TestCase):
 
         with patch.object(Path, "read_bytes", mutate_result):
             with self.assertRaisesRegex(ParisonError, "changed while preparing Statement"):
+                evidence_statement(self.bundle)
+
+    def test_statement_rejects_manifest_change_during_verification(self):
+        original = Path.read_bytes
+        changed = False
+
+        def mutate_manifest(path):
+            nonlocal changed
+            value = original(path)
+            if path.name == "manifest.json" and path.parent == self.bundle and not changed:
+                changed = True
+                path.write_text("{}", encoding="utf-8")
+            return value
+
+        with patch.object(Path, "read_bytes", mutate_manifest):
+            with self.assertRaisesRegex(ParisonError, "changed during verification"):
                 evidence_statement(self.bundle)
 
     def test_suite_statement_has_suite_policy_and_scope(self):
@@ -155,6 +178,21 @@ class StatementTests(unittest.TestCase):
         self.assertNotIn("statement-fixture", report)
         with self.assertRaisesRegex(ParisonError, "already exists"):
             report_cutover(self.bundle, output)
+
+    def test_statement_and_report_reject_symlinked_output_parent(self):
+        actual = self.root / "actual"
+        actual.mkdir()
+        linked = self.root / "linked"
+        linked.symlink_to(actual, target_is_directory=True)
+        for operation, name in ((export_statement, "statement.json"), (report_cutover, "cutover.md")):
+            with self.subTest(operation=operation.__name__):
+                with self.assertRaisesRegex(ParisonError, "output parent is unsafe"):
+                    operation(self.bundle, linked / name)
+
+        nested = linked / "nested"
+        nested.mkdir()
+        with self.assertRaisesRegex(ParisonError, "output parent is unsafe"):
+            export_statement(self.bundle, nested / "statement.json")
 
     def test_suite_cutover_report_lists_ordered_cases_and_scope(self):
         plan = self.root / "report-suite.json"
