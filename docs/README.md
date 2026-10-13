@@ -11,6 +11,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Compatibility contract](0.19/126-compatibility-contract.md)
 - [Machine-qualified performance envelope](0.19/127-performance-envelope.md)
 - [1.0 readiness checklist](0.19/128-1.0-readiness-checklist.md)
+- [0.19 engineering checkpoint](0.19/129-engineering-checkpoint.md)
 
 ## 0.18 — released
 
