@@ -7,6 +7,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 ## 0.18 — in progress
 
 - [0.18 roadmap](0.18/120-roadmap.md)
+- [SQLite keyed execution contract](0.18/121-keyed-engine-contract.md)
 
 ## 0.17 — released
 
