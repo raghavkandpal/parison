@@ -2,7 +2,7 @@
 
 Date: 13 October 2026
 
-Status: **local qualification passed; cross-platform CI pending**
+Status: **qualification passed**
 
 ## Semantic and lifecycle gate
 
@@ -46,6 +46,8 @@ PYTHONPATH=src python benchmarks/run_spill_cases.py --repeats 3 \
   /tmp/parison-keyed-bench/keyed-100000
 ```
 
-The CI matrix now repeats a 1,000-row accuracy smoke with the built wheel on
-macOS and Windows and on Python 3.14 Linux. The remaining gate is a successful
-exact-commit matrix run across Python 3.11–3.14, macOS and Windows.
+Exact implementation commit `12610d5` passed [GitHub Actions run
+38363720890](https://github.com/raghavkandpal/parison/actions/runs/38363720890):
+Python 3.11–3.14 on Linux plus built-wheel macOS and Windows jobs, including
+the 1,000-row keyed SQLite accuracy smoke. This completes the 0.18 engineering
+qualification gate.
