@@ -1,8 +1,10 @@
 # Parison 0.19 user guide
 
-Status: **authoritative consolidated workflow**
+Status: **authoritative consolidated workflow and command manual**
 
 Parison compares local baseline and candidate outputs under an explicit reviewed policy, then publishes deterministic portable evidence. PASS means agreement under that policy. It does not prove extraction truth, approve the policy or authorize a cutover.
+
+This guide consolidates the operational guidance previously introduced across versioned user guides. Historical guides remain the normative record for their releases; this is the single current entry point for using every supported command.
 
 ## Install and start
 
@@ -113,6 +115,266 @@ The receiving boundary must authenticate the Statement before `verify-statement`
 | Consumer gate decision | Required identity, policy, outcome and scope were accepted | Future correctness after cutover |
 
 The cutover owner—not Parison—reviews these facts and authorizes the change.
+
+## Command reference
+
+Run `parison COMMAND --help` for the installed version's exact parser. Paths passed as outputs must not already exist; Parison publishes atomically and refuses overwrite.
+
+### `parison --version`
+
+Print the installed Parison version. Record this alongside evidence and troubleshooting output.
+
+```sh
+parison --version
+```
+
+### `parison init`
+
+Create a minimal keyed migration project containing a recipe, two sample inputs and usage instructions. The destination must be absent or empty. Generated policy is a starting point, not approval.
+
+```sh
+parison init migration-check
+```
+
+### `parison draft-recipe`
+
+Inspect two local inputs and write a suggested recipe. The default is keyed; select exactly one of `--aggregate` or `--multiset` for those modes. Review keys, scope, exclusions, types, tolerances, normalization and sensitivity before use.
+
+```sh
+parison draft-recipe --baseline old.csv --candidate new.csv --output recipe.json
+parison draft-recipe --aggregate --baseline old.csv --candidate new.csv --output totals.json
+parison draft-recipe --multiset --baseline old.csv --candidate new.csv --output rows.json
+```
+
+`--max-input-bytes` and `--max-decoded-bytes` bound inspection. Drafting never compares records or approves its suggestions.
+
+### `parison validate-recipe`
+
+Validate recipe structure and policy rules without reading inputs. Success prints `valid`; invalid recipes exit 2 with a controlled diagnostic.
+
+```sh
+parison validate-recipe recipe.json
+```
+
+### `parison explain`
+
+Print the effective, data-free policy as JSON, including defaults and `policy_sha256`. Use the fingerprint to lock an approved policy before input access.
+
+```sh
+parison explain recipe.json > effective-policy.json
+```
+
+### `parison validate-inputs`
+
+Check input schemas, mappings and partition layouts against a recipe. Add `--records` to scan types and mode-specific identity across all records.
+
+```sh
+parison validate-inputs --recipe recipe.json \
+  --baseline baseline.csv --candidate candidate.csv --records \
+  --expected-policy-sha256 "$POLICY"
+```
+
+The byte, decoded-byte, row, group and distinct-row limits are hard guards. JSON diagnostics go to stdout; the command exits 0 only when valid and 2 otherwise. Preflight does not publish comparison evidence.
+
+### `parison compare`
+
+Run one comparison and publish a deterministic run bundle.
+
+```sh
+parison compare --recipe recipe.json \
+  --baseline baseline.csv --candidate candidate.csv \
+  --expected-policy-sha256 "$POLICY" \
+  --output runs/rehearsal-01
+```
+
+Important options:
+
+- `--sample-limit N` bounds published raw discrepancy samples; it has no effect on summary evidence.
+- `--max-input-bytes`, `--max-decoded-bytes`, `--max-rows`, `--max-groups` and `--max-distinct-rows` fail closed at resource boundaries.
+- `--engine sqlite` is explicit and supports keyed and multiset recipes. Pair it with `--max-temp-bytes`; `--temp-directory` selects an existing parent for the private temporary workspace.
+- `--expected-policy-sha256` rejects an unapproved effective policy before reading inputs.
+
+Stdout contains a small JSON result locator, stderr contains a human summary, and the process uses the outcome exit codes below. FAIL still publishes complete verifiable evidence.
+
+### `parison verify`
+
+Verify manifest-covered bytes and internal bundle semantics recursively. It does not authenticate a signer, approve policy or assert extraction truth.
+
+```sh
+parison verify runs/rehearsal-01
+parison verify runs/rehearsal-01 --json
+```
+
+`--json` emits verified manifest metadata for automation. The command never repairs or rewrites a bundle.
+
+### `parison inspect`
+
+Verify a run, suite or suite-shard bundle and print its summary-safe projection. Use this for triage without exposing raw discrepancy evidence.
+
+```sh
+parison inspect runs/rehearsal-01
+```
+
+### `parison export-evidence`
+
+Export a bounded JSON Lines subset from an already verified raw-sensitivity run. Summary bundles cannot be upgraded to raw evidence.
+
+```sh
+parison export-evidence runs/raw-failure --output evidence.jsonl \
+  --classification different --kind field --name amount --limit 100
+```
+
+Filters are exact. `--kind` accepts `record`, `field`, `group`, `measure` or `row`. Treat the output as source-sensitive data.
+
+### `parison validate-suite`
+
+Validate a suite plan and every referenced recipe/input path without executing comparisons.
+
+```sh
+parison validate-suite cutover-suite.json
+```
+
+### `parison list-suite`
+
+List the deterministic case selection without reading case inputs. Repeat `--case ID` or `--tag TAG` to filter; supply `--shard-index` and `--shard-count` together for an external shard. `--json` provides structured output.
+
+```sh
+parison list-suite cutover-suite.json --tag required --json
+parison list-suite cutover-suite.json --shard-index 0 --shard-count 4
+```
+
+### `parison run-suite`
+
+Execute selected suite cases and atomically publish a suite or suite-shard bundle.
+
+```sh
+parison run-suite --plan cutover-suite.json --output evidence/cutover \
+  --tag required --jobs 2
+```
+
+Selection options match `list-suite`. `--jobs` accepts 1–16 and preserves plan-order results; resource limits apply to each active case. `--workspace DIRECTORY` retains verified case checkpoints, and `--resume` reuses only children whose integrity, policy, limits, versions and current inputs still match. The comparison limit options apply to every selected case unless suite-v2 defines a stricter effective value.
+
+### `parison assemble-suite`
+
+Verify external suite shards, require exact non-overlapping plan coverage and publish one deterministic assembled suite.
+
+```sh
+parison assemble-suite --plan cutover-suite.json \
+  --input evidence/shard-0 --input evidence/shard-1 \
+  --output evidence/assembled
+```
+
+Assembly does not rerun cases and rejects missing, duplicate, mismatched or modified shard evidence.
+
+### `parison report-ci`
+
+Verify a suite bundle and export a bounded summary-safe Markdown or JUnit projection for CI presentation.
+
+```sh
+parison report-ci evidence/cutover --format markdown --output summary.md
+parison report-ci evidence/cutover --format junit --output results.xml
+```
+
+The report is derived evidence, not the portable source bundle.
+
+### `parison catalog add`
+
+Verify a run, suite or shard and index only its safe metadata in a local SQLite catalog. Re-adding the same current bundle is idempotent; a different bundle at an indexed path is rejected.
+
+```sh
+parison catalog add runs/rehearsal-01 --database .parison/catalog.sqlite
+```
+
+### `parison catalog list`
+
+List indexed entries and their live state. Filter by `--outcome`, `--kind`, exact `--policy-sha256`, or `--state current|modified|missing`.
+
+```sh
+parison catalog list --database .parison/catalog.sqlite --state current
+```
+
+### `parison catalog show`
+
+Show one indexed path's stored safe projection and current state.
+
+```sh
+parison catalog show runs/rehearsal-01 --database .parison/catalog.sqlite
+```
+
+### `parison catalog history`
+
+Show insertion-ordered ordinary runs and outcome/discrepancy transitions for one exact policy fingerprint.
+
+```sh
+parison catalog history --database .parison/catalog.sqlite \
+  --policy-sha256 "$POLICY"
+```
+
+### `parison catalog diff`
+
+Compare stored safe projections of two ordinary run bundles with the same policy. It reports metadata/count changes without reading raw result evidence.
+
+```sh
+parison catalog diff --database .parison/catalog.sqlite \
+  runs/rehearsal-01 runs/rehearsal-02
+```
+
+### `parison catalog remove`
+
+Remove one indexed path from the catalog without deleting or modifying its bundle.
+
+```sh
+parison catalog remove runs/rehearsal-01 --database .parison/catalog.sqlite
+```
+
+### `parison statement`
+
+Verify a bundle and atomically export a deterministic unsigned in-toto Statement binding its exact manifest bytes and safe policy projection.
+
+```sh
+parison statement evidence/cutover --output parison-statement.json
+```
+
+Authenticate those exact Statement bytes outside Parison with an approved signer.
+
+### `parison verify-statement`
+
+After the receiving boundary authenticates the Statement, verify that it is well formed and binds the exact local verified bundle.
+
+```sh
+parison verify-statement evidence/cutover parison-statement.json
+```
+
+This command deliberately performs no cryptography, network access or signer authorization.
+
+### `parison report-cutover`
+
+Verify a run, suite or suite shard and atomically export a deterministic summary-safe Markdown cover sheet for human approval.
+
+```sh
+parison report-cutover evidence/cutover --output cutover.md
+```
+
+The report separates extraction, comparison, authentication and approval facts; generating it does not authorize cutover.
+
+### `parison schema`
+
+Print one installed Draft 2020-12 JSON Schema to stdout. Names include recipe/result/preflight versions, manifest versions, suite plan/result/manifest versions, authoring schemas and `statement`.
+
+```sh
+parison schema recipe-v3 > recipe-v3.schema.json
+parison schema statement > statement.schema.json
+```
+
+### `parison export-editor-schemas`
+
+Atomically export the offline recipe and suite authoring schemas for editor configuration.
+
+```sh
+parison export-editor-schemas --output .parison/editor-schemas
+```
+
+Runtime validation remains authoritative.
 
 ## Comparison modes
 

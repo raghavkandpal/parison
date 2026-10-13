@@ -12,7 +12,7 @@ All notable changes will be documented in this file.
 - Accuracy-verified 100,000-row aggregate measurements for global, low-cardinality and maximum-default-cardinality profiles.
 - Accuracy-verified raw high-mismatch measurements at 10,000 and 100,000 rows plus repeated mixed-mode suite concurrency medians.
 - A checkable 1.0 readiness gate separating local automation, exact-commit CI, human workflow validation and public-release reconciliation.
-- A consolidated 0.19 user guide covering supported inputs, comparison modes, rehearsals, suites, investigation, limits and authenticated evidence handoff.
+- A consolidated 0.19 user guide covering every supported CLI command plus inputs, comparison modes, rehearsals, suites, investigation, limits and authenticated evidence handoff.
 
 ### Compatibility
 
