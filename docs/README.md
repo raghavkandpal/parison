@@ -12,6 +12,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Machine-qualified performance envelope](0.19/127-performance-envelope.md)
 - [1.0 readiness checklist](0.19/128-1.0-readiness-checklist.md)
 - [0.19 engineering checkpoint](0.19/129-engineering-checkpoint.md)
+- [Direct-human workflow rehearsal](0.19/130-human-workflow-rehearsal.md)
 
 ## 0.18 — released
 
