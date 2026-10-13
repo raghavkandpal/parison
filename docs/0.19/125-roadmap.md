@@ -15,6 +15,7 @@ Parison 0.15–0.18 completed the accepted rehearsal, adoption, evidence-handoff
 5. [x] Consolidate the current keyed, aggregate and multiset measurements into an explicit, [machine-qualified performance envelope](127-performance-envelope.md) for memory and SQLite execution.
 6. [x] Run and record a [direct-human workflow rehearsal](130-human-workflow-rehearsal.md); no usability gaps were reported.
 7. [x] Define a checkable [1.0 release-readiness checklist](128-1.0-readiness-checklist.md).
+8. [x] Consolidate the user guide, close the actionable performance gaps and prepare the [0.19.0 release checklist](133-release-checklist.md).
 
 ## Acceptance gates
 

@@ -14,6 +14,14 @@ All notable changes will be documented in this file.
 - A checkable 1.0 readiness gate separating local automation, exact-commit CI, human workflow validation and public-release reconciliation.
 - A consolidated 0.19 user guide covering supported inputs, comparison modes, rehearsals, suites, investigation, limits and authenticated evidence handoff.
 
+### Compatibility
+
+- Recipe versions 1–3 retain their keyed-v1, aggregate-v1 and multiset-v1 meanings; released schemas, outcome names, exit codes, policy fingerprints, canonical encodings and deterministic evidence ordering remain stable through 1.x.
+- Current Parison continues to verify released run result schemas 1–3 and suite-v1/v2 bundles. Verification and derived evidence never rewrite historical artifacts or invent unavailable provenance.
+- Existing commands, required arguments and machine-readable fields remain supported through 1.x. Additive optional fields are allowed, while changed meanings or defaults require an explicit versioned contract.
+- Summary-safe output continues to exclude source paths, keys, values and discrepancy samples. Verification remains an integrity and semantic check—not extraction truth, policy approval, signer authentication or cutover authorization.
+- Version 0.19 introduces no user-visible incompatibility. Native workbook and unstructured-document ingestion remain deferred rather than silently changing the supported input boundary.
+
 ## 0.18.0 - 2026-10-13
 
 ### Added
