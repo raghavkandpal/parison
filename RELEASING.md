@@ -1,30 +1,24 @@
-# Release checklist
+# Release procedure
 
-## Hard blockers
+The active version checklist records evidence; this file defines the reusable procedure.
 
-- [x] Complete a preliminary `Parison` / `parison` name screen for a bounded open-source alpha; PyPI and npm exact names were unclaimed and no obvious software conflict was identified. This is not formal legal clearance; obtain counsel before material commercial investment or a trademark filing.
-- [x] Choose a distribution license, add its `LICENSE` file, and declare it in `pyproject.toml` (MIT).
-- [x] Complete an unfamiliar workflow end to end: two blinded unfamiliar-agent executions completed, followed by human acceptance of the second trial's evidence and recommendation; no blocking usability finding was reported.
+## Candidate
 
-Do not publish while any hard blocker remains open.
+1. Confirm version, changelog, roadmap, checkpoint and checklist agree.
+2. Run `make check`; require built-wheel CI on every supported Python and operating-system lane.
+3. Review `origin/main...develop` against its contracts and repository invariants; correct every release blocker.
+4. Export the candidate with `git archive` into a clean directory; build wheel and source archive there.
+5. Inspect contents, hashes and metadata. Install the wheel in a fresh supported-Python environment and exercise the release's primary workflow.
+6. Record the exact candidate commit, CI run, artifact hashes and smoke result in the active checklist.
 
-## Candidate verification
+## Merge and publish
 
-- [x] Confirm the version in `src/parison/__init__.py` is `0.1.0`; retain the `Unreleased` changelog heading until publication.
-- [x] Start from a clean `git archive` export with no generated inputs or prior run directories.
-- [x] Build outside the working tree with no prior `build`, `dist` or `src/*.egg-info` outputs.
-- [x] Run tests on Python 3.11 through 3.14 in the merged CI matrix.
-- [x] Run the optional Polars suite on every supported Python version, plus macOS and Windows smoke jobs.
-- [x] Build wheel and source archive with `python -m build`.
-- [x] Install the wheel with its Parquet extra into an empty virtual environment.
-- [x] Run `parison --version`, `validate-recipe`, example `compare`, and `verify` from the installed wheel.
-- [x] Inspect the wheel and source archive for only intended package, tests, README, license and metadata files.
-- [x] Confirm the tested support envelope still matches the committed benchmark evidence.
-- [x] Confirm CI passes from source commit `db6397035561fd33e02cf55ece7249990f058995` ([run 37436739580](https://github.com/raghavkandpal/parison/actions/runs/37436739580)).
+1. Merge the reviewed pull request to `main`; require CI on the exact merge commit.
+2. Build again from an archive of that merge commit. Never publish pre-merge artifacts.
+3. Complete release-specific external gates before tagging.
+4. Create annotated tag `VERSION` on the merge commit and push it.
+5. Create the GitHub release with wheel, source archive and `SHA256SUMS`. PyPI remains opt-in.
+6. Download the public assets, verify checksums, install the wheel fresh and repeat the primary smoke workflow.
+7. Record merge, tag, release URL, hashes and public smoke evidence; mark every release document released and merge that update.
 
-## GitHub release
-
-- [x] Tag verified commit `8b3448f7a0b5789f8f82b72923d2653f9f833229` as `0.1.0`.
-- [x] Create the [GitHub prerelease](https://github.com/raghavkandpal/parison/releases/tag/0.1.0) and attach the immutable wheel, source archive and SHA-256 checksums. PyPI was not used.
-- [x] Download both archives from the GitHub Release, verify their checksums, install the wheel with its Parquet extra into an empty environment and repeat the CLI smoke test.
-- [x] Record the 6 October 2026 release date and move the changelog entries out of `Unreleased`.
+A release is complete only when code, tag, public assets and release records identify the same tested commit.

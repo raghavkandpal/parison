@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/statement-v1.schema.json",
+  "title": "Parison evidence Statement v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["_type", "subject", "predicateType", "predicate"],
+  "properties": {
+    "_type": {"const": "https://in-toto.io/Statement/v1"},
+    "subject": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "digest"],
+        "properties": {
+          "name": {"const": "manifest.json"},
+          "digest": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["sha256"],
+            "properties": {"sha256": {"$ref": "#/$defs/sha256"}}
+          }
+        }
+      }
+    },
+    "predicateType": {"const": "https://parison.dev/attestations/evidence/v1"},
+    "predicate": {
+      "oneOf": [
+        {"$ref": "#/$defs/runPredicate"},
+        {"$ref": "#/$defs/suitePredicate"}
+      ]
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "outcome": {"enum": ["PASS", "FAIL", "ERROR", "INCONCLUSIVE", "INTERRUPTED"]},
+    "common": {
+      "type": "object",
+      "required": ["bundleKind", "complete", "outcome", "parisonVersion", "schemaVersion"],
+      "properties": {
+        "bundleKind": {"enum": ["run", "suite", "suite-shard"]},
+        "complete": {"type": "boolean"},
+        "outcome": {"$ref": "#/$defs/outcome"},
+        "parisonVersion": {"type": "string", "minLength": 1},
+        "schemaVersion": {"type": "integer", "minimum": 1}
+      }
+    },
+    "runPredicate": {
+      "allOf": [
+        {"$ref": "#/$defs/common"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["bundleKind", "complete", "outcome", "parisonVersion", "schemaVersion", "contract", "policySha256", "sensitivity"],
+          "properties": {
+            "bundleKind": {"const": "run"},
+            "complete": {"type": "boolean"},
+            "outcome": {"$ref": "#/$defs/outcome"},
+            "parisonVersion": {"type": "string", "minLength": 1},
+            "schemaVersion": {"type": "integer", "minimum": 1, "maximum": 3},
+            "contract": {"enum": ["keyed-v1", "aggregate-v1", "multiset-v1"]},
+            "policySha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+            "sensitivity": {"enum": ["summary", "raw"]}
+          }
+        }
+      ]
+    },
+    "suitePredicate": {
+      "allOf": [
+        {"$ref": "#/$defs/common"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["bundleKind", "complete", "outcome", "parisonVersion", "schemaVersion", "scopeComplete", "suitePolicySha256", "suiteVersion"],
+          "properties": {
+            "bundleKind": {"enum": ["suite", "suite-shard"]},
+            "complete": {"type": "boolean"},
+            "outcome": {"$ref": "#/$defs/outcome"},
+            "parisonVersion": {"type": "string", "minLength": 1},
+            "schemaVersion": {"type": "integer", "minimum": 1, "maximum": 2},
+            "scopeComplete": {"type": "boolean"},
+            "suitePolicySha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+            "suiteVersion": {"type": "integer", "minimum": 1, "maximum": 2}
+          }
+        }
+      ]
+    }
+  }
+}

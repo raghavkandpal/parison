@@ -53,6 +53,7 @@ _SCHEMAS = {
     "suite-result-v2": "suite-result-v2.schema.json",
     "suite-manifest": "suite-manifest-v1.schema.json",
     "suite-manifest-v2": "suite-manifest-v2.schema.json",
+    "statement": "statement-v1.schema.json",
 }
 
 _SUITE_LIMIT_DEFAULTS = {
@@ -2643,7 +2644,7 @@ def _verify_suite_child(directory: Path, case: Any, case_digests: dict[str, Any]
         raise ParisonError(f"suite child metadata does not match: {identifier}")
 
 
-def verify_bundle(directory: str | Path) -> dict[str, Any]:
+def _verified_bundle(directory: str | Path) -> tuple[dict[str, Any], bytes]:
     directory = Path(directory)
     manifest_path = directory / "manifest.json"
     if directory.is_symlink() or not directory.is_dir():
@@ -2651,23 +2652,34 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
     if manifest_path.is_symlink() or not manifest_path.is_file():
         raise ParisonError("bundle manifest is missing or unsafe")
     try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        manifest_bytes = manifest_path.read_bytes()
+        manifest = json.loads(manifest_bytes)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read manifest: {exc}") from exc
     if isinstance(manifest, dict) and manifest.get("kind") in {"suite", "suite-shard"}:
-        return _verify_suite_bundle(directory, manifest)
-    if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
-        raise ParisonError("manifest is incomplete or unsupported")
-    if manifest.get("outcome") not in OUTCOME_CODES or manifest.get("sensitivity") not in {"summary", "raw"}:
-        raise ParisonError("manifest has invalid outcome or sensitivity metadata")
-    if not isinstance(manifest.get("runtime"), dict):
-        raise ParisonError("manifest has invalid runtime metadata")
-    _verify_manifest_files(directory, manifest.get("files"), {"result.json", "report.html"})
-    result = _read_bundle_result(directory)
-    for name in ("outcome", "sensitivity", "runtime"):
-        if result.get(name) != manifest[name]:
-            raise ParisonError(f"manifest {name} does not match result")
-    return manifest
+        manifest = _verify_suite_bundle(directory, manifest)
+    else:
+        if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
+            raise ParisonError("manifest is incomplete or unsupported")
+        if manifest.get("outcome") not in OUTCOME_CODES or manifest.get("sensitivity") not in {"summary", "raw"}:
+            raise ParisonError("manifest has invalid outcome or sensitivity metadata")
+        if not isinstance(manifest.get("runtime"), dict):
+            raise ParisonError("manifest has invalid runtime metadata")
+        _verify_manifest_files(directory, manifest.get("files"), {"result.json", "report.html"})
+        result = _read_bundle_result(directory)
+        for name in ("outcome", "sensitivity", "runtime"):
+            if result.get(name) != manifest[name]:
+                raise ParisonError(f"manifest {name} does not match result")
+    try:
+        if manifest_path.read_bytes() != manifest_bytes:
+            raise ParisonError("bundle changed during verification")
+    except OSError as exc:
+        raise ParisonError(f"cannot re-read manifest: {exc}") from exc
+    return manifest, manifest_bytes
+
+
+def verify_bundle(directory: str | Path) -> dict[str, Any]:
+    return _verified_bundle(directory)[0]
 
 
 def inspect_bundle(directory: str | Path) -> dict[str, Any]:
@@ -2714,6 +2726,207 @@ def inspect_bundle(directory: str | Path) -> dict[str, Any]:
         "bundle_sha256": _digest(Path(directory) / "manifest.json"),
         "manifest_files": sorted(manifest.get("files", {})),
     }
+
+
+_STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
+_EVIDENCE_PREDICATE_TYPE = "https://parison.dev/attestations/evidence/v1"
+
+
+def _evidence_snapshot(directory: str | Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    directory = Path(directory)
+    manifest_path = directory / "manifest.json"
+    manifest, manifest_bytes = _verified_bundle(directory)
+    manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+    is_suite = manifest.get("kind") in {"suite", "suite-shard"}
+    result_name = "suite-result.json" if is_suite else "result.json"
+    try:
+        result_bytes = (directory / result_name).read_bytes()
+        result = json.loads(result_bytes)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read Statement source result: {exc}") from exc
+    if (
+        hashlib.sha256(result_bytes).hexdigest() != manifest["files"].get(result_name)
+        or _digest(directory / result_name) != manifest["files"].get(result_name)
+        or manifest_path.read_bytes() != manifest_bytes
+    ):
+        raise ParisonError("bundle changed while preparing Statement")
+    kind = manifest.get("kind", "run")
+    parison_version = result.get("runtime", {}).get("parison_version")
+    if not isinstance(parison_version, str) or not parison_version:
+        raise ParisonError("bundle lacks Statement-compatible Parison version provenance")
+    predicate = {
+        "bundleKind": kind,
+        "complete": result["complete"],
+        "outcome": result["outcome"],
+        "parisonVersion": parison_version,
+        "schemaVersion": result["schema_version"],
+    }
+    if is_suite:
+        predicate.update({
+            "scopeComplete": result.get("scope_complete", result["complete"]),
+            "suitePolicySha256": result.get("suite_policy_sha256"),
+            "suiteVersion": result["suite_version"],
+        })
+    else:
+        contract = result["runtime"].get("contract")
+        policy_sha256 = result.get("policy_sha256")
+        if contract not in {"keyed-v1", "aggregate-v1", "multiset-v1"}:
+            raise ParisonError("bundle lacks a Statement-compatible run contract")
+        if policy_sha256 is not None and (
+            not isinstance(policy_sha256, str)
+            or len(policy_sha256) != 64
+            or any(character not in "0123456789abcdef" for character in policy_sha256)
+        ):
+            raise ParisonError("bundle has an invalid effective-policy fingerprint")
+        predicate.update({
+            "contract": contract,
+            "policySha256": policy_sha256,
+            "sensitivity": result["sensitivity"],
+        })
+    statement = {
+        "_type": _STATEMENT_TYPE,
+        "subject": [{"name": "manifest.json", "digest": {"sha256": manifest_digest}}],
+        "predicateType": _EVIDENCE_PREDICATE_TYPE,
+        "predicate": predicate,
+    }
+    return statement, result
+
+
+def evidence_statement(directory: str | Path) -> dict[str, Any]:
+    """Build the deterministic unsigned Statement for a verified bundle."""
+    return _evidence_snapshot(directory)[0]
+
+
+def _check_output_parent(parent: Path) -> None:
+    parent = parent.absolute()
+    trusted = [root.absolute() for root in (Path.cwd(), Path(tempfile.gettempdir())) if parent == root.absolute() or parent.is_relative_to(root.absolute())]
+    boundary = max(trusted, key=lambda root: len(root.parts), default=Path(parent.anchor))
+    current = parent
+    while current != boundary:
+        if current.is_symlink():
+            raise ParisonError(f"output parent is unsafe: {current}")
+        current = current.parent
+
+
+def _write_once(target: Path, content: str, error: str) -> None:
+    if target.exists():
+        raise ParisonError(f"output already exists: {target}")
+    _check_output_parent(target.parent)
+    stage = None
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _check_output_parent(target.parent)
+        descriptor, stage_name = tempfile.mkstemp(prefix=f".{target.name}-", dir=target.parent)
+        stage = Path(stage_name)
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(content)
+        os.link(stage, target)
+        stage.unlink()
+    except ParisonError:
+        raise
+    except FileExistsError as exc:
+        raise ParisonError(f"output already exists: {target}") from exc
+    except OSError as exc:
+        raise ParisonError(f"{error}: {exc}") from exc
+    finally:
+        if stage is not None:
+            try:
+                stage.unlink()
+            except OSError:
+                pass
+
+
+def export_statement(directory: str | Path, output: str | Path) -> dict[str, Any]:
+    """Atomically export the canonical unsigned Statement for a verified bundle."""
+    statement = evidence_statement(directory)
+    target = Path(output)
+    _write_once(target, json.dumps(statement, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", "cannot export Statement")
+    return {"output": str(target), "bundle_sha256": statement["subject"][0]["digest"]["sha256"]}
+
+
+def verify_statement(directory: str | Path, statement_path: str | Path) -> dict[str, Any]:
+    """Match an already-authenticated Statement to a verified local bundle."""
+    path = Path(statement_path)
+    if path.is_symlink() or not path.is_file():
+        raise ParisonError(f"Statement is not a regular file: {path}")
+    def object_pairs(pairs):
+        value = {}
+        for name, item in pairs:
+            if name in value:
+                raise ParisonError(f"Statement contains duplicate JSON field: {name}")
+            value[name] = item
+        return value
+    try:
+        actual = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=object_pairs,
+            parse_constant=lambda token: (_ for _ in ()).throw(ValueError(token)),
+        )
+    except ParisonError:
+        raise
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read Statement: {exc}") from exc
+    expected = evidence_statement(directory)
+    canonical = lambda value: json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    if canonical(actual) != canonical(expected):
+        raise ParisonError("authenticated Statement does not match verified bundle")
+    return {"status": "valid", "bundle_sha256": expected["subject"][0]["digest"]["sha256"]}
+
+
+def report_cutover(directory: str | Path, output: str | Path) -> dict[str, Any]:
+    """Write a deterministic safe Markdown cover sheet for verified evidence."""
+    statement, result = _evidence_snapshot(directory)
+    predicate = statement["predicate"]
+    rows = [
+        ("Bundle kind", predicate["bundleKind"]),
+        ("Manifest SHA-256", statement["subject"][0]["digest"]["sha256"]),
+        ("Outcome", predicate["outcome"]),
+        ("Complete", str(predicate["complete"]).lower()),
+        ("Result schema", predicate["schemaVersion"]),
+        ("Produced by Parison", predicate["parisonVersion"]),
+    ]
+    if predicate["bundleKind"] == "run":
+        rows.extend([
+            ("Comparison contract", predicate["contract"]),
+            ("Policy SHA-256", predicate["policySha256"] or "unavailable"),
+            ("Sensitivity", predicate["sensitivity"]),
+        ])
+        summary = [(name.replace("_", " "), value) for name, value in sorted(result["counts"].items())]
+        summary.append(("discrepancy count", result["discrepancy_count"]))
+    else:
+        rows.extend([
+            ("Suite version", predicate["suiteVersion"]),
+            ("Suite policy SHA-256", predicate["suitePolicySha256"] or "unavailable"),
+            ("Scope complete", str(predicate["scopeComplete"]).lower()),
+        ])
+        summary = [
+            ("completed cases", result["completed_cases"]),
+            ("total cases", result["total_cases"]),
+            *[(f"{name} cases", value) for name, value in result["outcome_counts"].items()],
+        ]
+    lines = [
+        "# Parison cutover evidence", "",
+        "> Verified metadata cover sheet. This report is evidence, not cutover approval.", "",
+        "| Field | Value |", "| --- | --- |",
+        *[f"| {name} | {value} |" for name, value in rows], "",
+        "## Result summary", "", "| Measure | Value |", "| --- | ---: |",
+        *[f"| {name} | {value} |" for name, value in summary],
+    ]
+    if predicate["bundleKind"] != "run":
+        lines.extend(["", "## Cases", "", "| Case | Outcome | Complete |", "| --- | --- | --- |"])
+        lines.extend(
+            f"| {case['id']} | {case['outcome']} | {str(case['complete']).lower()} |"
+            for case in result["cases"]
+        )
+    lines.extend([
+        "", "## Independent checks still required", "",
+        "- Authenticate the canonical Statement and authorize its signer identity and issuer.",
+        "- Require the reviewed policy fingerprint, outcome, completeness and suite scope.",
+        "- Validate source-owned extraction snapshot, watermark and completeness guarantees.", "",
+    ])
+    target = Path(output)
+    _write_once(target, "\n".join(lines), "cannot write cutover report")
+    return {"output": str(target), "bundle_sha256": statement["subject"][0]["digest"]["sha256"]}
 
 
 def export_evidence(

@@ -2,6 +2,18 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
+Start with [the current development state](CURRENT.md) for the active version and next gate.
+
+## 0.17 — in progress
+
+- [Signing and evidence-handoff research](0.17/113-signing-research.md)
+- [0.17 roadmap](0.17/114-roadmap.md)
+- [Evidence Statement contract](0.17/115-statement-contract.md)
+- [Evidence handoff guide](0.17/116-evidence-handoff-guide.md)
+- [Cutover evidence report contract](0.17/117-cutover-report-contract.md)
+- [0.17 engineering checkpoint](0.17/118-engineering-checkpoint.md)
+- [0.17.0 release checklist](0.17/119-release-checklist.md)
+
 ## 0.16 — released
 
 - [0.16 roadmap](0.16/107-roadmap.md)

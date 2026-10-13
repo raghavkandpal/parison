@@ -31,6 +31,7 @@ class JsonSchemas(unittest.TestCase):
         cls.suite_schema = load_schema("suite")
         cls.suite_v2_schema = load_schema("suite-v2")
         cls.suite_authoring_schema = load_schema("suite-authoring")
+        cls.statement_schema = load_schema("statement")
         Draft202012Validator.check_schema(cls.recipe_schema)
         Draft202012Validator.check_schema(cls.recipe_v2_schema)
         Draft202012Validator.check_schema(cls.recipe_v3_schema)
@@ -43,6 +44,7 @@ class JsonSchemas(unittest.TestCase):
         Draft202012Validator.check_schema(cls.preflight_v3_schema)
         Draft202012Validator.check_schema(cls.recipe_authoring_schema)
         Draft202012Validator.check_schema(cls.suite_authoring_schema)
+        Draft202012Validator.check_schema(cls.statement_schema)
         cls.schema_store = {
             schema["$id"]: schema
             for schema in (cls.recipe_schema, cls.recipe_v2_schema, cls.recipe_v3_schema, cls.suite_schema, cls.suite_v2_schema)

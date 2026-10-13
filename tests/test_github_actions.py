@@ -12,6 +12,7 @@ from parison.core import verify_bundle
 
 WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison.yml"
 SUITE_WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison-suite-v2.yml"
+SIGNING_WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison-evidence-signing.yml"
 
 
 class GitHubActionsReference(unittest.TestCase):
@@ -57,6 +58,21 @@ class GitHubActionsReference(unittest.TestCase):
         self.assertIn("python -m build", platform)
         self.assertIn("dist/parison-*.whl", platform)
         self.assertNotIn("pip install '.[parquet,test]'", platform)
+
+    def test_signing_reference_pins_tools_and_checks_exact_identity(self):
+        workflow = SIGNING_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("id-token: write", workflow)
+        self.assertIn("sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6", workflow)
+        self.assertIn("cosign-release: v3.1.3", workflow)
+        self.assertIn('identity="https://github.com/${GITHUB_WORKFLOW_REF}"', workflow)
+        self.assertIn('--certificate-identity "$identity"', workflow)
+        self.assertIn("--certificate-oidc-issuer https://token.actions.githubusercontent.com", workflow)
+        self.assertLess(workflow.index("parison statement"), workflow.index("cosign sign-blob"))
+        self.assertLess(workflow.index("cosign verify-blob"), workflow.index("parison verify-statement"))
+        self.assertLess(workflow.index("parison verify-statement"), workflow.index("actions/upload-artifact"))
+        acceptance = (Path(__file__).parents[1] / ".github" / "workflows" / "evidence-signing.yml").read_text(encoding="utf-8")
+        for required in ("workflow_dispatch:", "id-token: write", "cosign sign-blob", "cosign verify-blob", "parison verify-statement"):
+            self.assertIn(required, acceptance)
 
     def test_every_ci_outcome_publishes_a_verifiable_bundle(self):
         recipe = {

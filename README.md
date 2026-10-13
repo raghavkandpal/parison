@@ -14,6 +14,8 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **0.16.0 released.** Fast project adoption includes a safe, runnable `parison init` workflow, actionable failure guidance and tested external-orchestrator patterns.
 
+**0.17.0 release candidate.** Evidence handoff adds deterministic unsigned in-toto Statements that existing CI identity systems can authenticate, without adding cryptography, credentials or network access to Parison.
+
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
 ## Try it
@@ -84,6 +86,16 @@ The [feature-pipeline parity starter suite](examples/0.15/features) combines key
 
 The [orchestrator integration guide](docs/0.16/110-orchestrator-integration-guide.md) and [tested references](examples/integrations) show how generic CI, dbt, Airflow and Dagster can invoke Parison after coordinated user-owned extraction without giving Parison warehouse credentials.
 
+The [evidence handoff guide](docs/0.17/116-evidence-handoff-guide.md) shows how to export a deterministic in-toto Statement, authenticate its exact bytes with an external signer such as Cosign, and bind that authenticated claim back to a recursively verified local bundle. Parison does not create or verify signatures; identity and issuer policy remain external.
+
+In a 0.17 development checkout:
+
+```sh
+parison statement runs/orders-example --output parison-statement.json
+parison verify-statement runs/orders-example parison-statement.json
+parison report-cutover runs/orders-example --output cutover.md
+```
+
 Parison 0.14 can run multiset-v1 comparison through a bounded disposable SQLite workspace: add `--engine sqlite --max-temp-bytes BYTES`, and optionally select a protected parent with `--temp-directory DIR`. Suite-v2 cases can record the same choice under `execution`. See the [released contract](docs/0.14/96-spill-engine-contract.md); benchmark measurements remain evidence, not a universal scale guarantee.
 
 The first [SQLite-engine benchmark](benchmarks/results-2026-10-11-spill.json) compares fresh processes at 10k and 100k high-cardinality rows. On the recorded 100k case, SQLite traded roughly 3× runtime and 33 MiB of temporary disk for an approximately 87% lower process peak RSS. This is machine-specific evidence, not a supported capacity claim.
@@ -146,7 +158,7 @@ Start with the [documentation index](docs/README.md).
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
 - Latest release: [0.16 roadmap and record](docs/0.16/107-roadmap.md)
-- Next release direction: [evidence handoff](docs/0.15/104-product-direction-and-release-arc.md#v017--evidence-handoff)
+- Next release direction: [0.17 evidence handoff roadmap](docs/0.17/114-roadmap.md)
 - Product direction and release arc: [accepted direction](docs/0.15/104-product-direction-and-release-arc.md)
 - Next opportunities: [real-world application research](docs/0.14/94-real-world-application-research.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
