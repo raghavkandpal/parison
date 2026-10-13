@@ -10,7 +10,7 @@
 - Publication is deterministic, atomic, no-overwrite, symlink-safe, and cleans sensitive staging on failure or interruption.
 - Prefer stdlib and deepen existing modules before adding dependencies or seams.
 
-Read [product direction](docs/0.15/104-product-direction-and-release-arc.md) only when changing scope or boundaries. For feature work, read the active roadmap and applicable contract from [the documentation index](docs/README.md).
+Read [current state](docs/CURRENT.md) first. Read [product direction](docs/0.15/104-product-direction-and-release-arc.md) only when changing scope or boundaries; use [the documentation index](docs/README.md) to locate feature contracts.
 
 ## Workflow
 
@@ -28,6 +28,8 @@ Read [product direction](docs/0.15/104-product-direction-and-release-arc.md) onl
 6. Commit coherent slices on `develop` with conventional prefixes; push checkpoints for exact-commit CI.
 
 Packaging, schema, CLI, or platform changes require built-wheel CI on Python 3.11–3.14, macOS, and Windows. Optional-Polars skips are valid only when Polars is absent.
+
+Targeted tests: core semantics `test_parison`/`test_semantics`; formats `test_jsonl`/`test_parquet`/`test_sqlite`; suites `test_suite`; catalog `test_catalog`; schemas `test_json_schemas`; integrations `test_github_actions`/`test_integrations`; evidence handoff `test_statement`.
 
 ## Conditional rules
 

@@ -2,6 +2,8 @@
 
 Documentation is grouped by the version it describes. Released-version folders are historical records; active planning lives under the next version.
 
+Start with [the current development state](CURRENT.md) for the active version and next gate.
+
 ## 0.17 — in progress
 
 - [Signing and evidence-handoff research](0.17/113-signing-research.md)
