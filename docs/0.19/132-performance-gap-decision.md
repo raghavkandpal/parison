@@ -2,11 +2,11 @@
 
 Date: 13 October 2026
 
-Status: **recommended acceptance pending maintainer decision**
+Status: **accepted with targeted evidence added**
 
-## Decision proposed
+## Decision
 
-Accept the remaining documented performance gaps for 1.0. Do not add cross-platform benchmarks or a raw-sensitivity capacity claim unless a concrete deployment requires them.
+Close the actionable raw-sensitivity and concurrency-repeat gaps with machine-qualified measurements. Accept cross-platform throughput as deployment-specific rather than treating hosted CI numbers as a portable performance guarantee.
 
 ## Evidence now available
 
@@ -22,20 +22,14 @@ Aggregate coverage has now been repeated at 100,000 rows on arm64 macOS with Pyt
 
 The exact result is checked in at [the aggregate 100k benchmark](../../benchmarks/results-2026-10-13-aggregate-100k.json). Values are medians of three fresh subprocess runs after one warm-up and remain machine-specific evidence.
 
-## Gaps accepted if approved
+Raw high-mismatch profiles now cover 10,000 and 100,000 rows with sample limits 10, 100 and 1,000. At 100,000 rows, raw mode recorded about 996 MB median peak RSS versus 288 MB for summary mode; sample-limit growth primarily affected result size. See [raw high-mismatch evidence](../../benchmarks/results-2026-10-13-raw-high-mismatch.json).
 
-### Raw-sensitivity performance
+The nine-case mixed keyed/aggregate/multiset suite now has three timed runs after a warm-up for each worker count. Medians were 11.05 s, 6.55 s and 4.07 s for one, two and four workers. See [repeated concurrency evidence](../../benchmarks/results-2026-10-13-suite-concurrency-repeated.json).
 
-Raw evidence is an optional diagnostic mode, not the default gate. Output sampling is bounded, its disclosure risk is explicit, and correctness is tested. Without a representative consumer and discrepancy distribution, a single raw benchmark would encourage a misleading capacity claim. Users selecting raw sensitivity should qualify it with their own protected data shape.
-
-### Linux and Windows performance
+## Accepted boundary
 
 Installed-wheel functional behavior is tested on Linux, macOS and Windows. Performance depends on hardware, filesystem, process limits, virtualization and workload shape; one hosted-runner number per operating system would not form a portable guarantee. Parison promises semantic portability, not equal throughput across hosts.
 
-### Suite concurrency repetition
-
-The mixed-mode concurrency record contains one measured run per worker count and demonstrates the time/memory tradeoff, not a throughput promise. Repeated concurrency medians are unnecessary until scheduling performance becomes a release or adoption decision.
-
 ## Consequence
 
-If the maintainer accepts this decision, the performance gate for 1.0 is complete with the gaps kept visible in the user guide and readiness checklist. New measurements should answer a concrete deployment question rather than expand a generic benchmark matrix.
+The performance gate for 1.0 is complete. New measurements should answer a concrete deployment question rather than expand a generic benchmark matrix.

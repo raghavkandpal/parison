@@ -36,9 +36,10 @@ class GeneratedBenchmarks(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             generate(root, 10)
-            measurement = measure(root / "rows-10")
+            measurement = measure(root / "rows-10", sample_limit=10)
             self.assertGreater(measurement["peak_python_bytes"], 0)
             self.assertGreater(measurement["elapsed_seconds"], 0)
+            self.assertGreater(measurement["result_json_bytes"], 0)
             if measurement["peak_rss_bytes"] is not None:
                 self.assertGreater(measurement["peak_rss_bytes"], 0)
 
@@ -81,6 +82,13 @@ class GeneratedBenchmarks(unittest.TestCase):
                 result = compare(case / "recipe.json", case / "baseline.csv", case / "candidate.csv")
                 self.assertEqual(result["counts"], expected["counts"], profile)
                 self.assertEqual(result["field_discrepancy_count"], expected["field_discrepancy_count"], profile)
+
+    def test_raw_adversarial_profile_respects_sample_limit(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            case = generate_profile(Path(temporary), "high-mismatch", 100, sensitivity="raw")
+            result = compare(case / "recipe.json", case / "baseline.csv", case / "candidate.csv", sample_limit=10)
+            self.assertEqual(result["sensitivity"], "raw")
+            self.assertEqual(result["discrepancy_sample_limit"], 10)
 
 
 if __name__ == "__main__":
