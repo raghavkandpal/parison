@@ -1,0 +1,99 @@
+{
+  "cases": [
+    {
+      "accuracy": "verified",
+      "baseline_rows_per_second": 25377.6,
+      "case": "aggregate-global-100000",
+      "counts": {
+        "baseline_groups": 1,
+        "baseline_only_groups": 0,
+        "baseline_rows": 100000,
+        "candidate_groups": 1,
+        "candidate_only_groups": 0,
+        "candidate_rows": 100000,
+        "common_groups": 1,
+        "different_measures": 0,
+        "exact_measures": 2,
+        "within_tolerance_measures": 0
+      },
+      "format": "csv",
+      "input_bytes": 4578028,
+      "max_elapsed_seconds": 4.039498,
+      "max_peak_rss_bytes": 36077568,
+      "median_elapsed_seconds": 3.940491,
+      "median_peak_python_bytes": 2332884,
+      "median_peak_rss_bytes": 36012032,
+      "min_elapsed_seconds": 3.916274,
+      "min_peak_rss_bytes": 35962880,
+      "outcome": "PASS",
+      "peak_python_bytes_per_baseline_row": 23.3,
+      "repeats": 3
+    },
+    {
+      "accuracy": "verified",
+      "baseline_rows_per_second": 24263.0,
+      "case": "aggregate-low-100000",
+      "counts": {
+        "baseline_groups": 10,
+        "baseline_only_groups": 0,
+        "baseline_rows": 100000,
+        "candidate_groups": 10,
+        "candidate_only_groups": 0,
+        "candidate_rows": 100000,
+        "common_groups": 10,
+        "different_measures": 0,
+        "exact_measures": 20,
+        "within_tolerance_measures": 0
+      },
+      "format": "csv",
+      "input_bytes": 4578028,
+      "max_elapsed_seconds": 4.193488,
+      "max_peak_rss_bytes": 36061184,
+      "median_elapsed_seconds": 4.121494,
+      "median_peak_python_bytes": 2351450,
+      "median_peak_rss_bytes": 36028416,
+      "min_elapsed_seconds": 4.097181,
+      "min_peak_rss_bytes": 35995648,
+      "outcome": "PASS",
+      "peak_python_bytes_per_baseline_row": 23.5,
+      "repeats": 3
+    },
+    {
+      "accuracy": "verified",
+      "baseline_rows_per_second": 13639.3,
+      "case": "aggregate-high-100000",
+      "counts": {
+        "baseline_groups": 100000,
+        "baseline_only_groups": 0,
+        "baseline_rows": 100000,
+        "candidate_groups": 100000,
+        "candidate_only_groups": 0,
+        "candidate_rows": 100000,
+        "common_groups": 100000,
+        "different_measures": 0,
+        "exact_measures": 200000,
+        "within_tolerance_measures": 0
+      },
+      "format": "csv",
+      "input_bytes": 4578028,
+      "max_elapsed_seconds": 7.337241,
+      "max_peak_rss_bytes": 484917248,
+      "median_elapsed_seconds": 7.331737,
+      "median_peak_python_bytes": 200947765,
+      "median_peak_rss_bytes": 484835328,
+      "min_elapsed_seconds": 7.314684,
+      "min_peak_rss_bytes": 484786176,
+      "outcome": "PASS",
+      "peak_python_bytes_per_baseline_row": 2009.5,
+      "repeats": 3
+    }
+  ],
+  "environment": {
+    "date": "2026-10-13",
+    "machine": "arm64",
+    "measurement": "median of fresh subprocess runs after one warm-up; tracemalloc and process peak RSS; not a supported performance claim",
+    "parison": "0.18.0",
+    "platform": "Darwin",
+    "python": "3.14.7"
+  }
+}
