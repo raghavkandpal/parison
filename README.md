@@ -16,6 +16,8 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **0.17.0 released.** Evidence handoff adds deterministic unsigned in-toto Statements that existing CI identity systems can authenticate, without adding cryptography, credentials or network access to Parison.
 
+**0.18.0 released.** Explicit SQLite-backed keyed execution trades local disk and runtime for lower peak memory while preserving keyed-v1 semantics, deterministic evidence and bounded temporary storage.
+
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
 ## Try it
@@ -26,7 +28,7 @@ Start a new local migration check with `parison init migration-check`. The comma
 
 ```sh
 python -m pip install \
-  https://github.com/raghavkandpal/parison/releases/download/0.16.0/parison-0.16.0-py3-none-any.whl
+  https://github.com/raghavkandpal/parison/releases/download/0.18.0/parison-0.18.0-py3-none-any.whl
 parison --version
 parison validate-recipe examples/orders.recipe.json
 parison validate-inputs --recipe examples/orders.recipe.json \
@@ -48,7 +50,7 @@ Recipes can map renamed source columns to one canonical field. Keys, policies, c
 
 A generated PASS bundle is checked in under [`examples/output`](examples/output), containing [`result.json`](examples/output/result.json), [`effective-recipe.json`](examples/output/effective-recipe.json), [`report.html`](examples/output/report.html), and [`manifest.json`](examples/output/manifest.json). It is summary-only and contains no source keys or raw values.
 
-To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/0.16.0/parison-0.16.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md) and read-only [SQLite table](docs/0.2/24-sqlite-contract.md) inputs are also supported, including mixed-format comparisons. Recipes are strict JSON; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars versions without recording hostnames.
+To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/0.18.0/parison-0.18.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md) and read-only [SQLite table](docs/0.2/24-sqlite-contract.md) inputs are also supported, including mixed-format comparisons. Recipes are strict JSON; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars versions without recording hostnames.
 
 A baseline or candidate may also be a directory of same-format CSV, TSV, JSON Lines or Parquet files. Parison treats its immediate files as one logical input and enforces limits, schemas and identity across partitions. See the [partitioned-input contract](docs/0.3/30-partitioned-input-contract.md).
 
@@ -88,7 +90,7 @@ The [orchestrator integration guide](docs/0.16/110-orchestrator-integration-guid
 
 The [evidence handoff guide](docs/0.17/116-evidence-handoff-guide.md) shows how to export a deterministic in-toto Statement, authenticate its exact bytes with an external signer such as Cosign, and bind that authenticated claim back to a recursively verified local bundle. Parison does not create or verify signatures; identity and issuer policy remain external.
 
-In a 0.17 development checkout:
+In a 0.18 release checkout:
 
 ```sh
 parison statement runs/orders-example --output parison-statement.json
@@ -157,8 +159,8 @@ Start with the [documentation index](docs/README.md).
 
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
-- Latest release: [0.17 evidence handoff roadmap and record](docs/0.17/114-roadmap.md)
-- Next release direction: [0.18 larger keyed comparisons](docs/0.18/120-roadmap.md)
+- Latest release: [0.18 larger keyed comparisons](docs/0.18/120-roadmap.md)
+- Next release direction: to be defined from the accepted product direction
 - Product direction and release arc: [accepted direction](docs/0.15/104-product-direction-and-release-arc.md)
 - Next opportunities: [real-world application research](docs/0.14/94-real-world-application-research.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)

@@ -1,6 +1,6 @@
 # Parison 0.18 roadmap
 
-Status: **in progress**
+Status: **released**
 
 ## Theme: larger keyed comparisons
 
@@ -28,3 +28,5 @@ Parison 0.18 extends exact keyed verification beyond comfortable process memory 
 - Hiding SQLite resource tradeoffs behind an unchanged memory limit.
 
 This slice follows the accepted [product direction and release arc](../0.15/104-product-direction-and-release-arc.md).
+
+Parison 0.18.0 was released from merge commit `1f43d1724625b508e9c81cae01f454d659b3925a` after the full supported CI matrix passed.

@@ -2,7 +2,7 @@
 
 Date: 13 October 2026
 
-Status: **qualification passed**
+Status: **released**
 
 ## Semantic and lifecycle gate
 
@@ -52,3 +52,9 @@ Exact implementation commit `12610d5` passed [GitHub Actions run
 Python 3.11–3.14 on Linux plus built-wheel macOS and Windows jobs, including
 the 1,000-row keyed SQLite accuracy smoke. This completes the 0.18 engineering
 qualification gate.
+
+Release merge `1f43d1724625b508e9c81cae01f454d659b3925a` passed [GitHub Actions run
+38398474070](https://github.com/raghavkandpal/parison/actions/runs/38398474070).
+The published wheel was downloaded again, checksum-verified, installed in fresh
+Python 3.12, and passed direct and suite-v2 SQLite-keyed workflows with
+recursive bundle verification.
