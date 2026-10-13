@@ -238,8 +238,8 @@ def load_suite(path: str | Path) -> dict[str, Any]:
                 or ("max_temp_bytes" in execution and (not isinstance(execution["max_temp_bytes"], int) or isinstance(execution["max_temp_bytes"], bool) or execution["max_temp_bytes"] <= 0))
             ):
                 raise ParisonError(f"suite case {identifier} has invalid execution settings")
-            if execution and recipe["comparison_mode"] != "multiset":
-                raise ParisonError(f"suite case {identifier} sqlite execution requires a multiset recipe")
+            if execution and recipe["comparison_mode"] == "aggregate":
+                raise ParisonError(f"suite case {identifier} sqlite execution does not support an aggregate recipe")
             effective_limits = {**_SUITE_LIMIT_DEFAULTS, **default_limits, **limits}
             resolved.update({"tags": tags, "limits": effective_limits, "policy_sha256": policy_sha256})
             portable.update({"tags": tags, "limits": effective_limits, "policy_sha256": policy_sha256})
@@ -3436,8 +3436,8 @@ def _reusable_workspace_child(
         expected_resources["max_groups_per_input"] = limits["max_groups"]
     elif mode == "multiset":
         expected_resources["max_distinct_rows_per_input"] = limits["max_distinct_rows"]
-        if case.get("execution"):
-            expected_resources["max_temp_bytes"] = case["execution"].get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES)
+    if case.get("execution"):
+        expected_resources["max_temp_bytes"] = case["execution"].get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES)
     return resource_limits == expected_resources
 
 

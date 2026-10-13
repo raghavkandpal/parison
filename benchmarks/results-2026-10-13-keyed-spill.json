@@ -1,0 +1,68 @@
+{
+  "cases": [
+    {
+      "case": "keyed-10000",
+      "counts": {
+        "baseline": 10000,
+        "baseline_only": 0,
+        "candidate": 10000,
+        "candidate_only": 0,
+        "common_keys": 10000,
+        "matched_exact": 10000,
+        "matched_with_required_difference": 0,
+        "matched_within_tolerance": 0
+      },
+      "engines": {
+        "memory": {
+          "median_elapsed_seconds": 0.328188,
+          "median_peak_python_bytes": 7869488,
+          "median_peak_rss_bytes": 36241408,
+          "median_temporary_bytes": 0
+        },
+        "sqlite": {
+          "median_elapsed_seconds": 1.159572,
+          "median_peak_python_bytes": 2485038,
+          "median_peak_rss_bytes": 26542080,
+          "median_temporary_bytes": 7163904
+        }
+      },
+      "outcome": "PASS"
+    },
+    {
+      "case": "keyed-100000",
+      "counts": {
+        "baseline": 100000,
+        "baseline_only": 0,
+        "candidate": 100000,
+        "candidate_only": 0,
+        "common_keys": 100000,
+        "matched_exact": 100000,
+        "matched_with_required_difference": 0,
+        "matched_within_tolerance": 0
+      },
+      "engines": {
+        "memory": {
+          "median_elapsed_seconds": 3.361076,
+          "median_peak_python_bytes": 72116119,
+          "median_peak_rss_bytes": 174833664,
+          "median_temporary_bytes": 0
+        },
+        "sqlite": {
+          "median_elapsed_seconds": 11.590784,
+          "median_peak_python_bytes": 2485108,
+          "median_peak_rss_bytes": 26902528,
+          "median_temporary_bytes": 80961536
+        }
+      },
+      "outcome": "PASS"
+    }
+  ],
+  "environment": {
+    "date": "2026-10-13",
+    "machine": "arm64",
+    "measurement": "median of fresh subprocess runs after one warm-up; accuracy checked; machine-specific, not a supported scale claim",
+    "parison": "0.17.0",
+    "platform": "Darwin",
+    "python": "3.9.2"
+  }
+}

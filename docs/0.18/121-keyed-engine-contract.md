@@ -7,9 +7,17 @@ Status: **accepted for implementation**
 ## Selection and scope
 
 The default keyed-v1 engine remains `memory`. SQLite execution is an explicit
-opt-in through `parison compare --engine sqlite`; suite-v2 selection is a later
-0.18 slice. Selecting SQLite for keyed-v1 or multiset-v1 is valid. Aggregate-v1
-remains memory-only.
+opt-in through `parison compare --engine sqlite` or a suite-v2 case:
+
+```json
+"execution": {
+  "engine": "sqlite",
+  "max_temp_bytes": 5000000000
+}
+```
+
+Selecting SQLite for keyed-v1 or multiset-v1 is valid. Aggregate-v1 remains
+memory-only.
 
 Engine choice is operational policy. It does not change recipe semantics,
 effective-policy fingerprints, comparison classifications, evidence sensitivity

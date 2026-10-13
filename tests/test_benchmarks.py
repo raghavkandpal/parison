@@ -63,6 +63,15 @@ class GeneratedBenchmarks(unittest.TestCase):
             self.assertGreater(sqlite["temporary_bytes"], 0)
             self.assertGreater(sqlite["elapsed_seconds"], 0)
 
+    def test_keyed_spill_case_matches_memory_and_reports_temporary_bytes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            case = generate_spill(Path(temporary), 100, "keyed")
+            memory = measure_spill(case, "memory")
+            sqlite = measure_spill(case, "sqlite")
+            self.assertEqual(memory["counts"], sqlite["counts"])
+            self.assertEqual(memory["temporary_bytes"], 0)
+            self.assertGreater(sqlite["temporary_bytes"], 0)
+
     def test_adversarial_profiles_match_their_oracles(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

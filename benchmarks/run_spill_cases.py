@@ -55,7 +55,10 @@ def measure(case: Path, engine: str) -> dict:
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     counts = result["counts"]
-    if result["outcome"] != expected["outcome"] or counts["baseline_rows"] != expected["rows"] or counts["baseline_distinct_rows"] != expected["distinct_rows"]:
+    accurate = counts == expected["counts"] if "counts" in expected else (
+        counts["baseline_rows"] == expected["rows"] and counts["baseline_distinct_rows"] == expected["distinct_rows"]
+    )
+    if result["outcome"] != expected["outcome"] or not accurate:
         raise SystemExit(f"accuracy check failed for {case} with {engine}")
     return {
         "elapsed_seconds": elapsed,
@@ -75,7 +78,7 @@ def child(case: Path, engine: str) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Compare memory and SQLite multiset engines in fresh processes")
+    parser = argparse.ArgumentParser(description="Compare memory and SQLite engines in fresh processes")
     parser.add_argument("cases", type=Path, nargs="+")
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--json-output", type=Path)

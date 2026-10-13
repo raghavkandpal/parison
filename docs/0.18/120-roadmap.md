@@ -11,7 +11,7 @@ Parison 0.18 extends exact keyed verification beyond comfortable process memory 
 1. [x] Define an explicit [SQLite keyed-engine contract](121-keyed-engine-contract.md), limits and failure behavior.
 2. [x] Implement bounded temporary storage with private staging and interruption cleanup.
 3. [x] Prove semantic and deterministic-output equivalence with the memory engine across PASS, FAIL, tolerance, null, mapping and duplicate-key cases.
-4. [ ] Add suite-v2 engine selection, clean installed-wheel acceptance and cross-platform benchmarks.
+4. [ ] Add suite-v2 engine selection, clean installed-wheel acceptance and cross-platform benchmarks. Suite selection is implemented; wheel and benchmark qualification remain.
 
 ## Acceptance gates
 

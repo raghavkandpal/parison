@@ -185,8 +185,24 @@ class SuiteTests(unittest.TestCase):
         self.assertFalse(any(path.name.startswith("parison-spill-") for path in output.rglob("*")))
         verify_bundle(output)
 
-        self.write_plan_v2([self.case() | {"execution": {"engine": "sqlite"}}])
-        with self.assertRaisesRegex(ParisonError, "requires a multiset"):
+    def test_suite_v2_can_select_sqlite_for_a_keyed_case(self):
+        self.write_plan_v2([self.case() | {"execution": {"engine": "sqlite", "max_temp_bytes": 1_000_000}}])
+        output = self.root / "sqlite-keyed-suite"
+        run_suite(self.plan, output)
+        child = json.loads((output / "cases" / "orders" / "result.json").read_text(encoding="utf-8"))
+        self.assertEqual(child["outcome"], "PASS")
+        self.assertEqual(child["runtime"]["execution_engine"], "sqlite")
+        self.assertEqual(child["resource_limits"]["max_temp_bytes"], 1_000_000)
+        verify_bundle(output)
+
+        aggregate = dict(RECIPE)
+        aggregate.pop("keys")
+        aggregate.pop("identity")
+        aggregate.pop("nulls_equal")
+        aggregate.update(recipe_version=2, comparison_mode="aggregate", group_by=[], measures={"rows": {"operator": "count"}})
+        (self.root / "aggregate.json").write_text(json.dumps(aggregate), encoding="utf-8")
+        self.write_plan_v2([self.case() | {"recipe": "aggregate.json", "execution": {"engine": "sqlite"}}])
+        with self.assertRaisesRegex(ParisonError, "does not support an aggregate"):
             load_suite(self.plan)
 
     def test_concurrent_suite_matches_sequential_semantics_and_plan_order(self):

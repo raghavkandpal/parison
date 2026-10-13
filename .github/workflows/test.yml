@@ -137,6 +137,8 @@ jobs:
         run: |
           python benchmarks/generate_spill_cases.py --output /tmp/parison-spill-bench --rows 1000
           python benchmarks/run_spill_cases.py --repeats 1 /tmp/parison-spill-bench/multiset-1000
+          python benchmarks/generate_spill_cases.py --output /tmp/parison-spill-bench --mode keyed --rows 1000
+          python benchmarks/run_spill_cases.py --repeats 1 /tmp/parison-spill-bench/keyed-1000
 
   platform-smoke:
     runs-on: ${{ matrix.os }}
@@ -185,4 +187,6 @@ jobs:
       - run: parison verify ${{ runner.temp }}/parison-0.14-suite
       - run: python benchmarks/generate_spill_cases.py --output ${{ runner.temp }}/parison-spill-bench --rows 1000
       - run: python benchmarks/run_spill_cases.py --repeats 1 ${{ runner.temp }}/parison-spill-bench/multiset-1000
+      - run: python benchmarks/generate_spill_cases.py --output ${{ runner.temp }}/parison-spill-bench --mode keyed --rows 1000
+      - run: python benchmarks/run_spill_cases.py --repeats 1 ${{ runner.temp }}/parison-spill-bench/keyed-1000
       - run: python -m unittest discover -s tests -v
