@@ -21,9 +21,14 @@ Status: **candidate hardening**
 - [x] The two-axis `origin/main...develop` review found raw pre-normalization evidence loss and missing suite failure metadata; both blockers have regression coverage and are corrected.
 - [x] The 10k/100k arm64 macOS benchmark preserved exact PASS counts. At 100k rows SQLite reduced measured process peak RSS from 166.7 MiB to 25.7 MiB while taking 3.4 times as long and using 77.2 MiB of scratch storage.
 - [x] Pre-review implementation commit `12610d5` passed [GitHub Actions run 38363720890](https://github.com/raghavkandpal/parison/actions/runs/38363720890) on Python 3.11–3.14, macOS and Windows.
-- [ ] Post-review exact candidate passes built-wheel CI on Python 3.11–3.14, macOS and Windows.
-- [ ] A clean `git archive` candidate builds wheel and source artifacts whose contents, metadata and SHA-256 hashes are recorded.
-- [ ] A fresh supported-Python environment installs the candidate wheel and completes direct and suite SQLite-keyed smoke workflows.
+- [x] Exact candidate `62390ae` passed [GitHub Actions run 38364667632](https://github.com/raghavkandpal/parison/actions/runs/38364667632) with built wheels on Python 3.11–3.14, macOS and Windows.
+- [x] A clean `git archive` of `62390ae` built wheel and source artifacts with inspected contents and 0.18.0 metadata.
+- [x] A fresh Python 3.12 environment installed the candidate wheel and completed direct and suite SQLite-keyed PASS workflows with recursive bundle verification.
+
+Candidate SHA-256:
+
+- `parison-0.18.0-py3-none-any.whl`: `ca1db393fa6414daf641627eaf3fb09158e9f475015d39f1dd899464d4a97182`
+- `parison-0.18.0.tar.gz`: `2a205e2765d75a1290deea70141c03838e7cd3c3a31d7866d8af5bfbb4a85da9`
 
 ## Publication
 
