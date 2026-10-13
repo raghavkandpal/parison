@@ -10,6 +10,7 @@ All notable changes will be documented in this file.
 - A built-wheel acceptance workflow spanning project initialization, repeated rehearsal history, suite execution, Statement verification and cutover reporting on the supported CI matrix.
 - A consolidated machine-qualified performance envelope covering released comparison modes and explicitly recording the evidence gaps that remain before 1.0.
 - A checkable 1.0 readiness gate separating local automation, exact-commit CI, human workflow validation and public-release reconciliation.
+- A consolidated 0.19 user guide covering supported inputs, comparison modes, rehearsals, suites, investigation, limits and authenticated evidence handoff.
 
 ## 0.18.0 - 2026-10-13
 

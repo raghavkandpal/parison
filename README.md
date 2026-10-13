@@ -24,6 +24,8 @@ Parison is an open-source, zero-custody tool. Comparisons run in the user's envi
 
 Python 3.11 or newer is required.
 
+For the complete reviewed-policy, rehearsal, suite and authenticated handoff path, follow the [0.19 consolidated user guide](docs/0.19/131-user-guide.md).
+
 Start a new local migration check with `parison init migration-check`. The command writes a minimal keyed recipe, matching smoke-test inputs and a short workflow guide into a missing or empty directory; it never overwrites an existing project.
 
 ```sh

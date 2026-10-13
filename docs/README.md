@@ -6,6 +6,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 
 ## 0.19 — in progress
 
+- [0.19 consolidated user guide](0.19/131-user-guide.md)
 - [Non-CSV and document input research](0.19/124-non-csv-input-research.md)
 - [0.19 roadmap](0.19/125-roadmap.md)
 - [Compatibility contract](0.19/126-compatibility-contract.md)
