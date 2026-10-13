@@ -10,22 +10,17 @@
 - Publication is deterministic, atomic, no-overwrite, symlink-safe, and cleans sensitive staging on failure or interruption.
 - Prefer stdlib and deepen existing modules before adding dependencies or seams.
 
-Read [current state](docs/CURRENT.md) first. Read [product direction](docs/0.15/104-product-direction-and-release-arc.md) only when changing scope or boundaries; use [the documentation index](docs/README.md) to locate feature contracts.
+Start with `make context`. Read [product direction](docs/0.15/104-product-direction-and-release-arc.md) only when changing scope or boundaries; use [the documentation index](docs/README.md) to locate feature contracts.
 
 ## Workflow
 
-1. Inspect `git status`; preserve unrelated work.
+1. Preserve unrelated work reported by `make context`.
 2. Define the smallest coherent slice and a checkable completion gate.
-3. Test narrowly while iterating. Add a regression test for each defect and a byte fixture for canonical serialization.
-4. Before a feature commit, pass:
-
-   ```sh
-   PYTHONPATH=src python -m unittest discover -s tests -q
-   git diff --check
-   ```
-
-5. Document user-visible behavior in the active version folder; update `docs/README.md` and `CHANGELOG.md`.
-6. Commit coherent slices on `develop` with conventional prefixes; push checkpoints for exact-commit CI.
+3. Read/search only files needed for that gate. Keep command output bounded; expand it only to diagnose failure.
+4. Test narrowly with `make test TEST=tests.test_<area>`. Add a regression test for each defect and a byte fixture for canonical serialization.
+5. Before a feature commit, pass `make check`.
+6. Document user-visible behavior in the active version folder; update `docs/README.md` and `CHANGELOG.md`.
+7. Commit coherent slices on `develop` with conventional prefixes; push checkpoints for exact-commit CI.
 
 Packaging, schema, CLI, or platform changes require built-wheel CI on Python 3.11–3.14, macOS, and Windows. Optional-Polars skips are valid only when Polars is absent.
 
@@ -36,3 +31,4 @@ Targeted tests: core semantics `test_parison`/`test_semantics`; formats `test_js
 - Research: use primary sources; record design consequences, threats, non-goals, and access date. Keep confidential work only in ignored `local-research/`.
 - Benchmarks: report machine-specific evidence, never universal capacity.
 - Releases: follow the active checklist and [RELEASING.md](RELEASING.md). Merge reviewed candidates to `main`, tag the exact merge, publish wheel/source/checksums, re-download and smoke-test public assets, then reconcile every release record.
+- Handoffs: replace changing state in `docs/CURRENT.md`; keep session history in version documents.
