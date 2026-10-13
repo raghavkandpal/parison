@@ -4,6 +4,14 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Explicit SQLite-backed keyed comparison for direct commands and suite-v2 cases, with the existing keyed-v1 semantics, deterministic evidence ordering, a hard temporary-storage ceiling and private-workspace cleanup.
+
+### Fixed
+
+- SQLite keyed raw evidence preserves pre-normalization values, and suite-generated SQLite ERROR and INTERRUPTED bundles retain engine and temporary-limit metadata.
+
 ## 0.17.0 - 2026-10-13
 
 ### Added

@@ -238,8 +238,8 @@ def load_suite(path: str | Path) -> dict[str, Any]:
                 or ("max_temp_bytes" in execution and (not isinstance(execution["max_temp_bytes"], int) or isinstance(execution["max_temp_bytes"], bool) or execution["max_temp_bytes"] <= 0))
             ):
                 raise ParisonError(f"suite case {identifier} has invalid execution settings")
-            if execution and recipe["comparison_mode"] != "multiset":
-                raise ParisonError(f"suite case {identifier} sqlite execution requires a multiset recipe")
+            if execution and recipe["comparison_mode"] == "aggregate":
+                raise ParisonError(f"suite case {identifier} sqlite execution does not support an aggregate recipe")
             effective_limits = {**_SUITE_LIMIT_DEFAULTS, **default_limits, **limits}
             resolved.update({"tags": tags, "limits": effective_limits, "policy_sha256": policy_sha256})
             portable.update({"tags": tags, "limits": effective_limits, "policy_sha256": policy_sha256})
@@ -1701,6 +1701,169 @@ def _compare_stream_summary(
     }
 
 
+def _key_order_encoding(key: tuple[Any, ...]) -> bytes:
+    encoded = bytearray()
+    for value in key:
+        for character in str(value):
+            encoded.extend((ord(character) + 1).to_bytes(4, "big"))
+        encoded.extend(b"\0\0\0\0")
+    return bytes(encoded)
+
+
+def _restore_row(rendered: str, recipe: dict[str, Any]) -> dict[str, Any]:
+    payload = json.loads(rendered)
+    row = {
+        name: _normalize(_parse(payload["values"][name], policy, name), policy)
+        for name, policy in recipe["columns"].items()
+    }
+    for name, value in payload.get("raw", {}).items():
+        row[(_RAW_VALUE, name)] = _parse(value, recipe["columns"][name], name)
+    return row
+
+
+def _sqlite_keyed_summary(
+    sources: tuple[str | Path, str | Path], recipe: dict[str, Any], max_rows: int,
+    sample_limit: int, max_temp_bytes: int, temp_directory: str | Path | None,
+    decoded_sizes: dict[Path, int],
+) -> dict[str, Any]:
+    parent = Path(temp_directory) if temp_directory is not None else None
+    if parent is not None and (parent.is_symlink() or not parent.is_dir()):
+        raise ParisonError("temp directory must be an existing non-symlink directory")
+    keys = recipe["keys"]
+    compared = [name for name in recipe["columns"] if name not in keys]
+    raw_output = recipe["output"]["sensitivity"] == "raw"
+    try:
+        with tempfile.TemporaryDirectory(prefix="parison-spill-", dir=parent) as workspace:
+            database = Path(workspace) / "keyed.sqlite"
+            connection = sqlite3.connect(database)
+            try:
+                page_size = int(connection.execute("PRAGMA page_size").fetchone()[0])
+                page_limit = max_temp_bytes // page_size
+                if page_limit < 4:
+                    raise ParisonError(f"temporary storage limit {max_temp_bytes} bytes is too small")
+                connection.execute("PRAGMA journal_mode=OFF")
+                connection.execute("PRAGMA synchronous=OFF")
+                connection.execute(f"PRAGMA max_page_count={page_limit}")
+                connection.execute(
+                    "CREATE TABLE records (side INTEGER NOT NULL, key BLOB NOT NULL, key_order BLOB NOT NULL, "
+                    "row_json TEXT NOT NULL, occurrences INTEGER NOT NULL, PRIMARY KEY (side, key)) WITHOUT ROWID"
+                )
+                connection.execute("CREATE INDEX records_order ON records (side, key_order)")
+                row_totals: list[int] = []
+                null_totals: list[int] = []
+                for side_id, (side, source) in enumerate(zip(("baseline", "candidate"), sources)):
+                    rows = nulls = 0
+                    for raw in _iter_input_rows(source, recipe, max_rows, side, decoded_sizes):
+                        row = _parse_row(raw, recipe, side, preserve_raw=raw_output)
+                        key = tuple(row[name] for name in keys)
+                        nulls += any(value is None for value in key)
+                        payload = {"values": {name: _json_value(row[name]) for name in recipe["columns"]}}
+                        if raw_output:
+                            payload["raw"] = {name: _raw_value(row, name) for name in recipe["columns"]}
+                        rendered = json.dumps(
+                            payload,
+                            sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                        )
+                        connection.execute(
+                            "INSERT INTO records VALUES (?, ?, ?, ?, 1) "
+                            "ON CONFLICT (side, key) DO UPDATE SET row_json = excluded.row_json, occurrences = occurrences + 1",
+                            (side_id, _multiset_encoding(key, keys, recipe), _key_order_encoding(key), rendered),
+                        )
+                        rows += 1
+                    row_totals.append(rows)
+                    null_totals.append(nulls)
+                connection.commit()
+                duplicates = [
+                    int(connection.execute(
+                        "SELECT COUNT(*) FROM records WHERE side = ? AND occurrences > 1", (side_id,)
+                    ).fetchone()[0])
+                    for side_id in (0, 1)
+                ]
+                problems = []
+                for side, nulls, repeated in zip(("baseline", "candidate"), null_totals, duplicates):
+                    if nulls:
+                        problems.append(f"{side} has {nulls} row(s) with null key components")
+                    if repeated:
+                        problems.append(f"{side} has {repeated} duplicate key(s)")
+                common = int(connection.execute(
+                    "SELECT COUNT(*) FROM records AS baseline JOIN records AS candidate ON candidate.side = 1 AND candidate.key = baseline.key WHERE baseline.side = 0"
+                ).fetchone()[0])
+                baseline_only = int(connection.execute(
+                    "SELECT COUNT(*) FROM records AS baseline WHERE baseline.side = 0 AND NOT EXISTS "
+                    "(SELECT 1 FROM records AS candidate WHERE candidate.side = 1 AND candidate.key = baseline.key)"
+                ).fetchone()[0])
+                candidate_only = int(connection.execute(
+                    "SELECT COUNT(*) FROM records AS candidate WHERE candidate.side = 1 AND NOT EXISTS "
+                    "(SELECT 1 FROM records AS baseline WHERE baseline.side = 0 AND baseline.key = candidate.key)"
+                ).fetchone()[0])
+                discrepancies: list[dict[str, Any]] = []
+                if raw_output:
+                    for side_id, classification in ((0, "baseline_only"), (1, "candidate_only")):
+                        remaining = sample_limit - len(discrepancies)
+                        if remaining <= 0:
+                            break
+                        other = 1 - side_id
+                        records = connection.execute(
+                            "SELECT row_json FROM records AS current WHERE side = ? AND NOT EXISTS "
+                            "(SELECT 1 FROM records AS other WHERE other.side = ? AND other.key = current.key) "
+                            "ORDER BY key_order LIMIT ?", (side_id, other, remaining),
+                        )
+                        for (row_json,) in records:
+                            row = _restore_row(row_json, recipe)
+                            discrepancies.append({
+                                "kind": "record", "key": [_raw_value(row, name) for name in keys],
+                                "classification": classification,
+                            })
+                field_counts = {name: {"exact": 0, "within_tolerance": 0, "different": 0} for name in compared}
+                row_counts = {"exact": 0, "within_tolerance": 0, "different": 0}
+                field_discrepancy_count = 0
+                if not problems:
+                    records = connection.execute(
+                        "SELECT baseline.row_json, candidate.row_json FROM records AS baseline "
+                        "JOIN records AS candidate ON candidate.side = 1 AND candidate.key = baseline.key "
+                        "WHERE baseline.side = 0 ORDER BY baseline.key_order"
+                    )
+                    for left_json, right_json in records:
+                        left, right = _restore_row(left_json, recipe), _restore_row(right_json, recipe)
+                        key = tuple(left[name] for name in keys)
+                        row_class = "exact"
+                        for name in compared:
+                            classification, delta, allowance = _classify(
+                                left[name], right[name], recipe["columns"][name], recipe["nulls_equal"]
+                            )
+                            field_counts[name][classification] += 1
+                            if classification == "different":
+                                row_class = "different"
+                            elif classification == "within_tolerance" and row_class == "exact":
+                                row_class = "within_tolerance"
+                            if classification != "exact":
+                                field_discrepancy_count += 1
+                                if raw_output and len(discrepancies) < sample_limit:
+                                    discrepancies.append({
+                                        "kind": "field", "key": _key_text(key), "field": name,
+                                        "baseline": _raw_value(left, name), "candidate": _raw_value(right, name),
+                                        "classification": classification, "delta": delta, "allowance": allowance,
+                                    })
+                        row_counts[row_class] += 1
+                return {
+                    "baseline": row_totals[0], "candidate": row_totals[1], "common_keys": common,
+                    "baseline_only": baseline_only, "candidate_only": candidate_only,
+                    "field_counts": field_counts, "row_counts": row_counts,
+                    "field_discrepancy_count": field_discrepancy_count, "problems": problems,
+                    "discrepancies": discrepancies, "temporary_bytes": database.stat().st_size,
+                }
+            finally:
+                connection.close()
+    except ParisonError:
+        raise
+    except sqlite3.Error as exc:
+        if "full" in str(exc).lower():
+            raise ParisonError(f"temporary storage exceeds limit {max_temp_bytes} bytes") from exc
+        raise ParisonError(f"spill database failed: {exc}") from exc
+    except OSError as exc:
+        raise ParisonError(f"cannot use spill directory: {exc}") from exc
+
+
 def compare(
     recipe_path: str | Path,
     baseline_path: str | Path,
@@ -1732,8 +1895,8 @@ def compare(
         raise ParisonError("max_temp_bytes must be positive")
     recipe_path = Path(recipe_path)
     recipe = load_recipe(recipe_path)
-    if engine == "sqlite" and recipe["comparison_mode"] != "multiset":
-        raise ParisonError("sqlite engine currently supports only multiset recipes")
+    if engine == "sqlite" and recipe["comparison_mode"] == "aggregate":
+        raise ParisonError("sqlite engine does not support aggregate recipes")
     if engine == "memory" and temp_directory is not None:
         raise ParisonError("temp_directory requires engine='sqlite'")
     policy_sha256 = _checked_policy_sha256(recipe, expected_policy_sha256)
@@ -1756,15 +1919,33 @@ def compare(
     keys = recipe["keys"]
     raw_output = recipe["output"]["sensitivity"] == "raw"
     streaming = not raw_output
-    if streaming:
+    if engine == "sqlite":
+        summary = _sqlite_keyed_summary(
+            (baseline_path, candidate_path), recipe, max_rows, sample_limit,
+            max_temp_bytes, temp_directory, decoded_sizes,
+        )
+        baseline_count = summary["baseline"]
+        candidate_count = summary["candidate"]
+        common_count = summary["common_keys"]
+        baseline_only_count = summary["baseline_only"]
+        candidate_only_count = summary["candidate_only"]
+        field_counts = summary["field_counts"]
+        row_counts = summary["row_counts"]
+        discrepancy_count = summary["field_discrepancy_count"]
+        problems = summary["problems"]
+        discrepancies = summary["discrepancies"]
+        temporary_bytes = summary["temporary_bytes"]
+    elif streaming:
         left, baseline_count, left_problems = _read_stream_index(baseline_path, recipe, max_rows, "baseline", decoded_sizes)
     else:
         baseline, _ = _read(baseline_path, recipe, max_rows, "baseline", decoded_sizes)
         baseline_count = len(baseline)
         left, left_problems = _index(baseline, keys, "baseline")
         del baseline
-    discrepancies: list[dict[str, Any]] = []
-    if streaming:
+    if engine == "sqlite":
+        pass
+    elif streaming:
+        discrepancies = []
         summary = _compare_stream_summary(candidate_path, recipe, max_rows, left, left_problems, decoded_sizes)
         candidate_count = summary["candidate"]
         common_count = summary["common"]
@@ -1775,6 +1956,7 @@ def compare(
         discrepancy_count = summary["field_discrepancy_count"]
         problems = summary["problems"]
     else:
+        discrepancies = []
         candidate, _ = _read(candidate_path, recipe, max_rows, "candidate", decoded_sizes)
         right, right_problems = _index(candidate, keys, "candidate")
         problems = left_problems + right_problems
@@ -1795,7 +1977,7 @@ def compare(
                         break
                     source = left if classification == "baseline_only" else right
                     discrepancies.append({"kind": "record", "key": [_raw_value(source[key], name) for name in keys], "classification": classification})
-    if not streaming and not problems:
+    if engine != "sqlite" and not streaming and not problems:
         for key in sorted(common, key=lambda item: tuple(str(v) for v in item)):
             row_class = "exact"
             for name, policy in recipe["columns"].items():
@@ -1827,17 +2009,23 @@ def compare(
     if empty and not recipe["scope"]["expected_empty"]:
         problems.append("nonempty comparable inputs are required")
     outcome = "INCONCLUSIVE" if problems else ("FAIL" if baseline_only_count or candidate_only_count or row_counts["different"] else "PASS")
+    runtime = _runtime_info((baseline_path, candidate_path))
+    resource_limits = {
+        "max_input_bytes": max_input_bytes,
+        "max_decoded_bytes": max_decoded_bytes,
+        "max_rows_per_input": max_rows,
+    }
+    if engine == "sqlite":
+        runtime["execution_engine"] = engine
+        runtime["temporary_bytes"] = temporary_bytes
+        resource_limits["max_temp_bytes"] = max_temp_bytes
     return {
         "schema_version": 1,
         "outcome": outcome,
         "complete": not problems,
         "sensitivity": recipe["output"]["sensitivity"],
-        "runtime": _runtime_info((baseline_path, candidate_path)),
-        "resource_limits": {
-            "max_input_bytes": max_input_bytes,
-            "max_decoded_bytes": max_decoded_bytes,
-            "max_rows_per_input": max_rows,
-        },
+        "runtime": runtime,
+        "resource_limits": resource_limits,
         "scope": recipe["scope"],
         "keys": keys,
         "policy": {
@@ -2356,13 +2544,19 @@ def terminal_result(
             "recipe_sha256": None,
             "policy_sha256": None,
         }
+    runtime = _runtime_info()
+    resource_limits = {}
+    if execution_engine == "sqlite":
+        runtime["execution_engine"] = execution_engine
+    if execution_engine == "sqlite" and max_temp_bytes is not None:
+        resource_limits["max_temp_bytes"] = max_temp_bytes
     return {
         "schema_version": 1,
         "outcome": outcome,
         "complete": False,
         "sensitivity": "summary",
-        "runtime": _runtime_info(),
-        "resource_limits": {},
+        "runtime": runtime,
+        "resource_limits": resource_limits,
         "scope": None,
         "keys": [],
         "policy": {},
@@ -3248,8 +3442,8 @@ def _reusable_workspace_child(
         expected_resources["max_groups_per_input"] = limits["max_groups"]
     elif mode == "multiset":
         expected_resources["max_distinct_rows_per_input"] = limits["max_distinct_rows"]
-        if case.get("execution"):
-            expected_resources["max_temp_bytes"] = case["execution"].get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES)
+    if case.get("execution"):
+        expected_resources["max_temp_bytes"] = case["execution"].get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES)
     return resource_limits == expected_resources
 
 
@@ -3426,7 +3620,11 @@ def run_suite(
                     result = _execute_suite_case(case, workspace_child or child, sample_limit, limits)
                 except KeyboardInterrupt:
                     recipe = load_recipe(case["recipe"])
-                    result = terminal_result("INTERRUPTED", "comparison interrupted by user", recipe)
+                    execution = case.get("execution", {})
+                    result = terminal_result(
+                        "INTERRUPTED", "comparison interrupted by user", recipe,
+                        execution.get("engine", "memory"), execution.get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES),
+                    )
                     publish(workspace_child or child, result, recipe)
                     interrupted = True
                 finish(case, child, workspace_child, checkpoint, limits, result)
@@ -3464,7 +3662,11 @@ def run_suite(
                     except ParisonError:
                         shutil.rmtree(destination, ignore_errors=True)
                         recipe = load_recipe(case["recipe"])
-                        result = error_result("suite worker failed unexpectedly", recipe)
+                        execution = case.get("execution", {})
+                        result = error_result(
+                            "suite worker failed unexpectedly", recipe,
+                            execution.get("engine", "memory"), execution.get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES),
+                        )
                         publish(destination, result, recipe)
                 finish(case, child, workspace_child, checkpoint, limits, result)
 

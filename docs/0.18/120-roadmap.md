@@ -1,6 +1,6 @@
 # Parison 0.18 roadmap
 
-Status: **planned**
+Status: **in progress**
 
 ## Theme: larger keyed comparisons
 
@@ -8,10 +8,10 @@ Parison 0.18 extends exact keyed verification beyond comfortable process memory 
 
 ## Planned slices
 
-1. Define an explicit SQLite keyed-engine contract, limits and failure behavior.
-2. Implement bounded temporary storage with private staging and interruption cleanup.
-3. Prove semantic and deterministic-output equivalence with the memory engine across PASS, FAIL, tolerance, null, mapping and duplicate-key cases.
-4. Add suite-v2 engine selection, clean installed-wheel acceptance and cross-platform benchmarks.
+1. [x] Define an explicit [SQLite keyed-engine contract](121-keyed-engine-contract.md), limits and failure behavior.
+2. [x] Implement bounded temporary storage with private staging and interruption cleanup.
+3. [x] Prove semantic and deterministic-output equivalence with the memory engine across PASS, FAIL, tolerance, null, mapping and duplicate-key cases.
+4. [x] Add suite-v2 engine selection, clean installed-wheel acceptance and cross-platform benchmarks.
 
 ## Acceptance gates
 

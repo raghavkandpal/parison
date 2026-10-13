@@ -57,6 +57,8 @@ class GitHubActionsReference(unittest.TestCase):
         platform = workflow[workflow.index("platform-smoke:"):]
         self.assertIn("python -m build", platform)
         self.assertIn("dist/parison-*.whl", platform)
+        self.assertIn("--mode keyed", platform)
+        self.assertIn("keyed-1000", platform)
         self.assertNotIn("pip install '.[parquet,test]'", platform)
 
     def test_signing_reference_pins_tools_and_checks_exact_identity(self):
