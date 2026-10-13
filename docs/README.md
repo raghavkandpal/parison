@@ -4,7 +4,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
-## 0.18 — in progress
+## 0.18 — released
 
 - [0.18 roadmap](0.18/120-roadmap.md)
 - [SQLite keyed execution contract](0.18/121-keyed-engine-contract.md)

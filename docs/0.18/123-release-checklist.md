@@ -2,7 +2,7 @@
 
 Date: 13 October 2026
 
-Status: **candidate hardening**
+Status: **released**
 
 ## Feature and safety gates
 
@@ -32,11 +32,16 @@ Candidate SHA-256:
 
 ## Publication
 
-- [ ] Reviewed candidate is merged to `main` through a pull request.
-- [ ] Exact merge commit passes the full CI matrix.
-- [ ] Annotated tag `0.18.0` identifies the exact tested merge commit.
-- [ ] GitHub release 0.18.0 publishes the exact-merge wheel, source archive and `SHA256SUMS`.
-- [ ] Public assets are downloaded again, checksum-verified and smoke-tested from a fresh environment.
-- [ ] Roadmap, checkpoint, checklist, changelog, README and current-state documents identify 0.18.0 as released.
+- [x] Reviewed candidate merged to `main` through [pull request 30](https://github.com/raghavkandpal/parison/pull/30) at `1f43d1724625b508e9c81cae01f454d659b3925a`.
+- [x] Exact merge commit passed the full matrix in [GitHub Actions run 38398474070](https://github.com/raghavkandpal/parison/actions/runs/38398474070).
+- [x] Annotated tag `0.18.0` identifies the exact tested merge commit.
+- [x] [GitHub release 0.18.0](https://github.com/raghavkandpal/parison/releases/tag/0.18.0) publishes the exact-merge wheel, source archive and `SHA256SUMS`.
+- [x] Public assets were downloaded again, checksum-verified and smoke-tested from fresh Python 3.12 with direct and suite-v2 SQLite-keyed PASS workflows and recursive verification.
+- [x] Roadmap, checkpoint, checklist, changelog, README and current-state documents identify 0.18.0 as released.
+
+Published SHA-256:
+
+- `parison-0.18.0-py3-none-any.whl`: `c13c45164deb41e6b02278f837da356cd85cbb5bf70ab0c81e8ca8872fc467ad`
+- `parison-0.18.0.tar.gz`: `79d04083fa3069d3cf8fe1f6c5f5f6c2f67ee2e47772c70d202dd323e70338ad`
 
 PyPI publication remains intentionally deferred.

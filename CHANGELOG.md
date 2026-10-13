@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.18.0 - 2026-10-13
+
 ### Added
 
 - Explicit SQLite-backed keyed comparison for direct commands and suite-v2 cases, with the existing keyed-v1 semantics, deterministic evidence ordering, a hard temporary-storage ceiling and private-workspace cleanup.

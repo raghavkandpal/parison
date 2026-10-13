@@ -1,11 +1,11 @@
 # Current development state
 
-- Version: **0.18 implementation**
+- Version: **0.18.0 released**
 - Branch: `develop`
 - Theme: larger keyed comparisons
-- Released: 0.17.0 authenticated evidence handoff, including exact-main CI, keyless signing acceptance and public artifact verification
-- Verified: 236 local tests passed; six optional-Polars tests skipped; candidate review blockers are fixed; local 10k/100k keyed benchmarks preserved exact results and reduced 100k process peak RSS by about 85%
-- Next gate: open and review the 0.18.0 candidate pull request to `main`
+- Released: 0.18.0 explicit SQLite-backed keyed execution with bounded temporary storage and unchanged keyed-v1 semantics
+- Verified: exact merge `1f43d1724625b508e9c81cae01f454d659b3925a` passed the full CI matrix; public assets were checksum-verified and the wheel passed fresh direct and suite SQLite-keyed smoke workflows
+- Next gate: define the 0.19 scope from the accepted product direction
 
 Authoritative detail: [0.18 roadmap](0.18/120-roadmap.md), [SQLite keyed execution contract](0.18/121-keyed-engine-contract.md), [engineering checkpoint](0.18/122-engineering-checkpoint.md), [release checklist](0.18/123-release-checklist.md).
 
