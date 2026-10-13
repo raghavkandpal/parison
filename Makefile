@@ -5,7 +5,7 @@ TEST ?=
 
 context:
 	@git status --short --branch
-	@printf 'latest-tag: '; git describe --tags --abbrev=0 2>/dev/null || printf 'none\n'
+	@printf 'latest-tag: '; git tag --sort=-version:refname | sed -n '1p'
 	@sed -n '/^- Version:/p; /^- Theme:/p; /^- Next gate:/p' docs/CURRENT.md
 
 test:
