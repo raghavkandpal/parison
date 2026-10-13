@@ -4,6 +4,13 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- A frozen compatibility contract and automated upgrade corpus covering immutable keyed, aggregate, multiset, suite-v1 and suite-v2 bundles from their original releases.
+- A built-wheel acceptance workflow spanning project initialization, repeated rehearsal history, suite execution, Statement verification and cutover reporting on the supported CI matrix.
+- A consolidated machine-qualified performance envelope covering released comparison modes and explicitly recording the evidence gaps that remain before 1.0.
+- A checkable 1.0 readiness gate separating local automation, exact-commit CI, human workflow validation and public-release reconciliation.
+
 ## 0.18.0 - 2026-10-13
 
 ### Added

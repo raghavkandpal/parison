@@ -4,6 +4,14 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 0.19 — in progress
+
+- [Non-CSV and document input research](0.19/124-non-csv-input-research.md)
+- [0.19 roadmap](0.19/125-roadmap.md)
+- [Compatibility contract](0.19/126-compatibility-contract.md)
+- [Machine-qualified performance envelope](0.19/127-performance-envelope.md)
+- [1.0 readiness checklist](0.19/128-1.0-readiness-checklist.md)
+
 ## 0.18 — released
 
 - [0.18 roadmap](0.18/120-roadmap.md)

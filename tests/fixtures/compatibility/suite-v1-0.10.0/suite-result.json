@@ -1,0 +1,56 @@
+{
+  "cases": [
+    {
+      "bundle": "cases/orders-keyed",
+      "complete": true,
+      "contract": "keyed-v1",
+      "id": "orders-keyed",
+      "manifest_sha256": "15712b603b905efb89305d17e7234b42634026579f1fdbaa21b1f61c8e250485",
+      "outcome": "PASS",
+      "policy_sha256": "88de243927d26e234bff123a62f4b5f9d92a5a0df7024ed9c7b31d57466b6bf9",
+      "schema_version": 1
+    },
+    {
+      "bundle": "cases/revenue-aggregate",
+      "complete": true,
+      "contract": "aggregate-v1",
+      "id": "revenue-aggregate",
+      "manifest_sha256": "317543f45054cbb935ca0d84f3211596634d18e13316c61948300ee42f35b31e",
+      "outcome": "PASS",
+      "policy_sha256": "19429586c21be02fc9163e96511e53e8926dc45157d95fe637f806e2ccf19e23",
+      "schema_version": 2
+    },
+    {
+      "bundle": "cases/orders-multiset",
+      "complete": true,
+      "contract": "multiset-v1",
+      "id": "orders-multiset",
+      "manifest_sha256": "64ca3fad9319fe88f8a269082be6b103f6a2b9de5db22db05f4d41ef44e6842b",
+      "outcome": "PASS",
+      "policy_sha256": "6e8a0f82556390fb95cc4681479c76b9da59cdabbb73c10790316530cacc71bc",
+      "schema_version": 3
+    }
+  ],
+  "complete": true,
+  "completed_cases": 3,
+  "outcome": "PASS",
+  "outcome_counts": {
+    "ERROR": 0,
+    "FAIL": 0,
+    "INCONCLUSIVE": 0,
+    "INTERRUPTED": 0,
+    "PASS": 3
+  },
+  "runtime": {
+    "contract": "suite-v1",
+    "implementation": "CPython",
+    "machine": "arm64",
+    "parison_version": "0.10.0",
+    "platform": "Darwin",
+    "python": "3.9.2"
+  },
+  "schema_version": 1,
+  "suite_sha256": "d3d664e253f242ed8225fb13c5d582ee254ac3c608ceaa3292629f33ad342eaa",
+  "suite_version": 1,
+  "total_cases": 3
+}

@@ -1,0 +1,41 @@
+{
+  "column_mappings": {
+    "region": {
+      "baseline": "region",
+      "candidate": "area"
+    }
+  },
+  "columns": {
+    "amount": {
+      "scale": 2,
+      "type": "decimal"
+    },
+    "region": {
+      "normalize": [
+        "trim",
+        "casefold"
+      ],
+      "type": "string"
+    }
+  },
+  "comparison_mode": "multiset",
+  "delimiters": {
+    "baseline": ",",
+    "candidate": ","
+  },
+  "null_tokens": {
+    "baseline": [],
+    "candidate": []
+  },
+  "output": {
+    "sensitivity": "summary"
+  },
+  "recipe_version": 3,
+  "scope": {
+    "completeness": "full",
+    "cutoff": "2026-10-09T00:00:00Z",
+    "expected_empty": false,
+    "filters": [],
+    "snapshot": "orders-v5"
+  }
+}

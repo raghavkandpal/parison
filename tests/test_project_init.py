@@ -81,6 +81,41 @@ class ProjectInit(unittest.TestCase):
             self.assertEqual(list(target.iterdir()), [])
             self.assertIn("must not be a symlink", stderr.getvalue())
 
+    def test_complete_migration_evidence_workflow(self):
+        repository = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "migration-check"
+            catalog = root / "catalog.sqlite"
+            suite = root / "suite"
+            statement = root / "statement.json"
+            cutover = root / "cutover.md"
+
+            def run(arguments):
+                with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                    self.assertEqual(main(arguments), 0, arguments)
+
+            run(["init", str(project)])
+            run(["validate-inputs", "--records", "--recipe", str(project / "recipe.json"), "--baseline", str(project / "baseline.csv"), "--candidate", str(project / "candidate.csv")])
+            for name in ("rehearsal-1", "rehearsal-2"):
+                output = project / name
+                run(["compare", "--recipe", str(project / "recipe.json"), "--baseline", str(project / "baseline.csv"), "--candidate", str(project / "candidate.csv"), "--output", str(output)])
+                run(["catalog", "add", "--database", str(catalog), str(output)])
+
+            stdout = StringIO()
+            with redirect_stdout(stdout), redirect_stderr(StringIO()):
+                self.assertEqual(main(["explain", str(project / "recipe.json")]), 0)
+            policy = json.loads(stdout.getvalue())["policy_sha256"]
+            run(["catalog", "history", "--database", str(catalog), "--policy-sha256", policy])
+            run(["catalog", "diff", "--database", str(catalog), str(project / "rehearsal-1"), str(project / "rehearsal-2")])
+
+            run(["run-suite", "--plan", str(repository / "examples" / "0.15" / "payout-suite.json"), "--output", str(suite)])
+            run(["verify", str(suite)])
+            run(["statement", str(suite), "--output", str(statement)])
+            run(["verify-statement", str(suite), str(statement)])
+            run(["report-cutover", str(suite), "--output", str(cutover)])
+            self.assertTrue(cutover.is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,86 @@
+{
+  "column_mappings": {
+    "region": {
+      "baseline": "region",
+      "candidate": "area"
+    }
+  },
+  "column_policies": {
+    "amount": {
+      "scale": 2,
+      "type": "decimal"
+    },
+    "region": {
+      "normalize": [
+        "trim",
+        "casefold"
+      ],
+      "type": "string"
+    }
+  },
+  "complete": true,
+  "counts": {
+    "baseline_distinct_rows": 2,
+    "baseline_only_occurrences": 0,
+    "baseline_rows": 3,
+    "baseline_surplus_shapes": 0,
+    "candidate_distinct_rows": 2,
+    "candidate_only_occurrences": 0,
+    "candidate_rows": 3,
+    "candidate_surplus_shapes": 0,
+    "common_occurrences": 3
+  },
+  "discrepancy_count": 0,
+  "discrepancy_sample": [],
+  "discrepancy_sample_limit": 0,
+  "excluded_columns": {},
+  "inputs": {
+    "baseline": {
+      "bytes": 48,
+      "delimiter": ",",
+      "format": "csv",
+      "null_tokens": [],
+      "sha256": "a9d84cb5ff9f8edb6659ba2f732c815f89d531da7053867b96c8e641f5bcbe3a"
+    },
+    "candidate": {
+      "bytes": 98,
+      "format": "jsonl",
+      "sha256": "eb7505299996513b70be295371cb681a1cd4e2e0b440c0265cd30c5f45b8e510"
+    }
+  },
+  "outcome": "PASS",
+  "policy": {
+    "canonical_encoding": "typed-length-prefixed-v1",
+    "column_order": [
+      "amount",
+      "region"
+    ],
+    "nulls_equal": true
+  },
+  "policy_sha256": "6e8a0f82556390fb95cc4681479c76b9da59cdabbb73c10790316530cacc71bc",
+  "problems": [],
+  "recipe_sha256": "910a4a13435965410b1e56687c6b8fb640a1709a771704ed957972d954955cb2",
+  "resource_limits": {
+    "max_decoded_bytes": 1000000000,
+    "max_distinct_rows_per_input": 100000,
+    "max_input_bytes": 1000000000,
+    "max_rows_per_input": 5000000
+  },
+  "runtime": {
+    "contract": "multiset-v1",
+    "implementation": "CPython",
+    "machine": "arm64",
+    "parison_version": "0.10.0",
+    "platform": "Darwin",
+    "python": "3.9.2"
+  },
+  "schema_version": 3,
+  "scope": {
+    "completeness": "full",
+    "cutoff": "2026-10-09T00:00:00Z",
+    "expected_empty": false,
+    "filters": [],
+    "snapshot": "orders-v5"
+  },
+  "sensitivity": "summary"
+}

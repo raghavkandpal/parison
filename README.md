@@ -160,7 +160,7 @@ Start with the [documentation index](docs/README.md).
 - Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
 - 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
 - Latest release: [0.18 larger keyed comparisons](docs/0.18/120-roadmap.md)
-- Next release direction: to be defined from the accepted product direction
+- Next release direction: [0.19 compatibility and 1.0 readiness](docs/0.19/125-roadmap.md)
 - Product direction and release arc: [accepted direction](docs/0.15/104-product-direction-and-release-arc.md)
 - Next opportunities: [real-world application research](docs/0.14/94-real-world-application-research.md)
 - CI integration: [GitHub Actions reference](docs/0.2/20-github-actions.md)
