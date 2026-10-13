@@ -104,8 +104,8 @@ initialize the database and a database-full condition are controlled errors.
 Successful SQLite execution records `runtime.execution_engine = "sqlite"` and
 the final database size as `runtime.temporary_bytes`. With journaling disabled
 and a disposable monotonically growing database, that size is the supported
-temporary-storage measurement. Memory execution records
-`runtime.execution_engine = "memory"` and does not report temporary bytes.
+temporary-storage measurement. Memory execution retains the released keyed-v1
+runtime shape and does not report engine or temporary bytes.
 
 ## Acceptance oracle
 

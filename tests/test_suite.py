@@ -227,13 +227,18 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(json.loads(stdout.getvalue())["cases"], 2)
 
     def test_concurrent_worker_failure_is_explicit_and_does_not_cancel_other_cases(self):
-        self.write_plan_v2([self.case("broken"), self.case("passing")])
+        self.write_plan_v2([
+            self.case("broken") | {"execution": {"engine": "sqlite", "max_temp_bytes": 1_000_000}},
+            self.case("passing"),
+        ])
         with patch("parison.core._execute_suite_case", _raising_suite_worker):
             result = run_suite(self.plan, self.root / "worker-failure", jobs=2)
         self.assertEqual(result["outcome"], "ERROR")
         self.assertEqual([case["outcome"] for case in result["cases"]], ["ERROR", "PASS"])
         child = json.loads((self.root / "worker-failure" / "cases" / "broken" / "result.json").read_text(encoding="utf-8"))
         self.assertEqual(child["problems"], ["suite worker failed unexpectedly"])
+        self.assertEqual(child["runtime"]["execution_engine"], "sqlite")
+        self.assertEqual(child["resource_limits"]["max_temp_bytes"], 1_000_000)
         self.assertNotIn("source-value-must-not-leak", json.dumps(child))
         self.assertEqual(verify_bundle(self.root / "worker-failure")["outcome"], "ERROR")
 
@@ -483,7 +488,10 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual([case["outcome"] for case in result["cases"]], ["ERROR", "PASS"])
 
     def test_interruption_stops_after_publishing_interrupted_child(self):
-        self.write_plan([self.case("first"), self.case("second")])
+        self.write_plan_v2([
+            self.case("first") | {"execution": {"engine": "sqlite", "max_temp_bytes": 1_000_000}},
+            self.case("second"),
+        ])
         output = self.root / "interrupted"
         with patch("parison.core.compare", side_effect=KeyboardInterrupt):
             result = run_suite(self.plan, output)
@@ -492,6 +500,9 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(result["total_cases"], 2)
         self.assertFalse(result["complete"])
         self.assertEqual(verify_bundle(output)["outcome"], "INTERRUPTED")
+        child = json.loads((output / "cases" / "first" / "result.json").read_text(encoding="utf-8"))
+        self.assertEqual(child["runtime"]["execution_engine"], "sqlite")
+        self.assertEqual(child["resource_limits"]["max_temp_bytes"], 1_000_000)
 
     def test_rejects_self_consistent_parent_summary_tampering(self):
         self.write_plan([self.case()])

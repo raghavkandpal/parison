@@ -13,8 +13,9 @@ removing only the documented engine, temporary-byte and temporary-limit fields.
 
 Private workspaces were empty after success, a forced database-size failure and
 Ctrl-C. Suite-v2 cases can select SQLite explicitly; aggregate-v1 remains
-memory-only. The full local check passed 235 tests with six optional-Polars
-skips.
+memory-only. Candidate-review hardening added raw pre-normalization evidence,
+suite failure-metadata and full oracle regressions; the full local check passed
+236 tests with six optional-Polars skips.
 
 ## Machine-specific benchmark
 

@@ -33,6 +33,14 @@ RECIPE = {
 }
 
 
+def canonical_engine_result(result):
+    projected = json.loads(json.dumps(result))
+    projected["runtime"].pop("execution_engine", None)
+    projected["runtime"].pop("temporary_bytes", None)
+    projected["resource_limits"].pop("max_temp_bytes", None)
+    return json.dumps(projected, sort_keys=True, separators=(",", ":"))
+
+
 class ParisonTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -76,6 +84,7 @@ class ParisonTests(unittest.TestCase):
     def test_sqlite_keyed_engine_matches_memory_and_cleans_workspace(self):
         recipe = json.loads(json.dumps(RECIPE))
         recipe["output"]["sensitivity"] = "raw"
+        recipe["columns"]["status"]["normalize"] = ["trim"]
         recipe["column_mappings"] = {"status": {"baseline": "legacy_status", "candidate": "status"}}
         self.recipe.write_text(json.dumps(recipe), encoding="utf-8")
         left = self.root / "left.csv"
@@ -84,12 +93,12 @@ class ParisonTests(unittest.TestCase):
         spill.mkdir()
         left.write_text(
             "order_id,legacy_status,total\n"
-            "b,old,2.00\na,ok,1.00\nd,ok,4.00\n",
+            "b,old,2.00\na,ok,1.00\nd, ok ,4.00\n",
             encoding="utf-8",
         )
         right.write_text(
             "order_id,status,total\n"
-            "c,new,3.00\na,ok,1.01\nd,,4.00\n",
+            "c,new,3.00\na,ok,1.01\nd,bad,4.00\n",
             encoding="utf-8",
         )
         memory = compare(self.recipe, left, right, sample_limit=10)
@@ -97,14 +106,7 @@ class ParisonTests(unittest.TestCase):
             self.recipe, left, right, sample_limit=10, engine="sqlite",
             max_temp_bytes=1_000_000, temp_directory=spill,
         )
-        for result in (memory, sqlite_result):
-            result["runtime"].pop("execution_engine")
-        sqlite_result["runtime"].pop("temporary_bytes")
-        sqlite_result["resource_limits"].pop("max_temp_bytes")
-        self.assertEqual(
-            json.dumps(sqlite_result, sort_keys=True, separators=(",", ":")),
-            json.dumps(memory, sort_keys=True, separators=(",", ":")),
-        )
+        self.assertEqual(canonical_engine_result(sqlite_result), canonical_engine_result(memory))
         self.assertEqual(list(spill.iterdir()), [])
 
     def test_sqlite_keyed_engine_preserves_identity_failures_and_limits(self):
@@ -115,8 +117,7 @@ class ParisonTests(unittest.TestCase):
         right = self.csv("right.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
         memory = compare(self.recipe, left, right)
         sqlite_result = compare(self.recipe, left, right, engine="sqlite")
-        self.assertEqual(sqlite_result["outcome"], "INCONCLUSIVE")
-        self.assertEqual(sqlite_result["problems"], memory["problems"])
+        self.assertEqual(canonical_engine_result(sqlite_result), canonical_engine_result(memory))
         spill = self.root / "spill"
         spill.mkdir()
         with self.assertRaisesRegex(ParisonError, "temporary storage limit"):
@@ -132,13 +133,29 @@ class ParisonTests(unittest.TestCase):
         memory = compare(self.recipe, left, right)
         sqlite_result = compare(self.recipe, left, right, engine="sqlite")
         self.assertEqual(memory["outcome"], "PASS")
-        self.assertEqual(sqlite_result["counts"], memory["counts"])
-        self.assertEqual(sqlite_result["field_counts"], memory["field_counts"])
+        self.assertEqual(canonical_engine_result(sqlite_result), canonical_engine_result(memory))
         spill = self.root / "spill"
         spill.mkdir()
         with patch("parison.core._iter_input_rows", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
             compare(self.recipe, left, right, engine="sqlite", temp_directory=spill)
         self.assertEqual(list(spill.iterdir()), [])
+
+    def test_sqlite_keyed_engine_matches_empty_and_null_key_results(self):
+        for name, expected_empty, rows in (
+            ("empty", True, []),
+            ("null-key", False, [{"order_id": "NULL", "status": "ok", "total": "1"}]),
+        ):
+            with self.subTest(name=name):
+                recipe = json.loads(json.dumps(RECIPE))
+                recipe["scope"]["expected_empty"] = expected_empty
+                recipe["null_tokens"] = {"baseline": ["NULL"], "candidate": ["NULL"]}
+                self.recipe.write_text(json.dumps(recipe), encoding="utf-8")
+                left = self.csv(f"{name}-left.csv", rows)
+                right = self.csv(f"{name}-right.csv", rows)
+                self.assertEqual(
+                    canonical_engine_result(compare(self.recipe, left, right, engine="sqlite")),
+                    canonical_engine_result(compare(self.recipe, left, right)),
+                )
 
     def test_strict_recipe_and_atomic_bundle(self):
         invalid = dict(RECIPE, surprise=True)

@@ -1711,11 +1711,14 @@ def _key_order_encoding(key: tuple[Any, ...]) -> bytes:
 
 
 def _restore_row(rendered: str, recipe: dict[str, Any]) -> dict[str, Any]:
-    raw = json.loads(rendered)
-    return {
-        name: _normalize(_parse(raw[name], policy, name), policy)
+    payload = json.loads(rendered)
+    row = {
+        name: _normalize(_parse(payload["values"][name], policy, name), policy)
         for name, policy in recipe["columns"].items()
     }
+    for name, value in payload.get("raw", {}).items():
+        row[(_RAW_VALUE, name)] = _parse(value, recipe["columns"][name], name)
+    return row
 
 
 def _sqlite_keyed_summary(
@@ -1751,11 +1754,14 @@ def _sqlite_keyed_summary(
                 for side_id, (side, source) in enumerate(zip(("baseline", "candidate"), sources)):
                     rows = nulls = 0
                     for raw in _iter_input_rows(source, recipe, max_rows, side, decoded_sizes):
-                        row = _parse_row(raw, recipe, side)
+                        row = _parse_row(raw, recipe, side, preserve_raw=raw_output)
                         key = tuple(row[name] for name in keys)
                         nulls += any(value is None for value in key)
+                        payload = {"values": {name: _json_value(row[name]) for name in recipe["columns"]}}
+                        if raw_output:
+                            payload["raw"] = {name: _raw_value(row, name) for name in recipe["columns"]}
                         rendered = json.dumps(
-                            {name: _json_value(value) for name, value in row.items()},
+                            payload,
                             sort_keys=True, separators=(",", ":"), ensure_ascii=False,
                         )
                         connection.execute(
@@ -2004,13 +2010,13 @@ def compare(
         problems.append("nonempty comparable inputs are required")
     outcome = "INCONCLUSIVE" if problems else ("FAIL" if baseline_only_count or candidate_only_count or row_counts["different"] else "PASS")
     runtime = _runtime_info((baseline_path, candidate_path))
-    runtime["execution_engine"] = engine
     resource_limits = {
         "max_input_bytes": max_input_bytes,
         "max_decoded_bytes": max_decoded_bytes,
         "max_rows_per_input": max_rows,
     }
     if engine == "sqlite":
+        runtime["execution_engine"] = engine
         runtime["temporary_bytes"] = temporary_bytes
         resource_limits["max_temp_bytes"] = max_temp_bytes
     return {
@@ -2540,7 +2546,7 @@ def terminal_result(
         }
     runtime = _runtime_info()
     resource_limits = {}
-    if execution_engine is not None:
+    if execution_engine == "sqlite":
         runtime["execution_engine"] = execution_engine
     if execution_engine == "sqlite" and max_temp_bytes is not None:
         resource_limits["max_temp_bytes"] = max_temp_bytes
@@ -2551,11 +2557,11 @@ def terminal_result(
         "sensitivity": "summary",
         "runtime": runtime,
         "resource_limits": resource_limits,
-        "scope": recipe.get("scope") if recipe else None,
-        "keys": recipe.get("keys", []) if recipe else [],
+        "scope": None,
+        "keys": [],
         "policy": {},
-        "column_policies": recipe.get("columns", {}) if recipe else {},
-        "column_mappings": recipe.get("column_mappings", {}) if recipe else {},
+        "column_policies": {},
+        "column_mappings": {},
         "problems": [message],
         "counts": {},
         "field_counts": {},
@@ -2563,7 +2569,7 @@ def terminal_result(
         "discrepancy_count": 0,
         "discrepancy_sample": [],
         "discrepancy_sample_limit": 0,
-        "excluded_columns": recipe.get("excluded_columns", {}) if recipe else {},
+        "excluded_columns": {},
         "inputs": {},
         "recipe_sha256": None,
         "policy_sha256": None,
@@ -3614,7 +3620,11 @@ def run_suite(
                     result = _execute_suite_case(case, workspace_child or child, sample_limit, limits)
                 except KeyboardInterrupt:
                     recipe = load_recipe(case["recipe"])
-                    result = terminal_result("INTERRUPTED", "comparison interrupted by user", recipe)
+                    execution = case.get("execution", {})
+                    result = terminal_result(
+                        "INTERRUPTED", "comparison interrupted by user", recipe,
+                        execution.get("engine", "memory"), execution.get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES),
+                    )
                     publish(workspace_child or child, result, recipe)
                     interrupted = True
                 finish(case, child, workspace_child, checkpoint, limits, result)
@@ -3652,7 +3662,11 @@ def run_suite(
                     except ParisonError:
                         shutil.rmtree(destination, ignore_errors=True)
                         recipe = load_recipe(case["recipe"])
-                        result = error_result("suite worker failed unexpectedly", recipe)
+                        execution = case.get("execution", {})
+                        result = error_result(
+                            "suite worker failed unexpectedly", recipe,
+                            execution.get("engine", "memory"), execution.get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES),
+                        )
                         publish(destination, result, recipe)
                 finish(case, child, workspace_child, checkpoint, limits, result)
 
