@@ -5,11 +5,12 @@
 - Theme: versioned cross-format semantic-scalar projection
 - Released: the qualified 0.19 surface unchanged as the stable 1.x compatibility baseline
 - Verified: exact merge `6b9219c9ed6b4276ba267f3ba4d4760444281471` passed the full CI matrix; public assets were checksum-verified and the fresh wheel passed direct, suite, Statement and cutover smoke workflows
-- Next gate: specify the normative `semantic-scalar-v1` contract and its legacy-recipe boundary
+- Next gate: complete the semantic-scalar compatibility corpus and exact built-wheel platform qualification
 
 ## Recorded next steps
 
 - Follow the [1.1 roadmap](1.1/138-roadmap.md): contract first, then the reader boundary, compatibility corpus and built-wheel qualification.
+- The [`semantic-scalar-v1` contract](1.1/139-semantic-scalar-contract.md) and reader seam are implemented locally across keyed, aggregate and multiset modes; public release still requires the complete compatibility and platform gates.
 - Preserve recipe versions 1–3 unchanged. New coercion or rejection semantics require an explicit versioned policy boundary.
 - Use `1.x.0` for the next release line, advancing the minor component through `1.20.0`; reserve patch releases for compatible fixes.
 - Treat the completed [cross-format projection research](1.1/137-cross-format-semantic-projection-research.md) as the design input: recipe-directed scalar conversion is safe only through a closed source-type allowlist; lossy or inferred conversion stays explicit or upstream.

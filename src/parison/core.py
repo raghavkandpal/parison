@@ -25,13 +25,14 @@ from typing import Any
 
 
 OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPTED": 130}
-_RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "output"}
-_AGGREGATE_RECIPE_KEYS = {"recipe_version", "comparison_mode", "group_by", "measures", "scope", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "output"}
-_MULTISET_RECIPE_KEYS = {"recipe_version", "comparison_mode", "scope", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "output"}
+_RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "input_projection", "output"}
+_AGGREGATE_RECIPE_KEYS = {"recipe_version", "comparison_mode", "group_by", "measures", "scope", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "input_projection", "output"}
+_MULTISET_RECIPE_KEYS = {"recipe_version", "comparison_mode", "scope", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "input_projection", "output"}
 _COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone", "scale", "normalize"}
 _MEASURE_KEYS = {"operator", "column", "nulls", "comparison", "tolerance"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
 _NORMALIZATIONS = {"trim", "casefold", "unicode_nfc"}
+_INPUT_PROJECTIONS = {"semantic-scalar-v1"}
 _RAW_VALUE = object()
 _FILE_FORMATS = {".csv": "csv", ".tsv": "tsv", ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".pq": "parquet"}
 _SCHEMAS = {
@@ -494,6 +495,7 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     if not isinstance(output, dict) or set(output) != {"sensitivity"} or output["sensitivity"] not in {"summary", "raw"}:
         raise ParisonError("output must contain sensitivity='summary' or sensitivity='raw'")
     recipe["output"] = output
+    _validate_input_projection(recipe)
     return recipe
 
 
@@ -637,6 +639,13 @@ def _validate_common_recipe(recipe: dict[str, Any], mode: str = "aggregate") -> 
     if not isinstance(output, dict) or set(output) != {"sensitivity"} or output["sensitivity"] not in {"summary", "raw"}:
         raise ParisonError("output must contain sensitivity='summary' or sensitivity='raw'")
     recipe["output"] = output
+    _validate_input_projection(recipe)
+
+
+def _validate_input_projection(recipe: dict[str, Any]) -> None:
+    projection = recipe.get("input_projection")
+    if projection is not None and projection not in _INPUT_PROJECTIONS:
+        raise ParisonError("input_projection must be 'semantic-scalar-v1'")
 
 
 def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
@@ -684,8 +693,38 @@ def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
     raise AssertionError(kind)
 
 
+def _parse_input(raw: Any, policy: dict[str, Any], column: str, recipe: dict[str, Any]) -> Any:
+    if recipe.get("input_projection") != "semantic-scalar-v1" or raw is None:
+        return _parse(raw, policy, column)
+    kind = policy["type"]
+    exact_type = type(raw)
+    allowed = {
+        "string": {str},
+        "integer": {str, int},
+        "decimal": {str, int, Decimal},
+        "float": {str, int, float},
+        "boolean": {str, bool},
+        "date": {str, date},
+        "timestamp": {str, datetime},
+    }[kind]
+    if exact_type not in allowed or raw == "":
+        raise ParisonError(f"cannot project column {column} to {kind} under semantic-scalar-v1")
+    if kind == "timestamp" and exact_type is datetime and raw.tzinfo is None:
+        raise ParisonError(f"cannot project column {column} to timestamp under semantic-scalar-v1: timezone required")
+    value = _parse(raw, policy, column)
+    if kind == "integer" and not -(2**63) <= value < 2**63:
+        raise ParisonError(f"cannot project column {column} to integer under semantic-scalar-v1: outside signed 64-bit range")
+    return value
+
+
 def _source_name(recipe: dict[str, Any], name: str, side: str) -> str:
     return recipe.get("column_mappings", {}).get(name, {}).get(side, name)
+
+
+def _with_input_projection(recipe: dict[str, Any], policy: dict[str, Any]) -> dict[str, Any]:
+    if "input_projection" in recipe:
+        policy["input_projection"] = recipe["input_projection"]
+    return policy
 
 
 def _effective_policy(recipe: dict[str, Any]) -> dict[str, Any]:
@@ -704,7 +743,7 @@ def _effective_policy(recipe: dict[str, Any]) -> dict[str, Any]:
             "candidate_column": _source_name(recipe, name, "candidate"),
             **policy,
         }
-    policy = {
+    policy = _with_input_projection(recipe, {
         "schema_version": 1,
         "recipe_version": recipe["recipe_version"],
         "comparison_mode": recipe["comparison_mode"],
@@ -716,7 +755,7 @@ def _effective_policy(recipe: dict[str, Any]) -> dict[str, Any]:
         "columns": columns,
         "excluded_columns": recipe.get("excluded_columns", {}),
         "output": recipe.get("output", {"sensitivity": "summary"}),
-    }
+    })
     policy["policy_sha256"] = hashlib.sha256(
         json.dumps(policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     ).hexdigest()
@@ -741,7 +780,7 @@ def _effective_aggregate_policy(recipe: dict[str, Any]) -> dict[str, Any]:
         if measure["operator"] != "count":
             measure["comparison"] = measure.get("comparison", "exact")
         measures[name] = measure
-    policy = {
+    policy = _with_input_projection(recipe, {
         "schema_version": 2,
         "recipe_version": 2,
         "comparison_mode": "aggregate",
@@ -755,7 +794,7 @@ def _effective_aggregate_policy(recipe: dict[str, Any]) -> dict[str, Any]:
         "columns": columns,
         "excluded_columns": recipe.get("excluded_columns", {}),
         "output": recipe["output"],
-    }
+    })
     policy["policy_sha256"] = hashlib.sha256(
         json.dumps(policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     ).hexdigest()
@@ -773,7 +812,7 @@ def _effective_multiset_policy(recipe: dict[str, Any]) -> dict[str, Any]:
             "comparison": "exact",
             "normalize": configured.get("normalize", []),
         }
-    policy = {
+    policy = _with_input_projection(recipe, {
         "schema_version": 3,
         "recipe_version": 3,
         "comparison_mode": "multiset",
@@ -787,7 +826,7 @@ def _effective_multiset_policy(recipe: dict[str, Any]) -> dict[str, Any]:
         "columns": columns,
         "excluded_columns": recipe.get("excluded_columns", {}),
         "output": recipe["output"],
-    }
+    })
     policy["policy_sha256"] = hashlib.sha256(
         json.dumps(policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     ).hexdigest()
@@ -825,7 +864,7 @@ def _normalize(value: Any, policy: dict[str, Any]) -> Any:
 def _parse_row(raw: dict[str, Any], recipe: dict[str, Any], side: str, preserve_raw: bool = False) -> dict[Any, Any]:
     row: dict[Any, Any] = {}
     for name, policy in recipe["columns"].items():
-        parsed = _parse(raw.get(_source_name(recipe, name, side)), policy, name)
+        parsed = _parse_input(raw.get(_source_name(recipe, name, side)), policy, name, recipe)
         row[name] = _normalize(parsed, policy)
         if preserve_raw:
             row[(_RAW_VALUE, name)] = parsed
@@ -1079,11 +1118,45 @@ def _digest(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _input_columns(path: str | Path, decoded_sizes: dict[Path, int] | None = None, delimiter: str = ",") -> list[str]:
+def _validate_parquet_projection(schema: Any, recipe: dict[str, Any], side: str) -> None:
+    if recipe.get("input_projection") != "semantic-scalar-v1":
+        return
+    scalar = {"Null", "String", "Boolean", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "Float32", "Float64", "Decimal", "Date", "Datetime"}
+    admitted = {
+        "string": {"String"},
+        "integer": {"Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "String"},
+        "decimal": {"Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "Decimal", "String"},
+        "float": {"Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "Float32", "Float64", "String"},
+        "boolean": {"Boolean", "String"},
+        "date": {"Date", "String"},
+        "timestamp": {"Datetime", "String"},
+    }
+    for dtype in schema.values():
+        if str(dtype.base_type()) not in scalar:
+            raise ParisonError(f"Parquet input has unsupported semantic-scalar-v1 type {dtype}")
+    for name, policy in recipe["columns"].items():
+        source = _source_name(recipe, name, side)
+        if source not in schema:
+            continue
+        dtype = schema[source]
+        base = str(dtype.base_type())
+        if base != "Null" and base not in admitted[policy["type"]]:
+            raise ParisonError(f"Parquet column {source} cannot project to {policy['type']} under semantic-scalar-v1")
+        if base == "Datetime" and (getattr(dtype, "time_unit", None) == "ns" or getattr(dtype, "time_zone", None) is None):
+            raise ParisonError(f"Parquet column {source} has lossy or timezone-naive timestamp type under semantic-scalar-v1")
+
+
+def _input_columns(
+    path: str | Path,
+    decoded_sizes: dict[Path, int] | None = None,
+    delimiter: str = ",",
+    recipe: dict[str, Any] | None = None,
+    side: str | None = None,
+) -> list[str]:
     decoded_sizes = decoded_sizes or {}
     source_path = _source_path(path)
     if source_path.is_dir():
-        schemas = [_input_columns(partition, decoded_sizes, delimiter) for partition in _source_paths(path)]
+        schemas = [_input_columns(partition, decoded_sizes, delimiter, recipe, side) for partition in _source_paths(path)]
         if any(set(schema) != set(schemas[0]) for schema in schemas[1:]):
             raise ParisonError(f"partitioned input has inconsistent schemas: {source_path}")
         return schemas[0]
@@ -1119,7 +1192,10 @@ def _input_columns(path: str | Path, decoded_sizes: dict[Path, int] | None = Non
         except ImportError as exc:
             raise ParisonError("Parquet support requires: pip install 'parison[parquet]'") from exc
         try:
-            columns = pl.scan_parquet(path).collect_schema().names()
+            schema = pl.scan_parquet(path).collect_schema()
+            if recipe is not None and side is not None:
+                _validate_parquet_projection(schema, recipe, side)
+            columns = schema.names()
         except Exception as exc:
             raise ParisonError(f"cannot read schema from {path}: {exc}") from exc
     else:
@@ -1148,7 +1224,7 @@ def _record_diagnostics(
         row_is_invalid = False
         for name, policy in recipe["columns"].items():
             try:
-                parsed = _parse(raw.get(_source_name(recipe, name, side)), policy, name)
+                parsed = _parse_input(raw.get(_source_name(recipe, name, side)), policy, name, recipe)
                 row[name] = _normalize(parsed, policy)
             except ParisonError:
                 invalid_fields[name] += 1
@@ -1190,7 +1266,7 @@ def _aggregate_record_diagnostics(
         row_is_invalid = False
         for name, policy in recipe["columns"].items():
             try:
-                parsed[name] = _normalize(_parse(raw.get(_source_name(recipe, name, side)), policy, name), policy)
+                parsed[name] = _normalize(_parse_input(raw.get(_source_name(recipe, name, side)), policy, name, recipe), policy)
             except ParisonError:
                 invalid_fields[name] += 1
                 row_is_invalid = True
@@ -1227,7 +1303,7 @@ def _multiset_record_diagnostics(source, recipe, max_rows, max_distinct_rows, si
         row_invalid = False
         for name, policy in recipe["columns"].items():
             try:
-                parsed[name] = _normalize(_parse(raw.get(_source_name(recipe, name, side)), policy, name), policy)
+                parsed[name] = _normalize(_parse_input(raw.get(_source_name(recipe, name, side)), policy, name, recipe), policy)
             except ParisonError:
                 invalid_fields[name] += 1
                 row_invalid = True
@@ -1270,7 +1346,7 @@ def validate_inputs(
     status = "valid"
     for side, source in (("baseline", baseline), ("candidate", candidate)):
         delimiter = recipe["delimiters"][side]
-        columns = _input_columns(source, decoded_sizes, delimiter)
+        columns = _input_columns(source, decoded_sizes, delimiter, recipe, side)
         schema = _schema_details(columns, recipe, side)
         if schema["missing"] or schema["unexpected"]:
             status = "invalid"
@@ -1582,7 +1658,9 @@ def _iter_input_rows(
         except ImportError as exc:
             raise ParisonError("Parquet support requires: pip install 'parison[parquet]'") from exc
         try:
-            row_count = pl.scan_parquet(path).select(pl.len()).collect().item()
+            scan = pl.scan_parquet(path)
+            _validate_parquet_projection(scan.collect_schema(), recipe, side)
+            row_count = scan.select(pl.len()).collect().item()
             if row_count > max_rows:
                 raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
             frame = pl.read_parquet(path)
@@ -2028,13 +2106,13 @@ def compare(
         "resource_limits": resource_limits,
         "scope": recipe["scope"],
         "keys": keys,
-        "policy": {
+        "policy": _with_input_projection(recipe, {
             "keys": keys,
             "nulls_equal": recipe["nulls_equal"],
             "delimiters": recipe["delimiters"],
             "null_tokens": recipe["null_tokens"],
             "sensitivity": recipe["output"]["sensitivity"],
-        },
+        }),
         "column_policies": recipe["columns"],
         "column_mappings": recipe.get("column_mappings", {}),
         "problems": problems,
@@ -2223,7 +2301,7 @@ def _compare_aggregate(
         "scope": recipe["scope"],
         "group_by": recipe["group_by"],
         "measures": recipe["measures"],
-        "policy": {"group_nulls": "reject", "delimiters": recipe["delimiters"], "null_tokens": recipe["null_tokens"], "sensitivity": recipe["output"]["sensitivity"]},
+        "policy": _with_input_projection(recipe, {"group_nulls": "reject", "delimiters": recipe["delimiters"], "null_tokens": recipe["null_tokens"], "sensitivity": recipe["output"]["sensitivity"]}),
         "column_policies": recipe["columns"],
         "column_mappings": recipe.get("column_mappings", {}),
         "problems": problems,
@@ -2389,7 +2467,7 @@ def _compare_multiset(recipe_path: Path, recipe: dict[str, Any], baseline_path: 
     limits = {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows, "max_distinct_rows_per_input": max_distinct_rows}
     if engine == "sqlite":
         limits["max_temp_bytes"] = max_temp_bytes
-    return {"schema_version": 3, "outcome": "INCONCLUSIVE" if problems else "FAIL" if differing_count else "PASS", "complete": not problems, "sensitivity": recipe["output"]["sensitivity"], "runtime": runtime, "resource_limits": limits, "scope": recipe["scope"], "policy": {"canonical_encoding": "typed-length-prefixed-v1", "column_order": names, "nulls_equal": True}, "column_policies": recipe["columns"], "column_mappings": recipe.get("column_mappings", {}), "problems": problems, "counts": counts, "discrepancy_count": differing_count, "discrepancy_sample": sample, "discrepancy_sample_limit": sample_limit if raw else 0, "excluded_columns": recipe.get("excluded_columns", {}), "inputs": {side: _source_metadata(path, before[str(path)], decoded_sizes, recipe["delimiters"][side], recipe["null_tokens"][side]) for side, path in (("baseline", baseline_path), ("candidate", candidate_path))}, "recipe_sha256": _digest(recipe_path), "policy_sha256": policy_sha256}
+    return {"schema_version": 3, "outcome": "INCONCLUSIVE" if problems else "FAIL" if differing_count else "PASS", "complete": not problems, "sensitivity": recipe["output"]["sensitivity"], "runtime": runtime, "resource_limits": limits, "scope": recipe["scope"], "policy": _with_input_projection(recipe, {"canonical_encoding": "typed-length-prefixed-v1", "column_order": names, "nulls_equal": True}), "column_policies": recipe["columns"], "column_mappings": recipe.get("column_mappings", {}), "problems": problems, "counts": counts, "discrepancy_count": differing_count, "discrepancy_sample": sample, "discrepancy_sample_limit": sample_limit if raw else 0, "excluded_columns": recipe.get("excluded_columns", {}), "inputs": {side: _source_metadata(path, before[str(path)], decoded_sizes, recipe["delimiters"][side], recipe["null_tokens"][side]) for side, path in (("baseline", baseline_path), ("candidate", candidate_path))}, "recipe_sha256": _digest(recipe_path), "policy_sha256": policy_sha256}
 
 
 def _report(result: dict[str, Any]) -> str:

@@ -4,6 +4,16 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Opt-in `semantic-scalar-v1` projection for keyed, aggregate and multiset recipes, with a closed policy-directed source-type allowlist across delimited text, JSON Lines, SQLite and Parquet.
+- Pre-materialization Parquet schema validation that rejects nested, binary, unknown, timezone-naive and nanosecond timestamp representations, including unsupported excluded columns.
+- A normative cross-format projection contract and task guide that preserve legacy recipe behavior while making lossy conversions explicit upstream work.
+
+### Compatibility
+
+- Recipes 1–3 that omit `input_projection` retain their released parsing behavior and policy fingerprints. Selecting `semantic-scalar-v1` is explicit and fingerprinted without changing comparison contracts, result schemas, canonical encodings or historical bundle readability.
+
 ## 1.0.0 - 2026-10-14
 
 ### Compatibility

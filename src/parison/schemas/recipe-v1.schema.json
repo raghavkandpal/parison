@@ -9,6 +9,7 @@
   "properties": {
     "recipe_version": {"const": 1},
     "comparison_mode": {"const": "keyed"},
+    "input_projection": {"const": "semantic-scalar-v1", "description": "Opt-in closed source-scalar projection before the existing keyed comparison semantics."},
     "keys": {"description": "Canonical columns that uniquely identify one logical record.", "type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
     "scope": {
       "type": "object",
