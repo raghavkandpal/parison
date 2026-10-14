@@ -112,6 +112,20 @@ class SchemaEvolution(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "finite JSON scalar"):
             normalize_evolution(value)
 
+    def test_runtime_rejects_boolean_version_and_structured_enums(self):
+        base = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+        invalid = []
+        boolean_version = json.loads(json.dumps(base))
+        boolean_version["evolution_version"] = True
+        invalid.append(boolean_version)
+        for key in ("presence", "nullability"):
+            structured = json.loads(json.dumps(base))
+            structured["changes"][0]["candidate"][0][key] = ["invalid"]
+            invalid.append(structured)
+        for value in invalid:
+            with self.subTest(value=value), self.assertRaises(ParisonError):
+                normalize_evolution(value)
+
     def test_rejects_duplicate_json_members(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "duplicate.json"
@@ -208,6 +222,20 @@ class SchemaEvolution(unittest.TestCase):
                 candidate = self._write_json(root, "candidate.json", candidate_recipe)
                 self.assertEqual(diff_policies(baseline, candidate, EXAMPLE)["compatibility"], "DENY")
 
+    def test_policy_diff_uses_closed_measure_paths(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline_recipe = self._stable_recipe("aggregate", "gross_amount")
+            candidate_recipe = self._stable_recipe("aggregate", "order_total")
+            candidate_recipe["measures"]["gross"]["operator"] = "max"
+            baseline = self._write_json(root, "baseline.json", baseline_recipe)
+            candidate = self._write_json(root, "candidate.json", candidate_recipe)
+            result = diff_policies(baseline, candidate, EXAMPLE)
+            changed = [item for item in result["changes"] if item["reason"] == "GLOBAL_POLICY_CHANGED"]
+            self.assertEqual(changed[0]["path"], "measures[].operator")
+            self.assertEqual(changed[0]["policy_names"], ["gross"])
+            self.assertNotIn("gross", json.dumps(summarize_policy_diff(result)))
+
     def test_excluded_field_identity_can_survive_a_rename(self):
         common = {"id": "order-id", "name": "order_id", "presence": "required", "nullability": "non-null"}
         declaration = {
@@ -228,6 +256,12 @@ class SchemaEvolution(unittest.TestCase):
             result = diff_policies(baseline, candidate, evolution)
             self.assertEqual(result["compatibility"], "ACCEPT")
             self.assertIn("EXCLUDED_FIELD_IDENTITY_PRESERVED", {item["reason"] for item in result["changes"]})
+            changed = json.loads(json.dumps(declaration))
+            changed["changes"][1]["candidate"][0]["nullability"] = "non-null"
+            changed_evolution = self._write_json(root, "changed-evolution.json", changed)
+            denied = diff_policies(baseline, candidate, changed_evolution)
+            self.assertEqual(denied["compatibility"], "DENY")
+            self.assertIn("FIELD_CONTRACT_CHANGED", {item["reason"] for item in denied["changes"]})
 
     def test_policy_diff_reports_excluded_split_as_inconclusive(self):
         common = {"id": "order-id", "name": "order_id", "presence": "required", "nullability": "non-null"}

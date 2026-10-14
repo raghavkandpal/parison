@@ -27,6 +27,7 @@
           "logical_ids": {"type": "array", "items": {"type": "string"}},
           "baseline_names": {"type": "array", "items": {"type": "string"}},
           "candidate_names": {"type": "array", "items": {"type": "string"}},
+          "policy_names": {"type": "array", "items": {"type": "string"}},
           "baseline": {},
           "candidate": {}
         },

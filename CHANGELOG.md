@@ -19,6 +19,8 @@ All notable changes will be documented in this file.
 ### Fixed
 
 - Windows installations include Python's first-party IANA timezone fallback so aware Parquet timestamps project consistently instead of failing when the operating system has no zone database.
+- Semantic timestamp projection rejects text precision beyond microseconds instead of allowing the standard parser to truncate distinct values.
+- Policy evolution rejects boolean versions and structured enum values as controlled input errors, compares excluded-field contract metadata before compatibility, and emits only closed versioned policy paths.
 
 ## 1.0.0 - 2026-10-14
 

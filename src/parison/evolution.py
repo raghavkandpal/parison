@@ -35,9 +35,9 @@ def _field(value: Any, where: str) -> dict[str, Any]:
         raise ParisonError(f"{where}.id must be a nonempty string")
     if not isinstance(value["name"], str) or not value["name"]:
         raise ParisonError(f"{where}.name must be a nonempty string")
-    if value["presence"] not in {"required", "optional"}:
+    if not isinstance(value["presence"], str) or value["presence"] not in {"required", "optional"}:
         raise ParisonError(f"{where}.presence must be 'required' or 'optional'")
-    if value["nullability"] not in {"non-null", "nullable"}:
+    if not isinstance(value["nullability"], str) or value["nullability"] not in {"non-null", "nullable"}:
         raise ParisonError(f"{where}.nullability must be 'non-null' or 'nullable'")
     if "default" in value and not _valid_scalar(value["default"]):
         raise ParisonError(f"{where}.default must be a finite JSON scalar")
@@ -47,7 +47,7 @@ def _field(value: Any, where: str) -> dict[str, Any]:
 def normalize_evolution(value: Any) -> dict[str, Any]:
     if not isinstance(value, dict) or set(value) != {"evolution_version", "direction", "changes"}:
         raise ParisonError("evolution must contain exactly evolution_version, direction and changes")
-    if value["evolution_version"] != 1:
+    if type(value["evolution_version"]) is not int or value["evolution_version"] != 1:
         raise ParisonError("evolution_version must be 1")
     if value["direction"] != "baseline-to-candidate":
         raise ParisonError("direction must be 'baseline-to-candidate'")
@@ -192,6 +192,32 @@ def _leaf_changes(left: Any, right: Any, path: tuple[str, ...] = ()) -> list[tup
     return [] if left == right else [(path, left, right)]
 
 
+_GLOBAL_PATHS = {
+    ("schema_version",), ("recipe_version",), ("comparison_mode",), ("aggregate_contract",),
+    ("multiset_contract",), ("canonical_encoding",), ("input_projection",), ("nulls_equal",),
+    ("group_nulls",), ("column_order",), ("group_by",),
+    ("scope", "snapshot"), ("scope", "cutoff"), ("scope", "filters"),
+    ("scope", "completeness"), ("scope", "expected_empty"),
+    ("identity", "null_keys"), ("identity", "duplicates"),
+    ("delimiters", "baseline"), ("delimiters", "candidate"),
+    ("null_tokens", "baseline"), ("null_tokens", "candidate"), ("output", "sensitivity"),
+}
+_MEASURE_FIELDS = {"operator", "column", "nulls", "comparison"}
+_TOLERANCE_FIELDS = {"formula", "absolute", "relative"}
+
+
+def _closed_policy_path(path: tuple[str, ...]) -> tuple[str | None, list[str]]:
+    if path in _GLOBAL_PATHS:
+        return ".".join(path), []
+    if len(path) == 3 and path[0] == "measures" and path[2] in _MEASURE_FIELDS:
+        return f"measures[].{path[2]}", [path[1]]
+    if len(path) == 4 and path[0] == "measures" and path[2] == "tolerance" and path[3] in _TOLERANCE_FIELDS:
+        return f"measures[].tolerance.{path[3]}", [path[1]]
+    if len(path) == 2 and path[0] == "measures":
+        return "measures[]", [path[1]]
+    return None, []
+
+
 def _record(kind: str, compatibility: str, impact: str, reason: str, **metadata: Any) -> dict[str, Any]:
     return {"kind": kind, "compatibility": compatibility, "impact": impact, "reason": reason, **metadata}
 
@@ -210,10 +236,14 @@ def diff_policies(baseline_recipe: str | Path, candidate_recipe: str | Path, evo
     global_baseline = {key: value for key, value in baseline.items() if key not in {"policy_sha256", "columns", "excluded_columns"}}
     global_candidate = {key: value for key, value in candidate.items() if key not in {"policy_sha256", "columns", "excluded_columns"}}
     for path, old, new in _leaf_changes(global_baseline, global_candidate):
-        changes.append(_record(
-            "policy-modified", "DENY", "meaning-changed", "GLOBAL_POLICY_CHANGED",
-            path=".".join(path), baseline=old, candidate=new,
-        ))
+        closed_path, policy_names = _closed_policy_path(path)
+        if closed_path is None:
+            changes.append(_record("policy-modified", "INCONCLUSIVE", "unknown", "UNKNOWN_POLICY_PATH", path="unknown"))
+        else:
+            changes.append(_record(
+                "policy-modified", "DENY", "meaning-changed", "GLOBAL_POLICY_CHANGED",
+                path=closed_path, baseline=old, candidate=new, **({"policy_names": policy_names} if policy_names else {}),
+            ))
 
     for operation in evolution["changes"]:
         kind = operation["change"]
@@ -225,14 +255,16 @@ def diff_policies(baseline_recipe: str | Path, candidate_recipe: str | Path, evo
             new = candidate_index.get(new_field["name"])
             old_is_excluded = old_field["name"] in baseline_excluded
             new_is_excluded = new_field["name"] in candidate_excluded
-            if old_is_excluded and new_is_excluded:
+            old_contract = {key: old_field.get(key) for key in ("presence", "nullability", "default") if key in old_field}
+            new_contract = {key: new_field.get(key) for key in ("presence", "nullability", "default") if key in new_field}
+            if old_contract != new_contract:
+                changes.append(_record(kind, "DENY", "meaning-changed", "FIELD_CONTRACT_CHANGED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]]))
+            elif old_is_excluded and new_is_excluded:
                 changes.append(_record(kind, "ACCEPT", "input-only", "EXCLUDED_FIELD_IDENTITY_PRESERVED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]]))
             elif old is None or new is None:
                 changes.append(_record(kind, "DENY", "meaning-changed", "MAPPED_FIELD_NOT_COMPARED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]]))
             elif old["semantic"] != new["semantic"] or old["role"] != new["role"]:
                 changes.append(_record(kind, "DENY", "meaning-changed", "FIELD_POLICY_CHANGED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]], baseline={"role": old["role"], "policy": old["semantic"]}, candidate={"role": new["role"], "policy": new["semantic"]}))
-            elif {key: old_field.get(key) for key in ("presence", "nullability", "default") if key in old_field} != {key: new_field.get(key) for key in ("presence", "nullability", "default") if key in new_field}:
-                changes.append(_record(kind, "DENY", "meaning-changed", "FIELD_CONTRACT_CHANGED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]]))
             else:
                 changes.append(_record(kind, "ACCEPT", "none" if kind == "unchanged" else "input-only", "FIELD_IDENTITY_PRESERVED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]]))
         elif kind in {"added", "removed"}:

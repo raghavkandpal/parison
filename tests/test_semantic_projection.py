@@ -97,6 +97,12 @@ class SemanticScalarProjection(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "outside signed 64-bit range"):
             compare(self.recipe, baseline, baseline)
 
+    def test_projection_rejects_text_timestamp_beyond_microsecond_precision(self):
+        value = {"id": 1, "amount": "1.00", "active": True, "label": "x", "day": "2026-10-14", "observed_at": "1969-12-31T23:59:59.1234567Z"}
+        source = self.jsonl(value)
+        with self.assertRaisesRegex(ParisonError, "precision exceeds microseconds"):
+            compare(self.recipe, source, source)
+
     def test_legacy_recipe_keeps_incidental_coercions_and_policy_identity(self):
         legacy = self.root / "legacy.json"
         legacy.write_text(json.dumps(recipe(False)), encoding="utf-8")

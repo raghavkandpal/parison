@@ -9,6 +9,7 @@ import math
 import multiprocessing
 import os
 import platform
+import re
 import shutil
 import sqlite3
 import tempfile
@@ -684,7 +685,11 @@ def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
         if kind == "date":
             return date.fromisoformat(str(raw))
         if kind == "timestamp":
-            value = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+            text = str(raw)
+            fraction = re.search(r"T\d{2}:\d{2}:\d{2}[.,](\d+)", text)
+            if fraction and len(fraction.group(1)) > 6:
+                raise _SafeParseError("timestamp precision exceeds microseconds")
+            value = datetime.fromisoformat(text.replace("Z", "+00:00"))
             if value.tzinfo is None:
                 raise _SafeParseError("timestamp requires an explicit timezone")
             return value
