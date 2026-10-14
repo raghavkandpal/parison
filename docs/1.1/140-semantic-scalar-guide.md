@@ -54,3 +54,4 @@ Typical fixes happen upstream: export booleans as booleans or exact lowercase te
 Omit `input_projection` only when replaying a released recipe whose legacy coercion behavior is part of the evidence contract. Adding the field changes the policy fingerprint and must be reviewed like any other policy change.
 
 See the [normative contract](139-semantic-scalar-contract.md) for the complete representation table, Parquet rules and compatibility gate.
+The checked-in [`examples/1.1` workflow](../../examples/1.1/semantic-scalar.recipe.json) is a runnable CSV-to-JSON-Lines PASS using integer, decimal, boolean and offset-equivalent timestamp representations.
