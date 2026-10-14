@@ -11,7 +11,7 @@ Parison 0.15–0.18 completed the accepted rehearsal, adoption, evidence-handoff
 1. [x] Freeze the [compatibility contract](126-compatibility-contract.md) for released recipes, schemas, bundles, CLI behavior and canonical artifacts.
 2. [x] Seed an automated upgrade corpus with the immutable 0.1.0 run bundle and exercise verification, safe inspection, Statement projection and cutover reporting.
 3. [x] Add original-release aggregate, multiset, suite-v1 and suite-v2 bundles to the upgrade corpus without regenerating them under current code.
-4. [x] Exercise one clean installed-wheel migration/backfill workflow from `parison init` through rehearsal history, suite execution, Statement export and cutover reporting.
+4. [x] Exercise the complete migration/backfill command path under the installed wheel, from `parison init` through rehearsal history, suite execution, Statement export and cutover reporting.
 5. [x] Consolidate the current keyed, aggregate and multiset measurements into an explicit, [machine-qualified performance envelope](127-performance-envelope.md) for memory and SQLite execution.
 6. [x] Run and record a [direct-human workflow rehearsal](130-human-workflow-rehearsal.md); no usability gaps were reported.
 7. [x] Define a checkable [1.0 release-readiness checklist](128-1.0-readiness-checklist.md).

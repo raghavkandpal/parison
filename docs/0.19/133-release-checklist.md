@@ -9,7 +9,7 @@ Status: **candidate preparation**
 - [x] The compatibility contract freezes released recipe semantics, schemas, exit codes, canonical encodings, CLI JSON and summary-safety boundaries through 1.x.
 - [x] Immutable original-release fixtures cover keyed result schema 1, aggregate result schema 2, multiset result schema 3, suite-v1 and suite-v2.
 - [x] Current code recursively verifies, safely inspects and derives supported Statement and cutover evidence from the historical corpus without rewriting it.
-- [x] A clean installed-wheel workflow covers initialization, record preflight, repeated rehearsals, catalog history and diff, suites, verification, Statement rebinding and cutover reporting.
+- [x] The installed-wheel acceptance suite invokes the complete CLI command path in-process, covering initialization, record preflight, repeated rehearsals, catalog history and diff, suites, verification, Statement rebinding and cutover reporting with checked-in synthetic suite inputs.
 - [x] An unfamiliar human completed the workflow without reported confusion or undocumented repository knowledge.
 - [x] The consolidated user guide documents the complete supported workflow, limits, security boundary and input surface.
 - [x] The changelog records every frozen 1.x guarantee and explicitly records that 0.19 introduces no incompatibility.
