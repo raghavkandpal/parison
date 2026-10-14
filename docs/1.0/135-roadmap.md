@@ -10,7 +10,7 @@ Version 0.19 completed the accepted 1.0 readiness gate: historical artifacts rem
 
 1. [x] Reconfirm every pre-candidate product and compatibility prerequisite in the [1.0 readiness checklist](../0.19/128-1.0-readiness-checklist.md).
 2. [x] Set the package and release records to 1.0.0 without changing runtime behavior.
-3. [ ] Pass local checks, exact-candidate CI and fresh-wheel smoke workflows.
+3. [x] Pass local checks, exact-candidate CI and fresh-wheel smoke workflows.
 4. [ ] Merge the reviewed candidate, pass CI on the exact merge, and publish exact-merge artifacts.
 5. [ ] Re-download and verify the public artifacts, repeat fresh-wheel smoke workflows, and reconcile the release records.
 
