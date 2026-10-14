@@ -8,7 +8,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 
 - [Post-1.0 product direction](0.20/134-post-1.0-direction-research.md)
 
-## 0.19 — in progress
+## 0.19 — released
 
 - [0.19 consolidated workflow and command guide](0.19/131-user-guide.md)
 - [Performance-gap decision for 1.0](0.19/132-performance-gap-decision.md)

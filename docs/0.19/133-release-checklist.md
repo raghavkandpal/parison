@@ -2,7 +2,7 @@
 
 Date: 13 October 2026
 
-Status: **candidate validation**
+Status: **released**
 
 ## Compatibility and product gates
 
@@ -46,11 +46,16 @@ Candidate SHA-256:
 
 ## Publication
 
-- [ ] Merge the reviewed candidate to `main` and require CI on the exact merge commit.
-- [ ] Build from a clean archive of the merge commit and complete any release-specific external gates before tagging.
-- [ ] Create and push annotated tag `0.19.0` on the exact tested merge.
-- [ ] Publish the wheel, source archive and `SHA256SUMS` in the GitHub release; PyPI remains opt-in.
-- [ ] Re-download public assets, verify checksums, install the wheel fresh and repeat the primary workflow.
-- [ ] Reconcile the roadmap, checkpoint, checklist, changelog, README, documentation index and current-state record with the published artifacts.
+- [x] Reviewed candidate merged to `main` through [pull request 32](https://github.com/raghavkandpal/parison/pull/32) at `c918a8f91d5293b15a0fffd161c72340697e6445`.
+- [x] Exact merge commit passed [GitHub Actions run 38520664829](https://github.com/raghavkandpal/parison/actions/runs/38520664829); clean-archive artifacts were built before tagging.
+- [x] Annotated tag `0.19.0` identifies the exact tested merge commit.
+- [x] [GitHub release 0.19.0](https://github.com/raghavkandpal/parison/releases/tag/0.19.0) publishes the exact-merge wheel, source archive and `SHA256SUMS`; PyPI remains intentionally deferred.
+- [x] Public assets were re-downloaded, checksum-verified and installed fresh under Python 3.14; direct and suite PASS workflows, recursive verification, Statement rebinding and cutover reporting succeeded.
+- [x] Roadmap, checklist, changelog, README, documentation index and current-state record identify the published release.
+
+Published SHA-256:
+
+- `parison-0.19.0-py3-none-any.whl`: `7322965b9a66af3787ec3ab34b4d9c3559d13b75dbc7edb3e851a7b0f2e23d6a`
+- `parison-0.19.0.tar.gz`: `d7f69048064e14b2cab1e9e55d2e187f1b4bc23fc6aee8743734c355b17d7e8e`
 
 Do not mark 0.19.0 released until the code, tag, public assets and release records identify the same tested commit.

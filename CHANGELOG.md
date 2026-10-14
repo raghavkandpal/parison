@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 0.19.0 - 2026-10-14
+
 ### Added
 
 - A frozen compatibility contract and automated upgrade corpus covering immutable keyed, aggregate, multiset, suite-v1 and suite-v2 bundles from their original releases.
