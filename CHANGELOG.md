@@ -14,6 +14,10 @@ All notable changes will be documented in this file.
 
 - Recipes 1–3 that omit `input_projection` retain their released parsing behavior and policy fingerprints. Selecting `semantic-scalar-v1` is explicit and fingerprinted without changing comparison contracts, result schemas, canonical encodings or historical bundle readability.
 
+### Fixed
+
+- Windows installations include Python's first-party IANA timezone fallback so aware Parquet timestamps project consistently instead of failing when the operating system has no zone database.
+
 ## 1.0.0 - 2026-10-14
 
 ### Compatibility
