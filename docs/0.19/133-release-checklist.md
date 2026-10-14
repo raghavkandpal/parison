@@ -2,7 +2,7 @@
 
 Date: 13 October 2026
 
-Status: **candidate preparation**
+Status: **candidate validation**
 
 ## Compatibility and product gates
 
@@ -31,8 +31,8 @@ Status: **candidate preparation**
 
 ## Exact candidate
 
-- [ ] Review `origin/main...develop` against repository invariants, the roadmap, compatibility contract and this checklist; resolve every blocker.
-- [ ] Set `src/parison/__init__.py` to `0.19.0` only after the review is clean.
+- [x] Review `origin/main...develop` against repository invariants, the roadmap, compatibility contract and this checklist; the standards axis was clean and two spec gaps were corrected and re-reviewed clean.
+- [x] Set `src/parison/__init__.py` to `0.19.0` only after the review was clean.
 - [ ] Run `make check` from a clean checkout and record the exact candidate commit.
 - [ ] Require built-wheel CI on Python 3.11–3.14, macOS and Windows for that exact commit.
 - [ ] Export the exact commit with `git archive`; build and inspect its wheel and source archive.

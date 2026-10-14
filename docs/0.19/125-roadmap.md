@@ -1,6 +1,6 @@
 # Parison 0.19 roadmap
 
-Status: **implementation**
+Status: **release candidate**
 
 ## Theme: 1.0 readiness and compatibility
 

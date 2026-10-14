@@ -1,6 +1,6 @@
 # Parison compatibility contract
 
-Status: **0.19 implementation contract**
+Status: **0.19 candidate contract**
 
 ## Purpose
 
