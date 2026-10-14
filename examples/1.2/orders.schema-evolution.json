@@ -1,0 +1,31 @@
+{
+  "evolution_version": 1,
+  "direction": "baseline-to-candidate",
+  "changes": [
+    {
+      "change": "added",
+      "baseline": [],
+      "candidate": [
+        {"id": "migration-batch", "name": "migration_batch", "presence": "required", "nullability": "non-null"}
+      ]
+    },
+    {
+      "change": "renamed",
+      "baseline": [
+        {"id": "gross-amount", "name": "gross_amount", "presence": "required", "nullability": "non-null"}
+      ],
+      "candidate": [
+        {"id": "gross-amount", "name": "order_total", "presence": "required", "nullability": "non-null"}
+      ]
+    },
+    {
+      "change": "unchanged",
+      "baseline": [
+        {"id": "order-id", "name": "order_id", "presence": "required", "nullability": "non-null"}
+      ],
+      "candidate": [
+        {"id": "order-id", "name": "order_id", "presence": "required", "nullability": "non-null"}
+      ]
+    }
+  ]
+}

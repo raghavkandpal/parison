@@ -4,10 +4,11 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
-## 1.2 — planned
+## 1.2 — active
 
 - [Schema evolution and policy-diff research](1.2/141-schema-evolution-and-policy-diff-research.md)
 - [1.2 roadmap](1.2/142-roadmap.md)
+- [`schema-evolution-v1` and `policy-diff-v1` contract](1.2/143-schema-evolution-and-policy-diff-contract.md)
 
 ## 1.1 — planned
 

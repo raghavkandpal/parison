@@ -55,6 +55,8 @@ _SCHEMAS = {
     "suite-manifest": "suite-manifest-v1.schema.json",
     "suite-manifest-v2": "suite-manifest-v2.schema.json",
     "statement": "statement-v1.schema.json",
+    "schema-evolution": "schema-evolution-v1.schema.json",
+    "policy-diff": "policy-diff-v1.schema.json",
 }
 
 _SUITE_LIMIT_DEFAULTS = {

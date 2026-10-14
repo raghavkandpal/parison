@@ -1,6 +1,6 @@
 # Parison 1.2 roadmap
 
-Status: **planned**
+Status: **active**
 
 ## Theme
 

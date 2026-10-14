@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/policy-diff-v1.schema.json",
+  "title": "Parison policy diff v1",
+  "type": "object",
+  "required": ["policy_diff_version", "direction", "compatibility", "baseline_policy_sha256", "candidate_policy_sha256", "evolution_sha256", "policy_diff_sha256", "changes"],
+  "properties": {
+    "policy_diff_version": {"const": 1},
+    "direction": {"const": "baseline-to-candidate"},
+    "compatibility": {"enum": ["ACCEPT", "DENY", "INCONCLUSIVE"]},
+    "baseline_policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "candidate_policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "evolution_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "policy_diff_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "changes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["kind", "compatibility", "impact", "reason"],
+        "properties": {
+          "kind": {"enum": ["unchanged", "renamed", "added", "removed", "split", "merged", "policy-modified"]},
+          "compatibility": {"enum": ["ACCEPT", "DENY", "INCONCLUSIVE"]},
+          "impact": {"enum": ["none", "input-only", "verification-widened", "verification-narrowed", "meaning-changed", "unsupported-transformation", "unknown"]},
+          "reason": {"type": "string", "minLength": 1},
+          "path": {"type": "string"},
+          "logical_ids": {"type": "array", "items": {"type": "string"}},
+          "baseline_names": {"type": "array", "items": {"type": "string"}},
+          "candidate_names": {"type": "array", "items": {"type": "string"}},
+          "baseline": {},
+          "candidate": {}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

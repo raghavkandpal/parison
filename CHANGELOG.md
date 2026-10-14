@@ -9,6 +9,8 @@ All notable changes will be documented in this file.
 - Opt-in `semantic-scalar-v1` projection for keyed, aggregate and multiset recipes, with a closed policy-directed source-type allowlist across delimited text, JSON Lines, SQLite and Parquet.
 - Pre-materialization Parquet schema validation that rejects nested, binary, unknown, timezone-naive and nanosecond timestamp representations, including unsupported excluded columns.
 - A normative cross-format projection contract and task guide that preserve legacy recipe behavior while making lossy conversions explicit upstream work.
+- Strict local `schema-evolution-v1` declarations with stable logical field identity, deterministic canonical bytes and installed JSON Schema.
+- Deterministic `policy-diff-v1` assessment of effective policies, including full and summary-safe output, closed reason codes and explicit `ACCEPT`, `DENY` or `INCONCLUSIVE` compatibility labels.
 
 ### Compatibility
 
