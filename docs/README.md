@@ -4,6 +4,11 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 1.2 — planned
+
+- [Schema evolution and policy-diff research](1.2/141-schema-evolution-and-policy-diff-research.md)
+- [1.2 roadmap](1.2/142-roadmap.md)
+
 ## 1.1 — planned
 
 - [Cross-format semantic projection research](1.1/137-cross-format-semantic-projection-research.md)

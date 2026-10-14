@@ -11,6 +11,7 @@
 
 - Follow the [1.1 roadmap](1.1/138-roadmap.md): contract first, then the reader boundary, compatibility corpus and built-wheel qualification.
 - The [`semantic-scalar-v1` contract](1.1/139-semantic-scalar-contract.md) and reader seam are implemented locally across keyed, aggregate and multiset modes; public release still requires the complete compatibility and platform gates.
+- After 1.1 qualification, follow the [1.2 roadmap](1.2/142-roadmap.md) as one larger paired capability: explicit schema evolution plus meaningful policy diffs.
 - Preserve recipe versions 1–3 unchanged. New coercion or rejection semantics require an explicit versioned policy boundary.
 - Use `1.x.0` for the next release line, advancing the minor component through `1.20.0`; reserve patch releases for compatible fixes.
 - Treat the completed [cross-format projection research](1.1/137-cross-format-semantic-projection-research.md) as the design input: recipe-directed scalar conversion is safe only through a closed source-type allowlist; lossy or inferred conversion stays explicit or upstream.
@@ -38,11 +39,11 @@
 ## Recommended order
 
 1. Specify and qualify `semantic-scalar-v1` because it turns existing mixed-format behavior into a narrow compatibility promise without changing comparison modes.
-2. Research schema evolution together with policy diffs because mappings and reviewability must be designed as one explicit contract.
+2. Implement the researched `schema-evolution-v1` and `policy-diff-v1` pair because mappings and reviewability must share one explicit contract.
 3. Research time alignment and multi-dataset reconciliation because they unlock broader cutover workflows but introduce the most policy-sensitive semantics.
 
 Adopt a feature only when the research produces a narrow versioned contract, a realistic workflow, explicit non-goals and a checkable compatibility gate. Keep the remaining inventory as options rather than promises.
 
-Authoritative detail: [1.1 roadmap](1.1/138-roadmap.md), [cross-format semantic projection research](1.1/137-cross-format-semantic-projection-research.md), [1.0 roadmap](1.0/135-roadmap.md), [0.19 consolidated user guide](0.19/131-user-guide.md), [compatibility contract](0.19/126-compatibility-contract.md), [performance envelope](0.19/127-performance-envelope.md) and [post-1.0 direction research](0.20/134-post-1.0-direction-research.md).
+Authoritative detail: [1.2 roadmap](1.2/142-roadmap.md), [schema evolution and policy-diff research](1.2/141-schema-evolution-and-policy-diff-research.md), [1.1 roadmap](1.1/138-roadmap.md), [cross-format semantic projection research](1.1/137-cross-format-semantic-projection-research.md), [0.19 consolidated user guide](0.19/131-user-guide.md), [compatibility contract](0.19/126-compatibility-contract.md), [performance envelope](0.19/127-performance-envelope.md) and [post-1.0 direction research](0.20/134-post-1.0-direction-research.md).
 
 Update this page when the active version, completion state, or next gate changes. Keep historical evidence in the version folder.
