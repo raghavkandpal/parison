@@ -4,6 +4,11 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 1.1 — planned
+
+- [Cross-format semantic projection research](1.1/137-cross-format-semantic-projection-research.md)
+- [1.1 roadmap](1.1/138-roadmap.md)
+
 ## 1.0 — released
 
 - [1.0 roadmap](1.0/135-roadmap.md)
