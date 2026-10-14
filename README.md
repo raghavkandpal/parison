@@ -18,6 +18,8 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **0.19.0 released.** Historical compatibility, the complete migration workflow, consolidated command guidance and machine-qualified performance evidence now form a checkable 1.0-readiness baseline.
 
+**1.0.0 candidate.** The qualified 0.19 surface advances unchanged as the stable 1.x compatibility baseline; this designation adds no new parser, dependency or runtime semantics.
+
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
 ## Try it
