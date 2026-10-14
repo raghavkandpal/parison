@@ -223,7 +223,11 @@ def diff_policies(baseline_recipe: str | Path, candidate_recipe: str | Path, evo
             old_field, new_field = operation["baseline"][0], operation["candidate"][0]
             old = baseline_index.get(old_field["name"])
             new = candidate_index.get(new_field["name"])
-            if old is None or new is None:
+            old_is_excluded = old_field["name"] in baseline_excluded
+            new_is_excluded = new_field["name"] in candidate_excluded
+            if old_is_excluded and new_is_excluded:
+                changes.append(_record(kind, "ACCEPT", "input-only", "EXCLUDED_FIELD_IDENTITY_PRESERVED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]]))
+            elif old is None or new is None:
                 changes.append(_record(kind, "DENY", "meaning-changed", "MAPPED_FIELD_NOT_COMPARED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]]))
             elif old["semantic"] != new["semantic"] or old["role"] != new["role"]:
                 changes.append(_record(kind, "DENY", "meaning-changed", "FIELD_POLICY_CHANGED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]], baseline={"role": old["role"], "policy": old["semantic"]}, candidate={"role": new["role"], "policy": new["semantic"]}))

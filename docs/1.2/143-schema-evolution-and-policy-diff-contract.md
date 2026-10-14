@@ -68,3 +68,5 @@ parison diff-policy \
 `diff-policy` exits `0` for `ACCEPT`, `1` for `DENY`, `3` for `INCONCLUSIVE` and `2` for invalid input. Installed JSON Schemas are available as `parison schema schema-evolution` and `parison schema policy-diff`.
 
 `compile-evolution` emits an existing `column_mappings` fragment keyed by logical field ID for unchanged and renamed fields. Added and removed fields produce no value mapping. Any split or merge makes compilation fail because those values must be materialized upstream. Generated mappings are suggestions for review; the command never edits or approves a recipe.
+
+The paired recipes in `examples/1.2/` use logical IDs as canonical recipe column names and map them to the old and new physical names. This keeps aggregate measure references, key roles and multiset column order stable when physical names change.
