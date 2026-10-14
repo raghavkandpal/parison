@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 1.0.0 - 2026-10-14
+
 ### Compatibility
 
 - Promotes the qualified 0.19 surface unchanged as the stable 1.x baseline. Recipe semantics, schemas, bundle verification, canonical bytes, exit codes, CLI JSON and summary-safety boundaries are unchanged.
