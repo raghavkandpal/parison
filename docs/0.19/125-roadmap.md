@@ -1,6 +1,6 @@
 # Parison 0.19 roadmap
 
-Status: **release candidate**
+Status: **released 14 October 2026**
 
 ## Theme: 1.0 readiness and compatibility
 
