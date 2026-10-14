@@ -1,0 +1,67 @@
+{
+  "cases": [
+    {
+      "bundle": "cases/orders-keyed",
+      "complete": true,
+      "contract": "keyed-v1",
+      "id": "orders-keyed",
+      "manifest_sha256": "fd8f846cc359b9adbfad9f0312dd9b6a064ab39f24f3197e1cbcf69452b1d99f",
+      "outcome": "PASS",
+      "policy_sha256": "88de243927d26e234bff123a62f4b5f9d92a5a0df7024ed9c7b31d57466b6bf9",
+      "schema_version": 1
+    },
+    {
+      "bundle": "cases/revenue-aggregate",
+      "complete": true,
+      "contract": "aggregate-v1",
+      "id": "revenue-aggregate",
+      "manifest_sha256": "175c0e92b488a42f215890b10a4a062cc4194a1a93bb5ed4681ac3e7c7ba206a",
+      "outcome": "PASS",
+      "policy_sha256": "19429586c21be02fc9163e96511e53e8926dc45157d95fe637f806e2ccf19e23",
+      "schema_version": 2
+    },
+    {
+      "bundle": "cases/orders-multiset",
+      "complete": true,
+      "contract": "multiset-v1",
+      "id": "orders-multiset",
+      "manifest_sha256": "c169e7884aab54395fc47630075fee7883063a79543ba7ed68cd29317d7829b8",
+      "outcome": "PASS",
+      "policy_sha256": "6e8a0f82556390fb95cc4681479c76b9da59cdabbb73c10790316530cacc71bc",
+      "schema_version": 3
+    }
+  ],
+  "complete": true,
+  "completed_cases": 3,
+  "effective_suite_sha256": "8232393e193d6650702d2f963a7bd0488ee905fd70a584d8a2b9c743eed0857c",
+  "execution_complete": true,
+  "kind": "suite",
+  "outcome": "PASS",
+  "outcome_counts": {
+    "ERROR": 0,
+    "FAIL": 0,
+    "INCONCLUSIVE": 0,
+    "INTERRUPTED": 0,
+    "PASS": 3
+  },
+  "runtime": {
+    "contract": "suite-v2",
+    "implementation": "CPython",
+    "machine": "arm64",
+    "parison_version": "0.11.0",
+    "platform": "Darwin",
+    "python": "3.9.2"
+  },
+  "schema_version": 2,
+  "scope_complete": true,
+  "selected_cases": 3,
+  "selection": {
+    "case_ids": [],
+    "shard_count": null,
+    "shard_index": null,
+    "tags": []
+  },
+  "suite_policy_sha256": "bcf95e4508f12258b0e9fddaa93d1f6ad8a13b9bbc35bab69a4cc2085a7f75af",
+  "suite_version": 2,
+  "total_cases": 3
+}

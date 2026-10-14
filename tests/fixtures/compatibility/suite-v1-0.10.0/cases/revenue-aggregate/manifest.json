@@ -1,0 +1,19 @@
+{
+  "complete": true,
+  "files": {
+    "effective-recipe.json": "f5a94c547db314686e79d4ce7a3e871b74f30ca93f322ad57ae70045c29b05f1",
+    "report.html": "1f1f096e16268ccfa3a772d2c7216fa1e021269354f9a6e03e3a1aeac44628aa",
+    "result.json": "cdfae87b6e0132dbe92b452acc5026498051e05de22450a01e327020af9cb64e"
+  },
+  "outcome": "PASS",
+  "runtime": {
+    "contract": "aggregate-v1",
+    "implementation": "CPython",
+    "machine": "arm64",
+    "parison_version": "0.10.0",
+    "platform": "Darwin",
+    "python": "3.9.2"
+  },
+  "schema_version": 1,
+  "sensitivity": "summary"
+}

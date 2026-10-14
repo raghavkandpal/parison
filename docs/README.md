@@ -4,6 +4,23 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## Future direction research
+
+- [Post-1.0 product direction](0.20/134-post-1.0-direction-research.md)
+
+## 0.19 — in progress
+
+- [0.19 consolidated workflow and command guide](0.19/131-user-guide.md)
+- [Performance-gap decision for 1.0](0.19/132-performance-gap-decision.md)
+- [Non-CSV and document input research](0.19/124-non-csv-input-research.md)
+- [0.19 roadmap](0.19/125-roadmap.md)
+- [Compatibility contract](0.19/126-compatibility-contract.md)
+- [Machine-qualified performance envelope](0.19/127-performance-envelope.md)
+- [1.0 readiness checklist](0.19/128-1.0-readiness-checklist.md)
+- [0.19 engineering checkpoint](0.19/129-engineering-checkpoint.md)
+- [Direct-human workflow rehearsal](0.19/130-human-workflow-rehearsal.md)
+- [0.19.0 release checklist](0.19/133-release-checklist.md)
+
 ## 0.18 — released
 
 - [0.18 roadmap](0.18/120-roadmap.md)

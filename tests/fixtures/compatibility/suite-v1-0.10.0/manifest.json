@@ -1,0 +1,24 @@
+{
+  "cases": {
+    "orders-keyed": "15712b603b905efb89305d17e7234b42634026579f1fdbaa21b1f61c8e250485",
+    "orders-multiset": "64ca3fad9319fe88f8a269082be6b103f6a2b9de5db22db05f4d41ef44e6842b",
+    "revenue-aggregate": "317543f45054cbb935ca0d84f3211596634d18e13316c61948300ee42f35b31e"
+  },
+  "complete": true,
+  "files": {
+    "effective-suite.json": "d3d664e253f242ed8225fb13c5d582ee254ac3c608ceaa3292629f33ad342eaa",
+    "report.html": "00b85cc98e76c65b1709f8c974d45ac802f53a7b93c59d5e1d4426c18caf3393",
+    "suite-result.json": "d4172c0b835d238e2582efa0d638bc96837701302c1b071fb1c2f2554cf19e80"
+  },
+  "kind": "suite",
+  "outcome": "PASS",
+  "runtime": {
+    "contract": "suite-v1",
+    "implementation": "CPython",
+    "machine": "arm64",
+    "parison_version": "0.10.0",
+    "platform": "Darwin",
+    "python": "3.9.2"
+  },
+  "schema_version": 1
+}

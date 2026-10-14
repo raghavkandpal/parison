@@ -14,12 +14,12 @@ from parison import __version__
 from parison.core import compare
 
 
-def measure(case: Path, input_format: str = "csv") -> dict:
+def measure(case: Path, input_format: str = "csv", sample_limit: int = 100) -> dict:
     expected = json.loads((case / "expected.json").read_text(encoding="utf-8"))
     suffix = ".parquet" if input_format == "parquet" else ".csv"
     tracemalloc.start()
     started = time.perf_counter()
-    result = compare(case / "recipe.json", case / f"baseline{suffix}", case / f"candidate{suffix}")
+    result = compare(case / "recipe.json", case / f"baseline{suffix}", case / f"candidate{suffix}", sample_limit=sample_limit)
     elapsed = time.perf_counter() - started
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
@@ -33,12 +33,17 @@ def measure(case: Path, input_format: str = "csv") -> dict:
         rss_bytes = rss if platform.system() == "Darwin" else rss * 1024
     except ImportError:
         rss_bytes = None
-    return {"elapsed_seconds": elapsed, "peak_python_bytes": peak, "peak_rss_bytes": rss_bytes}
+    return {
+        "elapsed_seconds": elapsed,
+        "peak_python_bytes": peak,
+        "peak_rss_bytes": rss_bytes,
+        "result_json_bytes": len(json.dumps(result, sort_keys=True, separators=(",", ":")).encode()),
+    }
 
 
-def child_measurement(case: Path, input_format: str) -> dict:
+def child_measurement(case: Path, input_format: str, sample_limit: int) -> dict:
     completed = subprocess.run(
-        [sys.executable, str(Path(__file__).resolve()), "--worker", "--format", input_format, str(case.resolve())],
+        [sys.executable, str(Path(__file__).resolve()), "--worker", "--format", input_format, "--sample-limit", str(sample_limit), str(case.resolve())],
         check=True,
         capture_output=True,
         text=True,
@@ -57,22 +62,25 @@ def main() -> None:
     parser.add_argument("--max-memory-per-row", type=float, help="fail when median peak Python bytes per baseline row exceeds this value")
     parser.add_argument("--json-output", type=Path)
     parser.add_argument("--format", choices=("csv", "parquet"), default="csv")
+    parser.add_argument("--sample-limit", type=int, default=100)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.worker:
         if len(args.cases) != 1:
             parser.error("worker requires exactly one case")
-        print(json.dumps(measure(args.cases[0], args.format)))
+        print(json.dumps(measure(args.cases[0], args.format, args.sample_limit)))
         return
     if args.repeats <= 0:
         parser.error("repeats must be positive")
+    if args.sample_limit < 0:
+        parser.error("sample limit must be non-negative")
     measurements = []
     for case in args.cases:
         expected = json.loads((case / "expected.json").read_text(encoding="utf-8"))
-        child_measurement(case, args.format)  # Unmeasured warm-up verifies the case and primes filesystem caches.
+        child_measurement(case, args.format, args.sample_limit)  # Unmeasured warm-up verifies the case and primes filesystem caches.
         runs = []
         for _ in range(args.repeats):
-            runs.append(child_measurement(case, args.format))
+            runs.append(child_measurement(case, args.format, args.sample_limit))
         elapsed_runs = [run["elapsed_seconds"] for run in runs]
         peak_runs = [run["peak_python_bytes"] for run in runs]
         rss_runs = [run["peak_rss_bytes"] for run in runs if run["peak_rss_bytes"] is not None]
@@ -96,6 +104,8 @@ def main() -> None:
             "median_peak_rss_bytes": statistics.median(rss_runs) if rss_runs else None,
             "min_peak_rss_bytes": min(rss_runs) if rss_runs else None,
             "max_peak_rss_bytes": max(rss_runs) if rss_runs else None,
+            "sample_limit": args.sample_limit,
+            "median_result_json_bytes": statistics.median(run["result_json_bytes"] for run in runs),
             "input_bytes": sum((case / f"{name}.{'parquet' if args.format == 'parquet' else 'csv'}").stat().st_size for name in ("baseline", "candidate")),
             **expected,
         })

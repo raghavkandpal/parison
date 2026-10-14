@@ -13,7 +13,7 @@ def multiple_count(rows: int, step: int) -> int:
     return (rows - 1) // step + 1
 
 
-def generate(root: Path, profile: str, rows: int, parquet: bool = False) -> Path:
+def generate(root: Path, profile: str, rows: int, parquet: bool = False, sensitivity: str = "summary") -> Path:
     case = root / f"{profile}-rows-{rows}"
     case.mkdir(parents=True, exist_ok=True)
     payload_count = 97 if profile == "wide" else (1 if profile == "long-strings" else 7)
@@ -78,7 +78,7 @@ def generate(root: Path, profile: str, rows: int, parquet: bool = False) -> Path
         "identity": {"null_keys": "reject", "duplicates": "reject"},
         "nulls_equal": True,
         "columns": columns,
-        "output": {"sensitivity": "summary"},
+        "output": {"sensitivity": sensitivity},
     }
     (case / "recipe.json").write_text(json.dumps(recipe, indent=2) + "\n", encoding="utf-8")
 
@@ -122,11 +122,12 @@ def main() -> None:
     parser.add_argument("--rows", type=int, default=10_000)
     parser.add_argument("--profiles", nargs="+", choices=PROFILES, default=list(PROFILES))
     parser.add_argument("--parquet", action="store_true")
+    parser.add_argument("--sensitivity", choices=("summary", "raw"), default="summary")
     args = parser.parse_args()
     if args.rows <= 0:
         parser.error("rows must be positive")
     for profile in args.profiles:
-        print(generate(args.output, profile, args.rows, args.parquet))
+        print(generate(args.output, profile, args.rows, args.parquet, args.sensitivity))
 
 
 if __name__ == "__main__":

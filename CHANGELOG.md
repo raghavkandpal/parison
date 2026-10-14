@@ -4,6 +4,24 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- A frozen compatibility contract and automated upgrade corpus covering immutable keyed, aggregate, multiset, suite-v1 and suite-v2 bundles from their original releases.
+- A built-wheel acceptance workflow spanning project initialization, repeated rehearsal history, suite execution, Statement verification and cutover reporting on the supported CI matrix.
+- A consolidated machine-qualified performance envelope covering released comparison modes and explicitly recording the evidence gaps that remain before 1.0.
+- Accuracy-verified 100,000-row aggregate measurements for global, low-cardinality and maximum-default-cardinality profiles.
+- Accuracy-verified raw high-mismatch measurements at 10,000 and 100,000 rows plus repeated mixed-mode suite concurrency medians.
+- A checkable 1.0 readiness gate separating local automation, exact-commit CI, human workflow validation and public-release reconciliation.
+- A consolidated 0.19 user guide covering every supported CLI command plus inputs, comparison modes, rehearsals, suites, investigation, limits and authenticated evidence handoff.
+
+### Compatibility
+
+- Recipe versions 1–3 retain their keyed-v1, aggregate-v1 and multiset-v1 meanings; released schemas, outcome names, exit codes, policy fingerprints, canonical encodings and deterministic evidence ordering remain stable through 1.x.
+- Current Parison continues to verify released run result schemas 1–3 and suite-v1/v2 bundles. Verification and derived evidence never rewrite historical artifacts or invent unavailable provenance.
+- Existing commands, required arguments and machine-readable fields remain supported through 1.x. Additive optional fields are allowed, while changed meanings or defaults require an explicit versioned contract.
+- Summary-safe output continues to exclude source paths, keys, values and discrepancy samples. Verification remains an integrity and semantic check—not extraction truth, policy approval, signer authentication or cutover authorization.
+- Version 0.19 introduces no user-visible incompatibility. Native workbook and unstructured-document ingestion remain deferred rather than silently changing the supported input boundary.
+
 ## 0.18.0 - 2026-10-13
 
 ### Added

@@ -1,0 +1,139 @@
+{
+  "column_mappings": {},
+  "column_policies": {
+    "amount": {
+      "scale": 2,
+      "type": "decimal"
+    },
+    "region": {
+      "normalize": [
+        "trim",
+        "casefold"
+      ],
+      "type": "string"
+    }
+  },
+  "complete": true,
+  "counts": {
+    "baseline_groups": 2,
+    "baseline_only_groups": 0,
+    "baseline_rows": 3,
+    "candidate_groups": 2,
+    "candidate_only_groups": 0,
+    "candidate_rows": 3,
+    "common_groups": 2,
+    "different_measures": 0,
+    "exact_measures": 3,
+    "within_tolerance_measures": 1
+  },
+  "discrepancy_count": 1,
+  "discrepancy_sample": [],
+  "discrepancy_sample_limit": 0,
+  "excluded_columns": {},
+  "group_by": [
+    "region"
+  ],
+  "inputs": {
+    "baseline": {
+      "bytes": 45,
+      "delimiter": ",",
+      "format": "csv",
+      "null_tokens": [],
+      "sha256": "322307d5e34072f18bd72e1d53607963dd9e8bfe4fc5afc88fac021ad0a10a03"
+    },
+    "candidate": {
+      "bytes": 103,
+      "format": "jsonl",
+      "sha256": "214c0107f3ed0c547d98e69844847b9ea2bfaa772924b8857923d140401eeb6e"
+    }
+  },
+  "measure_conservation": {
+    "revenue": {
+      "baseline": {
+        "contributing": 3,
+        "ignored_nulls": 0
+      },
+      "candidate": {
+        "contributing": 3,
+        "ignored_nulls": 0
+      }
+    },
+    "rows": {
+      "baseline": {
+        "contributing": 3,
+        "ignored_nulls": 0
+      },
+      "candidate": {
+        "contributing": 3,
+        "ignored_nulls": 0
+      }
+    }
+  },
+  "measure_counts": {
+    "revenue": {
+      "different": 0,
+      "exact": 1,
+      "within_tolerance": 1
+    },
+    "rows": {
+      "different": 0,
+      "exact": 2,
+      "within_tolerance": 0
+    }
+  },
+  "measures": {
+    "revenue": {
+      "column": "amount",
+      "comparison": "numeric",
+      "nulls": "reject",
+      "operator": "sum",
+      "tolerance": {
+        "absolute": "0.01",
+        "formula": "symmetric-v1",
+        "relative": "0"
+      }
+    },
+    "rows": {
+      "operator": "count"
+    }
+  },
+  "outcome": "PASS",
+  "policy": {
+    "delimiters": {
+      "baseline": ",",
+      "candidate": ","
+    },
+    "group_nulls": "reject",
+    "null_tokens": {
+      "baseline": [],
+      "candidate": []
+    },
+    "sensitivity": "summary"
+  },
+  "policy_sha256": "19429586c21be02fc9163e96511e53e8926dc45157d95fe637f806e2ccf19e23",
+  "problems": [],
+  "recipe_sha256": "d70dd8683ba4cb82832ab95a0a41403a26cd86a0f2a45781da933bc3b8ec888f",
+  "resource_limits": {
+    "max_decoded_bytes": 1000000000,
+    "max_groups_per_input": 100000,
+    "max_input_bytes": 1000000000,
+    "max_rows_per_input": 5000000
+  },
+  "runtime": {
+    "contract": "aggregate-v1",
+    "implementation": "CPython",
+    "machine": "arm64",
+    "parison_version": "0.10.0",
+    "platform": "Darwin",
+    "python": "3.9.2"
+  },
+  "schema_version": 2,
+  "scope": {
+    "completeness": "full",
+    "cutoff": "2026-10-09T00:00:00Z",
+    "expected_empty": false,
+    "filters": [],
+    "snapshot": "synthetic-regional-revenue-v1"
+  },
+  "sensitivity": "summary"
+}

@@ -1,0 +1,22 @@
+{
+  "environment": {
+    "date": "2026-10-13",
+    "machine": "arm64",
+    "platform": "Darwin",
+    "python": "3.14.7",
+    "parison": "0.18.0",
+    "measurement": "median of three runs after one warm-up per job count; no memory sampling; not a supported performance claim"
+  },
+  "suite": {
+    "cases": 9,
+    "cases_per_mode": 3,
+    "modes": ["keyed", "aggregate", "multiset"],
+    "rows_per_input": 100000,
+    "accuracy": "all measured bundles recursively verified PASS"
+  },
+  "runs": [
+    {"jobs": 1, "runs_seconds": [11.053532, 11.007523, 11.133706], "median_elapsed_seconds": 11.053532},
+    {"jobs": 2, "runs_seconds": [6.545970, 6.572265, 6.552095], "median_elapsed_seconds": 6.552095},
+    {"jobs": 4, "runs_seconds": [4.058895, 4.073032, 4.511332], "median_elapsed_seconds": 4.073032}
+  ]
+}

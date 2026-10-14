@@ -1,0 +1,21 @@
+{
+  "environment": {
+    "date": "2026-10-13",
+    "machine": "arm64",
+    "measurement": "median of three fresh subprocess runs after one warm-up; tracemalloc and process peak RSS; not a supported performance claim",
+    "parison": "0.18.0",
+    "platform": "Darwin",
+    "python": "3.14.7"
+  },
+  "profile": "keyed high-mismatch CSV; approximately half of common rows differ",
+  "cases": [
+    {"rows": 10000, "sensitivity": "summary", "sample_limit": 100, "median_elapsed_seconds": 0.567626, "median_peak_rss_bytes": 60276736, "median_result_json_bytes": 2655, "accuracy": "verified"},
+    {"rows": 10000, "sensitivity": "raw", "sample_limit": 10, "median_elapsed_seconds": 0.879876, "median_peak_rss_bytes": 117309440, "median_result_json_bytes": 3417, "accuracy": "verified"},
+    {"rows": 10000, "sensitivity": "raw", "sample_limit": 100, "median_elapsed_seconds": 0.882278, "median_peak_rss_bytes": 117325824, "median_result_json_bytes": 17508, "accuracy": "verified"},
+    {"rows": 10000, "sensitivity": "raw", "sample_limit": 1000, "median_elapsed_seconds": 0.891245, "median_peak_rss_bytes": 117391360, "median_result_json_bytes": 162409, "accuracy": "verified"},
+    {"rows": 100000, "sensitivity": "summary", "sample_limit": 100, "median_elapsed_seconds": 7.004850, "median_peak_rss_bytes": 287506432, "median_result_json_bytes": 2677, "accuracy": "verified"},
+    {"rows": 100000, "sensitivity": "raw", "sample_limit": 10, "median_elapsed_seconds": 9.655045, "median_peak_rss_bytes": 995721216, "median_result_json_bytes": 3439, "accuracy": "verified"},
+    {"rows": 100000, "sensitivity": "raw", "sample_limit": 100, "median_elapsed_seconds": 9.739730, "median_peak_rss_bytes": 995704832, "median_result_json_bytes": 10370, "accuracy": "verified"},
+    {"rows": 100000, "sensitivity": "raw", "sample_limit": 1000, "median_elapsed_seconds": 9.805684, "median_peak_rss_bytes": 995753984, "median_result_json_bytes": 151271, "accuracy": "verified"}
+  ]
+}

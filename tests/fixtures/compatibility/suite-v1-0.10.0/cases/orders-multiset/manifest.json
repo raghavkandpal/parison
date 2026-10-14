@@ -1,0 +1,19 @@
+{
+  "complete": true,
+  "files": {
+    "effective-recipe.json": "d980def60a6988135244c4c75f31f87ce5215fe5ec6991f52bac378ea63bdfd6",
+    "report.html": "7d4f0d36a26ba0a32523e31d81e16727291e15d428d57adc8959c78b21db744c",
+    "result.json": "6ec487f00ecfb4f2afff5906e5ed46fd5e96ba013539658aa391922f32fddd15"
+  },
+  "outcome": "PASS",
+  "runtime": {
+    "contract": "multiset-v1",
+    "implementation": "CPython",
+    "machine": "arm64",
+    "parison_version": "0.10.0",
+    "platform": "Darwin",
+    "python": "3.9.2"
+  },
+  "schema_version": 1,
+  "sensitivity": "summary"
+}
