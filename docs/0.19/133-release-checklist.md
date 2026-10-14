@@ -33,11 +33,16 @@ Status: **candidate validation**
 
 - [x] Review `origin/main...develop` against repository invariants, the roadmap, compatibility contract and this checklist; the standards axis was clean and two spec gaps were corrected and re-reviewed clean.
 - [x] Set `src/parison/__init__.py` to `0.19.0` only after the review was clean.
-- [ ] Run `make check` from a clean checkout and record the exact candidate commit.
-- [ ] Require built-wheel CI on Python 3.11–3.14, macOS and Windows for that exact commit.
-- [ ] Export the exact commit with `git archive`; build and inspect its wheel and source archive.
-- [ ] Install the wheel in a fresh supported-Python environment and complete the primary workflow from initialization through verified cutover evidence.
-- [ ] Record candidate wheel and source-archive SHA-256 digests here.
+- [x] `make check` passed **240 tests with 6 optional-Polars skips** before exact candidate `7527ca652cce0a4f28f5faa8eecbfa2c8c1db0dc` was committed.
+- [x] Exact candidate `7527ca6` passed [GitHub Actions run 38520230521](https://github.com/raghavkandpal/parison/actions/runs/38520230521) with built wheels on Python 3.11–3.14, macOS and Windows.
+- [x] A clean `git archive` of `7527ca6` built an inspected wheel and source archive with 0.19.0 metadata.
+- [x] A fresh Python 3.14 environment installed the candidate wheel and completed initialization, record preflight, direct comparison, catalog indexing, suite execution, recursive verification, Statement rebinding and cutover reporting.
+- [x] Candidate artifact SHA-256 digests are recorded below.
+
+Candidate SHA-256:
+
+- `parison-0.19.0-py3-none-any.whl`: `4c7a6fa94c8894d7e295117e20a948716b10456c842e371e683116ff50c115e6`
+- `parison-0.19.0.tar.gz`: `1f6ee4818d8c08f6603dbf0e89b1131ab662d8cf455dd85878aa26191cb63dc0`
 
 ## Publication
 
