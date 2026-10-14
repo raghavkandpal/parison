@@ -4,6 +4,12 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 1.0 — candidate
+
+- [1.0 roadmap](1.0/135-roadmap.md)
+- [1.0.0 release checklist](1.0/136-release-checklist.md)
+- [Consolidated 1.x workflow and command guide](0.19/131-user-guide.md)
+
 ## Future direction research
 
 - [Post-1.0 product direction](0.20/134-post-1.0-direction-research.md)

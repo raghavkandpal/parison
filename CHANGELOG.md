@@ -4,6 +4,12 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Compatibility
+
+- Promotes the qualified 0.19 surface unchanged as the stable 1.x baseline. Recipe semantics, schemas, bundle verification, canonical bytes, exit codes, CLI JSON and summary-safety boundaries are unchanged.
+- Existing commands and the consolidated 0.19 command guide remain authoritative for 1.0. No new parser, dependency, comparison mode or execution engine is introduced.
+- PASS continues to mean agreement under the explicit policy—not extraction truth, policy approval, signer authentication or cutover authorization.
+
 ## 0.19.0 - 2026-10-14
 
 ### Added
