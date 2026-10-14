@@ -8,6 +8,16 @@ from parison.core import evidence_statement, inspect_bundle, report_cutover, ver
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def assert_summary_safe(test: unittest.TestCase, value) -> None:
+    if isinstance(value, dict):
+        test.assertTrue({"source_path", "key", "value", "discrepancy_sample"}.isdisjoint(value))
+        for nested in value.values():
+            assert_summary_safe(test, nested)
+    elif isinstance(value, list):
+        for nested in value:
+            assert_summary_safe(test, nested)
+
+
 class HistoricalArtifactCompatibility(unittest.TestCase):
     def test_0_1_run_remains_verifiable_and_derivable(self):
         bundle = ROOT / "examples" / "output"
@@ -50,8 +60,9 @@ class HistoricalArtifactCompatibility(unittest.TestCase):
                 self.assertEqual(inspected["schema_version"], schema)
                 self.assertEqual(inspected["outcome"], "PASS")
                 self.assertEqual(inspected["bundle_sha256"], digest)
-                self.assertTrue(inspected.get("sensitivity", "summary") == "summary")
-                self.assertTrue({"source_path", "key", "value", "discrepancy_sample"}.isdisjoint(inspected))
+                if kind == "run":
+                    self.assertEqual(inspected["sensitivity"], "summary")
+                assert_summary_safe(self, inspected)
                 statement = evidence_statement(bundle)
                 self.assertEqual(statement["subject"][0]["digest"]["sha256"], digest)
                 if kind == "run":
