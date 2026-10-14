@@ -4,6 +4,10 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## Future direction research
+
+- [Post-1.0 product direction](0.20/134-post-1.0-direction-research.md)
+
 ## 0.19 — in progress
 
 - [0.19 consolidated workflow and command guide](0.19/131-user-guide.md)
