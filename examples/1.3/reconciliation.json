@@ -1,0 +1,14 @@
+{
+  "reconciliation_version": 1,
+  "alignment_sha256": "de4a689d7a60f4e3e5834ee36f98ca60fde95c53b3b45d6078fd8832890a9eee",
+  "datasets": [
+    {"id": "payments", "policy_sha256": "07946896a7e5c6e6ba6e8abadd86450d6f030d87fd4edd4a2671375320628796", "columns": [{"name": "payment_id", "type": "string"}, {"name": "payout_id", "type": "string"}, {"name": "occurred_at", "type": "timestamp"}, {"name": "amount", "type": "decimal"}]},
+    {"id": "payouts", "policy_sha256": "5906727b8fb7fd99504dd8129990ba80b3a64c985d8cfba5db2369b4007640a4", "columns": [{"name": "payout_id", "type": "string"}, {"name": "occurred_at", "type": "timestamp"}, {"name": "amount", "type": "decimal"}]}
+  ],
+  "checks": [
+    {"id": "payment-id", "kind": "identity", "dataset": "payments", "columns": ["payment_id"], "nulls": "forbid"},
+    {"id": "payout-id", "kind": "identity", "dataset": "payouts", "columns": ["payout_id"], "nulls": "forbid"},
+    {"id": "payment-payout", "kind": "reference", "child_dataset": "payments", "child_columns": ["payout_id"], "parent_identity": "payout-id", "nulls": "forbid"},
+    {"id": "payout-total", "kind": "conservation", "parent_dataset": "payouts", "parent_identity": "payout-id", "parent_group_columns": ["payout_id"], "child_dataset": "payments", "child_group_columns": ["payout_id"], "parent_measure": "amount", "child_measure": "amount", "operator": "sum", "nulls": "forbid", "comparison": "exact", "tolerance": null}
+  ]
+}

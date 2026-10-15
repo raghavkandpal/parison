@@ -40,3 +40,5 @@ Composition now runs alignment, existing per-dataset parity and all declared rel
 Deterministic atomic no-overwrite reconciliation bundles now bind the full result, summary-safe projection, normalized declarations, input identities and receipt identity. Standard verification checks integrity plus semantic membership/outcome/summary consistency; safe inspection exposes no dataset or check identifiers.
 
 The next gate is realistic end-to-end qualification across formats and engines, failure/interruption hardening, and built-wheel CI. The promotion gate in the research note remains authoritative.
+
+Local qualification and failure/interruption hardening are recorded in the [engineering checkpoint](150-engineering-checkpoint.md). Exact-candidate review and built-wheel CI now follow the [1.3.0 release checklist](151-release-checklist.md).

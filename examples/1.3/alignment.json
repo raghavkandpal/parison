@@ -1,0 +1,9 @@
+{
+  "alignment_version": 1,
+  "event_window": {"start": "2026-09-01T00:00:00Z", "end": "2026-10-01T00:00:00Z", "bounds": "start-inclusive-end-exclusive"},
+  "coordination": {"mode": "source-snapshot", "claim_id": "september-close-4", "receipt_sha256": "9727d36bc5b4a95a798f50a3a15c4233f29e43dc4ae5498070fa6f05ca3e7928"},
+  "datasets": [
+    {"id": "payments", "event_time_column": "occurred_at", "snapshot_token": "snapshot-42", "token_domain": "ledger"},
+    {"id": "payouts", "event_time_column": "occurred_at", "snapshot_token": "snapshot-42", "token_domain": "ledger"}
+  ]
+}

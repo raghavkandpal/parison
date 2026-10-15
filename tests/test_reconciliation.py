@@ -5,6 +5,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
@@ -334,6 +335,19 @@ class ReconciliationContracts(unittest.TestCase):
                 with redirect_stdout(StringIO()) as stdout, redirect_stderr(StringIO()):
                     self.assertEqual(main([command, str(bundle)]), 0)
                     self.assertEqual(json.loads(stdout.getvalue())["outcome"], "PASS")
+
+    def test_sqlite_and_publication_cleanup_on_interruption(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            with patch("parison.reconciliation._iter_input_rows", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+                check_identity_references(files[1], files[3], engine="sqlite", temp_directory=root)
+            self.assertEqual(list(root.glob("parison-reconciliation-*")), [])
+            result = run_reconciliation(*files)
+            with patch("parison.reconciliation.os.replace", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+                publish_reconciliation_bundle(root / "interrupted", result, files[0], files[1])
+            self.assertFalse((root / "interrupted").exists())
+            self.assertEqual(list(root.glob(".interrupted-*")), [])
 
 
 if __name__ == "__main__":

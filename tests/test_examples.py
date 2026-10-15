@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from parison.core import assemble_suite, compare, export_evidence, load_schema, publish, report_ci, run_suite, verify_bundle
+from parison.reconciliation import publish_reconciliation_bundle, run_reconciliation, summarize_reconciliation_result
 from jsonschema import Draft202012Validator
 
 
@@ -140,6 +141,22 @@ class CheckedInExamples(unittest.TestCase):
         result = compare(root / "semantic-scalar.recipe.json", root / "baseline.csv", root / "candidate.jsonl")
         self.assertEqual(result["outcome"], "PASS")
         self.assertEqual(result["policy"]["input_projection"], "semantic-scalar-v1")
+
+    def test_1_3_reconciliation_example_is_cross_format_and_cross_engine(self):
+        root = Path(__file__).parents[1] / "examples" / "1.3"
+        inputs = {
+            "payments": {"recipe": root / "payments.recipe.json", "baseline": root / "payments-baseline.csv", "candidate": root / "payments-candidate.jsonl"},
+            "payouts": {"recipe": root / "payouts.recipe.json", "baseline": root / "payouts-baseline.csv", "candidate": root / "payouts-candidate.jsonl"},
+        }
+        arguments = (root / "alignment.json", root / "reconciliation.json", root / "extraction-receipt.json", inputs)
+        memory = run_reconciliation(*arguments)
+        sqlite = run_reconciliation(*arguments, engine="sqlite")
+        self.assertEqual(memory["outcome"], "PASS")
+        self.assertEqual(summarize_reconciliation_result(memory), summarize_reconciliation_result(sqlite))
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            output = Path(directory) / "reconciliation"
+            publish_reconciliation_bundle(output, sqlite, arguments[0], arguments[1])
+            self.assertEqual(verify_bundle(output)["kind"], "reconciliation")
 
     def test_0_15_feature_pipeline_suite_layers_tolerance_and_occurrence_parity(self):
         root = Path(__file__).parents[1] / "examples" / "0.15" / "features"
