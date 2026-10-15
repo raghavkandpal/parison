@@ -1,6 +1,6 @@
 # Parison 1.3 roadmap
 
-Status: **active research**
+Status: **contracts frozen; execution pending**
 
 ## Theme
 
@@ -27,4 +27,6 @@ The governing input is [time alignment and multi-dataset reconciliation research
 
 ## First gate
 
-Do not implement execution until the written contract and strict schemas freeze dataset identity, coordination semantics, event-window failures, relationship null rules, conservation numeric policy, result ordering and summary-safe disclosure. The promotion gate in the research note remains authoritative.
+Completed in [`time-alignment-v1` and `reconciliation-v1` contract](149-time-alignment-and-reconciliation-contract.md): the written contract, installed strict schemas, semantic validators, canonical fixtures and fingerprints now freeze dataset identity, coordination semantics, event-window failures, relationship null rules, conservation numeric policy, result ordering and summary-safe disclosure.
+
+The next gate is window and coordination preflight over existing semantic timestamp projection, including receipt binding and PASS/FAIL/INCONCLUSIVE outcomes. The promotion gate in the research note remains authoritative.

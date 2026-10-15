@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/reconciliation-v1.schema.json",
+  "title": "Parison reconciliation declaration v1",
+  "type": "object",
+  "required": ["reconciliation_version", "alignment_sha256", "datasets", "checks"],
+  "properties": {
+    "reconciliation_version": {"const": 1},
+    "alignment_sha256": {"$ref": "#/$defs/digest"},
+    "datasets": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/dataset"}},
+    "checks": {"type": "array", "minItems": 1, "items": {"oneOf": [{"$ref": "#/$defs/identity"}, {"$ref": "#/$defs/reference"}, {"$ref": "#/$defs/conservation"}]}}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "columns": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/id"}},
+    "dataset": {"type": "object", "required": ["id", "recipe_sha256", "columns"], "properties": {"id": {"$ref": "#/$defs/id"}, "recipe_sha256": {"$ref": "#/$defs/digest"}, "columns": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["name", "type"], "properties": {"name": {"$ref": "#/$defs/id"}, "type": {"enum": ["string", "integer", "decimal", "float", "boolean", "date", "timestamp"]}}, "additionalProperties": false}}}, "additionalProperties": false},
+    "identity": {"type": "object", "required": ["id", "kind", "dataset", "columns", "nulls"], "properties": {"id": {"$ref": "#/$defs/id"}, "kind": {"const": "identity"}, "dataset": {"$ref": "#/$defs/id"}, "columns": {"$ref": "#/$defs/columns"}, "nulls": {"enum": ["forbid", "equal"]}}, "additionalProperties": false},
+    "reference": {"type": "object", "required": ["id", "kind", "child_dataset", "child_columns", "parent_identity", "nulls"], "properties": {"id": {"$ref": "#/$defs/id"}, "kind": {"const": "reference"}, "child_dataset": {"$ref": "#/$defs/id"}, "child_columns": {"$ref": "#/$defs/columns"}, "parent_identity": {"$ref": "#/$defs/id"}, "nulls": {"enum": ["forbid", "all-null-exempt", "match-null"]}}, "additionalProperties": false},
+    "tolerance": {"type": ["object", "null"], "properties": {"formula": {"const": "symmetric-v1"}, "absolute": {"type": "number", "minimum": 0}, "relative": {"type": "number", "minimum": 0}}, "required": ["formula", "absolute", "relative"], "additionalProperties": false},
+    "conservation": {"type": "object", "required": ["id", "kind", "parent_dataset", "parent_identity", "parent_group_columns", "child_dataset", "child_group_columns", "parent_measure", "child_measure", "operator", "nulls", "comparison", "tolerance"], "properties": {"id": {"$ref": "#/$defs/id"}, "kind": {"const": "conservation"}, "parent_dataset": {"$ref": "#/$defs/id"}, "parent_identity": {"$ref": "#/$defs/id"}, "parent_group_columns": {"$ref": "#/$defs/columns"}, "child_dataset": {"$ref": "#/$defs/id"}, "child_group_columns": {"$ref": "#/$defs/columns"}, "parent_measure": {"$ref": "#/$defs/id"}, "child_measure": {"$ref": "#/$defs/id"}, "operator": {"const": "sum"}, "nulls": {"enum": ["forbid", "zero"]}, "comparison": {"enum": ["exact", "tolerance"]}, "tolerance": {"$ref": "#/$defs/tolerance"}}, "additionalProperties": false}
+  }
+}

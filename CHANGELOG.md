@@ -4,6 +4,15 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Frozen opt-in `time-alignment-v1` and `reconciliation-v1` authoring contracts with strict installed schemas, semantic cross-reference validation, deterministic canonical bytes and fingerprints.
+- CLI validation and explanation for fixed UTC half-open event windows, source-owned snapshot/watermark/cutoff claims, and the closed identity/reference/grouped-sum relationship vocabulary.
+
+### Compatibility
+
+- The 1.3 authoring surface does not execute comparisons or read datasets and receipts. Released recipes, suites, results, bundles, fingerprints, canonical bytes and exit codes remain unchanged.
+
 ## 1.2.0 - 2026-10-15
 
 ### Added

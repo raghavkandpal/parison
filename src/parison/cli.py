@@ -13,6 +13,7 @@ from .catalog import add as catalog_add, diff as catalog_diff, history as catalo
 from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, export_statement, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, report_cutover, run_suite, terminal_result, validate_inputs, verify_bundle, verify_statement
 from .evolution import compile_evolution_mappings, diff_policies, explain_evolution, load_evolution, summarize_policy_diff
 from .project import init_project
+from .reconciliation import explain_reconciliation, explain_time_alignment, load_reconciliation, load_time_alignment
 
 
 def _shell_command(parts: list[str]) -> str:
@@ -96,8 +97,16 @@ def parser() -> argparse.ArgumentParser:
     policy_diff.add_argument("--candidate-recipe", required=True)
     policy_diff.add_argument("--evolution", required=True)
     policy_diff.add_argument("--summary", action="store_true", help="omit schema names, paths and policy fragments")
+    validate_alignment = commands.add_parser("validate-time-alignment", help="validate a time-alignment-v1 declaration")
+    validate_alignment.add_argument("alignment")
+    explain_alignment = commands.add_parser("explain-time-alignment", help="print normalized time alignment and its fingerprint")
+    explain_alignment.add_argument("alignment")
+    validate_reconciliation = commands.add_parser("validate-reconciliation", help="validate a reconciliation-v1 declaration")
+    validate_reconciliation.add_argument("reconciliation")
+    explain_reconciliation_parser = commands.add_parser("explain-reconciliation", help="print normalized reconciliation and its fingerprint")
+    explain_reconciliation_parser.add_argument("reconciliation")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2", "statement", "schema-evolution", "policy-diff"))
+    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2", "statement", "schema-evolution", "policy-diff", "time-alignment", "reconciliation"))
     schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
     schema_export.add_argument("--output", required=True)
     suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
@@ -317,6 +326,24 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(summarize_policy_diff(result) if args.summary else result, indent=2, sort_keys=True))
             print("Compatibility is a mechanical assessment, not policy approval or cutover authorization.", file=sys.stderr)
             return 0 if result["compatibility"] == "ACCEPT" else 1 if result["compatibility"] == "DENY" else 3
+        if args.command == "validate-time-alignment":
+            load_time_alignment(args.alignment)
+            print("valid")
+            print(f"Validated time alignment: {args.alignment}", file=sys.stderr)
+            return 0
+        if args.command == "explain-time-alignment":
+            print(json.dumps(explain_time_alignment(args.alignment), indent=2, sort_keys=True))
+            print(f"Explained time alignment: {args.alignment}", file=sys.stderr)
+            return 0
+        if args.command == "validate-reconciliation":
+            load_reconciliation(args.reconciliation)
+            print("valid")
+            print(f"Validated reconciliation: {args.reconciliation}", file=sys.stderr)
+            return 0
+        if args.command == "explain-reconciliation":
+            print(json.dumps(explain_reconciliation(args.reconciliation), indent=2, sort_keys=True))
+            print(f"Explained reconciliation: {args.reconciliation}", file=sys.stderr)
+            return 0
         if args.command == "schema":
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))
             return 0

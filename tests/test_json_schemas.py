@@ -34,6 +34,8 @@ class JsonSchemas(unittest.TestCase):
         cls.statement_schema = load_schema("statement")
         cls.schema_evolution_schema = load_schema("schema-evolution")
         cls.policy_diff_schema = load_schema("policy-diff")
+        cls.time_alignment_schema = load_schema("time-alignment")
+        cls.reconciliation_schema = load_schema("reconciliation")
         Draft202012Validator.check_schema(cls.recipe_schema)
         Draft202012Validator.check_schema(cls.recipe_v2_schema)
         Draft202012Validator.check_schema(cls.recipe_v3_schema)
@@ -49,6 +51,8 @@ class JsonSchemas(unittest.TestCase):
         Draft202012Validator.check_schema(cls.statement_schema)
         Draft202012Validator.check_schema(cls.schema_evolution_schema)
         Draft202012Validator.check_schema(cls.policy_diff_schema)
+        Draft202012Validator.check_schema(cls.time_alignment_schema)
+        Draft202012Validator.check_schema(cls.reconciliation_schema)
         cls.schema_store = {
             schema["$id"]: schema
             for schema in (cls.recipe_schema, cls.recipe_v2_schema, cls.recipe_v3_schema, cls.suite_schema, cls.suite_v2_schema)

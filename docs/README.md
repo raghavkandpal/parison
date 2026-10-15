@@ -8,6 +8,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 
 - [Time alignment and multi-dataset reconciliation research](1.3/147-time-alignment-and-multi-dataset-reconciliation-research.md)
 - [1.3 roadmap](1.3/148-roadmap.md)
+- [`time-alignment-v1` and `reconciliation-v1` contract](1.3/149-time-alignment-and-reconciliation-contract.md)
 
 ## 1.2 — released
 

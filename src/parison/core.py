@@ -58,6 +58,8 @@ _SCHEMAS = {
     "statement": "statement-v1.schema.json",
     "schema-evolution": "schema-evolution-v1.schema.json",
     "policy-diff": "policy-diff-v1.schema.json",
+    "time-alignment": "time-alignment-v1.schema.json",
+    "reconciliation": "reconciliation-v1.schema.json",
 }
 
 _SUITE_LIMIT_DEFAULTS = {
