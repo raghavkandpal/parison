@@ -59,6 +59,8 @@ Before materializing rows, Parison validates the complete file schema, including
 
 Configured columns must also match the representation table. Datetime values require a declared timezone and microsecond-or-coarser precision. Nanosecond timestamps are rejected before Python conversion so sub-microsecond differences cannot compare equal through truncation. Unsigned integers remain subject to the signed 64-bit semantic range.
 
+Text timestamp precision is checked by the projection before the standard-library parser for every admitted date-time separator. Recipes that omit `input_projection` retain the released legacy parser behavior.
+
 Parquet support remains optional and pinned. A parser upgrade requires the projection corpus and built-wheel matrix to pass before promotion.
 
 ## Schema and partition rules

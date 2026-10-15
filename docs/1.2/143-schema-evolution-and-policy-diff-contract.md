@@ -42,6 +42,7 @@ The installed result schema closes the path vocabulary over version/contract ide
 - An unchanged or renamed field is accepted only when its complete column policy, comparison role, presence, nullability and default metadata remain identical.
 - An addition or removal is accepted only when it is required, non-null, has no default and is already explicitly excluded with a nonempty rationale on the side where it exists.
 - A compared addition or removal, semantic-policy change, global-policy change or undeclared policy field is denied.
+- A field that participates in comparison must be `required` on both sides. An `optional` field may remain declaration metadata outside comparison, but cannot receive `ACCEPT` while current readers require fixed comparison inputs.
 - A split or merge over non-compared fields is inconclusive and requires upstream materialization. If its fields participate directly in comparison, it is denied.
 
 Overall compatibility is `DENY` if any change is denied, otherwise `INCONCLUSIVE` if any change is inconclusive, otherwise `ACCEPT`. The full artifact records both policy fingerprints, the evolution fingerprint, ordered change records and `policy_diff_sha256`. The diff fingerprint covers every field except itself.

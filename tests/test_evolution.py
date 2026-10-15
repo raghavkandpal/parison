@@ -375,6 +375,20 @@ class SchemaEvolution(unittest.TestCase):
                     self.assertEqual(result["compatibility"], compatibility)
                     self.assertIn(reason, {item["reason"] for item in result["changes"]})
 
+    def test_policy_diff_denies_optional_compared_field(self):
+        declaration = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+        compared = next(item for item in declaration["changes"] if item["change"] == "unchanged")
+        compared["baseline"][0]["presence"] = "optional"
+        compared["candidate"][0]["presence"] = "optional"
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline = self._write_json(root, "baseline.json", self._stable_recipe("keyed", "gross_amount"))
+            candidate = self._write_json(root, "candidate.json", self._stable_recipe("keyed", "order_total"))
+            evolution = self._write_json(root, "evolution.json", declaration)
+            result = diff_policies(baseline, candidate, evolution)
+            self.assertEqual(result["compatibility"], "DENY")
+            self.assertIn("COMPARED_FIELD_NOT_REQUIRED", {item["reason"] for item in result["changes"]})
+
     def test_policy_diff_reports_excluded_split_as_inconclusive(self):
         common = {"id": "order-id", "name": "order_id", "presence": "required", "nullability": "non-null"}
         evolution = {

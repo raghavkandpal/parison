@@ -686,9 +686,6 @@ def _parse(raw: Any, policy: dict[str, Any], column: str) -> Any:
             return date.fromisoformat(str(raw))
         if kind == "timestamp":
             text = str(raw)
-            fraction = re.search(r"T\d{2}:\d{2}:\d{2}[.,](\d+)", text)
-            if fraction and len(fraction.group(1)) > 6:
-                raise _SafeParseError("timestamp precision exceeds microseconds")
             value = datetime.fromisoformat(text.replace("Z", "+00:00"))
             if value.tzinfo is None:
                 raise _SafeParseError("timestamp requires an explicit timezone")
@@ -716,6 +713,10 @@ def _parse_input(raw: Any, policy: dict[str, Any], column: str, recipe: dict[str
     }[kind]
     if exact_type not in allowed or (raw == "" and kind != "string"):
         raise ParisonError(f"cannot project column {column} to {kind} under semantic-scalar-v1")
+    if kind == "timestamp" and exact_type is str:
+        fraction = re.search(r"\d{2}:\d{2}:\d{2}[.,](\d+)", raw)
+        if fraction and len(fraction.group(1)) > 6:
+            raise ParisonError(f"cannot parse column {column} as timestamp: timestamp precision exceeds microseconds")
     if kind == "timestamp" and exact_type is datetime and raw.tzinfo is None:
         raise ParisonError(f"cannot project column {column} to timestamp under semantic-scalar-v1: timezone required")
     value = _parse(raw, policy, column)

@@ -7,6 +7,7 @@ from contextlib import closing
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 try:
     import polars as pl
@@ -99,16 +100,22 @@ class SemanticScalarProjection(unittest.TestCase):
             compare(self.recipe, baseline, baseline)
 
     def test_projection_rejects_text_timestamp_beyond_microsecond_precision(self):
-        value = {"id": 1, "amount": "1.00", "active": True, "label": "x", "day": "2026-10-14", "observed_at": "1969-12-31T23:59:59.1234567Z"}
-        source = self.jsonl(value)
-        with self.assertRaisesRegex(ParisonError, "precision exceeds microseconds"):
-            compare(self.recipe, source, source)
+        for separator in ("T", "t", " "):
+            with self.subTest(separator=separator):
+                value = {"id": 1, "amount": "1.00", "active": True, "label": "x", "day": "2026-10-14", "observed_at": f"1969-12-31{separator}23:59:59.1234567Z"}
+                source = self.jsonl(value)
+                with self.assertRaisesRegex(ParisonError, "precision exceeds microseconds"):
+                    compare(self.recipe, source, source)
 
     def test_legacy_recipe_keeps_incidental_coercions_and_policy_identity(self):
         legacy = self.root / "legacy.json"
         legacy.write_text(json.dumps(recipe(False)), encoding="utf-8")
         baseline = self.jsonl({"id": 1, "amount": "1.50", "active": True, "label": 1, "day": "2026-10-14", "observed_at": "2026-10-14T00:00:00Z"})
         self.assertEqual(compare(legacy, baseline, baseline)["outcome"], "PASS")
+        raw = "2026-10-14 00:00:00.1234567Z"
+        with patch("parison.core._parse", return_value="legacy-result") as parse:
+            self.assertEqual(_parse_input(raw, {"type": "timestamp"}, "observed_at", recipe(False)), "legacy-result")
+            parse.assert_called_once_with(raw, {"type": "timestamp"}, "observed_at")
         self.assertNotIn("input_projection", explain_recipe(legacy))
 
     def test_projection_is_shared_by_aggregate_and_multiset_modes(self):
