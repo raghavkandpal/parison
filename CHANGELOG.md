@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 1.2.0 - 2026-10-15
+
 ### Added
 
 - Opt-in `semantic-scalar-v1` projection for keyed, aggregate and multiset recipes, with a closed policy-directed source-type allowlist across delimited text, JSON Lines, SQLite and Parquet.

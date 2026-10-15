@@ -20,6 +20,8 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **1.0.0 released.** The qualified 0.19 surface advances unchanged as the stable 1.x compatibility baseline; this designation adds no new parser, dependency or runtime semantics.
 
+**1.2.0 candidate.** Opt-in semantic scalar projection now gives mixed-format comparisons a closed conversion boundary, while local schema-evolution declarations and policy diffs explain reviewed renames and structural changes without reading datasets or granting approval.
+
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
 ## Try it
@@ -27,6 +29,8 @@ Parison is an open-source, zero-custody tool. Comparisons run in the user's envi
 Python 3.11 or newer is required.
 
 For the complete reviewed-policy, rehearsal, suite and authenticated handoff path, follow the [consolidated 1.x user guide](docs/0.19/131-user-guide.md).
+
+For cross-format scalar representation rules, follow the [semantic scalar guide](docs/1.1/140-semantic-scalar-guide.md). For data-free rename, addition, removal, split and merge review, follow the [`schema-evolution-v1` and `policy-diff-v1` contract](docs/1.2/143-schema-evolution-and-policy-diff-contract.md).
 
 Start a new local migration check with `parison init migration-check`. The command writes a minimal keyed recipe, matching smoke-test inputs and a short workflow guide into a missing or empty directory; it never overwrites an existing project.
 

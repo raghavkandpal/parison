@@ -1,6 +1,6 @@
 # Parison 1.2 roadmap
 
-Status: **active**
+Status: **candidate**
 
 ## Theme
 
@@ -10,12 +10,12 @@ The governing research is [versioned schema evolution and meaningful policy diff
 
 ## Scope
 
-1. Strict local JSON declaration with baseline-to-candidate direction, immutable never-reused logical field IDs, side-specific physical names, presence/null/default review metadata and unchanged, renamed, added, removed, split or merged change kinds.
-2. Safe compilation of unchanged and one-to-one rename entries to the existing mapping model. Added/removed entries are structural review facts; split/merge remains upstream materialization.
-3. Deterministic diff of two fully expanded effective policies through a closed versioned path vocabulary.
-4. Per-change impact, stable reason codes and overall `ACCEPT`, `DENY` or `INCONCLUSIVE` compatibility assessment that never updates approval state.
-5. Exact baseline, candidate, evolution and diff fingerprints, plus full local and summary-safe renderings.
-6. Golden canonical fixtures, complete policy-field mutation coverage, built-wheel qualification and task-oriented documentation.
+1. [x] Strict local JSON declaration with baseline-to-candidate direction, immutable never-reused logical field IDs, side-specific physical names, presence/null/default review metadata and unchanged, renamed, added, removed, split or merged change kinds.
+2. [x] Safe compilation of unchanged and one-to-one rename entries to the existing mapping model. Added/removed entries are structural review facts; split/merge remains upstream materialization.
+3. [x] Deterministic diff of two fully expanded effective policies through a closed versioned path vocabulary.
+4. [x] Per-change impact, stable reason codes and overall `ACCEPT`, `DENY` or `INCONCLUSIVE` compatibility assessment that never updates approval state.
+5. [x] Exact baseline, candidate, evolution and diff fingerprints, plus full local and summary-safe renderings.
+6. [x] Golden canonical fixtures, complete policy-field mutation coverage and task-oriented documentation; candidate qualification is tracked in the [release checklist](146-release-checklist.md).
 
 ## Non-goals
 

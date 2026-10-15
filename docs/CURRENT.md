@@ -1,17 +1,18 @@
 # Current development state
 
-- Version: **1.2 active**
+- Version: **1.2.0 candidate**
 - Branch: `develop`
 - Theme: schema evolution and meaningful policy diff, paired with qualified semantic-scalar projection
 - Released: the qualified 0.19 surface unchanged as the stable 1.x compatibility baseline
 - Verified: exact merge `6b9219c9ed6b4276ba267f3ba4d4760444281471` passed the full CI matrix; public assets were checksum-verified and the fresh wheel passed direct, suite, Statement and cutover smoke workflows
-- Next gate: complete policy-field mutation coverage, qualify the expanded semantic corpus and installed 1.2 commands across the built-wheel matrix, then prepare one combined release candidate
+- Candidate: opt-in semantic scalar projection plus strict local schema-evolution declarations and deterministic policy-diff assessment
+- Next gate: complete the exact-candidate, exact-merge and public-asset checks in the 1.2.0 release checklist
 
 ## Recorded next steps
 
 - The [`semantic-scalar-v1` contract](1.1/139-semantic-scalar-contract.md) and reader seam passed exact built-wheel CI across Python 3.11–3.14, macOS and Windows at `a12e1783418889cc58718360d25a9a819ce86162`.
 - Follow the active [1.2 roadmap](1.2/142-roadmap.md) as one larger release capability: explicit schema evolution, meaningful policy diffs and the qualified semantic-scalar projection.
-- `schema-evolution-v1` validation, canonical identity, safe mapping compilation, `policy-diff-v1` classification and summary-safe rendering are implemented locally; qualification and release reconciliation remain open.
+- `schema-evolution-v1` validation, canonical identity, safe mapping compilation, `policy-diff-v1` classification and summary-safe rendering are implemented; exact-candidate qualification and release reconciliation remain open.
 - The semantic-scalar promotion corpus covers every scalar type, null/empty boundaries, numeric and temporal boundaries, row-order permutations, every supported format and comparison mode, admitted Parquet dtype families, unsupported Parquet families and pinned canonical row bytes. Exact commit `0b07f1cd1705020e7fe039089ea8f8f1e98ac47b` passed the complete built-wheel matrix; see the [1.1 engineering checkpoint](1.1/144-engineering-checkpoint.md).
 - Preserve recipe versions 1–3 unchanged. New coercion or rejection semantics require an explicit versioned policy boundary.
 - Use `1.x.0` for the next release line, advancing the minor component through `1.20.0`; reserve patch releases for compatible fixes.
@@ -45,6 +46,6 @@
 
 Adopt a feature only when the research produces a narrow versioned contract, a realistic workflow, explicit non-goals and a checkable compatibility gate. Keep the remaining inventory as options rather than promises.
 
-Authoritative detail: [1.2 roadmap](1.2/142-roadmap.md), [schema evolution and policy-diff research](1.2/141-schema-evolution-and-policy-diff-research.md), [1.1 roadmap](1.1/138-roadmap.md), [cross-format semantic projection research](1.1/137-cross-format-semantic-projection-research.md), [0.19 consolidated user guide](0.19/131-user-guide.md), [compatibility contract](0.19/126-compatibility-contract.md), [performance envelope](0.19/127-performance-envelope.md) and [post-1.0 direction research](0.20/134-post-1.0-direction-research.md).
+Authoritative detail: [1.2 roadmap](1.2/142-roadmap.md), [1.2 engineering checkpoint](1.2/145-engineering-checkpoint.md), [1.2.0 release checklist](1.2/146-release-checklist.md), [schema evolution and policy-diff research](1.2/141-schema-evolution-and-policy-diff-research.md), [semantic scalar contract](1.1/139-semantic-scalar-contract.md), [compatibility contract](0.19/126-compatibility-contract.md) and [post-1.0 direction research](0.20/134-post-1.0-direction-research.md).
 
 Update this page when the active version, completion state, or next gate changes. Keep historical evidence in the version folder.
