@@ -1,8 +1,8 @@
 # Parison 1.2 roadmap
 
-Status: **candidate**
+Status: **released 15 October 2026**
 
-Exact candidate `eb0566899278e337f0818e30d11486ad66fa83b4` has passed dual-axis review, the complete local check, built-wheel CI across the supported matrix, clean-archive build and fresh-wheel smoke. Merge, publication and public-asset reconciliation remain open in the [release checklist](146-release-checklist.md).
+Exact candidate `eb0566899278e337f0818e30d11486ad66fa83b4` passed dual-axis review, the complete local check, built-wheel CI across the supported matrix, clean-archive build and fresh-wheel smoke. [Release 1.2.0](https://github.com/raghavkandpal/parison/releases/tag/1.2.0) identifies tested merge `31eb265b64c01bfa6625364cc3c2e7f6240cb791`; its public assets were checksum-verified and passed the same fresh-wheel smoke workflow.
 
 ## Theme
 

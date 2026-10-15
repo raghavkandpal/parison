@@ -2,7 +2,7 @@
 
 Date: 15 October 2026
 
-Status: **candidate**
+Status: **released**
 
 ## Capability gate
 
@@ -28,10 +28,15 @@ Candidate SHA-256:
 
 ## Publication
 
-- [ ] Merge the reviewed candidate to `main` and require CI on the exact merge commit.
-- [ ] Build the publishable wheel, source archive and checksums from a clean archive of the exact merge.
-- [ ] Create annotated tag `1.2.0` at the exact tested merge and publish the GitHub release; PyPI remains opt-in.
-- [ ] Re-download public assets, verify checksums and repeat fresh-wheel semantic projection and policy-diff smoke workflows.
-- [ ] Reconcile roadmap, checklist, changelog, README, documentation index and current-state record to the published release.
+- [x] [Pull request 36](https://github.com/raghavkandpal/parison/pull/36) merged the reviewed candidate to `main` at `31eb265b64c01bfa6625364cc3c2e7f6240cb791`; exact-merge [CI run 38695553104](https://github.com/raghavkandpal/parison/actions/runs/38695553104) passed.
+- [x] The publishable wheel, source archive and checksums were built from a clean archive of the exact merge.
+- [x] Annotated tag `1.2.0` identifies the exact tested merge and [GitHub release 1.2.0](https://github.com/raghavkandpal/parison/releases/tag/1.2.0) publishes its artifacts; PyPI remains intentionally deferred.
+- [x] Public assets were re-downloaded and checksum-verified, then installed fresh under Python 3.14 with Polars 1.44.2; semantic comparison/verification and the complete evolution/policy-diff smoke workflow passed.
+- [x] Roadmap, checklist, changelog, README, documentation index and current-state record identify the published release.
+
+Published SHA-256:
+
+- `parison-1.2.0-py3-none-any.whl`: `7609d791c7bcaa3eb93c1c6d7b749fe8d4423ad15d1f68c9045ee7e33f95eee0`
+- `parison-1.2.0.tar.gz`: `74cd25407af331d6a44cd2119a806481c73a94dfbd8f251f288fcfd5047c4e47`
 
 Do not mark 1.2.0 released until the code, tag, public assets and release records identify the same tested commit.
