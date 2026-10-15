@@ -5,13 +5,14 @@
 - Theme: schema evolution and meaningful policy diff, paired with qualified semantic-scalar projection
 - Released: the qualified 0.19 surface unchanged as the stable 1.x compatibility baseline
 - Verified: exact merge `6b9219c9ed6b4276ba267f3ba4d4760444281471` passed the full CI matrix; public assets were checksum-verified and the fresh wheel passed direct, suite, Statement and cutover smoke workflows
-- Next gate: complete policy-field mutation coverage, qualify the installed 1.2 commands across the built-wheel matrix and prepare one combined release candidate
+- Next gate: complete policy-field mutation coverage, qualify the expanded semantic corpus and installed 1.2 commands across the built-wheel matrix, then prepare one combined release candidate
 
 ## Recorded next steps
 
 - The [`semantic-scalar-v1` contract](1.1/139-semantic-scalar-contract.md) and reader seam passed exact built-wheel CI across Python 3.11–3.14, macOS and Windows at `a12e1783418889cc58718360d25a9a819ce86162`.
 - Follow the active [1.2 roadmap](1.2/142-roadmap.md) as one larger release capability: explicit schema evolution, meaningful policy diffs and the qualified semantic-scalar projection.
 - `schema-evolution-v1` validation, canonical identity, safe mapping compilation, `policy-diff-v1` classification and summary-safe rendering are implemented locally; qualification and release reconciliation remain open.
+- The semantic-scalar promotion corpus now covers every scalar type, null/empty boundaries, numeric and temporal boundaries, row-order permutations, every supported format and comparison mode, admitted Parquet dtype families, unsupported Parquet families and pinned canonical row bytes; exact-commit CI remains to be recorded.
 - Preserve recipe versions 1–3 unchanged. New coercion or rejection semantics require an explicit versioned policy boundary.
 - Use `1.x.0` for the next release line, advancing the minor component through `1.20.0`; reserve patch releases for compatible fixes.
 - Treat the completed [cross-format projection research](1.1/137-cross-format-semantic-projection-research.md) as the design input: recipe-directed scalar conversion is safe only through a closed source-type allowlist; lossy or inferred conversion stays explicit or upstream.

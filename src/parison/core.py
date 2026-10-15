@@ -714,7 +714,7 @@ def _parse_input(raw: Any, policy: dict[str, Any], column: str, recipe: dict[str
         "date": {str, date},
         "timestamp": {str, datetime},
     }[kind]
-    if exact_type not in allowed or raw == "":
+    if exact_type not in allowed or (raw == "" and kind != "string"):
         raise ParisonError(f"cannot project column {column} to {kind} under semantic-scalar-v1")
     if kind == "timestamp" and exact_type is datetime and raw.tzinfo is None:
         raise ParisonError(f"cannot project column {column} to timestamp under semantic-scalar-v1: timezone required")

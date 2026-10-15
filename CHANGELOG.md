@@ -11,6 +11,7 @@ All notable changes will be documented in this file.
 - A normative cross-format projection contract and task guide that preserve legacy recipe behavior while making lossy conversions explicit upstream work.
 - Strict local `schema-evolution-v1` declarations with stable logical field identity, deterministic canonical bytes and installed JSON Schema.
 - Deterministic `policy-diff-v1` assessment of effective policies, including full and summary-safe output, closed reason codes and explicit `ACCEPT`, `DENY` or `INCONCLUSIVE` compatibility labels.
+- A pinned semantic-scalar compatibility corpus proving canonical convergence across CSV, TSV, JSON Lines, SQLite and Parquet in keyed, aggregate and multiset modes, plus complete admitted Parquet dtype and rejected scalar-class coverage.
 
 ### Compatibility
 
@@ -21,6 +22,7 @@ All notable changes will be documented in this file.
 - Windows installations include Python's first-party IANA timezone fallback so aware Parquet timestamps project consistently instead of failing when the operating system has no zone database.
 - Semantic timestamp projection rejects text precision beyond microseconds instead of allowing the standard parser to truncate distinct values.
 - Policy evolution rejects boolean versions and structured enum values as controlled input errors, compares excluded-field contract metadata before compatibility, and emits only closed versioned policy paths.
+- Empty text remains a valid semantic string while continuing to fail closed for every non-string type.
 
 ## 1.0.0 - 2026-10-14
 
