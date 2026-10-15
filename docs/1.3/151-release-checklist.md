@@ -18,7 +18,7 @@ Status: **candidate preparation**
 
 - [ ] `make check` passes from the final candidate worktree.
 - [ ] Version and release records identify 1.3.0 without changing released compatibility fixtures.
-- [ ] Exact candidate passes built-wheel CI on Python 3.11–3.14, macOS and Windows with pinned Polars 1.44.2.
+- [ ] Exact candidate passes built-wheel CI on the full Python 3.11–3.14 × Linux/macOS/Windows matrix with pinned Polars 1.44.2.
 - [ ] A clean archive builds inspected wheel/source artifacts.
 - [ ] A fresh environment installs the candidate wheel and passes the complete reconciliation smoke workflow.
 - [ ] Candidate commit, CI run and artifact SHA-256 digests are recorded here.

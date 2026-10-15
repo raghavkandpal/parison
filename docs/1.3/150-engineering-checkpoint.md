@@ -28,7 +28,7 @@ Status: **local capability gate passed; exact-commit CI pending**
 ## Remaining release evidence
 
 - Independent Standards and Spec review of `origin/main...develop`.
-- Exact-candidate built-wheel CI on Python 3.11–3.14, macOS and Windows.
+- Exact-candidate built-wheel CI on the full Python 3.11–3.14 × Linux/macOS/Windows matrix.
 - Fresh-wheel smoke of the complete checked-in reconciliation workflow.
 - Exact-merge CI, public artifact checksum verification and post-release smoke.
 
