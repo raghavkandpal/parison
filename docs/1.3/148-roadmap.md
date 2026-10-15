@@ -31,4 +31,6 @@ Completed in [`time-alignment-v1` and `reconciliation-v1` contract](149-time-ali
 
 Window and coordination preflight is now implemented over existing timestamp projection, including receipt and policy binding, exact edge handling, resource limits, input-change detection and PASS/FAIL/INCONCLUSIVE outcomes.
 
-The next gate is identity and reference execution using the existing memory and SQLite keyed seams, with per-side results and deterministic bounded diagnostics. The promotion gate in the research note remains authoritative.
+Identity and reference execution now uses the existing canonical scalar encoding for both memory and bounded SQLite engines, with per-side results, deterministic aggregate diagnostics and changed-input checks.
+
+The next gate is grouped-sum conservation using the existing aggregate numeric and tolerance semantics, followed by composition with per-dataset parity. The promotion gate in the research note remains authoritative.

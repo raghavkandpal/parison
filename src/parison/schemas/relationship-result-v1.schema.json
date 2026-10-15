@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/relationship-result-v1.schema.json",
+  "title": "Parison identity and reference result v1",
+  "type": "object",
+  "required": ["relationship_result_version", "outcome", "reconciliation_sha256", "engine", "sides", "resource_limits"],
+  "properties": {
+    "relationship_result_version": {"const": 1},
+    "outcome": {"enum": ["PASS", "FAIL"]},
+    "reconciliation_sha256": {"$ref": "#/$defs/digest"},
+    "engine": {"enum": ["memory", "sqlite"]},
+    "sides": {"type": "object", "required": ["baseline", "candidate"], "properties": {"baseline": {"$ref": "#/$defs/checks"}, "candidate": {"$ref": "#/$defs/checks"}}, "additionalProperties": false},
+    "resource_limits": {"type": "object", "required": ["max_input_bytes", "max_decoded_bytes", "max_rows_per_input", "max_keys_per_identity"], "properties": {"max_input_bytes": {"type": "integer", "minimum": 1}, "max_decoded_bytes": {"type": "integer", "minimum": 1}, "max_rows_per_input": {"type": "integer", "minimum": 1}, "max_keys_per_identity": {"type": "integer", "minimum": 1}, "max_temp_bytes": {"type": "integer", "minimum": 1}}, "additionalProperties": false},
+    "temporary_bytes": {"type": "integer", "minimum": 0}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "checks": {"type": "array", "items": {"oneOf": [{"$ref": "#/$defs/identity"}, {"$ref": "#/$defs/reference"}]}},
+    "identity": {"type": "object", "required": ["id", "kind", "outcome", "counts"], "properties": {"id": {"type": "string"}, "kind": {"const": "identity"}, "outcome": {"enum": ["PASS", "FAIL"]}, "counts": {"type": "object", "required": ["rows", "distinct_keys", "null_key_rows", "duplicate_keys"], "properties": {"rows": {"type": "integer", "minimum": 0}, "distinct_keys": {"type": "integer", "minimum": 0}, "null_key_rows": {"type": "integer", "minimum": 0}, "duplicate_keys": {"type": "integer", "minimum": 0}}, "additionalProperties": false}}, "additionalProperties": false},
+    "reference": {"type": "object", "required": ["id", "kind", "outcome", "counts"], "properties": {"id": {"type": "string"}, "kind": {"const": "reference"}, "outcome": {"enum": ["PASS", "FAIL"]}, "counts": {"type": "object", "required": ["child_rows", "exempt_rows", "matched_rows", "orphan_rows", "ambiguous_parent_rows", "null_failure_rows"], "properties": {"child_rows": {"type": "integer", "minimum": 0}, "exempt_rows": {"type": "integer", "minimum": 0}, "matched_rows": {"type": "integer", "minimum": 0}, "orphan_rows": {"type": "integer", "minimum": 0}, "ambiguous_parent_rows": {"type": "integer", "minimum": 0}, "null_failure_rows": {"type": "integer", "minimum": 0}}, "additionalProperties": false}}, "additionalProperties": false}
+  }
+}

@@ -61,6 +61,7 @@ _SCHEMAS = {
     "time-alignment": "time-alignment-v1.schema.json",
     "reconciliation": "reconciliation-v1.schema.json",
     "alignment-preflight": "alignment-preflight-v1.schema.json",
+    "relationship-result": "relationship-result-v1.schema.json",
 }
 
 _SUITE_LIMIT_DEFAULTS = {

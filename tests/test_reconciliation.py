@@ -10,7 +10,7 @@ from jsonschema import Draft202012Validator
 
 from parison.cli import main
 from parison.core import ParisonError, explain_recipe, load_schema
-from parison.reconciliation import canonical_reconciliation_bytes, canonical_time_alignment_bytes, explain_reconciliation, explain_time_alignment, normalize_reconciliation, normalize_time_alignment, preflight_alignment
+from parison.reconciliation import canonical_reconciliation_bytes, canonical_time_alignment_bytes, check_identity_references, explain_reconciliation, explain_time_alignment, normalize_reconciliation, normalize_time_alignment, preflight_alignment
 
 
 ROOT = Path(__file__).parents[1]
@@ -200,6 +200,41 @@ class ReconciliationContracts(unittest.TestCase):
             files[2].write_text("changed", encoding="utf-8")
             with self.assertRaisesRegex(ParisonError, "receipt SHA-256"):
                 preflight_alignment(*files)
+
+    def test_identity_reference_memory_sqlite_equivalence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary))
+            declaration = json.loads(files[1].read_text(encoding="utf-8"))
+            declaration["checks"].append({"id": "payment-payout", "kind": "reference", "child_dataset": "payments", "child_columns": ["payout_id"], "parent_identity": "payout-id", "nulls": "forbid"})
+            files[1].write_text(json.dumps(declaration), encoding="utf-8")
+            memory = check_identity_references(files[1], files[3], engine="memory")
+            sqlite = check_identity_references(files[1], files[3], engine="sqlite", temp_directory=Path(temporary))
+            self.assertEqual(memory["outcome"], "PASS")
+            self.assertEqual(memory["sides"], sqlite["sides"])
+            self.assertGreater(sqlite["temporary_bytes"], 0)
+            validator = Draft202012Validator(load_schema("relationship-result"))
+            validator.validate(memory); validator.validate(sqlite)
+            arguments = ["check-identity-references", "--reconciliation", str(files[1])]
+            for dataset_id, runtime in files[3].items():
+                arguments.extend(["--dataset", dataset_id, str(runtime["recipe"]), str(runtime["baseline"]), str(runtime["candidate"])])
+            with redirect_stdout(StringIO()) as stdout, redirect_stderr(StringIO()):
+                self.assertEqual(main(arguments), 0)
+                self.assertEqual(json.loads(stdout.getvalue())["sides"], memory["sides"])
+
+    def test_identity_reference_reports_duplicates_orphans_and_null_rules(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary))
+            declaration = json.loads(files[1].read_text(encoding="utf-8"))
+            declaration["checks"].append({"id": "payment-payout", "kind": "reference", "child_dataset": "payments", "child_columns": ["payout_id"], "parent_identity": "payout-id", "nulls": "forbid"})
+            files[1].write_text(json.dumps(declaration), encoding="utf-8")
+            files[3]["payouts"]["candidate"].write_text("payout_id,occurred_at,amount\np-1,2026-09-01T00:00:00Z,1.00\np-1,2026-09-02T00:00:00Z,1.00\n", encoding="utf-8")
+            files[3]["payments"]["baseline"].write_text("payout_id,occurred_at,amount\nmissing,2026-09-01T00:00:00Z,1.00\n", encoding="utf-8")
+            result = check_identity_references(files[1], files[3])
+            self.assertEqual(result["outcome"], "FAIL")
+            baseline_reference = next(item for item in result["sides"]["baseline"] if item["kind"] == "reference")
+            candidate_identity = next(item for item in result["sides"]["candidate"] if item["kind"] == "identity")
+            self.assertEqual(baseline_reference["counts"]["orphan_rows"], 1)
+            self.assertEqual(candidate_identity["counts"]["duplicate_keys"], 1)
 
 
 if __name__ == "__main__":

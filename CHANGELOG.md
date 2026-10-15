@@ -9,6 +9,7 @@ All notable changes will be documented in this file.
 - Frozen opt-in `time-alignment-v1` and `reconciliation-v1` authoring contracts with strict installed schemas, semantic cross-reference validation, deterministic canonical bytes and fingerprints.
 - CLI validation and explanation for fixed UTC half-open event windows, source-owned snapshot/watermark/cutoff claims, and the closed identity/reference/grouped-sum relationship vocabulary.
 - Deterministic alignment preflight that verifies receipt, alignment and effective-policy fingerprints before scanning both dataset sets; enforces exact window edges and resource limits; detects changed inputs; and emits a strict installed result schema with conservative PASS, FAIL or INCONCLUSIVE outcomes.
+- Per-side identity and reference execution with explicit null semantics, duplicate-parent protection, aggregate-only diagnostics, deterministic ordering, input-change detection and equivalent bounded memory/SQLite engines.
 
 ### Compatibility
 

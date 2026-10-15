@@ -4,6 +4,9 @@ import hashlib
 import json
 import math
 import re
+import sqlite3
+import tempfile
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -14,7 +17,9 @@ from parison.core import (
     _digest as file_digest,
     _iter_input_rows,
     _normalize,
+    _multiset_encoding,
     _parse_input,
+    _parse_row,
     _source_bytes,
     _source_digest,
     _source_name,
@@ -440,3 +445,156 @@ def preflight_alignment(
         "datasets": results,
         "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows},
     }
+
+
+def check_identity_references(
+    reconciliation_path: str | Path,
+    inputs: dict[str, dict[str, str | Path]],
+    engine: str = "memory",
+    max_input_bytes: int = 1_000_000_000,
+    max_decoded_bytes: int = 1_000_000_000,
+    max_rows: int = 5_000_000,
+    max_keys: int = 100_000,
+    max_temp_bytes: int = 5_000_000_000,
+    temp_directory: str | Path | None = None,
+) -> dict[str, Any]:
+    """Evaluate reconciliation-v1 identity and reference checks on both sides."""
+    if engine not in {"memory", "sqlite"}:
+        raise ParisonError("engine must be memory or sqlite")
+    if any(limit <= 0 for limit in (max_input_bytes, max_decoded_bytes, max_rows, max_keys, max_temp_bytes)):
+        raise ParisonError("resource limits must be positive")
+    if engine == "memory" and temp_directory is not None:
+        raise ParisonError("temp_directory requires engine='sqlite'")
+    if temp_directory is not None and (Path(temp_directory).is_symlink() or not Path(temp_directory).is_dir()):
+        raise ParisonError("temp directory must be an existing non-symlink directory")
+    reconciliation = explain_reconciliation(reconciliation_path)
+    contracts = {item["id"]: item for item in reconciliation["datasets"]}
+    if set(inputs) != set(contracts):
+        raise ParisonError("reconciliation and runtime input dataset ids must match exactly")
+    sources = tuple(inputs[dataset_id][side] for dataset_id in sorted(inputs) for side in ("baseline", "candidate"))
+    if sum(_source_bytes(source) for source in sources) > max_input_bytes:
+        raise ParisonError(f"combined input size exceeds limit {max_input_bytes} bytes")
+    decoded_sizes = _decoded_sizes(sources, max_decoded_bytes)
+    before = {str(source): _source_digest(source) for source in sources}
+    recipes = {}
+    for dataset_id, runtime in inputs.items():
+        _exact(runtime, {"recipe", "baseline", "candidate"}, f"runtime dataset {dataset_id!r}")
+        recipe = load_recipe(runtime["recipe"])
+        policy = explain_recipe(runtime["recipe"])
+        if policy["policy_sha256"] != contracts[dataset_id]["policy_sha256"]:
+            raise ParisonError(f"dataset {dataset_id!r} policy SHA-256 does not match reconciliation")
+        declared = {column["name"]: column["type"] for column in contracts[dataset_id]["columns"]}
+        actual = {name: configured["type"] for name, configured in recipe["columns"].items()}
+        if declared != actual:
+            raise ParisonError(f"dataset {dataset_id!r} semantic columns do not match its effective recipe")
+        recipes[dataset_id] = recipe
+
+    identities = {check["id"]: check for check in reconciliation["checks"] if check["kind"] == "identity"}
+    references = [check for check in reconciliation["checks"] if check["kind"] == "reference"]
+    memory_keys: dict[tuple[str, str], Counter[bytes]] = {}
+    results = {side: [] for side in ("baseline", "candidate")}
+
+    def encoded(row: dict[str, Any], dataset_id: str, columns: list[str]) -> tuple[bytes, tuple[Any, ...]]:
+        values = tuple(row[column] for column in columns)
+        return _multiset_encoding(values, columns, recipes[dataset_id]), values
+
+    def rows(dataset_id: str, side: str):
+        recipe = recipes[dataset_id]
+        for raw in _iter_input_rows(inputs[dataset_id][side], recipe, max_rows, side, decoded_sizes):
+            yield _parse_row(raw, recipe, side)
+
+    parent = Path(temp_directory) if temp_directory is not None else None
+    workspace = tempfile.TemporaryDirectory(prefix="parison-reconciliation-", dir=parent) if engine == "sqlite" else None
+    connection = None
+    temporary_bytes = 0
+    try:
+        if workspace is not None:
+            database = Path(workspace.name) / "relationships.sqlite"
+            connection = sqlite3.connect(database)
+            page_size = int(connection.execute("PRAGMA page_size").fetchone()[0])
+            page_limit = max_temp_bytes // page_size
+            if page_limit < 4:
+                raise ParisonError(f"temporary storage limit {max_temp_bytes} bytes is too small")
+            connection.execute("PRAGMA journal_mode=OFF")
+            connection.execute("PRAGMA synchronous=OFF")
+            connection.execute(f"PRAGMA max_page_count={page_limit}")
+            connection.execute("CREATE TABLE identities (side TEXT NOT NULL, check_id TEXT NOT NULL, key BLOB NOT NULL, occurrences INTEGER NOT NULL, PRIMARY KEY(side, check_id, key)) WITHOUT ROWID")
+
+        for side in ("baseline", "candidate"):
+            for check_id, check in identities.items():
+                counts, null_rows, total = Counter(), 0, 0
+                for row in rows(check["dataset"], side):
+                    key, values = encoded(row, check["dataset"], check["columns"])
+                    total += 1
+                    null_rows += any(value is None for value in values)
+                    if connection is None:
+                        counts[key] += 1
+                        if len(counts) > max_keys:
+                            raise ParisonError(f"identity {check_id!r} exceeds distinct key limit {max_keys}")
+                    else:
+                        connection.execute("INSERT INTO identities VALUES (?, ?, ?, 1) ON CONFLICT(side, check_id, key) DO UPDATE SET occurrences = occurrences + 1", (side, check_id, key))
+                if connection is not None:
+                    connection.commit()
+                    distinct, duplicates = connection.execute("SELECT COUNT(*), COALESCE(SUM(occurrences > 1), 0) FROM identities WHERE side=? AND check_id=?", (side, check_id)).fetchone()
+                    if distinct > max_keys:
+                        raise ParisonError(f"identity {check_id!r} exceeds distinct key limit {max_keys}")
+                else:
+                    distinct, duplicates = len(counts), sum(value > 1 for value in counts.values())
+                    memory_keys[(side, check_id)] = counts
+                failed = duplicates > 0 or (check["nulls"] == "forbid" and null_rows > 0)
+                results[side].append({"id": check_id, "kind": "identity", "outcome": "FAIL" if failed else "PASS", "counts": {"rows": total, "distinct_keys": distinct, "null_key_rows": null_rows, "duplicate_keys": duplicates}})
+
+            for check in references:
+                parent_check = identities[check["parent_identity"]]
+                counts = {"child_rows": 0, "exempt_rows": 0, "matched_rows": 0, "orphan_rows": 0, "ambiguous_parent_rows": 0, "null_failure_rows": 0}
+                for row in rows(check["child_dataset"], side):
+                    counts["child_rows"] += 1
+                    key, values = encoded(row, check["child_dataset"], check["child_columns"])
+                    all_null, any_null = all(value is None for value in values), any(value is None for value in values)
+                    if check["nulls"] == "all-null-exempt" and all_null:
+                        counts["exempt_rows"] += 1
+                        continue
+                    if check["nulls"] in {"forbid", "all-null-exempt"} and any_null:
+                        counts["null_failure_rows"] += 1
+                        continue
+                    if connection is None:
+                        occurrences = memory_keys[(side, parent_check["id"])].get(key, 0)
+                    else:
+                        found = connection.execute("SELECT occurrences FROM identities WHERE side=? AND check_id=? AND key=?", (side, parent_check["id"], key)).fetchone()
+                        occurrences = found[0] if found else 0
+                    if occurrences == 1:
+                        counts["matched_rows"] += 1
+                    elif occurrences == 0:
+                        counts["orphan_rows"] += 1
+                    else:
+                        counts["ambiguous_parent_rows"] += 1
+                failed = any(counts[field] for field in ("orphan_rows", "ambiguous_parent_rows", "null_failure_rows"))
+                results[side].append({"id": check["id"], "kind": "reference", "outcome": "FAIL" if failed else "PASS", "counts": counts})
+        if connection is not None:
+            connection.commit()
+            temporary_bytes = database.stat().st_size
+    except sqlite3.Error as exc:
+        if "full" in str(exc).lower():
+            raise ParisonError(f"temporary storage exceeds limit {max_temp_bytes} bytes") from exc
+        raise ParisonError(f"relationship spill database failed: {exc}") from exc
+    finally:
+        if connection is not None:
+            connection.close()
+        if workspace is not None:
+            workspace.cleanup()
+
+    if any(_source_digest(source) != digest for source, digest in before.items()):
+        raise ParisonError("an input changed while relationships were being checked")
+    outcome = "FAIL" if any(check["outcome"] == "FAIL" for side in results.values() for check in side) else "PASS"
+    output = {
+        "relationship_result_version": 1,
+        "outcome": outcome,
+        "reconciliation_sha256": reconciliation["reconciliation_sha256"],
+        "engine": engine,
+        "sides": results,
+        "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows, "max_keys_per_identity": max_keys},
+    }
+    if engine == "sqlite":
+        output["resource_limits"]["max_temp_bytes"] = max_temp_bytes
+        output["temporary_bytes"] = temporary_bytes
+    return output

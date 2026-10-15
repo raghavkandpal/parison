@@ -146,6 +146,9 @@ parison validate-reconciliation reconciliation.json
 parison explain-reconciliation reconciliation.json
 parison preflight-alignment --alignment alignment.json --reconciliation reconciliation.json --receipt receipt.json \
   --dataset orders orders.recipe.json old-orders.csv new-orders.csv
+parison check-identity-references --reconciliation reconciliation.json \
+  --dataset orders orders.recipe.json old-orders.csv new-orders.csv \
+  --dataset lines lines.recipe.json old-lines.csv new-lines.csv
 parison schema time-alignment
 parison schema reconciliation
 parison schema alignment-preflight
@@ -154,6 +157,8 @@ parison schema alignment-preflight
 The validation commands establish authoring validity only. The explain commands print normalized declarations and their fingerprints without reading data or receipts. Draft 2020-12 schemas provide structural validation; the commands additionally enforce cross-object uniqueness, referential resolution, type/arity matching, token-domain equality and acyclicity.
 
 `preflight-alignment` requires one `--dataset ID RECIPE BASELINE CANDIDATE` group for every declared dataset. It requires exact agreement among alignment, reconciliation and runtime dataset IDs; verifies the receipt, alignment and effective-policy fingerprints before scanning; enforces the combined byte, decoded-byte and per-input row limits; and rejects inputs changed during the scan. Its strict `alignment-preflight-v1` result contains only bound fingerprints, the fixed window, stable dataset IDs and aggregate event-time counts—never paths or timestamp values. Exit codes retain the released outcome mapping: 0 PASS, 1 FAIL, 2 input error and 3 INCONCLUSIVE.
+
+`check-identity-references` evaluates every declared identity and reference independently on baseline and candidate. It emits aggregate counts only: rows, distinct and duplicate identities, null-key failures, exemptions, matches, orphans and ambiguous-parent rows. `--engine memory|sqlite` has identical semantics and deterministic result ordering; SQLite uses a private temporary database, a hard `--max-temp-bytes` ceiling and interruption-safe cleanup. The command also binds effective-policy fingerprints, enforces input and distinct-key limits, and rejects changed inputs. Conservation and per-dataset parity remain separate pending gates and are not implied by this command's PASS.
 
 ## Compatibility
 

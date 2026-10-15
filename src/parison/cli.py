@@ -13,7 +13,7 @@ from .catalog import add as catalog_add, diff as catalog_diff, history as catalo
 from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, export_statement, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, report_cutover, run_suite, terminal_result, validate_inputs, verify_bundle, verify_statement
 from .evolution import compile_evolution_mappings, diff_policies, explain_evolution, load_evolution, summarize_policy_diff
 from .project import init_project
-from .reconciliation import explain_reconciliation, explain_time_alignment, load_reconciliation, load_time_alignment, preflight_alignment
+from .reconciliation import check_identity_references, explain_reconciliation, explain_time_alignment, load_reconciliation, load_time_alignment, preflight_alignment
 
 
 def _shell_command(parts: list[str]) -> str:
@@ -113,8 +113,18 @@ def parser() -> argparse.ArgumentParser:
     alignment_preflight.add_argument("--max-input-bytes", type=int, default=1_000_000_000)
     alignment_preflight.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000)
     alignment_preflight.add_argument("--max-rows", type=int, default=5_000_000)
+    relationships = commands.add_parser("check-identity-references", help="evaluate reconciliation identities and references on both sides")
+    relationships.add_argument("--reconciliation", required=True)
+    relationships.add_argument("--dataset", action="append", nargs=4, metavar=("ID", "RECIPE", "BASELINE", "CANDIDATE"), required=True)
+    relationships.add_argument("--engine", choices=("memory", "sqlite"), default="memory")
+    relationships.add_argument("--max-input-bytes", type=int, default=1_000_000_000)
+    relationships.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000)
+    relationships.add_argument("--max-rows", type=int, default=5_000_000)
+    relationships.add_argument("--max-keys", type=int, default=100_000)
+    relationships.add_argument("--max-temp-bytes", type=int, default=DEFAULT_MAX_TEMP_BYTES)
+    relationships.add_argument("--temp-directory")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2", "statement", "schema-evolution", "policy-diff", "time-alignment", "reconciliation", "alignment-preflight"))
+    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2", "statement", "schema-evolution", "policy-diff", "time-alignment", "reconciliation", "alignment-preflight", "relationship-result"))
     schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
     schema_export.add_argument("--output", required=True)
     suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
@@ -362,6 +372,18 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(json.dumps(result, indent=2, sort_keys=True))
             print("Alignment preflight checks supplied local evidence; it does not establish extraction truth or authorize cutover.", file=sys.stderr)
+            return OUTCOME_CODES[result["outcome"]]
+        if args.command == "check-identity-references":
+            if len({item[0] for item in args.dataset}) != len(args.dataset):
+                raise ParisonError("--dataset IDs must be unique")
+            inputs = {item[0]: {"recipe": item[1], "baseline": item[2], "candidate": item[3]} for item in args.dataset}
+            result = check_identity_references(
+                args.reconciliation, inputs, args.engine, args.max_input_bytes,
+                args.max_decoded_bytes, args.max_rows, args.max_keys,
+                args.max_temp_bytes, args.temp_directory,
+            )
+            print(json.dumps(result, indent=2, sort_keys=True))
+            print("Relationship checks describe supplied local rows; they do not establish extraction truth or authorize repair or cutover.", file=sys.stderr)
             return OUTCOME_CODES[result["outcome"]]
         if args.command == "schema":
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))
