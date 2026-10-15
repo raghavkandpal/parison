@@ -4,7 +4,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
-## 1.2 — candidate
+## 1.2 — released
 
 - [Schema evolution and policy-diff research](1.2/141-schema-evolution-and-policy-diff-research.md)
 - [1.2 roadmap](1.2/142-roadmap.md)
@@ -12,7 +12,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [1.2 engineering checkpoint](1.2/145-engineering-checkpoint.md)
 - [1.2.0 release checklist](1.2/146-release-checklist.md)
 
-## 1.1 — included in 1.2 candidate
+## 1.1 — included in 1.2 release
 
 - [Cross-format semantic projection research](1.1/137-cross-format-semantic-projection-research.md)
 - [1.1 roadmap](1.1/138-roadmap.md)

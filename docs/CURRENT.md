@@ -1,19 +1,17 @@
 # Current development state
 
-- Version: **1.2.0 candidate**
+- Version: **1.2.0 released**
 - Branch: `develop`
-- Theme: schema evolution and meaningful policy diff, paired with qualified semantic-scalar projection
-- Released: the qualified 0.19 surface unchanged as the stable 1.x compatibility baseline
-- Verified: exact merge `6b9219c9ed6b4276ba267f3ba4d4760444281471` passed the full CI matrix; public assets were checksum-verified and the fresh wheel passed direct, suite, Statement and cutover smoke workflows
-- Candidate: opt-in semantic scalar projection plus strict local schema-evolution declarations and deterministic policy-diff assessment
-- Verified candidate: `eb0566899278e337f0818e30d11486ad66fa83b4` passed dual-axis review, local checks, [built-wheel CI run 38694867223](https://github.com/raghavkandpal/parison/actions/runs/38694867223), clean-archive build and fresh-wheel smoke
-- Next gate: merge the reviewed candidate to `main`, require exact-merge CI, then publish and verify exact-merge assets under the 1.2.0 release checklist
+- Theme: qualified semantic scalar projection plus schema evolution and meaningful policy diff
+- Released: opt-in `semantic-scalar-v1`, strict local `schema-evolution-v1` and deterministic summary-safe `policy-diff-v1`
+- Verified: exact merge `31eb265b64c01bfa6625364cc3c2e7f6240cb791` passed [the full CI matrix](https://github.com/raghavkandpal/parison/actions/runs/38695553104); public assets were checksum-verified and the fresh wheel passed semantic comparison/verification plus evolution and policy-diff smoke workflows
+- Next gate: select and research the next larger coherent capability from the recorded product direction before changing scope or boundaries
 
 ## Recorded next steps
 
 - The [`semantic-scalar-v1` contract](1.1/139-semantic-scalar-contract.md) and reader seam passed exact built-wheel CI across Python 3.11–3.14, macOS and Windows at `a12e1783418889cc58718360d25a9a819ce86162`.
-- Follow the active [1.2 roadmap](1.2/142-roadmap.md) as one larger release capability: explicit schema evolution, meaningful policy diffs and the qualified semantic-scalar projection.
-- `schema-evolution-v1` validation, canonical identity, safe mapping compilation, `policy-diff-v1` classification and summary-safe rendering are implemented; exact-candidate qualification and release reconciliation remain open.
+- The released [1.2 roadmap](1.2/142-roadmap.md) delivered one larger capability: explicit schema evolution, meaningful policy diffs and qualified semantic-scalar projection.
+- `schema-evolution-v1` validation, canonical identity, safe mapping compilation, `policy-diff-v1` classification and summary-safe rendering are qualified and published in 1.2.0.
 - The semantic-scalar promotion corpus covers every scalar type, null/empty boundaries, numeric and temporal boundaries, row-order permutations, every supported format and comparison mode, admitted Parquet dtype families, unsupported Parquet families and pinned canonical row bytes. Exact commit `0b07f1cd1705020e7fe039089ea8f8f1e98ac47b` passed the complete built-wheel matrix; see the [1.1 engineering checkpoint](1.1/144-engineering-checkpoint.md).
 - Preserve recipe versions 1–3 unchanged. New coercion or rejection semantics require an explicit versioned policy boundary.
 - Use `1.x.0` for the next release line, advancing the minor component through `1.20.0`; reserve patch releases for compatible fixes.
