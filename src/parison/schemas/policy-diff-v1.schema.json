@@ -23,7 +23,13 @@
           "compatibility": {"enum": ["ACCEPT", "DENY", "INCONCLUSIVE"]},
           "impact": {"enum": ["none", "input-only", "verification-widened", "verification-narrowed", "meaning-changed", "unsupported-transformation", "unknown"]},
           "reason": {"type": "string", "minLength": 1},
-          "path": {"type": "string"},
+          "path": {"enum": [
+            "schema_version", "recipe_version", "comparison_mode", "aggregate_contract", "multiset_contract", "canonical_encoding", "input_projection", "nulls_equal", "group_nulls", "column_order", "group_by",
+            "scope.snapshot", "scope.cutoff", "scope.filters", "scope.completeness", "scope.expected_empty",
+            "identity.null_keys", "identity.duplicates", "delimiters.baseline", "delimiters.candidate", "null_tokens.baseline", "null_tokens.candidate", "output.sensitivity",
+            "measures[]", "measures[].operator", "measures[].column", "measures[].nulls", "measures[].comparison", "measures[].tolerance", "measures[].tolerance.formula", "measures[].tolerance.absolute", "measures[].tolerance.relative",
+            "baseline.field", "candidate.field", "unknown"
+          ]},
           "logical_ids": {"type": "array", "items": {"type": "string"}},
           "baseline_names": {"type": "array", "items": {"type": "string"}},
           "candidate_names": {"type": "array", "items": {"type": "string"}},

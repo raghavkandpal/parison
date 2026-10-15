@@ -22,6 +22,7 @@ All notable changes will be documented in this file.
 - Windows installations include Python's first-party IANA timezone fallback so aware Parquet timestamps project consistently instead of failing when the operating system has no zone database.
 - Semantic timestamp projection rejects text precision beyond microseconds instead of allowing the standard parser to truncate distinct values.
 - Policy evolution rejects boolean versions and structured enum values as controlled input errors, compares excluded-field contract metadata before compatibility, and emits only closed versioned policy paths.
+- Aggregate tolerance addition/removal now emits the closed `measures[].tolerance` path instead of an unknown-path record; the installed policy-diff schema enumerates the complete path vocabulary.
 - Empty text remains a valid semantic string while continuing to fail closed for every non-string type.
 
 ## 1.0.0 - 2026-10-14

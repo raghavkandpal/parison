@@ -211,6 +211,8 @@ def _closed_policy_path(path: tuple[str, ...]) -> tuple[str | None, list[str]]:
         return ".".join(path), []
     if len(path) == 3 and path[0] == "measures" and path[2] in _MEASURE_FIELDS:
         return f"measures[].{path[2]}", [path[1]]
+    if len(path) == 3 and path[0] == "measures" and path[2] == "tolerance":
+        return "measures[].tolerance", [path[1]]
     if len(path) == 4 and path[0] == "measures" and path[2] == "tolerance" and path[3] in _TOLERANCE_FIELDS:
         return f"measures[].tolerance.{path[3]}", [path[1]]
     if len(path) == 2 and path[0] == "measures":

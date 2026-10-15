@@ -37,6 +37,8 @@ Authoring order and insignificant whitespace therefore do not affect identity. N
 
 `parison diff-policy` expands and fingerprints both recipes without reading data. It compares all non-column policy fields through deterministic leaf paths, then accounts for every compared and excluded physical field through the declaration.
 
+The installed result schema closes the path vocabulary over version/contract identity, comparison mode, scope, identity, delimiters, null tokens, projection, output sensitivity, group/column ordering, aggregate measure fields and tolerances, plus `baseline.field` and `candidate.field` for undeclared fields. Measure names are carried separately in full output and paths use the stable `measures[]` placeholder. Any future path outside this vocabulary is reported as `unknown` and assessed `INCONCLUSIVE`; it is never silently ignored.
+
 - An unchanged or renamed field is accepted only when its complete column policy, comparison role, presence, nullability and default metadata remain identical.
 - An addition or removal is accepted only when it is required, non-null, has no default and is already explicitly excluded with a nonempty rationale on the side where it exists.
 - A compared addition or removal, semantic-policy change, global-policy change or undeclared policy field is denied.

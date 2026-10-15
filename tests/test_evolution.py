@@ -8,8 +8,8 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, load_schema
-from parison.evolution import canonical_evolution_bytes, compile_evolution_mappings, diff_policies, explain_evolution, load_evolution, normalize_evolution, summarize_policy_diff
+from parison.core import ParisonError, explain_recipe, load_schema
+from parison.evolution import _closed_policy_path, canonical_evolution_bytes, compile_evolution_mappings, diff_policies, explain_evolution, load_evolution, normalize_evolution, summarize_policy_diff
 
 
 ROOT = Path(__file__).parents[1]
@@ -202,7 +202,10 @@ class SchemaEvolution(unittest.TestCase):
 
     def test_policy_diff_denies_each_keyed_semantic_axis(self):
         mutations = {
-            "scope": lambda recipe: recipe["scope"].update(snapshot="other"),
+            "scope-snapshot": lambda recipe: recipe["scope"].update(snapshot="other"),
+            "scope-cutoff": lambda recipe: recipe["scope"].update(cutoff="2026-10-15T00:00:00Z"),
+            "scope-filters": lambda recipe: recipe["scope"].update(filters=["status = active"]),
+            "scope-expected-empty": lambda recipe: recipe["scope"].update(expected_empty=True),
             "nulls": lambda recipe: recipe.update(nulls_equal=False),
             "delimiter": lambda recipe: recipe.update(delimiters={"baseline": ",", "candidate": ";"}),
             "null-token": lambda recipe: recipe.update(null_tokens={"baseline": [], "candidate": ["NULL"]}),
@@ -210,6 +213,8 @@ class SchemaEvolution(unittest.TestCase):
             "sensitivity": lambda recipe: recipe.update(output={"sensitivity": "raw"}),
             "role": lambda recipe: recipe.update(keys=["order-id", "gross-amount"]),
             "type": lambda recipe: recipe["columns"].update({"gross-amount": {"type": "integer", "comparison": "exact"}}),
+            "scale": lambda recipe: recipe["columns"]["gross-amount"].update(scale=3),
+            "normalization": lambda recipe: recipe["columns"]["order-id"].update(normalize=["trim"]),
             "comparison": lambda recipe: recipe["columns"].update({"gross-amount": {"type": "decimal", "scale": 2, "comparison": "numeric", "tolerance": {"formula": "symmetric-v1", "absolute": "0.01", "relative": "0"}}}),
         }
         for name, mutate in mutations.items():
@@ -235,6 +240,70 @@ class SchemaEvolution(unittest.TestCase):
             self.assertEqual(changed[0]["path"], "measures[].operator")
             self.assertEqual(changed[0]["policy_names"], ["gross"])
             self.assertNotIn("gross", json.dumps(summarize_policy_diff(result)))
+
+    def test_every_effective_global_policy_leaf_has_a_closed_path(self):
+        def leaves(value, path=()):
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    yield from leaves(item, path + (key,))
+            else:
+                yield path
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for mode in ("keyed", "aggregate", "multiset"):
+                recipe = self._stable_recipe(mode, "gross_amount")
+                recipe["input_projection"] = "semantic-scalar-v1"
+                if mode == "aggregate":
+                    recipe["measures"]["gross"].update({
+                        "comparison": "numeric",
+                        "tolerance": {"formula": "symmetric-v1", "absolute": "0.01", "relative": "0"},
+                    })
+                path = self._write_json(root, f"{mode}.json", recipe)
+                policy = explain_recipe(path)
+                global_policy = {key: value for key, value in policy.items() if key not in {"policy_sha256", "columns", "excluded_columns"}}
+                for leaf in leaves(global_policy):
+                    with self.subTest(mode=mode, leaf=leaf):
+                        self.assertIsNotNone(_closed_policy_path(leaf)[0])
+
+    def test_aggregate_policy_mutations_use_closed_paths_and_deny(self):
+        mutations = {
+            "group_by": (lambda recipe: recipe.update(group_by=["gross-amount"]), "group_by"),
+            "operator": (lambda recipe: recipe["measures"]["gross"].update(operator="max"), "measures[].operator"),
+            "nulls": (lambda recipe: recipe["measures"]["gross"].update(nulls="ignore"), "measures[].nulls"),
+            "comparison-and-tolerance": (lambda recipe: recipe["measures"]["gross"].update(comparison="numeric", tolerance={"formula": "symmetric-v1", "absolute": "0.01", "relative": "0"}), "measures[].comparison"),
+            "added-measure": (lambda recipe: recipe["measures"].update(rows={"operator": "count"}), "measures[]"),
+        }
+        for name, (mutate, expected_path) in mutations.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                baseline_recipe = self._stable_recipe("aggregate", "gross_amount")
+                candidate_recipe = self._stable_recipe("aggregate", "order_total")
+                mutate(candidate_recipe)
+                baseline = self._write_json(root, "baseline.json", baseline_recipe)
+                candidate = self._write_json(root, "candidate.json", candidate_recipe)
+                result = diff_policies(baseline, candidate, EXAMPLE)
+                self.assertEqual(result["compatibility"], "DENY")
+                self.assertIn(expected_path, {item.get("path") for item in result["changes"]})
+                self.assertNotIn("UNKNOWN_POLICY_PATH", {item["reason"] for item in result["changes"]})
+
+    def test_tolerance_leaf_and_whole_object_use_closed_paths(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline_recipe = self._stable_recipe("aggregate", "gross_amount")
+            candidate_recipe = self._stable_recipe("aggregate", "order_total")
+            for recipe in (baseline_recipe, candidate_recipe):
+                recipe["measures"]["gross"].update(comparison="numeric", tolerance={"formula": "symmetric-v1", "absolute": "0.01", "relative": "0"})
+            candidate_recipe["measures"]["gross"]["tolerance"]["absolute"] = "0.02"
+            baseline = self._write_json(root, "baseline.json", baseline_recipe)
+            candidate = self._write_json(root, "candidate.json", candidate_recipe)
+            result = diff_policies(baseline, candidate, EXAMPLE)
+            self.assertIn("measures[].tolerance.absolute", {item.get("path") for item in result["changes"]})
+            del candidate_recipe["measures"]["gross"]["tolerance"]
+            candidate_recipe["measures"]["gross"]["comparison"] = "exact"
+            candidate = self._write_json(root, "candidate-without-tolerance.json", candidate_recipe)
+            result = diff_policies(baseline, candidate, EXAMPLE)
+            self.assertIn("measures[].tolerance", {item.get("path") for item in result["changes"]})
 
     def test_excluded_field_identity_can_survive_a_rename(self):
         common = {"id": "order-id", "name": "order_id", "presence": "required", "nullability": "non-null"}
@@ -263,6 +332,49 @@ class SchemaEvolution(unittest.TestCase):
             self.assertEqual(denied["compatibility"], "DENY")
             self.assertIn("FIELD_CONTRACT_CHANGED", {item["reason"] for item in denied["changes"]})
 
+    def test_added_and_removed_fields_cover_safe_unknown_and_denied_roles(self):
+        base_declaration = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            scenarios = []
+
+            candidate_active = self._stable_recipe("keyed", "order_total")
+            candidate_active["excluded_columns"] = {}
+            candidate_active["columns"]["migration-batch"] = {"type": "string"}
+            candidate_active["column_mappings"]["migration-batch"] = {"baseline": "migration_batch", "candidate": "migration_batch"}
+            scenarios.append(("added-active", self._stable_recipe("keyed", "gross_amount"), candidate_active, base_declaration, "DENY", "STRUCTURAL_FIELD_IS_COMPARED"))
+
+            candidate_unknown = self._stable_recipe("keyed", "order_total")
+            candidate_unknown["excluded_columns"] = {}
+            scenarios.append(("added-unknown", self._stable_recipe("keyed", "gross_amount"), candidate_unknown, base_declaration, "INCONCLUSIVE", "STRUCTURAL_FIELD_ROLE_UNKNOWN"))
+
+            unsafe = json.loads(json.dumps(base_declaration))
+            unsafe["changes"][0]["candidate"][0]["presence"] = "optional"
+            scenarios.append(("added-optional", self._stable_recipe("keyed", "gross_amount"), self._stable_recipe("keyed", "order_total"), unsafe, "DENY", "STRUCTURAL_FIELD_CONTRACT_UNSAFE"))
+
+            removed = json.loads(json.dumps(base_declaration))
+            removed["changes"][0] = {"change": "removed", "baseline": [{"id": "legacy", "name": "legacy_note", "presence": "required", "nullability": "non-null"}], "candidate": []}
+            baseline_removed = self._stable_recipe("keyed", "gross_amount")
+            baseline_removed["excluded_columns"] = {"legacy_note": "retired metadata"}
+            candidate_removed = self._stable_recipe("keyed", "order_total")
+            candidate_removed["excluded_columns"] = {}
+            scenarios.append(("removed-excluded", baseline_removed, candidate_removed, removed, "ACCEPT", "EXCLUDED_STRUCTURAL_FIELD"))
+
+            baseline_active = json.loads(json.dumps(baseline_removed))
+            baseline_active["excluded_columns"] = {}
+            baseline_active["columns"]["legacy"] = {"type": "string"}
+            baseline_active["column_mappings"]["legacy"] = {"baseline": "legacy_note", "candidate": "legacy_note"}
+            scenarios.append(("removed-active", baseline_active, candidate_removed, removed, "DENY", "STRUCTURAL_FIELD_IS_COMPARED"))
+
+            for name, baseline_recipe, candidate_recipe, declaration, compatibility, reason in scenarios:
+                with self.subTest(name=name):
+                    baseline = self._write_json(root, f"{name}-baseline.json", baseline_recipe)
+                    candidate = self._write_json(root, f"{name}-candidate.json", candidate_recipe)
+                    evolution = self._write_json(root, f"{name}-evolution.json", declaration)
+                    result = diff_policies(baseline, candidate, evolution)
+                    self.assertEqual(result["compatibility"], compatibility)
+                    self.assertIn(reason, {item["reason"] for item in result["changes"]})
+
     def test_policy_diff_reports_excluded_split_as_inconclusive(self):
         common = {"id": "order-id", "name": "order_id", "presence": "required", "nullability": "non-null"}
         evolution = {
@@ -288,6 +400,50 @@ class SchemaEvolution(unittest.TestCase):
             self.assertEqual(result["changes"][-1]["reason"], "TRANSFORMATION_REQUIRES_UPSTREAM_MATERIALIZATION")
             with self.assertRaisesRegex(ParisonError, "upstream materialization"):
                 compile_evolution_mappings(declaration)
+
+    def test_compared_split_and_excluded_merge_follow_transformation_boundary(self):
+        common = {"id": "order-id", "name": "order_id", "presence": "required", "nullability": "non-null"}
+        split = {
+            "evolution_version": 1, "direction": "baseline-to-candidate", "changes": [
+                {"change": "unchanged", "baseline": [common], "candidate": [common]},
+                {"change": "split", "baseline": [{"id": "amount", "name": "amount", "presence": "required", "nullability": "non-null"}], "candidate": [
+                    {"id": "whole", "name": "whole", "presence": "required", "nullability": "non-null"},
+                    {"id": "fraction", "name": "fraction", "presence": "required", "nullability": "non-null"},
+                ]},
+            ],
+        }
+        merge = {
+            "evolution_version": 1, "direction": "baseline-to-candidate", "changes": [
+                {"change": "unchanged", "baseline": [common], "candidate": [common]},
+                {"change": "merged", "baseline": [
+                    {"id": "given", "name": "given", "presence": "required", "nullability": "nullable"},
+                    {"id": "family", "name": "family", "presence": "required", "nullability": "nullable"},
+                ], "candidate": [{"id": "name", "name": "name", "presence": "required", "nullability": "nullable"}]},
+            ],
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline_split = self._recipe("amount")
+            candidate_split = self._recipe("whole", {"fraction": "upstream component"})
+            split_result = diff_policies(
+                self._write_json(root, "split-baseline.json", baseline_split),
+                self._write_json(root, "split-candidate.json", candidate_split),
+                self._write_json(root, "split.json", split),
+            )
+            self.assertEqual(split_result["compatibility"], "DENY")
+            self.assertIn("TRANSFORMATION_FIELD_IS_COMPARED", {item["reason"] for item in split_result["changes"]})
+
+            baseline_merge = self._recipe("unused", {"given": "upstream", "family": "upstream"})
+            candidate_merge = self._recipe("unused", {"name": "upstream"})
+            del baseline_merge["columns"]["unused"]
+            del candidate_merge["columns"]["unused"]
+            merge_result = diff_policies(
+                self._write_json(root, "merge-baseline.json", baseline_merge),
+                self._write_json(root, "merge-candidate.json", candidate_merge),
+                self._write_json(root, "merge.json", merge),
+            )
+            self.assertEqual(merge_result["compatibility"], "INCONCLUSIVE")
+            self.assertIn("TRANSFORMATION_REQUIRES_UPSTREAM_MATERIALIZATION", {item["reason"] for item in merge_result["changes"]})
 
 
 if __name__ == "__main__":
