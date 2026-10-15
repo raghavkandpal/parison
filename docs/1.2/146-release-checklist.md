@@ -14,12 +14,17 @@ Status: **candidate**
 
 ## Exact candidate
 
-- [ ] Review `origin/main...develop` at the final candidate commit against repository invariants, the roadmap, contracts and this checklist; require both standards and specification axes to be clean.
-- [ ] `make check` passes from the final candidate worktree.
-- [ ] The exact candidate passes built-wheel CI on Python 3.11–3.14, macOS and Windows with optional Polars installed.
-- [ ] A clean archive of the exact candidate builds an inspected 1.2.0 wheel and source archive.
-- [ ] A fresh supported-Python environment installs the candidate wheel and exercises semantic projection plus validate, explain, compile and summary policy-diff commands.
-- [ ] Candidate commit, CI run, smoke evidence and artifact SHA-256 digests are recorded here.
+- [x] Review `origin/main...develop` at the final candidate commit against repository invariants, the roadmap, contracts and this checklist; both Standards and Spec axes are clean.
+- [x] `make check` passes **276 tests with 11 documented optional-Polars skips** from the final candidate worktree.
+- [x] Exact candidate `eb0566899278e337f0818e30d11486ad66fa83b4` passes [built-wheel CI run 38694867223](https://github.com/raghavkandpal/parison/actions/runs/38694867223) on Python 3.11–3.14, macOS and Windows with pinned Polars 1.44.2.
+- [x] A clean archive of `eb05668` builds an inspected 1.2.0 wheel and source archive.
+- [x] A fresh Python 3.14 environment installs the candidate wheel with pinned Polars 1.44.2; version/schema inspection, semantic CSV-to-JSON-Lines comparison and recursive verification pass, as do evolution validation/explanation/compilation, full policy diff and summary-safe diff assertions.
+- [x] Candidate commit, CI run, smoke evidence and artifact SHA-256 digests are recorded here.
+
+Candidate SHA-256:
+
+- `parison-1.2.0-py3-none-any.whl`: `769ff7281760138b3ff7d6f1e42cf1cff803e6070e72c55291136974ce9c480f`
+- `parison-1.2.0.tar.gz`: `6ae67f53b0a84a7f9d181963e4b4b9803a946cb42ddedb05bf32324f3aed2518`
 
 ## Publication
 

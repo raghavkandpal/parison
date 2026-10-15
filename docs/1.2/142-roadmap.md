@@ -2,6 +2,8 @@
 
 Status: **candidate**
 
+Exact candidate `eb0566899278e337f0818e30d11486ad66fa83b4` has passed dual-axis review, the complete local check, built-wheel CI across the supported matrix, clean-archive build and fresh-wheel smoke. Merge, publication and public-asset reconciliation remain open in the [release checklist](146-release-checklist.md).
+
 ## Theme
 
 Explain reviewed schema evolution and policy impact without inferring mappings, transforming data or treating compatibility as approval.

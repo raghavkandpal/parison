@@ -6,7 +6,8 @@
 - Released: the qualified 0.19 surface unchanged as the stable 1.x compatibility baseline
 - Verified: exact merge `6b9219c9ed6b4276ba267f3ba4d4760444281471` passed the full CI matrix; public assets were checksum-verified and the fresh wheel passed direct, suite, Statement and cutover smoke workflows
 - Candidate: opt-in semantic scalar projection plus strict local schema-evolution declarations and deterministic policy-diff assessment
-- Next gate: complete the exact-candidate, exact-merge and public-asset checks in the 1.2.0 release checklist
+- Verified candidate: `eb0566899278e337f0818e30d11486ad66fa83b4` passed dual-axis review, local checks, [built-wheel CI run 38694867223](https://github.com/raghavkandpal/parison/actions/runs/38694867223), clean-archive build and fresh-wheel smoke
+- Next gate: merge the reviewed candidate to `main`, require exact-merge CI, then publish and verify exact-merge assets under the 1.2.0 release checklist
 
 ## Recorded next steps
 
