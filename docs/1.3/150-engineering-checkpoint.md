@@ -17,7 +17,7 @@ Status: **local capability gate passed; exact-commit CI pending**
 
 - `make check` passes 294 tests with 11 expected skips when optional Polars is absent.
 - Canonical byte fixtures cover both authoring contracts.
-- Focused tests cover all coordination modes, exact window edges, duplicate IDs/checks, token-domain mismatch, negative lateness, type/arity mismatch, cycles, receipt mismatch, policy mismatch, FAIL-before-INCONCLUSIVE reduction and bundle tampering.
+- Focused tests cover all coordination modes, exact window edges, malformed timestamp rejection, duplicate IDs/checks, token-domain mismatch, negative lateness, type/arity mismatch, cycles, receipt mismatch, policy mismatch, FAIL-before-INCONCLUSIVE reduction and bundle tampering.
 - Memory/SQLite equivalence is asserted for identity/reference and conservation results.
 - A checked-in payout workflow crosses CSV baseline and JSON Lines candidate inputs, exact start/end-adjacent timestamps, two dataset pairs, identities, a reference and grouped decimal conservation. It passes under both engines and publishes a standard-verifiable bundle.
 - Interruption tests prove SQLite workspace and publication staging cleanup.

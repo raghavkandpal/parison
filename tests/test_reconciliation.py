@@ -202,6 +202,12 @@ class ReconciliationContracts(unittest.TestCase):
             with self.assertRaisesRegex(ParisonError, "receipt SHA-256"):
                 preflight_alignment(*files)
 
+    def test_alignment_preflight_rejects_malformed_event_time(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary), timestamp="not-a-timestamp")
+            with self.assertRaises(ParisonError):
+                preflight_alignment(*files)
+
     def test_identity_reference_memory_sqlite_equivalence(self):
         with tempfile.TemporaryDirectory() as temporary:
             files = self._preflight_files(Path(temporary))

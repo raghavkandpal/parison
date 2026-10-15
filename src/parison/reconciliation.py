@@ -404,11 +404,7 @@ def preflight_alignment(
                 if raw_value is None:
                     counts["null_event_time"] += 1
                     continue
-                try:
-                    timestamp = _normalize(_parse_input(raw_value, recipe["columns"][event_column], event_column, recipe), recipe["columns"][event_column])
-                except ParisonError:
-                    counts["invalid_event_time"] += 1
-                    continue
+                timestamp = _normalize(_parse_input(raw_value, recipe["columns"][event_column], event_column, recipe), recipe["columns"][event_column])
                 if timestamp is None:
                     counts["null_event_time"] += 1
                     continue
