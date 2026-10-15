@@ -1,6 +1,6 @@
 # Parison 1.1 roadmap
 
-Status: **implemented; exact-commit qualification pending**
+Status: **qualified on `develop`; publication bundled with 1.2**
 
 ## Theme
 

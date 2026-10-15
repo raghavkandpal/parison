@@ -16,6 +16,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [1.1 roadmap](1.1/138-roadmap.md)
 - [`semantic-scalar-v1` contract](1.1/139-semantic-scalar-contract.md)
 - [Cross-format semantic scalar guide](1.1/140-semantic-scalar-guide.md)
+- [1.1 engineering checkpoint](1.1/144-engineering-checkpoint.md)
 
 ## 1.0 — released
 
