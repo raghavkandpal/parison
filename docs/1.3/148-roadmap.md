@@ -1,6 +1,6 @@
 # Parison 1.3 roadmap
 
-Status: **contracts frozen; execution pending**
+Status: **release candidate qualification**
 
 ## Theme
 

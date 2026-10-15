@@ -512,7 +512,6 @@ def check_identity_references(
     parent = Path(temp_directory) if temp_directory is not None else None
     workspace = tempfile.TemporaryDirectory(prefix="parison-reconciliation-", dir=parent) if engine == "sqlite" else None
     connection = None
-    temporary_bytes = 0
     try:
         if workspace is not None:
             database = Path(workspace.name) / "relationships.sqlite"
@@ -578,7 +577,6 @@ def check_identity_references(
                 results[side].append({"id": check["id"], "kind": "reference", "outcome": "FAIL" if failed else "PASS", "counts": counts})
         if connection is not None:
             connection.commit()
-            temporary_bytes = database.stat().st_size
     except sqlite3.Error as exc:
         if "full" in str(exc).lower():
             raise ParisonError(f"temporary storage exceeds limit {max_temp_bytes} bytes") from exc
@@ -596,13 +594,9 @@ def check_identity_references(
         "relationship_result_version": 1,
         "outcome": outcome,
         "reconciliation_sha256": reconciliation["reconciliation_sha256"],
-        "engine": engine,
         "sides": results,
         "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows, "max_keys_per_identity": max_keys},
     }
-    if engine == "sqlite":
-        output["resource_limits"]["max_temp_bytes"] = max_temp_bytes
-        output["temporary_bytes"] = temporary_bytes
     return output
 
 
@@ -662,7 +656,6 @@ def check_conservation(
     parent = Path(temp_directory) if temp_directory is not None else None
     workspace = tempfile.TemporaryDirectory(prefix="parison-conservation-", dir=parent) if engine == "sqlite" else None
     connection = None
-    temporary_bytes = 0
     try:
         if workspace is not None:
             database = Path(workspace.name) / "conservation.sqlite"
@@ -737,7 +730,6 @@ def check_conservation(
                 results[side].append({"id": check["id"], "kind": "conservation", "outcome": "FAIL" if failed else "PASS", "counts": counts})
         if connection is not None:
             connection.commit()
-            temporary_bytes = database.stat().st_size
     except sqlite3.Error as exc:
         if "full" in str(exc).lower():
             raise ParisonError(f"temporary storage exceeds limit {max_temp_bytes} bytes") from exc
@@ -750,11 +742,7 @@ def check_conservation(
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while conservation was being checked")
     outcome = "FAIL" if any(check["outcome"] == "FAIL" for side in results.values() for check in side) else "PASS"
-    output = {"conservation_result_version": 1, "outcome": outcome, "reconciliation_sha256": reconciliation["reconciliation_sha256"], "engine": engine, "sides": results, "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows, "max_groups_per_check": max_groups}}
-    if engine == "sqlite":
-        output["resource_limits"]["max_temp_bytes"] = max_temp_bytes
-        output["temporary_bytes"] = temporary_bytes
-    return output
+    return {"conservation_result_version": 1, "outcome": outcome, "reconciliation_sha256": reconciliation["reconciliation_sha256"], "sides": results, "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows, "max_groups_per_check": max_groups}}
 
 
 def run_reconciliation(
@@ -831,12 +819,11 @@ def run_reconciliation(
         "datasets": parity,
         "relationships": relationships["sides"],
         "conservation": conservation["sides"],
-        "runtime": {"contract": "reconciliation-v1", "parison_version": __version__, "execution_engine": engine},
+        "runtime": {"contract": "reconciliation-v1", "parison_version": __version__},
         "resource_limits": {
             "max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes,
             "max_rows_per_input": max_rows, "max_keys_per_identity": max_keys,
             "max_groups_per_check": max_groups, "max_distinct_rows_per_input": max_distinct_rows,
-            **({"max_temp_bytes": max_temp_bytes} if engine == "sqlite" else {}),
         },
     }
 

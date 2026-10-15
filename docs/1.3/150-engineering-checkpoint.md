@@ -10,7 +10,7 @@ Status: **local capability gate passed; exact-commit CI pending**
 - Fixed UTC `[start, end)` scanning with source-owned snapshot, watermark or declared-cutoff coordination and conservative PASS/FAIL/INCONCLUSIVE semantics.
 - Existing keyed, aggregate and multiset parity composed for every logical dataset pair.
 - Per-side identity, exact reference and grouped-sum conservation checks with closed null/tolerance behavior and aggregate-only diagnostics.
-- Equivalent memory and bounded SQLite relationship execution with private temporary state and cleanup on failure or interruption.
+- Byte-identical memory and bounded SQLite evidence with private temporary state and cleanup on failure or interruption.
 - Atomic no-overwrite reconciliation bundles with manifest-bound full/summary evidence, normalized declarations, standard verification and summary-safe inspection.
 
 ## Local evidence
@@ -18,8 +18,9 @@ Status: **local capability gate passed; exact-commit CI pending**
 - `make check` passes 294 tests with 11 expected skips when optional Polars is absent.
 - Canonical byte fixtures cover both authoring contracts.
 - Focused tests cover all coordination modes, exact window edges, malformed timestamp rejection, duplicate IDs/checks, token-domain mismatch, negative lateness, type/arity mismatch, cycles, receipt mismatch, policy mismatch, FAIL-before-INCONCLUSIVE reduction and bundle tampering.
-- Memory/SQLite equivalence is asserted for identity/reference and conservation results.
-- A checked-in payout workflow crosses CSV baseline and JSON Lines candidate inputs, exact start/end-adjacent timestamps, two dataset pairs, identities, a reference and grouped decimal conservation. It passes under both engines and publishes a standard-verifiable bundle.
+- Memory/SQLite byte identity is asserted for identity/reference, conservation and composed results.
+- Three end-to-end workflows cover a checked-in cross-format payout reconciliation, a relational migration where per-dataset parity passes but a reference fails, and a partitioned historical backfill where data checks pass but declared-cutoff alignment remains INCONCLUSIVE.
+- Alignment qualification includes exact edges, pre-epoch timestamps, upstream offset normalization, null and malformed times, missing or mismatched receipts, watermark boundaries and all three coordination modes.
 - Interruption tests prove SQLite workspace and publication staging cleanup.
 - Released compatibility fixtures remain byte-identical and readable through the unchanged standard verifier.
 

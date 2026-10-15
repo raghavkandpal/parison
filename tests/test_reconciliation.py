@@ -217,8 +217,7 @@ class ReconciliationContracts(unittest.TestCase):
             memory = check_identity_references(files[1], files[3], engine="memory")
             sqlite = check_identity_references(files[1], files[3], engine="sqlite", temp_directory=Path(temporary))
             self.assertEqual(memory["outcome"], "PASS")
-            self.assertEqual(memory["sides"], sqlite["sides"])
-            self.assertGreater(sqlite["temporary_bytes"], 0)
+            self.assertEqual(memory, sqlite)
             validator = Draft202012Validator(load_schema("relationship-result"))
             validator.validate(memory); validator.validate(sqlite)
             arguments = ["check-identity-references", "--reconciliation", str(files[1])]
@@ -252,7 +251,7 @@ class ReconciliationContracts(unittest.TestCase):
             memory = check_conservation(files[1], files[3])
             sqlite = check_conservation(files[1], files[3], engine="sqlite", temp_directory=Path(temporary))
             self.assertEqual(memory["outcome"], "PASS")
-            self.assertEqual(memory["sides"], sqlite["sides"])
+            self.assertEqual(memory, sqlite)
             validator = Draft202012Validator(load_schema("conservation-result"))
             validator.validate(memory); validator.validate(sqlite)
             arguments = ["check-conservation", "--reconciliation", str(files[1])]
@@ -300,6 +299,8 @@ class ReconciliationContracts(unittest.TestCase):
             with redirect_stdout(StringIO()) as stdout, redirect_stderr(StringIO()):
                 self.assertEqual(main(arguments), 0)
                 self.assertEqual(json.loads(stdout.getvalue()), summary)
+            sqlite = run_reconciliation(*files, engine="sqlite", temp_directory=Path(temporary))
+            self.assertEqual(result, sqlite)
 
     def test_composed_reconciliation_reduces_fail_before_inconclusive(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -307,6 +308,56 @@ class ReconciliationContracts(unittest.TestCase):
             self.assertEqual(run_reconciliation(*files)["outcome"], "INCONCLUSIVE")
             files[3]["payments"]["candidate"].write_text("payout_id,occurred_at,amount\nother,2026-09-01T00:00:00Z,1.00\n", encoding="utf-8")
             self.assertEqual(run_reconciliation(*files)["outcome"], "FAIL")
+
+    def test_relational_migration_can_pass_parity_but_fail_relationships(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary))
+            declaration = json.loads(files[1].read_text(encoding="utf-8"))
+            declaration["checks"].append({"id": "payment-payout", "kind": "reference", "child_dataset": "payments", "child_columns": ["payout_id"], "parent_identity": "payout-id", "nulls": "forbid"})
+            files[1].write_text(json.dumps(declaration), encoding="utf-8")
+            for side in ("baseline", "candidate"):
+                files[3]["payments"][side].write_text("payout_id,occurred_at,amount\nmissing,2026-09-01T00:00:00Z,1.00\n", encoding="utf-8")
+            result = run_reconciliation(*files)
+            self.assertEqual([item["outcome"] for item in result["datasets"]], ["PASS", "PASS"])
+            self.assertEqual(result["outcome"], "FAIL")
+            self.assertTrue(all(item["counts"]["orphan_rows"] == 1 for item in result["relationships"]["baseline"] + result["relationships"]["candidate"] if item["kind"] == "reference"))
+
+    def test_partitioned_backfill_can_pass_data_but_remain_inconclusive(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary), mode="declared-cutoff")
+            for runtime in files[3].values():
+                for side in ("baseline", "candidate"):
+                    source = runtime[side]
+                    partitioned = source.parent / f"{source.stem}-partitions"
+                    partitioned.mkdir()
+                    (partitioned / "02.csv").write_text("payout_id,occurred_at,amount\n", encoding="utf-8")
+                    (partitioned / "01.csv").write_bytes(source.read_bytes())
+                    runtime[side] = partitioned
+            result = run_reconciliation(*files)
+            self.assertEqual([item["outcome"] for item in result["datasets"]], ["PASS", "PASS"])
+            self.assertEqual(result["outcome"], "INCONCLUSIVE")
+            self.assertEqual(result["alignment"]["reason_codes"], ["coordination-not-machine-established"])
+
+    def test_alignment_preflight_qualifies_pre_epoch_offsets_null_and_missing_receipt(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary))
+            declaration = json.loads(files[0].read_text(encoding="utf-8"))
+            declaration["event_window"].update(start="1969-12-31T00:00:00Z", end="1970-01-02T00:00:00Z")
+            files[0].write_text(json.dumps(declaration), encoding="utf-8")
+            reconciliation_value = json.loads(files[1].read_text(encoding="utf-8"))
+            reconciliation_value["alignment_sha256"] = explain_time_alignment(files[0])["alignment_sha256"]
+            files[1].write_text(json.dumps(reconciliation_value), encoding="utf-8")
+            for runtime in files[3].values():
+                for side in ("baseline", "candidate"):
+                    runtime[side].write_text("payout_id,occurred_at,amount\np-1,1970-01-01T01:00:00+01:00,1.00\n", encoding="utf-8")
+            self.assertEqual(preflight_alignment(*files)["outcome"], "PASS")
+            candidate = Path(temporary) / "payments-candidate.jsonl"
+            candidate.write_text('{"payout_id":"p-1","occurred_at":null,"amount":"1.00"}\n', encoding="utf-8")
+            files[3]["payments"]["candidate"] = candidate
+            self.assertEqual(preflight_alignment(*files)["outcome"], "FAIL")
+            files[2].unlink()
+            with self.assertRaisesRegex(ParisonError, "receipt"):
+                preflight_alignment(*files)
 
     def test_reconciliation_bundle_is_atomic_verified_and_summary_safe(self):
         with tempfile.TemporaryDirectory() as temporary:

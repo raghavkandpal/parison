@@ -3,15 +3,13 @@
   "$id": "https://parison.dev/schemas/relationship-result-v1.schema.json",
   "title": "Parison identity and reference result v1",
   "type": "object",
-  "required": ["relationship_result_version", "outcome", "reconciliation_sha256", "engine", "sides", "resource_limits"],
+  "required": ["relationship_result_version", "outcome", "reconciliation_sha256", "sides", "resource_limits"],
   "properties": {
     "relationship_result_version": {"const": 1},
     "outcome": {"enum": ["PASS", "FAIL"]},
     "reconciliation_sha256": {"$ref": "#/$defs/digest"},
-    "engine": {"enum": ["memory", "sqlite"]},
     "sides": {"type": "object", "required": ["baseline", "candidate"], "properties": {"baseline": {"$ref": "#/$defs/checks"}, "candidate": {"$ref": "#/$defs/checks"}}, "additionalProperties": false},
-    "resource_limits": {"type": "object", "required": ["max_input_bytes", "max_decoded_bytes", "max_rows_per_input", "max_keys_per_identity"], "properties": {"max_input_bytes": {"type": "integer", "minimum": 1}, "max_decoded_bytes": {"type": "integer", "minimum": 1}, "max_rows_per_input": {"type": "integer", "minimum": 1}, "max_keys_per_identity": {"type": "integer", "minimum": 1}, "max_temp_bytes": {"type": "integer", "minimum": 1}}, "additionalProperties": false},
-    "temporary_bytes": {"type": "integer", "minimum": 0}
+    "resource_limits": {"type": "object", "required": ["max_input_bytes", "max_decoded_bytes", "max_rows_per_input", "max_keys_per_identity"], "properties": {"max_input_bytes": {"type": "integer", "minimum": 1}, "max_decoded_bytes": {"type": "integer", "minimum": 1}, "max_rows_per_input": {"type": "integer", "minimum": 1}, "max_keys_per_identity": {"type": "integer", "minimum": 1}}, "additionalProperties": false}
   },
   "additionalProperties": false,
   "$defs": {
