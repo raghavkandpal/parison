@@ -714,7 +714,7 @@ def _parse_input(raw: Any, policy: dict[str, Any], column: str, recipe: dict[str
     if exact_type not in allowed or (raw == "" and kind != "string"):
         raise ParisonError(f"cannot project column {column} to {kind} under semantic-scalar-v1")
     if kind == "timestamp" and exact_type is str:
-        fraction = re.search(r"\d{2}:\d{2}:\d{2}[.,](\d+)", raw)
+        fraction = re.search(r"\d{2}:?\d{2}:?\d{2}[.,](\d+)", raw)
         if fraction and len(fraction.group(1)) > 6:
             raise ParisonError(f"cannot parse column {column} as timestamp: timestamp precision exceeds microseconds")
     if kind == "timestamp" and exact_type is datetime and raw.tzinfo is None:

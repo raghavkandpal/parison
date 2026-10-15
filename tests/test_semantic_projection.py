@@ -100,9 +100,16 @@ class SemanticScalarProjection(unittest.TestCase):
             compare(self.recipe, baseline, baseline)
 
     def test_projection_rejects_text_timestamp_beyond_microsecond_precision(self):
-        for separator in ("T", "t", " "):
-            with self.subTest(separator=separator):
-                value = {"id": 1, "amount": "1.00", "active": True, "label": "x", "day": "2026-10-14", "observed_at": f"1969-12-31{separator}23:59:59.1234567Z"}
+        timestamps = (
+            "1969-12-31T23:59:59.1234567Z",
+            "1969-12-31t23:59:59.1234567Z",
+            "1969-12-31 23:59:59.1234567Z",
+            "19691231T235959.1234567Z",
+            "1969-12-31T235959.1234567Z",
+        )
+        for timestamp in timestamps:
+            with self.subTest(timestamp=timestamp):
+                value = {"id": 1, "amount": "1.00", "active": True, "label": "x", "day": "2026-10-14", "observed_at": timestamp}
                 source = self.jsonl(value)
                 with self.assertRaisesRegex(ParisonError, "precision exceeds microseconds"):
                     compare(self.recipe, source, source)
