@@ -44,6 +44,11 @@ jobs:
       - run: parison schema suite-manifest
       - run: parison schema suite-manifest-v2
       - run: parison schema statement
+      - run: parison schema schema-evolution
+      - run: parison schema policy-diff
+      - run: parison validate-evolution examples/1.2/orders.schema-evolution.json
+      - run: parison compile-evolution examples/1.2/orders.schema-evolution.json
+      - run: parison diff-policy --baseline-recipe examples/1.2/baseline.recipe.json --candidate-recipe examples/1.2/candidate.recipe.json --evolution examples/1.2/orders.schema-evolution.json --summary
       - run: parison export-editor-schemas --output /tmp/parison-editor-schemas
       - run: parison validate-recipe examples/orders.recipe.json
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
@@ -162,6 +167,10 @@ jobs:
       - run: parison schema recipe-v2
       - run: parison schema recipe-v3
       - run: parison schema statement
+      - run: parison schema schema-evolution
+      - run: parison schema policy-diff
+      - run: parison validate-evolution examples/1.2/orders.schema-evolution.json
+      - run: parison diff-policy --baseline-recipe examples/1.2/baseline.recipe.json --candidate-recipe examples/1.2/candidate.recipe.json --evolution examples/1.2/orders.schema-evolution.json --summary
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/0.7/revenue.recipe.json --baseline examples/0.7/baseline.csv --candidate examples/0.7/candidate.jsonl --output ${{ runner.temp }}/parison-aggregate-smoke
       - run: parison schema result-v3

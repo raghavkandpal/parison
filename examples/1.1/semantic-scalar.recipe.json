@@ -1,0 +1,22 @@
+{
+  "recipe_version": 1,
+  "comparison_mode": "keyed",
+  "input_projection": "semantic-scalar-v1",
+  "keys": ["id"],
+  "scope": {
+    "snapshot": "orders-semantic-scalar-example",
+    "cutoff": "2026-10-14T00:00:00Z",
+    "filters": [],
+    "completeness": "full",
+    "expected_empty": false
+  },
+  "identity": {"null_keys": "reject", "duplicates": "reject"},
+  "nulls_equal": true,
+  "columns": {
+    "id": {"type": "integer", "comparison": "exact"},
+    "amount": {"type": "decimal", "scale": 2, "comparison": "exact"},
+    "active": {"type": "boolean", "comparison": "exact"},
+    "observed_at": {"type": "timestamp", "timezone": "require-aware", "comparison": "exact"}
+  },
+  "output": {"sensitivity": "summary"}
+}

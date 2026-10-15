@@ -9,6 +9,7 @@
   "properties": {
     "recipe_version": {"const": 2},
     "comparison_mode": {"const": "aggregate"},
+    "input_projection": {"const": "semantic-scalar-v1", "description": "Opt-in closed source-scalar projection before the existing aggregate comparison semantics."},
     "group_by": {"description": "Canonical columns defining groups; an empty array requests one global group.", "type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
     "measures": {
       "description": "Named count, sum, minimum or maximum measures compared per group.",

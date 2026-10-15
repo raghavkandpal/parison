@@ -9,6 +9,7 @@
   "properties": {
     "recipe_version": {"const": 3},
     "comparison_mode": {"const": "multiset"},
+    "input_projection": {"const": "semantic-scalar-v1", "description": "Opt-in closed source-scalar projection before the existing multiset comparison semantics."},
     "scope": {
       "type": "object",
       "additionalProperties": false,

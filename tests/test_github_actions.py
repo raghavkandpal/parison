@@ -13,9 +13,14 @@ from parison.core import verify_bundle
 WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison.yml"
 SUITE_WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison-suite-v2.yml"
 SIGNING_WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison-evidence-signing.yml"
+PYPROJECT = Path(__file__).parents[1] / "pyproject.toml"
 
 
 class GitHubActionsReference(unittest.TestCase):
+    def test_windows_wheels_install_iana_timezone_data(self):
+        metadata = PYPROJECT.read_text(encoding="utf-8")
+        self.assertIn('"tzdata; platform_system == \'Windows\'"', metadata)
+
     def test_suite_reference_shards_then_verifies_assembly(self):
         workflow = SUITE_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("local-concurrent:", workflow)

@@ -4,6 +4,22 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 1.2 — candidate
+
+- [Schema evolution and policy-diff research](1.2/141-schema-evolution-and-policy-diff-research.md)
+- [1.2 roadmap](1.2/142-roadmap.md)
+- [`schema-evolution-v1` and `policy-diff-v1` contract](1.2/143-schema-evolution-and-policy-diff-contract.md)
+- [1.2 engineering checkpoint](1.2/145-engineering-checkpoint.md)
+- [1.2.0 release checklist](1.2/146-release-checklist.md)
+
+## 1.1 — included in 1.2 candidate
+
+- [Cross-format semantic projection research](1.1/137-cross-format-semantic-projection-research.md)
+- [1.1 roadmap](1.1/138-roadmap.md)
+- [`semantic-scalar-v1` contract](1.1/139-semantic-scalar-contract.md)
+- [Cross-format semantic scalar guide](1.1/140-semantic-scalar-guide.md)
+- [1.1 engineering checkpoint](1.1/144-engineering-checkpoint.md)
+
 ## 1.0 — released
 
 - [1.0 roadmap](1.0/135-roadmap.md)

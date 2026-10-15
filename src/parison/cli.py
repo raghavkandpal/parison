@@ -11,6 +11,7 @@ from pathlib import Path
 from . import __version__
 from .catalog import add as catalog_add, diff as catalog_diff, history as catalog_history, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
 from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, export_statement, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, report_cutover, run_suite, terminal_result, validate_inputs, verify_bundle, verify_statement
+from .evolution import compile_evolution_mappings, diff_policies, explain_evolution, load_evolution, summarize_policy_diff
 from .project import init_project
 
 
@@ -84,8 +85,19 @@ def parser() -> argparse.ArgumentParser:
     validate.add_argument("recipe")
     explain = commands.add_parser("explain", help="print the effective recipe policy without reading inputs")
     explain.add_argument("recipe")
+    validate_evolution = commands.add_parser("validate-evolution", help="validate a schema evolution declaration")
+    validate_evolution.add_argument("evolution")
+    explain_evolution_parser = commands.add_parser("explain-evolution", help="print normalized schema evolution and its fingerprint")
+    explain_evolution_parser.add_argument("evolution")
+    compile_evolution = commands.add_parser("compile-evolution", help="compile identity-preserving evolution into column mappings")
+    compile_evolution.add_argument("evolution")
+    policy_diff = commands.add_parser("diff-policy", help="assess two effective policies under a schema evolution declaration")
+    policy_diff.add_argument("--baseline-recipe", required=True)
+    policy_diff.add_argument("--candidate-recipe", required=True)
+    policy_diff.add_argument("--evolution", required=True)
+    policy_diff.add_argument("--summary", action="store_true", help="omit schema names, paths and policy fragments")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2", "statement"))
+    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2", "statement", "schema-evolution", "policy-diff"))
     schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
     schema_export.add_argument("--output", required=True)
     suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
@@ -287,6 +299,24 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(explain_recipe(args.recipe), indent=2, sort_keys=True))
             print(f"Explained effective policy: {args.recipe}", file=sys.stderr)
             return 0
+        if args.command == "validate-evolution":
+            load_evolution(args.evolution)
+            print("valid")
+            print(f"Validated schema evolution: {args.evolution}", file=sys.stderr)
+            return 0
+        if args.command == "explain-evolution":
+            print(json.dumps(explain_evolution(args.evolution), indent=2, sort_keys=True))
+            print(f"Explained schema evolution: {args.evolution}", file=sys.stderr)
+            return 0
+        if args.command == "compile-evolution":
+            print(json.dumps(compile_evolution_mappings(args.evolution), indent=2, sort_keys=True))
+            print("Compiled identity mappings only; review them before adding them to a recipe.", file=sys.stderr)
+            return 0
+        if args.command == "diff-policy":
+            result = diff_policies(args.baseline_recipe, args.candidate_recipe, args.evolution)
+            print(json.dumps(summarize_policy_diff(result) if args.summary else result, indent=2, sort_keys=True))
+            print("Compatibility is a mechanical assessment, not policy approval or cutover authorization.", file=sys.stderr)
+            return 0 if result["compatibility"] == "ACCEPT" else 1 if result["compatibility"] == "DENY" else 3
         if args.command == "schema":
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))
             return 0

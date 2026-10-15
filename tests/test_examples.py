@@ -135,6 +135,12 @@ class CheckedInExamples(unittest.TestCase):
         self.assertEqual(aggregate["measure_counts"]["net_amount"]["different"], 1)
         self.assertEqual(keyed["discrepancy_count"], 1)
 
+    def test_1_1_semantic_scalar_example_is_a_cross_format_pass(self):
+        root = Path(__file__).parents[1] / "examples" / "1.1"
+        result = compare(root / "semantic-scalar.recipe.json", root / "baseline.csv", root / "candidate.jsonl")
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["policy"]["input_projection"], "semantic-scalar-v1")
+
     def test_0_15_feature_pipeline_suite_layers_tolerance_and_occurrence_parity(self):
         root = Path(__file__).parents[1] / "examples" / "0.15" / "features"
         with __import__("tempfile").TemporaryDirectory() as directory:

@@ -1,0 +1,24 @@
+{
+  "recipe_version": 1,
+  "comparison_mode": "keyed",
+  "keys": ["order-id"],
+  "scope": {
+    "snapshot": "orders",
+    "cutoff": "2026-10-14T00:00:00Z",
+    "filters": [],
+    "completeness": "full",
+    "expected_empty": false
+  },
+  "identity": {"null_keys": "reject", "duplicates": "reject"},
+  "nulls_equal": true,
+  "columns": {
+    "order-id": {"type": "string", "comparison": "exact"},
+    "gross-amount": {"type": "decimal", "scale": 2, "comparison": "exact"}
+  },
+  "column_mappings": {
+    "order-id": {"baseline": "order_id", "candidate": "order_id"},
+    "gross-amount": {"baseline": "order_total", "candidate": "order_total"}
+  },
+  "excluded_columns": {"migration_batch": "operational metadata outside verification"},
+  "output": {"sensitivity": "summary"}
+}
