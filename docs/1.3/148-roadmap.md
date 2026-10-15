@@ -29,4 +29,6 @@ The governing input is [time alignment and multi-dataset reconciliation research
 
 Completed in [`time-alignment-v1` and `reconciliation-v1` contract](149-time-alignment-and-reconciliation-contract.md): the written contract, installed strict schemas, semantic validators, canonical fixtures and fingerprints now freeze dataset identity, coordination semantics, event-window failures, relationship null rules, conservation numeric policy, result ordering and summary-safe disclosure.
 
-The next gate is window and coordination preflight over existing semantic timestamp projection, including receipt binding and PASS/FAIL/INCONCLUSIVE outcomes. The promotion gate in the research note remains authoritative.
+Window and coordination preflight is now implemented over existing timestamp projection, including receipt and policy binding, exact edge handling, resource limits, input-change detection and PASS/FAIL/INCONCLUSIVE outcomes.
+
+The next gate is identity and reference execution using the existing memory and SQLite keyed seams, with per-side results and deterministic bounded diagnostics. The promotion gate in the research note remains authoritative.

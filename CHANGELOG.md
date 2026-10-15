@@ -8,10 +8,11 @@ All notable changes will be documented in this file.
 
 - Frozen opt-in `time-alignment-v1` and `reconciliation-v1` authoring contracts with strict installed schemas, semantic cross-reference validation, deterministic canonical bytes and fingerprints.
 - CLI validation and explanation for fixed UTC half-open event windows, source-owned snapshot/watermark/cutoff claims, and the closed identity/reference/grouped-sum relationship vocabulary.
+- Deterministic alignment preflight that verifies receipt, alignment and effective-policy fingerprints before scanning both dataset sets; enforces exact window edges and resource limits; detects changed inputs; and emits a strict installed result schema with conservative PASS, FAIL or INCONCLUSIVE outcomes.
 
 ### Compatibility
 
-- The 1.3 authoring surface does not execute comparisons or read datasets and receipts. Released recipes, suites, results, bundles, fingerprints, canonical bytes and exit codes remain unchanged.
+- The 1.3 alignment preflight is a separate opt-in command and does not execute parity or relationship checks. Released recipes, suites, results, bundles, fingerprints, canonical bytes and exit codes remain unchanged.
 
 ## 1.2.0 - 2026-10-15
 

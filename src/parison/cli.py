@@ -13,7 +13,7 @@ from .catalog import add as catalog_add, diff as catalog_diff, history as catalo
 from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, export_statement, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, report_cutover, run_suite, terminal_result, validate_inputs, verify_bundle, verify_statement
 from .evolution import compile_evolution_mappings, diff_policies, explain_evolution, load_evolution, summarize_policy_diff
 from .project import init_project
-from .reconciliation import explain_reconciliation, explain_time_alignment, load_reconciliation, load_time_alignment
+from .reconciliation import explain_reconciliation, explain_time_alignment, load_reconciliation, load_time_alignment, preflight_alignment
 
 
 def _shell_command(parts: list[str]) -> str:
@@ -105,8 +105,16 @@ def parser() -> argparse.ArgumentParser:
     validate_reconciliation.add_argument("reconciliation")
     explain_reconciliation_parser = commands.add_parser("explain-reconciliation", help="print normalized reconciliation and its fingerprint")
     explain_reconciliation_parser.add_argument("reconciliation")
+    alignment_preflight = commands.add_parser("preflight-alignment", help="scan event windows and evaluate coordination claims")
+    alignment_preflight.add_argument("--alignment", required=True)
+    alignment_preflight.add_argument("--reconciliation", required=True)
+    alignment_preflight.add_argument("--receipt", required=True)
+    alignment_preflight.add_argument("--dataset", action="append", nargs=4, metavar=("ID", "RECIPE", "BASELINE", "CANDIDATE"), required=True)
+    alignment_preflight.add_argument("--max-input-bytes", type=int, default=1_000_000_000)
+    alignment_preflight.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000)
+    alignment_preflight.add_argument("--max-rows", type=int, default=5_000_000)
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2", "statement", "schema-evolution", "policy-diff", "time-alignment", "reconciliation"))
+    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2", "statement", "schema-evolution", "policy-diff", "time-alignment", "reconciliation", "alignment-preflight"))
     schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
     schema_export.add_argument("--output", required=True)
     suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
@@ -344,6 +352,17 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(explain_reconciliation(args.reconciliation), indent=2, sort_keys=True))
             print(f"Explained reconciliation: {args.reconciliation}", file=sys.stderr)
             return 0
+        if args.command == "preflight-alignment":
+            if len({item[0] for item in args.dataset}) != len(args.dataset):
+                raise ParisonError("--dataset IDs must be unique")
+            inputs = {item[0]: {"recipe": item[1], "baseline": item[2], "candidate": item[3]} for item in args.dataset}
+            result = preflight_alignment(
+                args.alignment, args.reconciliation, args.receipt, inputs,
+                args.max_input_bytes, args.max_decoded_bytes, args.max_rows,
+            )
+            print(json.dumps(result, indent=2, sort_keys=True))
+            print("Alignment preflight checks supplied local evidence; it does not establish extraction truth or authorize cutover.", file=sys.stderr)
+            return OUTCOME_CODES[result["outcome"]]
         if args.command == "schema":
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))
             return 0

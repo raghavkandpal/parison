@@ -8,7 +8,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from parison.core import ParisonError
+from parison.core import (
+    ParisonError,
+    _decoded_sizes,
+    _digest as file_digest,
+    _iter_input_rows,
+    _normalize,
+    _parse_input,
+    _source_bytes,
+    _source_digest,
+    _source_name,
+    explain_recipe,
+    load_recipe,
+)
 
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -185,13 +197,13 @@ def normalize_reconciliation(value: Any) -> dict[str, Any]:
     datasets, dataset_columns = [], {}
     for index, item in enumerate(value["datasets"]):
         where = f"datasets[{index}]"
-        _exact(item, {"id", "recipe_sha256", "columns"}, where)
+        _exact(item, {"id", "policy_sha256", "columns"}, where)
         dataset_id = _identifier(item["id"], f"{where}.id")
         if dataset_id in dataset_columns:
             raise ParisonError(f"duplicate dataset id {dataset_id!r}")
         columns = _columns(item["columns"], f"{where}.columns")
         dataset_columns[dataset_id] = {column["name"]: column["type"] for column in columns}
-        datasets.append({"id": dataset_id, "recipe_sha256": _digest(item["recipe_sha256"], f"{where}.recipe_sha256"), "columns": columns})
+        datasets.append({"id": dataset_id, "policy_sha256": _digest(item["policy_sha256"], f"{where}.policy_sha256"), "columns": columns})
 
     if not isinstance(value["checks"], list) or not value["checks"]:
         raise ParisonError("checks must be a nonempty array")
@@ -314,3 +326,117 @@ def load_reconciliation(path: str | Path) -> dict[str, Any]:
 def explain_reconciliation(path: str | Path) -> dict[str, Any]:
     normalized = load_reconciliation(path)
     return {**normalized, "reconciliation_sha256": hashlib.sha256(_canonical(normalized)).hexdigest()}
+
+
+def preflight_alignment(
+    alignment_path: str | Path,
+    reconciliation_path: str | Path,
+    receipt_path: str | Path,
+    inputs: dict[str, dict[str, str | Path]],
+    max_input_bytes: int = 1_000_000_000,
+    max_decoded_bytes: int = 1_000_000_000,
+    max_rows: int = 5_000_000,
+) -> dict[str, Any]:
+    """Scan event-time scope and evaluate source-owned coordination claims."""
+    if max_input_bytes <= 0 or max_rows <= 0:
+        raise ParisonError("input byte and row limits must be positive")
+    alignment = explain_time_alignment(alignment_path)
+    reconciliation = explain_reconciliation(reconciliation_path)
+    if reconciliation["alignment_sha256"] != alignment["alignment_sha256"]:
+        raise ParisonError("reconciliation alignment_sha256 does not match the time alignment declaration")
+    aligned = {item["id"]: item for item in alignment["datasets"]}
+    reconciled = {item["id"]: item for item in reconciliation["datasets"]}
+    if set(aligned) != set(reconciled) or set(inputs) != set(aligned):
+        raise ParisonError("alignment, reconciliation and runtime input dataset ids must match exactly")
+    for dataset_id, runtime in inputs.items():
+        _identifier(dataset_id, "runtime dataset id")
+        _exact(runtime, {"recipe", "baseline", "candidate"}, f"runtime dataset {dataset_id!r}")
+
+    receipt = Path(receipt_path)
+    if receipt.is_symlink() or not receipt.is_file():
+        raise ParisonError("coordination receipt must be a regular non-symlink file")
+    receipt_sha256 = file_digest(receipt)
+    if receipt_sha256 != alignment["coordination"]["receipt_sha256"]:
+        raise ParisonError("coordination receipt SHA-256 does not match the declaration")
+
+    sources = tuple(inputs[dataset_id][side] for dataset_id in sorted(inputs) for side in ("baseline", "candidate"))
+    if sum(_source_bytes(source) for source in sources) > max_input_bytes:
+        raise ParisonError(f"combined input size exceeds limit {max_input_bytes} bytes")
+    decoded_sizes = _decoded_sizes(sources, max_decoded_bytes)
+    before = {str(source): _source_digest(source) for source in sources}
+    start = datetime.fromisoformat(alignment["event_window"]["start"][:-1] + "+00:00")
+    end = datetime.fromisoformat(alignment["event_window"]["end"][:-1] + "+00:00")
+    results = []
+    for dataset_id in sorted(inputs):
+        runtime, declaration, contract = inputs[dataset_id], aligned[dataset_id], reconciled[dataset_id]
+        recipe = load_recipe(runtime["recipe"])
+        policy = explain_recipe(runtime["recipe"])
+        if policy["policy_sha256"] != contract["policy_sha256"]:
+            raise ParisonError(f"dataset {dataset_id!r} policy SHA-256 does not match reconciliation")
+        event_column = declaration["event_time_column"]
+        if event_column not in recipe["columns"] or recipe["columns"][event_column]["type"] != "timestamp":
+            raise ParisonError(f"dataset {dataset_id!r} event_time_column must name a configured timestamp")
+        declared_columns = {column["name"]: column["type"] for column in contract["columns"]}
+        actual_columns = {name: configured["type"] for name, configured in recipe["columns"].items()}
+        if declared_columns != actual_columns:
+            raise ParisonError(f"dataset {dataset_id!r} semantic columns do not match its effective recipe")
+        sides = {}
+        for side in ("baseline", "candidate"):
+            counts = {"rows": 0, "in_window": 0, "before_window": 0, "at_or_after_end": 0, "null_event_time": 0, "invalid_event_time": 0}
+            for raw in _iter_input_rows(runtime[side], recipe, max_rows, side, decoded_sizes):
+                counts["rows"] += 1
+                raw_value = raw.get(_source_name(recipe, event_column, side))
+                if raw_value is None:
+                    counts["null_event_time"] += 1
+                    continue
+                try:
+                    timestamp = _normalize(_parse_input(raw_value, recipe["columns"][event_column], event_column, recipe), recipe["columns"][event_column])
+                except ParisonError:
+                    counts["invalid_event_time"] += 1
+                    continue
+                if timestamp is None:
+                    counts["null_event_time"] += 1
+                    continue
+                if timestamp < start:
+                    counts["before_window"] += 1
+                elif timestamp >= end:
+                    counts["at_or_after_end"] += 1
+                else:
+                    counts["in_window"] += 1
+            sides[side] = counts
+        results.append({"id": dataset_id, "sides": sides})
+    if any(_source_digest(source) != digest for source, digest in before.items()):
+        raise ParisonError("an input changed while alignment was being checked")
+
+    data_failure = any(
+        counts[field]
+        for dataset in results for counts in dataset["sides"].values()
+        for field in ("before_window", "at_or_after_end", "null_event_time", "invalid_event_time")
+    )
+    coordination = alignment["coordination"]
+    reasons = []
+    coordination_status = "PASS"
+    if coordination["mode"] == "watermark":
+        insufficient = [item["id"] for item in alignment["datasets"] if datetime.fromisoformat(item["watermark"][:-1] + "+00:00") < end]
+        if insufficient:
+            coordination_status, reasons = "FAIL", ["watermark-before-window-end"]
+        elif coordination["watermark_kind"] == "heuristic":
+            coordination_status, reasons = "INCONCLUSIVE", ["heuristic-watermark"]
+    elif coordination["mode"] == "declared-cutoff":
+        coordination_status, reasons = "INCONCLUSIVE", ["coordination-not-machine-established"]
+    outcome = "FAIL" if data_failure or coordination_status == "FAIL" else "INCONCLUSIVE" if coordination_status == "INCONCLUSIVE" else "PASS"
+    if data_failure:
+        reasons.append("event-time-scope-failed")
+    return {
+        "alignment_preflight_version": 1,
+        "outcome": outcome,
+        "alignment_status": "FAIL" if data_failure else coordination_status,
+        "reason_codes": sorted(set(reasons)),
+        "alignment_sha256": alignment["alignment_sha256"],
+        "reconciliation_sha256": reconciliation["reconciliation_sha256"],
+        "receipt_sha256": receipt_sha256,
+        "coordination_mode": coordination["mode"],
+        "event_window": alignment["event_window"],
+        "datasets": results,
+        "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows},
+    }

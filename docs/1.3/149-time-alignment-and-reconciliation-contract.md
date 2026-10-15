@@ -2,13 +2,13 @@
 
 Date: 15 October 2026
 
-Status: **frozen authoring contract; execution not yet implemented**
+Status: **frozen contract; alignment preflight implemented; relationship execution pending**
 
 ## Purpose and boundary
 
 These opt-in declarations define the policy boundary for a future local multi-dataset verification run. `time-alignment-v1` fixes one event-time interval and binds source-owned coordination claims. `reconciliation-v1` names the logical datasets and the only relationship checks v1 may execute.
 
-Validation and fingerprints do not read datasets or receipts. They do not prove that an extraction is complete, that a receipt is authentic, or that a cutover is approved. Released recipe, suite, result, bundle and exit-code meanings remain unchanged.
+Authoring validation and fingerprints do not read datasets or receipts. Alignment preflight separately scans supplied local rows and binds receipt bytes, but does not prove that an extraction is complete, that a receipt is authentic, or that a cutover is approved. Released recipe, suite, result, bundle and exit-code meanings remain unchanged.
 
 ## Canonical form
 
@@ -76,7 +76,7 @@ Malformed timestamps, missing receipt bytes, digest mismatch, inconsistent token
   "datasets": [
     {
       "id": "orders",
-      "recipe_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "policy_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
       "columns": [
         {"name": "order_id", "type": "string"},
         {"name": "amount", "type": "decimal"}
@@ -144,11 +144,16 @@ parison validate-time-alignment alignment.json
 parison explain-time-alignment alignment.json
 parison validate-reconciliation reconciliation.json
 parison explain-reconciliation reconciliation.json
+parison preflight-alignment --alignment alignment.json --reconciliation reconciliation.json --receipt receipt.json \
+  --dataset orders orders.recipe.json old-orders.csv new-orders.csv
 parison schema time-alignment
 parison schema reconciliation
+parison schema alignment-preflight
 ```
 
 The validation commands establish authoring validity only. The explain commands print normalized declarations and their fingerprints without reading data or receipts. Draft 2020-12 schemas provide structural validation; the commands additionally enforce cross-object uniqueness, referential resolution, type/arity matching, token-domain equality and acyclicity.
+
+`preflight-alignment` requires one `--dataset ID RECIPE BASELINE CANDIDATE` group for every declared dataset. It requires exact agreement among alignment, reconciliation and runtime dataset IDs; verifies the receipt, alignment and effective-policy fingerprints before scanning; enforces the combined byte, decoded-byte and per-input row limits; and rejects inputs changed during the scan. Its strict `alignment-preflight-v1` result contains only bound fingerprints, the fixed window, stable dataset IDs and aggregate event-time counts—never paths or timestamp values. Exit codes retain the released outcome mapping: 0 PASS, 1 FAIL, 2 input error and 3 INCONCLUSIVE.
 
 ## Compatibility
 

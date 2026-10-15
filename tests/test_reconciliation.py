@@ -9,8 +9,8 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, load_schema
-from parison.reconciliation import canonical_reconciliation_bytes, canonical_time_alignment_bytes, explain_reconciliation, explain_time_alignment, normalize_reconciliation, normalize_time_alignment
+from parison.core import ParisonError, explain_recipe, load_schema
+from parison.reconciliation import canonical_reconciliation_bytes, canonical_time_alignment_bytes, explain_reconciliation, explain_time_alignment, normalize_reconciliation, normalize_time_alignment, preflight_alignment
 
 
 ROOT = Path(__file__).parents[1]
@@ -44,8 +44,8 @@ def reconciliation():
         "reconciliation_version": 1,
         "alignment_sha256": "b" * 64,
         "datasets": [
-            {"id": "payments", "recipe_sha256": "c" * 64, "columns": [{"name": "payout_id", "type": "string"}, {"name": "amount", "type": "decimal"}]},
-            {"id": "payouts", "recipe_sha256": "d" * 64, "columns": [{"name": "payout_id", "type": "string"}, {"name": "amount", "type": "decimal"}]},
+            {"id": "payments", "policy_sha256": "c" * 64, "columns": [{"name": "payout_id", "type": "string"}, {"name": "amount", "type": "decimal"}]},
+            {"id": "payouts", "policy_sha256": "d" * 64, "columns": [{"name": "payout_id", "type": "string"}, {"name": "amount", "type": "decimal"}]},
         ],
         "checks": [
             {"id": "payout-id", "kind": "identity", "dataset": "payouts", "columns": ["payout_id"], "nulls": "forbid"},
@@ -56,6 +56,44 @@ def reconciliation():
 
 
 class ReconciliationContracts(unittest.TestCase):
+    def _preflight_files(self, directory, mode="source-snapshot", timestamp="2026-09-01T00:00:00Z"):
+        receipt = directory / "receipt.json"
+        receipt.write_text('{"source":"fixture"}\n', encoding="utf-8")
+        value = alignment(mode)
+        import hashlib
+        value["coordination"]["receipt_sha256"] = hashlib.sha256(receipt.read_bytes()).hexdigest()
+        alignment_path = directory / "alignment.json"
+        alignment_path.write_text(json.dumps(value), encoding="utf-8")
+        recipe = {
+            "recipe_version": 1, "comparison_mode": "keyed", "keys": ["payout_id"],
+            "scope": {"snapshot": "fixture", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+            "identity": {"null_keys": "reject", "duplicates": "reject"}, "nulls_equal": True,
+            "null_tokens": {"baseline": [], "candidate": []},
+            "columns": {"payout_id": {"type": "string", "comparison": "exact"}, "occurred_at": {"type": "timestamp", "comparison": "exact", "timezone": "require-aware"}, "amount": {"type": "decimal", "comparison": "exact", "scale": 2}},
+            "column_mappings": {}, "excluded_columns": {}, "delimiters": {"baseline": ",", "candidate": ","},
+            "input_projection": "semantic-scalar-v1", "output": {"sensitivity": "summary"},
+        }
+        recipe_path = directory / "recipe.json"
+        recipe_path.write_text(json.dumps(recipe), encoding="utf-8")
+        policy_sha256 = explain_recipe(recipe_path)["policy_sha256"]
+        reconciliation_value = {
+            "reconciliation_version": 1,
+            "alignment_sha256": explain_time_alignment(alignment_path)["alignment_sha256"],
+            "datasets": [{"id": dataset_id, "policy_sha256": policy_sha256, "columns": [{"name": "payout_id", "type": "string"}, {"name": "occurred_at", "type": "timestamp"}, {"name": "amount", "type": "decimal"}]} for dataset_id in ("payments", "payouts")],
+            "checks": [{"id": "payout-id", "kind": "identity", "dataset": "payouts", "columns": ["payout_id"], "nulls": "forbid"}],
+        }
+        reconciliation_path = directory / "reconciliation.json"
+        reconciliation_path.write_text(json.dumps(reconciliation_value), encoding="utf-8")
+        sources = {}
+        for dataset_id in ("payments", "payouts"):
+            sides = {}
+            for side in ("baseline", "candidate"):
+                path = directory / f"{dataset_id}-{side}.csv"
+                path.write_text(f"payout_id,occurred_at,amount\np-1,{timestamp},1.00\n", encoding="utf-8")
+                sides[side] = path
+            sources[dataset_id] = {"recipe": recipe_path, **sides}
+        return alignment_path, reconciliation_path, receipt, sources
+
     def test_installed_schemas_accept_contracts_and_reject_unknown_fields(self):
         for name, value in (("time-alignment", alignment()), ("reconciliation", reconciliation())):
             schema = load_schema(name)
@@ -123,6 +161,45 @@ class ReconciliationContracts(unittest.TestCase):
                 with redirect_stdout(StringIO()) as stdout, redirect_stderr(StringIO()):
                     self.assertEqual(main([f"explain-{command}", str(path)]), 0)
                     self.assertRegex(json.loads(stdout.getvalue())[digest], "^[0-9a-f]{64}$")
+
+    def test_alignment_preflight_pass_fail_and_inconclusive(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary))
+            result = preflight_alignment(*files)
+            self.assertEqual((result["outcome"], result["alignment_status"]), ("PASS", "PASS"))
+            self.assertEqual(result["datasets"][0]["sides"]["baseline"]["in_window"], 1)
+            Draft202012Validator(load_schema("alignment-preflight")).validate(result)
+            arguments = ["preflight-alignment", "--alignment", str(files[0]), "--reconciliation", str(files[1]), "--receipt", str(files[2])]
+            for dataset_id, runtime in files[3].items():
+                arguments.extend(["--dataset", dataset_id, str(runtime["recipe"]), str(runtime["baseline"]), str(runtime["candidate"])])
+            with redirect_stdout(StringIO()) as stdout, redirect_stderr(StringIO()):
+                self.assertEqual(main(arguments), 0)
+                self.assertEqual(json.loads(stdout.getvalue())["outcome"], "PASS")
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary), timestamp="2026-10-01T00:00:00Z")
+            result = preflight_alignment(*files)
+            self.assertEqual(result["outcome"], "FAIL")
+            self.assertEqual(result["reason_codes"], ["event-time-scope-failed"])
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary), mode="declared-cutoff")
+            result = preflight_alignment(*files)
+            self.assertEqual(result["outcome"], "INCONCLUSIVE")
+            self.assertEqual(result["reason_codes"], ["coordination-not-machine-established"])
+
+    def test_alignment_preflight_watermark_and_receipt_fail_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary), mode="watermark")
+            self.assertEqual(preflight_alignment(*files)["outcome"], "PASS")
+            value = json.loads(files[0].read_text(encoding="utf-8"))
+            value["datasets"][0]["watermark"] = "2026-09-30T23:59:59.999999Z"
+            files[0].write_text(json.dumps(value), encoding="utf-8")
+            reconciliation_value = json.loads(files[1].read_text(encoding="utf-8"))
+            reconciliation_value["alignment_sha256"] = explain_time_alignment(files[0])["alignment_sha256"]
+            files[1].write_text(json.dumps(reconciliation_value), encoding="utf-8")
+            self.assertEqual(preflight_alignment(*files)["outcome"], "FAIL")
+            files[2].write_text("changed", encoding="utf-8")
+            with self.assertRaisesRegex(ParisonError, "receipt SHA-256"):
+                preflight_alignment(*files)
 
 
 if __name__ == "__main__":
