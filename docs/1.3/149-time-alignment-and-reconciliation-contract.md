@@ -154,7 +154,9 @@ parison check-conservation --reconciliation reconciliation.json \
   --dataset lines lines.recipe.json old-lines.csv new-lines.csv
 parison reconcile --alignment alignment.json --reconciliation reconciliation.json --receipt receipt.json \
   --dataset orders orders.recipe.json old-orders.csv new-orders.csv \
-  --dataset lines lines.recipe.json old-lines.csv new-lines.csv --summary
+  --dataset lines lines.recipe.json old-lines.csv new-lines.csv --output evidence
+parison verify evidence
+parison inspect evidence
 parison schema time-alignment
 parison schema reconciliation
 parison schema alignment-preflight
@@ -169,6 +171,8 @@ The validation commands establish authoring validity only. The explain commands 
 `check-conservation` evaluates every declared grouped sum independently on baseline and candidate. Measures are restricted to matching integer or scaled-decimal domains, matching aggregate-v1's deterministic sum boundary; float accumulation is not admitted. Results distinguish exact, within-tolerance and different groups, child-only groups, parents without children, duplicate parents and rejected null measures without exposing keys or values. Memory and bounded SQLite engines are semantically equivalent. Per-dataset parity and the overall reconciliation reduction remain separate pending gates.
 
 `reconcile` is the composed local gate. It verifies alignment first, executes each dataset's existing keyed, aggregate or multiset recipe, runs identity/reference checks and any conservation checks independently on both sides, then reduces outcomes in the frozen order: any FAIL, otherwise any INCONCLUSIVE, otherwise PASS. It captures input identities before the first component and verifies them again after the last. `--summary` removes dataset and check identifiers plus detailed counts, retaining only bound fingerprints, status/reason codes and outcome counts. Neither form contains paths, keys, groups, values, samples, snapshot tokens or receipt contents.
+
+With `--output`, `reconcile` atomically publishes a no-overwrite bundle containing the full result, summary-safe projection and normalized declarations. The manifest binds every file; the full result binds each baseline/candidate input digest and the receipt digest without copying source data or receipt contents. Staging is private and removed on error or interruption. Standard `verify` and `inspect` recognize reconciliation bundles; verification checks file integrity, declaration fingerprints, dataset/check membership, conservative outcome reduction and summary derivation. Inspection returns only the summary-safe projection plus manifest identity.
 
 ## Compatibility
 

@@ -3,7 +3,9 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
+import shutil
 import sqlite3
 import tempfile
 from collections import Counter
@@ -12,6 +14,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from parison import __version__
 from parison.core import (
     ParisonError,
     _decoded_sizes,
@@ -25,6 +28,8 @@ from parison.core import (
     _source_bytes,
     _source_digest,
     _source_name,
+    _check_output_parent,
+    _verify_manifest_files,
     compare,
     explain_recipe,
     load_recipe,
@@ -830,7 +835,7 @@ def run_reconciliation(
         "datasets": parity,
         "relationships": relationships["sides"],
         "conservation": conservation["sides"],
-        "runtime": {"execution_engine": engine},
+        "runtime": {"contract": "reconciliation-v1", "parison_version": __version__, "execution_engine": engine},
         "resource_limits": {
             "max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes,
             "max_rows_per_input": max_rows, "max_keys_per_identity": max_keys,
@@ -860,3 +865,128 @@ def summarize_reconciliation_result(result: dict[str, Any]) -> dict[str, Any]:
         "dataset_outcome_counts": component_counts,
         "relationship_outcome_counts": relationship_counts,
     }
+
+
+def publish_reconciliation_bundle(
+    output: str | Path,
+    result: dict[str, Any],
+    alignment_path: str | Path,
+    reconciliation_path: str | Path,
+) -> None:
+    target = Path(output)
+    if target.exists():
+        raise ParisonError(f"output already exists: {target}")
+    alignment, declaration = explain_time_alignment(alignment_path), explain_reconciliation(reconciliation_path)
+    if result.get("alignment_sha256") != alignment["alignment_sha256"] or result.get("reconciliation_sha256") != declaration["reconciliation_sha256"]:
+        raise ParisonError("result fingerprints do not match declarations")
+    stage = None
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _check_output_parent(target.parent)
+        stage = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent))
+        os.chmod(stage, 0o700)
+        payloads = {
+            "reconciliation-result.json": result,
+            "summary.json": summarize_reconciliation_result(result),
+            "effective-alignment.json": {key: value for key, value in alignment.items() if key != "alignment_sha256"},
+            "effective-reconciliation.json": {key: value for key, value in declaration.items() if key != "reconciliation_sha256"},
+        }
+        for name, value in payloads.items():
+            (stage / name).write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        files = {name: file_digest(stage / name) for name in sorted(payloads)}
+        manifest = {
+            "schema_version": 1,
+            "kind": "reconciliation",
+            "complete": result["complete"],
+            "outcome": result["outcome"],
+            "sensitivity": "raw",
+            "runtime": result["runtime"],
+            "files": files,
+        }
+        (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if target.exists():
+            raise ParisonError(f"output already exists: {target}")
+        os.replace(stage, target)
+        stage = None
+    except ParisonError:
+        raise
+    except OSError as exc:
+        raise ParisonError(f"cannot publish reconciliation bundle: {exc}") from exc
+    finally:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+
+
+def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
+    root = Path(directory)
+    manifest_path = root / "manifest.json"
+    if root.is_symlink() or not root.is_dir() or manifest_path.is_symlink() or not manifest_path.is_file():
+        raise ParisonError("reconciliation bundle is missing or unsafe")
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+        manifest = json.loads(manifest_bytes, object_pairs_hook=_object)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read reconciliation manifest: {exc}") from exc
+    expected = {"schema_version", "kind", "complete", "outcome", "sensitivity", "runtime", "files"}
+    if not isinstance(manifest, dict) or set(manifest) != expected or manifest.get("schema_version") != 1 or manifest.get("kind") != "reconciliation" or manifest.get("complete") is not True:
+        raise ParisonError("reconciliation manifest is incomplete or unsupported")
+    if manifest.get("outcome") not in {"PASS", "FAIL", "INCONCLUSIVE"} or manifest.get("sensitivity") != "raw":
+        raise ParisonError("reconciliation manifest has invalid metadata")
+    _verify_manifest_files(root, manifest["files"], {"reconciliation-result.json", "summary.json", "effective-alignment.json", "effective-reconciliation.json"})
+    try:
+        result = json.loads((root / "reconciliation-result.json").read_text(encoding="utf-8"), object_pairs_hook=_object)
+        summary = json.loads((root / "summary.json").read_text(encoding="utf-8"), object_pairs_hook=_object)
+        alignment = json.loads((root / "effective-alignment.json").read_text(encoding="utf-8"), object_pairs_hook=_object)
+        declaration = json.loads((root / "effective-reconciliation.json").read_text(encoding="utf-8"), object_pairs_hook=_object)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read reconciliation bundle: {exc}") from exc
+    normalized_alignment, normalized_declaration = normalize_time_alignment(alignment), normalize_reconciliation(declaration)
+    alignment_sha256 = hashlib.sha256(_canonical(normalized_alignment)).hexdigest()
+    reconciliation_sha256 = hashlib.sha256(_canonical(normalized_declaration)).hexdigest()
+    required_result = {"reconciliation_result_version", "outcome", "complete", "alignment_sha256", "reconciliation_sha256", "receipt_sha256", "alignment", "datasets", "relationships", "conservation", "runtime", "resource_limits"}
+    dataset_ids = [item["id"] for item in normalized_declaration["datasets"]]
+    relationship_checks = [(item["id"], item["kind"]) for item in normalized_declaration["checks"] if item["kind"] in {"identity", "reference"}]
+    conservation_checks = [(item["id"], item["kind"]) for item in normalized_declaration["checks"] if item["kind"] == "conservation"]
+    if not isinstance(result, dict) or set(result) != required_result or result.get("reconciliation_result_version") != 1 or result.get("complete") is not True:
+        raise ParisonError("reconciliation result is incomplete or unsupported")
+    if [item.get("id") for item in result.get("datasets", []) if isinstance(item, dict)] != dataset_ids or len(result.get("datasets", [])) != len(dataset_ids):
+        raise ParisonError("reconciliation result datasets do not match declaration")
+    if [item.get("id") for item in result.get("alignment", {}).get("datasets", []) if isinstance(item, dict)] != dataset_ids:
+        raise ParisonError("alignment result datasets do not match declaration")
+    component_outcomes = [result.get("alignment", {}).get("outcome")]
+    for field, expected_checks in (("relationships", relationship_checks), ("conservation", conservation_checks)):
+        sides = result.get(field)
+        if not isinstance(sides, dict) or set(sides) != {"baseline", "candidate"}:
+            raise ParisonError(f"reconciliation result has invalid {field}")
+        for side in ("baseline", "candidate"):
+            observed = sides[side]
+            if not isinstance(observed, list) or [(item.get("id"), item.get("kind")) for item in observed if isinstance(item, dict)] != expected_checks:
+                raise ParisonError(f"reconciliation result {field} do not match declaration")
+            for item in observed:
+                if set(item) != {"id", "kind", "outcome", "counts"} or item["outcome"] not in {"PASS", "FAIL"} or not isinstance(item["counts"], dict) or any(type(value) is not int or value < 0 for value in item["counts"].values()):
+                    raise ParisonError(f"reconciliation result has invalid {field} counts")
+                component_outcomes.append(item["outcome"])
+    for item in result["datasets"]:
+        if set(item) != {"id", "outcome", "complete", "schema_version", "contract", "policy_sha256", "baseline_sha256", "candidate_sha256", "discrepancy_count"} or item["outcome"] not in {"PASS", "FAIL", "INCONCLUSIVE"}:
+            raise ParisonError("reconciliation result has invalid dataset parity")
+        component_outcomes.append(item["outcome"])
+    expected_outcome = "FAIL" if "FAIL" in component_outcomes else "INCONCLUSIVE" if "INCONCLUSIVE" in component_outcomes else "PASS"
+    if (
+        result.get("alignment_sha256") != alignment_sha256
+        or result.get("reconciliation_sha256") != reconciliation_sha256
+        or normalized_declaration["alignment_sha256"] != alignment_sha256
+        or summary != summarize_reconciliation_result(result)
+        or manifest["outcome"] != result.get("outcome")
+        or manifest["runtime"] != result.get("runtime")
+        or result.get("outcome") != expected_outcome
+    ):
+        raise ParisonError("reconciliation bundle metadata is inconsistent")
+    if manifest_path.read_bytes() != manifest_bytes:
+        raise ParisonError("reconciliation bundle changed during verification")
+    return manifest
+
+
+def inspect_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
+    manifest = verify_reconciliation_bundle(directory)
+    summary = json.loads((Path(directory) / "summary.json").read_text(encoding="utf-8"))
+    return {"kind": "reconciliation", **summary, "runtime": manifest["runtime"], "bundle_sha256": file_digest(Path(directory) / "manifest.json"), "manifest_files": sorted(manifest["files"])}

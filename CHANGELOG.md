@@ -12,6 +12,7 @@ All notable changes will be documented in this file.
 - Per-side identity and reference execution with explicit null semantics, duplicate-parent protection, aggregate-only diagnostics, deterministic ordering, input-change detection and equivalent bounded memory/SQLite engines.
 - Per-side grouped-sum conservation over matching integer or scaled-decimal measures, including exact and symmetric tolerance comparison, closed null behavior, distinct failure counts and equivalent bounded memory/SQLite engines.
 - A composed `reconcile` gate that runs alignment, existing per-dataset parity and all declared relationships under one input-change guard, applies conservative FAIL-before-INCONCLUSIVE reduction and offers a summary-safe projection without dataset/check identifiers or detailed counts.
+- Atomic no-overwrite reconciliation bundles with private staging, manifest-bound full and summary evidence, normalized declarations, standard verification and summary-safe inspection.
 
 ### Compatibility
 

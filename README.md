@@ -22,7 +22,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **1.2.0 released.** Opt-in semantic scalar projection now gives mixed-format comparisons a closed conversion boundary, while local schema-evolution declarations and policy diffs explain reviewed renames and structural changes without reading datasets or granting approval.
 
-**1.3 in development.** Frozen `time-alignment-v1` and `reconciliation-v1` contracts define one UTC half-open event window, source-owned coordination claims and a closed identity/reference/grouped-sum vocabulary. `parison reconcile` now composes alignment, existing per-dataset parity and memory/SQLite relationship checks with conservative outcomes and a summary-safe projection; deterministic bundle publication and full qualification remain pending.
+**1.3 in development.** Frozen `time-alignment-v1` and `reconciliation-v1` contracts define one UTC half-open event window, source-owned coordination claims and a closed identity/reference/grouped-sum vocabulary. `parison reconcile` composes alignment, existing per-dataset parity and memory/SQLite relationship checks with conservative outcomes, atomic verified bundles and summary-safe inspection; full workflow and built-wheel qualification remain pending.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 

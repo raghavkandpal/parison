@@ -9,8 +9,8 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, explain_recipe, load_schema
-from parison.reconciliation import canonical_reconciliation_bytes, canonical_time_alignment_bytes, check_conservation, check_identity_references, explain_reconciliation, explain_time_alignment, normalize_reconciliation, normalize_time_alignment, preflight_alignment, run_reconciliation, summarize_reconciliation_result
+from parison.core import ParisonError, explain_recipe, inspect_bundle, load_schema, verify_bundle
+from parison.reconciliation import canonical_reconciliation_bytes, canonical_time_alignment_bytes, check_conservation, check_identity_references, explain_reconciliation, explain_time_alignment, inspect_reconciliation_bundle, normalize_reconciliation, normalize_time_alignment, preflight_alignment, publish_reconciliation_bundle, run_reconciliation, summarize_reconciliation_result, verify_reconciliation_bundle
 
 
 ROOT = Path(__file__).parents[1]
@@ -300,6 +300,40 @@ class ReconciliationContracts(unittest.TestCase):
             self.assertEqual(run_reconciliation(*files)["outcome"], "INCONCLUSIVE")
             files[3]["payments"]["candidate"].write_text("payout_id,occurred_at,amount\nother,2026-09-01T00:00:00Z,1.00\n", encoding="utf-8")
             self.assertEqual(run_reconciliation(*files)["outcome"], "FAIL")
+
+    def test_reconciliation_bundle_is_atomic_verified_and_summary_safe(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            result = run_reconciliation(*files)
+            bundle = root / "bundle"
+            publish_reconciliation_bundle(bundle, result, files[0], files[1])
+            self.assertEqual(verify_reconciliation_bundle(bundle)["outcome"], "PASS")
+            self.assertEqual(verify_bundle(bundle)["kind"], "reconciliation")
+            inspected = inspect_reconciliation_bundle(bundle)
+            self.assertEqual(inspect_bundle(bundle), inspected)
+            self.assertEqual(inspected["kind"], "reconciliation")
+            self.assertNotIn("payout", json.dumps(inspected))
+            with self.assertRaisesRegex(ParisonError, "already exists"):
+                publish_reconciliation_bundle(bundle, result, files[0], files[1])
+            (bundle / "summary.json").write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(ParisonError, "integrity check"):
+                verify_reconciliation_bundle(bundle)
+
+    def test_reconcile_cli_publishes_and_verifies_bundle(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            bundle = root / "bundle"
+            arguments = ["reconcile", "--alignment", str(files[0]), "--reconciliation", str(files[1]), "--receipt", str(files[2]), "--output", str(bundle)]
+            for dataset_id, runtime in files[3].items():
+                arguments.extend(["--dataset", dataset_id, str(runtime["recipe"]), str(runtime["baseline"]), str(runtime["candidate"])])
+            with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                self.assertEqual(main(arguments), 0)
+            for command in ("verify-reconciliation", "inspect-reconciliation"):
+                with redirect_stdout(StringIO()) as stdout, redirect_stderr(StringIO()):
+                    self.assertEqual(main([command, str(bundle)]), 0)
+                    self.assertEqual(json.loads(stdout.getvalue())["outcome"], "PASS")
 
 
 if __name__ == "__main__":

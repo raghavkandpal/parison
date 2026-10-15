@@ -37,4 +37,6 @@ Grouped-sum conservation now uses matching integer or scaled-decimal domains, ag
 
 Composition now runs alignment, existing per-dataset parity and all declared relationship checks under one input-change guard, then applies conservative FAIL-before-INCONCLUSIVE outcome reduction. A summary-safe projection removes dataset/check identifiers and detailed counts.
 
-The next gate is deterministic atomic bundle publication, verification and realistic end-to-end qualification across formats and engines. The promotion gate in the research note remains authoritative.
+Deterministic atomic no-overwrite reconciliation bundles now bind the full result, summary-safe projection, normalized declarations, input identities and receipt identity. Standard verification checks integrity plus semantic membership/outcome/summary consistency; safe inspection exposes no dataset or check identifiers.
+
+The next gate is realistic end-to-end qualification across formats and engines, failure/interruption hardening, and built-wheel CI. The promotion gate in the research note remains authoritative.
