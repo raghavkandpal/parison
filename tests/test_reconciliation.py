@@ -242,6 +242,27 @@ class ReconciliationContracts(unittest.TestCase):
             self.assertEqual(baseline_reference["counts"]["orphan_rows"], 1)
             self.assertEqual(candidate_identity["counts"]["duplicate_keys"], 1)
 
+    def test_reference_null_policies_are_explicit(self):
+        for nulls, parent_null, expected_exempt in (("all-null-exempt", False, 1), ("match-null", True, 0)):
+            with self.subTest(nulls=nulls), tempfile.TemporaryDirectory() as temporary:
+                files = self._preflight_files(Path(temporary))
+                declaration = json.loads(files[1].read_text(encoding="utf-8"))
+                declaration["checks"][0]["nulls"] = "equal" if parent_null else "forbid"
+                declaration["checks"].append({"id": "payment-payout", "kind": "reference", "child_dataset": "payments", "child_columns": ["payout_id"], "parent_identity": "payout-id", "nulls": nulls})
+                files[1].write_text(json.dumps(declaration), encoding="utf-8")
+                for side in ("baseline", "candidate"):
+                    child = Path(temporary) / f"payments-{side}.jsonl"
+                    child.write_text('{"payout_id":null,"occurred_at":"2026-09-01T00:00:00Z","amount":"1.00"}\n', encoding="utf-8")
+                    files[3]["payments"][side] = child
+                    if parent_null:
+                        parent = Path(temporary) / f"payouts-{side}.jsonl"
+                        parent.write_text('{"payout_id":null,"occurred_at":"2026-09-01T00:00:00Z","amount":"1.00"}\n', encoding="utf-8")
+                        files[3]["payouts"][side] = parent
+                result = check_identity_references(files[1], files[3])
+                self.assertEqual(result["outcome"], "PASS")
+                reference = next(item for item in result["sides"]["baseline"] if item["kind"] == "reference")
+                self.assertEqual(reference["counts"]["exempt_rows"], expected_exempt)
+
     def test_conservation_memory_sqlite_equivalence_and_failures(self):
         with tempfile.TemporaryDirectory() as temporary:
             files = self._preflight_files(Path(temporary))
@@ -275,6 +296,22 @@ class ReconciliationContracts(unittest.TestCase):
             result = check_conservation(files[1], files[3])
             self.assertEqual(result["outcome"], "PASS")
             self.assertEqual(result["sides"]["candidate"][0]["counts"]["within_tolerance_groups"], 1)
+
+    def test_conservation_zero_nulls_negative_values_and_signed_zero(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary))
+            declaration = json.loads(files[1].read_text(encoding="utf-8"))
+            declaration["checks"].append({"id": "payout-total", "kind": "conservation", "parent_dataset": "payouts", "parent_identity": "payout-id", "parent_group_columns": ["payout_id"], "child_dataset": "payments", "child_group_columns": ["payout_id"], "parent_measure": "amount", "child_measure": "amount", "operator": "sum", "nulls": "zero", "comparison": "exact", "tolerance": None})
+            files[1].write_text(json.dumps(declaration), encoding="utf-8")
+            for side in ("baseline", "candidate"):
+                parent = Path(temporary) / f"payouts-{side}.jsonl"
+                child = Path(temporary) / f"payments-{side}.jsonl"
+                parent.write_text('{"payout_id":"p-1","occurred_at":"2026-09-01T00:00:00Z","amount":"-0.00"}\n', encoding="utf-8")
+                child.write_text('{"payout_id":"p-1","occurred_at":"2026-09-01T00:00:00Z","amount":null}\n', encoding="utf-8")
+                files[3]["payouts"][side], files[3]["payments"][side] = parent, child
+            result = check_conservation(files[1], files[3])
+            self.assertEqual(result["outcome"], "PASS")
+            self.assertEqual(result["sides"]["baseline"][0]["counts"]["exact_groups"], 1)
 
     def test_composed_reconciliation_and_summary_safety(self):
         with tempfile.TemporaryDirectory() as temporary:

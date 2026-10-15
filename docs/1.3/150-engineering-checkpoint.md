@@ -21,6 +21,7 @@ Status: **local capability gate passed; exact-commit CI pending**
 - Memory/SQLite byte identity is asserted for identity/reference, conservation and composed results.
 - Three end-to-end workflows cover a checked-in cross-format payout reconciliation, a relational migration where per-dataset parity passes but a reference fails, and a partitioned historical backfill where data checks pass but declared-cutoff alignment remains INCONCLUSIVE.
 - Alignment qualification includes exact edges, pre-epoch timestamps, upstream offset normalization, null and malformed times, missing or mismatched receipts, watermark boundaries and all three coordination modes.
+- Relationship qualification exercises forbid, all-null-exempt, match-null and zero-null behavior; conservation includes tolerance boundaries, decimal signed zero and negative-value normalization.
 - Interruption tests prove SQLite workspace and publication staging cleanup.
 - Released compatibility fixtures remain byte-identical and readable through the unchanged standard verifier.
 
