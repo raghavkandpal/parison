@@ -438,10 +438,28 @@ class ReconciliationContracts(unittest.TestCase):
                 check_identity_references(files[1], files[3], engine="sqlite", temp_directory=root)
             self.assertEqual(list(root.glob("parison-reconciliation-*")), [])
             result = run_reconciliation(*files)
-            with patch("parison.reconciliation.os.replace", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+            with patch("parison.reconciliation.os.rename", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
                 publish_reconciliation_bundle(root / "interrupted", result, files[0], files[1])
             self.assertFalse((root / "interrupted").exists())
             self.assertEqual(list(root.glob(".interrupted-*")), [])
+
+    def test_publication_does_not_replace_concurrently_created_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            result = run_reconciliation(*files)
+            target = root / "raced"
+            real_rename = __import__("os").rename
+
+            def race(source, destination):
+                Path(destination).mkdir()
+                (Path(destination) / "owner").write_text("other publisher", encoding="utf-8")
+                return real_rename(source, destination)
+
+            with patch("parison.reconciliation.os.rename", side_effect=race), self.assertRaisesRegex(ParisonError, "cannot publish"):
+                publish_reconciliation_bundle(target, result, files[0], files[1])
+            self.assertEqual((target / "owner").read_text(encoding="utf-8"), "other publisher")
+            self.assertEqual(list(root.glob(".raced-*")), [])
 
 
 if __name__ == "__main__":

@@ -15,14 +15,14 @@ Status: **local capability gate passed; exact-commit CI pending**
 
 ## Local evidence
 
-- `make check` passes 294 tests with 11 expected skips when optional Polars is absent.
+- `make check` passes 301 tests with 11 expected skips when optional Polars is absent.
 - Canonical byte fixtures cover both authoring contracts.
 - Focused tests cover all coordination modes, exact window edges, malformed timestamp rejection, duplicate IDs/checks, token-domain mismatch, negative lateness, type/arity mismatch, cycles, receipt mismatch, policy mismatch, FAIL-before-INCONCLUSIVE reduction and bundle tampering.
 - Memory/SQLite byte identity is asserted for identity/reference, conservation and composed results.
 - Three end-to-end workflows cover a checked-in cross-format payout reconciliation, a relational migration where per-dataset parity passes but a reference fails, and a partitioned historical backfill where data checks pass but declared-cutoff alignment remains INCONCLUSIVE.
 - Alignment qualification includes exact edges, pre-epoch timestamps, upstream offset normalization, null and malformed times, missing or mismatched receipts, watermark boundaries and all three coordination modes.
 - Relationship qualification exercises forbid, all-null-exempt, match-null and zero-null behavior; conservation includes tolerance boundaries, decimal signed zero and negative-value normalization.
-- Interruption tests prove SQLite workspace and publication staging cleanup.
+- Interruption and concurrent-target tests prove SQLite workspace cleanup, publication staging cleanup and preservation of a racing publisher's output.
 - Released compatibility fixtures remain byte-identical and readable through the unchanged standard verifier.
 
 ## Remaining release evidence

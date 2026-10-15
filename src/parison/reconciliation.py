@@ -889,7 +889,7 @@ def publish_reconciliation_bundle(
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         if target.exists():
             raise ParisonError(f"output already exists: {target}")
-        os.replace(stage, target)
+        os.rename(stage, target)
         stage = None
     except ParisonError:
         raise
