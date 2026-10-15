@@ -8,12 +8,14 @@ import sqlite3
 import tempfile
 from collections import Counter
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from parison.core import (
     ParisonError,
     _decoded_sizes,
+    _classify,
     _digest as file_digest,
     _iter_input_rows,
     _normalize,
@@ -283,8 +285,10 @@ def normalize_reconciliation(value: Any) -> dict[str, Any]:
             for field in ("parent_measure", "child_measure"):
                 dataset_id = check["parent_dataset"] if field == "parent_measure" else check["child_dataset"]
                 column = _identifier(check[field], f"{where}.{field}")
-                if dataset_columns[dataset_id].get(column) not in {"integer", "decimal", "float"}:
+                if dataset_columns[dataset_id].get(column) not in {"integer", "decimal"}:
                     raise ParisonError(f"{where}.{field} must name a numeric column")
+            if dataset_columns[check["parent_dataset"]][check["parent_measure"]] != dataset_columns[check["child_dataset"]][check["child_measure"]]:
+                raise ParisonError(f"{where} parent and child measure types must match")
             if check["operator"] != "sum" or not isinstance(check["nulls"], str) or check["nulls"] not in {"forbid", "zero"} or not isinstance(check["comparison"], str) or check["comparison"] not in {"exact", "tolerance"}:
                 raise ParisonError(f"{where} has unsupported conservation semantics")
             tolerance = check["tolerance"]
@@ -594,6 +598,157 @@ def check_identity_references(
         "sides": results,
         "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows, "max_keys_per_identity": max_keys},
     }
+    if engine == "sqlite":
+        output["resource_limits"]["max_temp_bytes"] = max_temp_bytes
+        output["temporary_bytes"] = temporary_bytes
+    return output
+
+
+def check_conservation(
+    reconciliation_path: str | Path,
+    inputs: dict[str, dict[str, str | Path]],
+    engine: str = "memory",
+    max_input_bytes: int = 1_000_000_000,
+    max_decoded_bytes: int = 1_000_000_000,
+    max_rows: int = 5_000_000,
+    max_groups: int = 100_000,
+    max_temp_bytes: int = 5_000_000_000,
+    temp_directory: str | Path | None = None,
+) -> dict[str, Any]:
+    """Evaluate reconciliation-v1 grouped-sum conservation on both sides."""
+    if engine not in {"memory", "sqlite"}:
+        raise ParisonError("engine must be memory or sqlite")
+    if any(limit <= 0 for limit in (max_input_bytes, max_decoded_bytes, max_rows, max_groups, max_temp_bytes)):
+        raise ParisonError("resource limits must be positive")
+    if engine == "memory" and temp_directory is not None:
+        raise ParisonError("temp_directory requires engine='sqlite'")
+    if temp_directory is not None and (Path(temp_directory).is_symlink() or not Path(temp_directory).is_dir()):
+        raise ParisonError("temp directory must be an existing non-symlink directory")
+    reconciliation = explain_reconciliation(reconciliation_path)
+    contracts = {item["id"]: item for item in reconciliation["datasets"]}
+    if set(inputs) != set(contracts):
+        raise ParisonError("reconciliation and runtime input dataset ids must match exactly")
+    sources = tuple(inputs[dataset_id][side] for dataset_id in sorted(inputs) for side in ("baseline", "candidate"))
+    if sum(_source_bytes(source) for source in sources) > max_input_bytes:
+        raise ParisonError(f"combined input size exceeds limit {max_input_bytes} bytes")
+    decoded_sizes = _decoded_sizes(sources, max_decoded_bytes)
+    before = {str(source): _source_digest(source) for source in sources}
+    recipes = {}
+    for dataset_id, runtime in inputs.items():
+        _exact(runtime, {"recipe", "baseline", "candidate"}, f"runtime dataset {dataset_id!r}")
+        recipe = load_recipe(runtime["recipe"])
+        if explain_recipe(runtime["recipe"])["policy_sha256"] != contracts[dataset_id]["policy_sha256"]:
+            raise ParisonError(f"dataset {dataset_id!r} policy SHA-256 does not match reconciliation")
+        declared = {column["name"]: column["type"] for column in contracts[dataset_id]["columns"]}
+        if declared != {name: configured["type"] for name, configured in recipe["columns"].items()}:
+            raise ParisonError(f"dataset {dataset_id!r} semantic columns do not match its effective recipe")
+        recipes[dataset_id] = recipe
+
+    checks = [check for check in reconciliation["checks"] if check["kind"] == "conservation"]
+    if not checks:
+        raise ParisonError("reconciliation declares no conservation checks")
+    results = {side: [] for side in ("baseline", "candidate")}
+
+    def rows(dataset_id: str, side: str):
+        recipe = recipes[dataset_id]
+        for raw in _iter_input_rows(inputs[dataset_id][side], recipe, max_rows, side, decoded_sizes):
+            yield _parse_row(raw, recipe, side)
+
+    def key(row: dict[str, Any], dataset_id: str, columns: list[str]) -> bytes:
+        return _multiset_encoding(tuple(row[column] for column in columns), columns, recipes[dataset_id])
+
+    parent = Path(temp_directory) if temp_directory is not None else None
+    workspace = tempfile.TemporaryDirectory(prefix="parison-conservation-", dir=parent) if engine == "sqlite" else None
+    connection = None
+    temporary_bytes = 0
+    try:
+        if workspace is not None:
+            database = Path(workspace.name) / "conservation.sqlite"
+            connection = sqlite3.connect(database)
+            page_size = int(connection.execute("PRAGMA page_size").fetchone()[0])
+            page_limit = max_temp_bytes // page_size
+            if page_limit < 4:
+                raise ParisonError(f"temporary storage limit {max_temp_bytes} bytes is too small")
+            connection.execute("PRAGMA journal_mode=OFF")
+            connection.execute("PRAGMA synchronous=OFF")
+            connection.execute(f"PRAGMA max_page_count={page_limit}")
+            connection.execute("CREATE TABLE groups (side TEXT NOT NULL, check_id TEXT NOT NULL, key BLOB NOT NULL, parent_count INTEGER NOT NULL DEFAULT 0, parent_value TEXT, child_count INTEGER NOT NULL DEFAULT 0, child_sum TEXT NOT NULL DEFAULT '0', PRIMARY KEY(side, check_id, key)) WITHOUT ROWID")
+
+        for side in ("baseline", "candidate"):
+            for check in checks:
+                groups: dict[bytes, dict[str, Any]] = {}
+                counts = {"parent_rows": 0, "child_rows": 0, "groups": 0, "compared_groups": 0, "exact_groups": 0, "within_tolerance_groups": 0, "different_groups": 0, "child_only_groups": 0, "parent_without_children_groups": 0, "duplicate_parent_groups": 0, "null_measure_rows": 0}
+                for role in ("parent", "child"):
+                    dataset_id = check[f"{role}_dataset"]
+                    columns = check[f"{role}_group_columns"]
+                    measure = check[f"{role}_measure"]
+                    for row in rows(dataset_id, side):
+                        counts[f"{role}_rows"] += 1
+                        encoded_key, value = key(row, dataset_id, columns), row[measure]
+                        if value is None:
+                            if check["nulls"] == "forbid":
+                                counts["null_measure_rows"] += 1
+                            value = 0
+                        if connection is None:
+                            state = groups.setdefault(encoded_key, {"parent_count": 0, "parent_value": None, "child_count": 0, "child_sum": 0})
+                            if len(groups) > max_groups:
+                                raise ParisonError(f"conservation {check['id']!r} exceeds group limit {max_groups}")
+                            if role == "parent":
+                                state["parent_count"] += 1
+                                state["parent_value"] = value
+                            else:
+                                state["child_count"] += 1
+                                state["child_sum"] += value
+                        else:
+                            connection.execute("INSERT OR IGNORE INTO groups (side, check_id, key) VALUES (?, ?, ?)", (side, check["id"], encoded_key))
+                            if role == "parent":
+                                connection.execute("UPDATE groups SET parent_count=parent_count+1, parent_value=? WHERE side=? AND check_id=? AND key=?", (str(value), side, check["id"], encoded_key))
+                            else:
+                                found = connection.execute("SELECT child_sum FROM groups WHERE side=? AND check_id=? AND key=?", (side, check["id"], encoded_key)).fetchone()
+                                total = Decimal(found[0]) + Decimal(str(value))
+                                connection.execute("UPDATE groups SET child_count=child_count+1, child_sum=? WHERE side=? AND check_id=? AND key=?", (str(total), side, check["id"], encoded_key))
+                if connection is not None:
+                    connection.commit()
+                    size = connection.execute("SELECT COUNT(*) FROM groups WHERE side=? AND check_id=?", (side, check["id"])).fetchone()[0]
+                    if size > max_groups:
+                        raise ParisonError(f"conservation {check['id']!r} exceeds group limit {max_groups}")
+                    records = connection.execute("SELECT parent_count, parent_value, child_count, child_sum FROM groups WHERE side=? AND check_id=? ORDER BY key", (side, check["id"]))
+                else:
+                    records = ((state["parent_count"], state["parent_value"], state["child_count"], state["child_sum"]) for _, state in sorted(groups.items()))
+                policy = {"comparison": "exact" if check["comparison"] == "exact" else "numeric", "tolerance": check["tolerance"]}
+                for parent_count, parent_value, child_count, child_sum in records:
+                    counts["groups"] += 1
+                    if not parent_count:
+                        counts["child_only_groups"] += 1
+                        continue
+                    if parent_count > 1:
+                        counts["duplicate_parent_groups"] += 1
+                        continue
+                    if not child_count:
+                        counts["parent_without_children_groups"] += 1
+                    counts["compared_groups"] += 1
+                    parent_numeric = Decimal(parent_value) if connection is not None else parent_value
+                    child_numeric = Decimal(child_sum) if connection is not None else child_sum
+                    classification, _, _ = _classify(parent_numeric, child_numeric, policy, True)
+                    counts[f"{classification}_groups"] += 1
+                failed = any(counts[field] for field in ("different_groups", "child_only_groups", "duplicate_parent_groups", "null_measure_rows"))
+                results[side].append({"id": check["id"], "kind": "conservation", "outcome": "FAIL" if failed else "PASS", "counts": counts})
+        if connection is not None:
+            connection.commit()
+            temporary_bytes = database.stat().st_size
+    except sqlite3.Error as exc:
+        if "full" in str(exc).lower():
+            raise ParisonError(f"temporary storage exceeds limit {max_temp_bytes} bytes") from exc
+        raise ParisonError(f"conservation spill database failed: {exc}") from exc
+    finally:
+        if connection is not None:
+            connection.close()
+        if workspace is not None:
+            workspace.cleanup()
+    if any(_source_digest(source) != digest for source, digest in before.items()):
+        raise ParisonError("an input changed while conservation was being checked")
+    outcome = "FAIL" if any(check["outcome"] == "FAIL" for side in results.values() for check in side) else "PASS"
+    output = {"conservation_result_version": 1, "outcome": outcome, "reconciliation_sha256": reconciliation["reconciliation_sha256"], "engine": engine, "sides": results, "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows, "max_groups_per_check": max_groups}}
     if engine == "sqlite":
         output["resource_limits"]["max_temp_bytes"] = max_temp_bytes
         output["temporary_bytes"] = temporary_bytes

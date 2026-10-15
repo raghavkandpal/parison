@@ -5,13 +5,14 @@
 - Theme: explicit time alignment and multi-dataset reconciliation
 - Released: opt-in `semantic-scalar-v1`, strict local `schema-evolution-v1` and deterministic summary-safe `policy-diff-v1`
 - Verified: exact merge `31eb265b64c01bfa6625364cc3c2e7f6240cb791` passed [the full CI matrix](https://github.com/raghavkandpal/parison/actions/runs/38695553104); public assets were checksum-verified and the fresh wheel passed semantic comparison/verification plus evolution and policy-diff smoke workflows
-- Next gate: implement per-side grouped-sum conservation through existing aggregate numeric and tolerance semantics
+- Next gate: compose alignment, per-dataset parity and relationship results into one conservative reconciliation outcome
 
 ## Recorded next steps
 
 - Follow the active [1.3 roadmap](1.3/148-roadmap.md) and frozen [contract](1.3/149-time-alignment-and-reconciliation-contract.md) as one coherent capability: existing per-dataset parity plus a fixed UTC half-open event window and per-side identity, reference and grouped-sum conservation checks.
 - `time-alignment-v1` and `reconciliation-v1` now have strict installed schemas, semantic cross-reference validation, canonical bytes and fingerprints. Alignment preflight binds the receipt and policies, scans both sides under explicit resource limits, and emits strict PASS/FAIL/INCONCLUSIVE JSON without changing released comparison execution.
 - Identity and reference checks execute independently on baseline and candidate with deterministic aggregate-only diagnostics and equivalent memory/SQLite engines. They do not yet imply conservation, per-dataset parity or an overall reconciliation outcome.
+- Grouped-sum conservation now executes independently on both sides with exact or symmetric tolerance comparison over matching integer/scaled-decimal domains and equivalent bounded memory/SQLite engines.
 - Preserve extraction ownership upstream. Snapshot tokens and watermarks remain source-owned claims bound by local evidence; a declared cutoff cannot establish coordination and therefore remains `INCONCLUSIVE`.
 - Deepen the existing suite, keyed/SQLite and aggregate seams. Do not add connectors, a query language, a graph planner or a second orchestration framework.
 

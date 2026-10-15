@@ -10,6 +10,7 @@ All notable changes will be documented in this file.
 - CLI validation and explanation for fixed UTC half-open event windows, source-owned snapshot/watermark/cutoff claims, and the closed identity/reference/grouped-sum relationship vocabulary.
 - Deterministic alignment preflight that verifies receipt, alignment and effective-policy fingerprints before scanning both dataset sets; enforces exact window edges and resource limits; detects changed inputs; and emits a strict installed result schema with conservative PASS, FAIL or INCONCLUSIVE outcomes.
 - Per-side identity and reference execution with explicit null semantics, duplicate-parent protection, aggregate-only diagnostics, deterministic ordering, input-change detection and equivalent bounded memory/SQLite engines.
+- Per-side grouped-sum conservation over matching integer or scaled-decimal measures, including exact and symmetric tolerance comparison, closed null behavior, distinct failure counts and equivalent bounded memory/SQLite engines.
 
 ### Compatibility
 

@@ -33,4 +33,6 @@ Window and coordination preflight is now implemented over existing timestamp pro
 
 Identity and reference execution now uses the existing canonical scalar encoding for both memory and bounded SQLite engines, with per-side results, deterministic aggregate diagnostics and changed-input checks.
 
-The next gate is grouped-sum conservation using the existing aggregate numeric and tolerance semantics, followed by composition with per-dataset parity. The promotion gate in the research note remains authoritative.
+Grouped-sum conservation now uses matching integer or scaled-decimal domains, aggregate-v1 tolerance semantics and equivalent bounded memory/SQLite engines, with per-side aggregate-only diagnostics.
+
+The next gate is composition with existing per-dataset parity and conservative overall outcome reduction. The promotion gate in the research note remains authoritative.

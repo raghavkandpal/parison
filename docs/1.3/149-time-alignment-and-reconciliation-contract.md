@@ -129,7 +129,7 @@ Every non-exempt child tuple must match exactly one parent identity tuple. `null
 }
 ```
 
-Parent group columns must exactly equal the named parent identity tuple. Child group columns must match its arity and semantic types. Both measures must be numeric. The only operator is `sum`; nulls are `forbid` or `zero`. Exact comparison requires a null tolerance. Tolerant comparison requires nonnegative finite `absolute` and `relative` values under `symmetric-v1`, reusing aggregate-v1's comparison formula. Currency conversion, allocation, rounding selection and expressions are outside v1.
+Parent group columns must exactly equal the named parent identity tuple. Child group columns must match its arity and semantic types. Both measures must use the same `integer` or `decimal` type; float sums are excluded, matching aggregate-v1's deterministic accumulation boundary. The only operator is `sum`; nulls are `forbid` or `zero`. Exact comparison requires a null tolerance. Tolerant comparison requires nonnegative finite `absolute` and `relative` values under `symmetric-v1`, reusing aggregate-v1's comparison formula. Currency conversion, allocation, rounding selection and expressions are outside v1.
 
 ## Result precedence and disclosure
 
@@ -149,6 +149,9 @@ parison preflight-alignment --alignment alignment.json --reconciliation reconcil
 parison check-identity-references --reconciliation reconciliation.json \
   --dataset orders orders.recipe.json old-orders.csv new-orders.csv \
   --dataset lines lines.recipe.json old-lines.csv new-lines.csv
+parison check-conservation --reconciliation reconciliation.json \
+  --dataset orders orders.recipe.json old-orders.csv new-orders.csv \
+  --dataset lines lines.recipe.json old-lines.csv new-lines.csv
 parison schema time-alignment
 parison schema reconciliation
 parison schema alignment-preflight
@@ -159,6 +162,8 @@ The validation commands establish authoring validity only. The explain commands 
 `preflight-alignment` requires one `--dataset ID RECIPE BASELINE CANDIDATE` group for every declared dataset. It requires exact agreement among alignment, reconciliation and runtime dataset IDs; verifies the receipt, alignment and effective-policy fingerprints before scanning; enforces the combined byte, decoded-byte and per-input row limits; and rejects inputs changed during the scan. Its strict `alignment-preflight-v1` result contains only bound fingerprints, the fixed window, stable dataset IDs and aggregate event-time counts—never paths or timestamp values. Exit codes retain the released outcome mapping: 0 PASS, 1 FAIL, 2 input error and 3 INCONCLUSIVE.
 
 `check-identity-references` evaluates every declared identity and reference independently on baseline and candidate. It emits aggregate counts only: rows, distinct and duplicate identities, null-key failures, exemptions, matches, orphans and ambiguous-parent rows. `--engine memory|sqlite` has identical semantics and deterministic result ordering; SQLite uses a private temporary database, a hard `--max-temp-bytes` ceiling and interruption-safe cleanup. The command also binds effective-policy fingerprints, enforces input and distinct-key limits, and rejects changed inputs. Conservation and per-dataset parity remain separate pending gates and are not implied by this command's PASS.
+
+`check-conservation` evaluates every declared grouped sum independently on baseline and candidate. Measures are restricted to matching integer or scaled-decimal domains, matching aggregate-v1's deterministic sum boundary; float accumulation is not admitted. Results distinguish exact, within-tolerance and different groups, child-only groups, parents without children, duplicate parents and rejected null measures without exposing keys or values. Memory and bounded SQLite engines are semantically equivalent. Per-dataset parity and the overall reconciliation reduction remain separate pending gates.
 
 ## Compatibility
 

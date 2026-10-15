@@ -10,7 +10,7 @@ from jsonschema import Draft202012Validator
 
 from parison.cli import main
 from parison.core import ParisonError, explain_recipe, load_schema
-from parison.reconciliation import canonical_reconciliation_bytes, canonical_time_alignment_bytes, check_identity_references, explain_reconciliation, explain_time_alignment, normalize_reconciliation, normalize_time_alignment, preflight_alignment
+from parison.reconciliation import canonical_reconciliation_bytes, canonical_time_alignment_bytes, check_conservation, check_identity_references, explain_reconciliation, explain_time_alignment, normalize_reconciliation, normalize_time_alignment, preflight_alignment
 
 
 ROOT = Path(__file__).parents[1]
@@ -235,6 +235,40 @@ class ReconciliationContracts(unittest.TestCase):
             candidate_identity = next(item for item in result["sides"]["candidate"] if item["kind"] == "identity")
             self.assertEqual(baseline_reference["counts"]["orphan_rows"], 1)
             self.assertEqual(candidate_identity["counts"]["duplicate_keys"], 1)
+
+    def test_conservation_memory_sqlite_equivalence_and_failures(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary))
+            declaration = json.loads(files[1].read_text(encoding="utf-8"))
+            declaration["checks"].append({"id": "payout-total", "kind": "conservation", "parent_dataset": "payouts", "parent_identity": "payout-id", "parent_group_columns": ["payout_id"], "child_dataset": "payments", "child_group_columns": ["payout_id"], "parent_measure": "amount", "child_measure": "amount", "operator": "sum", "nulls": "forbid", "comparison": "exact", "tolerance": None})
+            files[1].write_text(json.dumps(declaration), encoding="utf-8")
+            memory = check_conservation(files[1], files[3])
+            sqlite = check_conservation(files[1], files[3], engine="sqlite", temp_directory=Path(temporary))
+            self.assertEqual(memory["outcome"], "PASS")
+            self.assertEqual(memory["sides"], sqlite["sides"])
+            validator = Draft202012Validator(load_schema("conservation-result"))
+            validator.validate(memory); validator.validate(sqlite)
+            arguments = ["check-conservation", "--reconciliation", str(files[1])]
+            for dataset_id, runtime in files[3].items():
+                arguments.extend(["--dataset", dataset_id, str(runtime["recipe"]), str(runtime["baseline"]), str(runtime["candidate"])])
+            with redirect_stdout(StringIO()) as stdout, redirect_stderr(StringIO()):
+                self.assertEqual(main(arguments), 0)
+                self.assertEqual(json.loads(stdout.getvalue())["sides"], memory["sides"])
+            files[3]["payments"]["candidate"].write_text("payout_id,occurred_at,amount\np-1,2026-09-01T00:00:00Z,2.00\n", encoding="utf-8")
+            failed = check_conservation(files[1], files[3])
+            self.assertEqual(failed["outcome"], "FAIL")
+            self.assertEqual(failed["sides"]["candidate"][0]["counts"]["different_groups"], 1)
+
+    def test_conservation_tolerance_boundary(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary))
+            declaration = json.loads(files[1].read_text(encoding="utf-8"))
+            declaration["checks"].append({"id": "payout-total", "kind": "conservation", "parent_dataset": "payouts", "parent_identity": "payout-id", "parent_group_columns": ["payout_id"], "child_dataset": "payments", "child_group_columns": ["payout_id"], "parent_measure": "amount", "child_measure": "amount", "operator": "sum", "nulls": "forbid", "comparison": "tolerance", "tolerance": {"formula": "symmetric-v1", "absolute": 0.01, "relative": 0}})
+            files[1].write_text(json.dumps(declaration), encoding="utf-8")
+            files[3]["payments"]["candidate"].write_text("payout_id,occurred_at,amount\np-1,2026-09-01T00:00:00Z,1.01\n", encoding="utf-8")
+            result = check_conservation(files[1], files[3])
+            self.assertEqual(result["outcome"], "PASS")
+            self.assertEqual(result["sides"]["candidate"][0]["counts"]["within_tolerance_groups"], 1)
 
 
 if __name__ == "__main__":
