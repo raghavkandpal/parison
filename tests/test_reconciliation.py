@@ -10,7 +10,7 @@ from jsonschema import Draft202012Validator
 
 from parison.cli import main
 from parison.core import ParisonError, explain_recipe, load_schema
-from parison.reconciliation import canonical_reconciliation_bytes, canonical_time_alignment_bytes, check_conservation, check_identity_references, explain_reconciliation, explain_time_alignment, normalize_reconciliation, normalize_time_alignment, preflight_alignment
+from parison.reconciliation import canonical_reconciliation_bytes, canonical_time_alignment_bytes, check_conservation, check_identity_references, explain_reconciliation, explain_time_alignment, normalize_reconciliation, normalize_time_alignment, preflight_alignment, run_reconciliation, summarize_reconciliation_result
 
 
 ROOT = Path(__file__).parents[1]
@@ -269,6 +269,37 @@ class ReconciliationContracts(unittest.TestCase):
             result = check_conservation(files[1], files[3])
             self.assertEqual(result["outcome"], "PASS")
             self.assertEqual(result["sides"]["candidate"][0]["counts"]["within_tolerance_groups"], 1)
+
+    def test_composed_reconciliation_and_summary_safety(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary))
+            declaration = json.loads(files[1].read_text(encoding="utf-8"))
+            declaration["checks"].extend([
+                {"id": "payment-payout", "kind": "reference", "child_dataset": "payments", "child_columns": ["payout_id"], "parent_identity": "payout-id", "nulls": "forbid"},
+                {"id": "payout-total", "kind": "conservation", "parent_dataset": "payouts", "parent_identity": "payout-id", "parent_group_columns": ["payout_id"], "child_dataset": "payments", "child_group_columns": ["payout_id"], "parent_measure": "amount", "child_measure": "amount", "operator": "sum", "nulls": "forbid", "comparison": "exact", "tolerance": None},
+            ])
+            files[1].write_text(json.dumps(declaration), encoding="utf-8")
+            result = run_reconciliation(*files)
+            self.assertEqual(result["outcome"], "PASS")
+            Draft202012Validator(load_schema("reconciliation-result")).validate(result)
+            summary = summarize_reconciliation_result(result)
+            rendered = json.dumps(summary)
+            for sensitive in ("payments", "payouts", "payout_id", "occurred_at", temporary):
+                self.assertNotIn(sensitive, rendered)
+            self.assertEqual(summary["dataset_outcome_counts"], {"PASS": 2, "FAIL": 0, "INCONCLUSIVE": 0})
+            arguments = ["reconcile", "--alignment", str(files[0]), "--reconciliation", str(files[1]), "--receipt", str(files[2]), "--summary"]
+            for dataset_id, runtime in files[3].items():
+                arguments.extend(["--dataset", dataset_id, str(runtime["recipe"]), str(runtime["baseline"]), str(runtime["candidate"])])
+            with redirect_stdout(StringIO()) as stdout, redirect_stderr(StringIO()):
+                self.assertEqual(main(arguments), 0)
+                self.assertEqual(json.loads(stdout.getvalue()), summary)
+
+    def test_composed_reconciliation_reduces_fail_before_inconclusive(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary), mode="declared-cutoff")
+            self.assertEqual(run_reconciliation(*files)["outcome"], "INCONCLUSIVE")
+            files[3]["payments"]["candidate"].write_text("payout_id,occurred_at,amount\nother,2026-09-01T00:00:00Z,1.00\n", encoding="utf-8")
+            self.assertEqual(run_reconciliation(*files)["outcome"], "FAIL")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/reconciliation-result-v1.schema.json",
+  "title": "Parison reconciliation result v1",
+  "type": "object",
+  "required": ["reconciliation_result_version", "outcome", "complete", "alignment_sha256", "reconciliation_sha256", "receipt_sha256", "alignment", "datasets", "relationships", "conservation", "runtime", "resource_limits"],
+  "properties": {
+    "reconciliation_result_version": {"const": 1},
+    "outcome": {"enum": ["PASS", "FAIL", "INCONCLUSIVE"]},
+    "complete": {"const": true},
+    "alignment_sha256": {"$ref": "#/$defs/digest"},
+    "reconciliation_sha256": {"$ref": "#/$defs/digest"},
+    "receipt_sha256": {"$ref": "#/$defs/digest"},
+    "alignment": {"type": "object", "required": ["outcome", "status", "reason_codes", "datasets"], "properties": {"outcome": {"enum": ["PASS", "FAIL", "INCONCLUSIVE"]}, "status": {"enum": ["PASS", "FAIL", "INCONCLUSIVE"]}, "reason_codes": {"type": "array", "items": {"type": "string"}}, "datasets": {"type": "array", "items": {"$ref": "#/$defs/alignmentDataset"}}}, "additionalProperties": false},
+    "datasets": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/parity"}},
+    "relationships": {"$ref": "#/$defs/sides"},
+    "conservation": {"$ref": "#/$defs/sides"},
+    "runtime": {"type": "object", "required": ["execution_engine"], "properties": {"execution_engine": {"enum": ["memory", "sqlite"]}}, "additionalProperties": false},
+    "resource_limits": {"type": "object", "required": ["max_input_bytes", "max_decoded_bytes", "max_rows_per_input", "max_keys_per_identity", "max_groups_per_check", "max_distinct_rows_per_input"], "properties": {"max_input_bytes": {"type": "integer", "minimum": 1}, "max_decoded_bytes": {"type": "integer", "minimum": 1}, "max_rows_per_input": {"type": "integer", "minimum": 1}, "max_keys_per_identity": {"type": "integer", "minimum": 1}, "max_groups_per_check": {"type": "integer", "minimum": 1}, "max_distinct_rows_per_input": {"type": "integer", "minimum": 1}, "max_temp_bytes": {"type": "integer", "minimum": 1}}, "additionalProperties": false}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "alignmentCounts": {"type": "object", "required": ["rows", "in_window", "before_window", "at_or_after_end", "null_event_time", "invalid_event_time"], "properties": {"rows": {"type": "integer", "minimum": 0}, "in_window": {"type": "integer", "minimum": 0}, "before_window": {"type": "integer", "minimum": 0}, "at_or_after_end": {"type": "integer", "minimum": 0}, "null_event_time": {"type": "integer", "minimum": 0}, "invalid_event_time": {"type": "integer", "minimum": 0}}, "additionalProperties": false},
+    "alignmentDataset": {"type": "object", "required": ["id", "sides"], "properties": {"id": {"type": "string"}, "sides": {"type": "object", "required": ["baseline", "candidate"], "properties": {"baseline": {"$ref": "#/$defs/alignmentCounts"}, "candidate": {"$ref": "#/$defs/alignmentCounts"}}, "additionalProperties": false}}, "additionalProperties": false},
+    "parity": {"type": "object", "required": ["id", "outcome", "complete", "schema_version", "contract", "policy_sha256", "baseline_sha256", "candidate_sha256", "discrepancy_count"], "properties": {"id": {"type": "string"}, "outcome": {"enum": ["PASS", "FAIL", "INCONCLUSIVE"]}, "complete": {"type": "boolean"}, "schema_version": {"enum": [1, 2, 3]}, "contract": {"enum": ["keyed-v1", "aggregate-v1", "multiset-v1"]}, "policy_sha256": {"$ref": "#/$defs/digest"}, "baseline_sha256": {"$ref": "#/$defs/digest"}, "candidate_sha256": {"$ref": "#/$defs/digest"}, "discrepancy_count": {"type": "integer", "minimum": 0}}, "additionalProperties": false},
+    "check": {"type": "object", "required": ["id", "kind", "outcome", "counts"], "properties": {"id": {"type": "string"}, "kind": {"enum": ["identity", "reference", "conservation"]}, "outcome": {"enum": ["PASS", "FAIL"]}, "counts": {"$ref": "#/$defs/counts"}}, "additionalProperties": false},
+    "sides": {"type": "object", "required": ["baseline", "candidate"], "properties": {"baseline": {"type": "array", "items": {"$ref": "#/$defs/check"}}, "candidate": {"type": "array", "items": {"$ref": "#/$defs/check"}}}, "additionalProperties": false}
+  }
+}

@@ -13,7 +13,7 @@ from .catalog import add as catalog_add, diff as catalog_diff, history as catalo
 from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, export_statement, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, report_cutover, run_suite, terminal_result, validate_inputs, verify_bundle, verify_statement
 from .evolution import compile_evolution_mappings, diff_policies, explain_evolution, load_evolution, summarize_policy_diff
 from .project import init_project
-from .reconciliation import check_conservation, check_identity_references, explain_reconciliation, explain_time_alignment, load_reconciliation, load_time_alignment, preflight_alignment
+from .reconciliation import check_conservation, check_identity_references, explain_reconciliation, explain_time_alignment, load_reconciliation, load_time_alignment, preflight_alignment, run_reconciliation, summarize_reconciliation_result
 
 
 def _shell_command(parts: list[str]) -> str:
@@ -133,8 +133,23 @@ def parser() -> argparse.ArgumentParser:
     conservation.add_argument("--max-groups", type=int, default=100_000)
     conservation.add_argument("--max-temp-bytes", type=int, default=DEFAULT_MAX_TEMP_BYTES)
     conservation.add_argument("--temp-directory")
+    reconcile = commands.add_parser("reconcile", help="run aligned per-dataset parity and all reconciliation checks")
+    reconcile.add_argument("--alignment", required=True)
+    reconcile.add_argument("--reconciliation", required=True)
+    reconcile.add_argument("--receipt", required=True)
+    reconcile.add_argument("--dataset", action="append", nargs=4, metavar=("ID", "RECIPE", "BASELINE", "CANDIDATE"), required=True)
+    reconcile.add_argument("--engine", choices=("memory", "sqlite"), default="memory")
+    reconcile.add_argument("--summary", action="store_true", help="omit dataset and relationship identifiers and detailed counts")
+    reconcile.add_argument("--max-input-bytes", type=int, default=1_000_000_000)
+    reconcile.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000)
+    reconcile.add_argument("--max-rows", type=int, default=5_000_000)
+    reconcile.add_argument("--max-keys", type=int, default=100_000)
+    reconcile.add_argument("--max-groups", type=int, default=100_000)
+    reconcile.add_argument("--max-distinct-rows", type=int, default=100_000)
+    reconcile.add_argument("--max-temp-bytes", type=int, default=DEFAULT_MAX_TEMP_BYTES)
+    reconcile.add_argument("--temp-directory")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2", "statement", "schema-evolution", "policy-diff", "time-alignment", "reconciliation", "alignment-preflight", "relationship-result", "conservation-result"))
+    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2", "statement", "schema-evolution", "policy-diff", "time-alignment", "reconciliation", "alignment-preflight", "relationship-result", "conservation-result", "reconciliation-result"))
     schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
     schema_export.add_argument("--output", required=True)
     suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
@@ -406,6 +421,19 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(json.dumps(result, indent=2, sort_keys=True))
             print("Conservation checks supplied local sums only; they do not certify accounting, repair data or authorize cutover.", file=sys.stderr)
+            return OUTCOME_CODES[result["outcome"]]
+        if args.command == "reconcile":
+            if len({item[0] for item in args.dataset}) != len(args.dataset):
+                raise ParisonError("--dataset IDs must be unique")
+            inputs = {item[0]: {"recipe": item[1], "baseline": item[2], "candidate": item[3]} for item in args.dataset}
+            result = run_reconciliation(
+                args.alignment, args.reconciliation, args.receipt, inputs, args.engine,
+                args.max_input_bytes, args.max_decoded_bytes, args.max_rows,
+                args.max_keys, args.max_groups, args.max_distinct_rows,
+                args.max_temp_bytes, args.temp_directory,
+            )
+            print(json.dumps(summarize_reconciliation_result(result) if args.summary else result, indent=2, sort_keys=True))
+            print("PASS means supplied artifacts agree under the declared policies; it is not extraction truth, approval or cutover authorization.", file=sys.stderr)
             return OUTCOME_CODES[result["outcome"]]
         if args.command == "schema":
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))

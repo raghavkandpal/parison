@@ -35,4 +35,6 @@ Identity and reference execution now uses the existing canonical scalar encoding
 
 Grouped-sum conservation now uses matching integer or scaled-decimal domains, aggregate-v1 tolerance semantics and equivalent bounded memory/SQLite engines, with per-side aggregate-only diagnostics.
 
-The next gate is composition with existing per-dataset parity and conservative overall outcome reduction. The promotion gate in the research note remains authoritative.
+Composition now runs alignment, existing per-dataset parity and all declared relationship checks under one input-change guard, then applies conservative FAIL-before-INCONCLUSIVE outcome reduction. A summary-safe projection removes dataset/check identifiers and detailed counts.
+
+The next gate is deterministic atomic bundle publication, verification and realistic end-to-end qualification across formats and engines. The promotion gate in the research note remains authoritative.

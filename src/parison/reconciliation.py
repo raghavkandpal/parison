@@ -25,6 +25,7 @@ from parison.core import (
     _source_bytes,
     _source_digest,
     _source_name,
+    compare,
     explain_recipe,
     load_recipe,
 )
@@ -753,3 +754,109 @@ def check_conservation(
         output["resource_limits"]["max_temp_bytes"] = max_temp_bytes
         output["temporary_bytes"] = temporary_bytes
     return output
+
+
+def run_reconciliation(
+    alignment_path: str | Path,
+    reconciliation_path: str | Path,
+    receipt_path: str | Path,
+    inputs: dict[str, dict[str, str | Path]],
+    engine: str = "memory",
+    max_input_bytes: int = 1_000_000_000,
+    max_decoded_bytes: int = 1_000_000_000,
+    max_rows: int = 5_000_000,
+    max_keys: int = 100_000,
+    max_groups: int = 100_000,
+    max_distinct_rows: int = 100_000,
+    max_temp_bytes: int = 5_000_000_000,
+    temp_directory: str | Path | None = None,
+) -> dict[str, Any]:
+    """Compose alignment, existing parity and all declared relationship predicates."""
+    sources = tuple(inputs[dataset_id][side] for dataset_id in sorted(inputs) for side in ("baseline", "candidate"))
+    before = {str(source): _source_digest(source) for source in sources}
+    alignment = preflight_alignment(
+        alignment_path, reconciliation_path, receipt_path, inputs,
+        max_input_bytes, max_decoded_bytes, max_rows,
+    )
+    declaration = explain_reconciliation(reconciliation_path)
+    parity = []
+    for dataset in declaration["datasets"]:
+        dataset_id = dataset["id"]
+        recipe = load_recipe(inputs[dataset_id]["recipe"])
+        mode = recipe["comparison_mode"]
+        result = compare(
+            inputs[dataset_id]["recipe"], inputs[dataset_id]["baseline"], inputs[dataset_id]["candidate"],
+            sample_limit=0, max_input_bytes=max_input_bytes, max_rows=max_rows,
+            expected_policy_sha256=dataset["policy_sha256"], max_decoded_bytes=max_decoded_bytes,
+            max_groups=max_groups, max_distinct_rows=max_distinct_rows,
+            engine="memory" if mode == "aggregate" else engine,
+            max_temp_bytes=max_temp_bytes,
+            temp_directory=None if engine == "memory" or mode == "aggregate" else temp_directory,
+        )
+        parity.append({
+            "id": dataset_id,
+            "outcome": result["outcome"],
+            "complete": result["complete"],
+            "schema_version": result["schema_version"],
+            "contract": result["runtime"]["contract"],
+            "policy_sha256": result["policy_sha256"],
+            "baseline_sha256": result["inputs"].get("baseline", {}).get("sha256"),
+            "candidate_sha256": result["inputs"].get("candidate", {}).get("sha256"),
+            "discrepancy_count": result["discrepancy_count"],
+        })
+    relationships = check_identity_references(
+        reconciliation_path, inputs, engine, max_input_bytes, max_decoded_bytes,
+        max_rows, max_keys, max_temp_bytes, temp_directory,
+    )
+    if any(check["kind"] == "conservation" for check in declaration["checks"]):
+        conservation = check_conservation(
+            reconciliation_path, inputs, engine, max_input_bytes, max_decoded_bytes,
+            max_rows, max_groups, max_temp_bytes, temp_directory,
+        )
+    else:
+        conservation = {"outcome": "PASS", "sides": {"baseline": [], "candidate": []}}
+    if any(_source_digest(source) != digest for source, digest in before.items()):
+        raise ParisonError("an input changed while reconciliation was running")
+    component_outcomes = [alignment["outcome"], relationships["outcome"], conservation["outcome"], *(item["outcome"] for item in parity)]
+    outcome = "FAIL" if "FAIL" in component_outcomes else "INCONCLUSIVE" if "INCONCLUSIVE" in component_outcomes else "PASS"
+    return {
+        "reconciliation_result_version": 1,
+        "outcome": outcome,
+        "complete": True,
+        "alignment_sha256": alignment["alignment_sha256"],
+        "reconciliation_sha256": declaration["reconciliation_sha256"],
+        "receipt_sha256": alignment["receipt_sha256"],
+        "alignment": {"outcome": alignment["outcome"], "status": alignment["alignment_status"], "reason_codes": alignment["reason_codes"], "datasets": alignment["datasets"]},
+        "datasets": parity,
+        "relationships": relationships["sides"],
+        "conservation": conservation["sides"],
+        "runtime": {"execution_engine": engine},
+        "resource_limits": {
+            "max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes,
+            "max_rows_per_input": max_rows, "max_keys_per_identity": max_keys,
+            "max_groups_per_check": max_groups, "max_distinct_rows_per_input": max_distinct_rows,
+            **({"max_temp_bytes": max_temp_bytes} if engine == "sqlite" else {}),
+        },
+    }
+
+
+def summarize_reconciliation_result(result: dict[str, Any]) -> dict[str, Any]:
+    component_counts = {label: 0 for label in ("PASS", "FAIL", "INCONCLUSIVE")}
+    for item in result["datasets"]:
+        component_counts[item["outcome"]] += 1
+    relationship_counts = {kind: {label: 0 for label in ("PASS", "FAIL")} for kind in ("identity", "reference", "conservation")}
+    for field in ("relationships", "conservation"):
+        for side in ("baseline", "candidate"):
+            for item in result[field][side]:
+                relationship_counts[item["kind"]][item["outcome"]] += 1
+    return {
+        "reconciliation_result_version": result["reconciliation_result_version"],
+        "outcome": result["outcome"],
+        "complete": result["complete"],
+        "alignment_sha256": result["alignment_sha256"],
+        "reconciliation_sha256": result["reconciliation_sha256"],
+        "receipt_sha256": result["receipt_sha256"],
+        "alignment": {"outcome": result["alignment"]["outcome"], "status": result["alignment"]["status"], "reason_codes": result["alignment"]["reason_codes"]},
+        "dataset_outcome_counts": component_counts,
+        "relationship_outcome_counts": relationship_counts,
+    }

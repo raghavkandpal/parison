@@ -63,6 +63,7 @@ _SCHEMAS = {
     "alignment-preflight": "alignment-preflight-v1.schema.json",
     "relationship-result": "relationship-result-v1.schema.json",
     "conservation-result": "conservation-result-v1.schema.json",
+    "reconciliation-result": "reconciliation-result-v1.schema.json",
 }
 
 _SUITE_LIMIT_DEFAULTS = {
