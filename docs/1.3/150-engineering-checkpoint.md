@@ -2,7 +2,7 @@
 
 Date: 15 October 2026
 
-Status: **exact candidate qualified; merge pending**
+Status: **released**
 
 ## Delivered capability
 
@@ -30,9 +30,10 @@ Status: **exact candidate qualified; merge pending**
 - Exact candidate `b25db9962698a370ff0703da8cc7d7c23abcabc5` passed built-wheel CI on the full Python 3.11–3.14 × Linux/macOS/Windows matrix with pinned Polars 1.44.2.
 - A clean archive produced inspected wheel/source artifacts, and a fresh Python 3.14 environment passed the complete checked-in SQLite reconciliation workflow from the candidate wheel.
 
-## Remaining release evidence
+## Release evidence
 
-- Exact-merge CI, public artifact checksum verification and post-release smoke.
+- Pull request 38 merged the reviewed candidate at `3aec4fb0b7355aea94aa81d8a8a7c5e3372414ea`; exact-merge CI run 38862675947 passed.
+- Public 1.3.0 wheel/source/checksum assets were re-downloaded and checksum-verified, and the released wheel passed the complete SQLite reconciliation workflow in a fresh Python 3.14 environment.
 
 ## Boundaries retained
 
