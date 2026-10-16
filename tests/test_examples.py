@@ -2,9 +2,12 @@ import hashlib
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
 
 from parison.core import ParisonError, assemble_suite, compare, export_evidence, inspect_bundle, load_schema, load_suite, publish, report_ci, run_suite, verify_bundle
+from parison.cli import main
 from parison.manifesting import create_dataset_manifest, publish_dataset_evidence_bundle, verify_dataset_manifest
 from parison.reconciliation import publish_reconciliation_bundle, run_reconciliation, summarize_reconciliation_result
 from jsonschema import Draft202012Validator
@@ -34,6 +37,9 @@ class CheckedInExamples(unittest.TestCase):
             published = publish_dataset_evidence_bundle(output, root / "examples/1.4/payout-dataset-manifest.json", root, root / "examples/1.3/reconciliation.json")
             self.assertEqual(published["outcome"], "PASS")
             self.assertEqual(verify_bundle(output), published)
+            with redirect_stdout(StringIO()) as stdout, redirect_stderr(StringIO()):
+                self.assertEqual(main(["verify", str(output)]), 0)
+                self.assertEqual(stdout.getvalue().strip(), "valid")
             inspected = inspect_bundle(output)
             self.assertEqual(inspected["kind"], "dataset-evidence")
             self.assertEqual(inspected["counts"]["matched"], 5)

@@ -328,7 +328,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "verify":
             manifest = verify_bundle(args.run_directory)
             print(json.dumps(manifest, sort_keys=True) if args.json else "valid")
-            detail = "suite" if manifest.get("kind") == "suite" else f"sensitivity: {manifest['sensitivity']}"
+            detail = manifest.get("kind") or f"sensitivity: {manifest['sensitivity']}"
             print(f"Verified bundle integrity: {args.run_directory} (recorded outcome: {manifest['outcome']}, {detail})", file=sys.stderr)
             print("Integrity verification does not change the recorded comparison outcome.", file=sys.stderr)
             return 0
