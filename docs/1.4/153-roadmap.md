@@ -40,4 +40,4 @@ The governing input is [dataset manifest and reproducibility research](152-datas
 4. Integration: bind manifests and diagnostics into versioned evidence without changing old bundle readers.
 5. Qualification: full local gate, independent review, built-wheel matrix and fresh-wheel workflow.
 
-The first implementation gate deliberately names every resource. A reviewed subtree vocabulary or runtime-compatibility gate requires new evidence and a later explicit contract extension.
+Named resources remain the default. Operators may additionally declare up to 100 reviewed, non-overlapping relative directory scopes; those scopes are enumerated without following links so undeclared files fail closed. A glob/include-exclude language or runtime-compatibility gate requires new evidence and a later explicit contract version.

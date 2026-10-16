@@ -1,5 +1,6 @@
 {
   "collection_id": "september-payout-reconciliation",
+  "closed_scopes": [],
   "manifest_version": 1,
   "policy": {"kind": "reconciliation", "sha256": "6c249778407258a0d8b2fdcf87a907384b112281746fbab66ad845a6c48a814e"},
   "resources": [

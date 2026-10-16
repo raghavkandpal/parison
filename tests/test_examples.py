@@ -5,6 +5,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 from parison.core import ParisonError, assemble_suite, compare, export_evidence, inspect_bundle, load_schema, load_suite, publish, report_ci, run_suite, verify_bundle
 from parison.cli import main
@@ -14,11 +15,21 @@ from jsonschema import Draft202012Validator
 
 
 class CheckedInExamples(unittest.TestCase):
+    def reconciliation_bundle(self, root, output):
+        example = root / "examples/1.3"
+        inputs = {
+            "payments": {"recipe": example / "payments.recipe.json", "baseline": example / "payments-baseline.csv", "candidate": example / "payments-candidate.jsonl"},
+            "payouts": {"recipe": example / "payouts.recipe.json", "baseline": example / "payouts-baseline.csv", "candidate": example / "payouts-candidate.jsonl"},
+        }
+        result = run_reconciliation(example / "alignment.json", example / "reconciliation.json", example / "extraction-receipt.json", inputs)
+        publish_reconciliation_bundle(output, result, example / "alignment.json", example / "reconciliation.json")
+        return output
+
     def test_1_4_manifest_binds_the_reconciliation_inputs(self):
         root = Path(__file__).parents[1]
-        result = verify_dataset_manifest(root / "examples/1.4/payout-dataset-manifest.json", root, summary=True, policy_path=root / "examples/1.3/reconciliation.json")
+        result = verify_dataset_manifest(root / "examples/1.4/payout-dataset-manifest.json", root, root / "examples/1.3/reconciliation.json", summary=True)
         self.assertEqual(result["outcome"], "PASS")
-        self.assertEqual(result["counts"], {"declared": 5, "matched": 5, "missing": 0, "size_mismatch": 0, "digest_mismatch": 0})
+        self.assertEqual(result["counts"], {"declared": 5, "matched": 5, "missing": 0, "undeclared": 0, "size_mismatch": 0, "digest_mismatch": 0})
 
     def test_1_4_manifest_rejects_a_different_policy(self):
         root = Path(__file__).parents[1]
@@ -28,13 +39,14 @@ class CheckedInExamples(unittest.TestCase):
             path = Path(directory) / "manifest.json"
             path.write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(ParisonError, "does not match"):
-                verify_dataset_manifest(path, root, policy_path=root / "examples/1.3/reconciliation.json")
+                verify_dataset_manifest(path, root, root / "examples/1.3/reconciliation.json")
 
     def test_1_4_dataset_evidence_bundle_is_self_verifying_and_summary_safe(self):
         root = Path(__file__).parents[1]
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "evidence"
-            published = publish_dataset_evidence_bundle(output, root / "examples/1.4/payout-dataset-manifest.json", root, root / "examples/1.3/reconciliation.json")
+            semantic = self.reconciliation_bundle(root, Path(directory) / "semantic")
+            published = publish_dataset_evidence_bundle(output, root / "examples/1.4/payout-dataset-manifest.json", root, root / "examples/1.3/reconciliation.json", semantic)
             self.assertEqual(published["outcome"], "PASS")
             self.assertEqual(verify_bundle(output), published)
             with redirect_stdout(StringIO()) as stdout, redirect_stderr(StringIO()):
@@ -44,8 +56,23 @@ class CheckedInExamples(unittest.TestCase):
             self.assertEqual(inspected["kind"], "dataset-evidence")
             self.assertEqual(inspected["counts"]["matched"], 5)
             self.assertNotIn("examples/", json.dumps(inspected))
+            unexpected = output / "unexpected.txt"
+            unexpected.write_text("extra", encoding="utf-8")
+            with self.assertRaisesRegex(ParisonError, "unexpected file membership"):
+                verify_bundle(output)
+            unexpected.unlink()
+            member = output / "manifest-result.json"
+            saved = member.read_bytes()
+            outside = Path(directory) / "outside.json"
+            outside.write_bytes(saved)
+            member.unlink()
+            member.symlink_to(outside)
+            with self.assertRaisesRegex(ParisonError, "unsafe"):
+                verify_bundle(output)
+            member.unlink()
+            member.write_bytes(saved)
             with self.assertRaisesRegex(ParisonError, "already exists"):
-                publish_dataset_evidence_bundle(output, root / "examples/1.4/payout-dataset-manifest.json", root, root / "examples/1.3/reconciliation.json")
+                publish_dataset_evidence_bundle(output, root / "examples/1.4/payout-dataset-manifest.json", root, root / "examples/1.3/reconciliation.json", semantic)
             (output / "manifest-result.json").write_text("{}", encoding="utf-8")
             with self.assertRaisesRegex(ParisonError, "integrity"):
                 verify_bundle(output)
@@ -55,15 +82,51 @@ class CheckedInExamples(unittest.TestCase):
             with self.assertRaisesRegex(ParisonError, "incomplete or unsupported"):
                 verify_bundle(output)
 
+    def test_1_4_dataset_evidence_publication_is_no_replace_and_cleans_staging(self):
+        root = Path(__file__).parents[1]
+        manifest = root / "examples/1.4/payout-dataset-manifest.json"
+        policy = root / "examples/1.3/reconciliation.json"
+        with tempfile.TemporaryDirectory() as directory:
+            parent, output = Path(directory), Path(directory) / "race"
+            semantic = self.reconciliation_bundle(root, parent / "semantic")
+            from parison.reconciliation import _rename_no_replace
+
+            def race(source, target):
+                target.mkdir()
+                _rename_no_replace(source, target)
+
+            with patch("parison.reconciliation._rename_no_replace", side_effect=race):
+                with self.assertRaisesRegex(ParisonError, "cannot publish"):
+                    publish_dataset_evidence_bundle(output, manifest, root, policy, semantic)
+            self.assertTrue(output.is_dir())
+            self.assertEqual(list(output.iterdir()), [])
+            self.assertEqual(list(parent.glob(".race-*")), [])
+
+            interrupted = parent / "interrupted"
+            with patch("parison.reconciliation._rename_no_replace", side_effect=KeyboardInterrupt):
+                with self.assertRaises(KeyboardInterrupt):
+                    publish_dataset_evidence_bundle(interrupted, manifest, root, policy, semantic)
+            self.assertFalse(interrupted.exists())
+            self.assertEqual(list(parent.glob(".interrupted-*")), [])
+
     def test_1_4_dataset_evidence_binds_a_suite_v2_policy(self):
         root = Path(__file__).parents[1]
         suite_path = root / "examples/0.11/scalable-suite.json"
-        suite_sha256 = load_suite(suite_path)["suite_policy_sha256"]
+        suite = load_suite(suite_path)
+        suite_sha256 = suite["suite_policy_sha256"]
         with tempfile.TemporaryDirectory() as directory:
             manifest_path = Path(directory) / "dataset-manifest.json"
-            create_dataset_manifest(root, "suite-input", "suite", suite_sha256, [("orders", "baseline", "csv", "examples/baseline.csv")], manifest_path, suite_path)
+            resources = []
+            for case in suite["cases"]:
+                for role in ("baseline", "candidate"):
+                    relative = Path(case[role]).relative_to(root).as_posix()
+                    format_name = "jsonl" if relative.endswith(".jsonl") else "csv"
+                    resources.append((case["id"], role, format_name, relative))
+            create_dataset_manifest(root, "suite-input", "suite", suite_sha256, resources, manifest_path, suite_path)
+            semantic = Path(directory) / "suite"
+            run_suite(suite_path, semantic)
             output = Path(directory) / "evidence"
-            publish_dataset_evidence_bundle(output, manifest_path, root, suite_path)
+            publish_dataset_evidence_bundle(output, manifest_path, root, suite_path, semantic)
             self.assertEqual(verify_bundle(output)["policy"], {"kind": "suite", "sha256": suite_sha256})
 
     def test_orders_example_is_a_tolerated_pass(self):

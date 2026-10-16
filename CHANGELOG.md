@@ -6,9 +6,13 @@ All notable changes will be documented in this file.
 
 ### Added
 
-- Strict local `dataset-manifest-v1` creation and verification with explicit policy binding, canonical fingerprints, safe relative paths, atomic no-overwrite publication and exact SHA-256 byte identity.
+- Strict local `dataset-manifest-v1` creation and verification with mandatory existing-policy binding, canonical fingerprints, descriptor-relative safe paths, optional reviewed closed-scope membership, atomic no-overwrite publication and exact SHA-256 byte identity.
 - Separate `reproducibility-diagnostic-v1` capture and deterministic informational comparison over a closed, summary-safe runtime vocabulary.
-- Atomic `dataset-evidence` bundles that separately digest and semantically bind the canonical manifest, verification result, effective policy and reproducibility diagnostic, with standard verification and summary-safe inspection.
+- Atomic `dataset-evidence` bundles that separately digest and semantically bind the canonical manifest, full verification result, effective policy, reproducibility diagnostic and recursively verified suite/reconciliation result, with standard verification and summary-safe inspection.
+
+### Fixed
+
+- Dataset resource and evidence verification now resist component/member replacement races, reject extra bundle members, recheck SQLite sidecars, and clean private staging after publication races or interruption.
 
 ## 1.3.0 - 2026-10-16
 

@@ -38,7 +38,7 @@ For cross-format scalar representation rules, follow the [semantic scalar guide]
 
 For coordinated multi-dataset policy authoring and execution, follow the frozen [`time-alignment-v1` and `reconciliation-v1` contract](docs/1.3/149-time-alignment-and-reconciliation-contract.md).
 
-For a local 1.4 workflow, verify [`examples/1.4/payout-dataset-manifest.json`](examples/1.4/payout-dataset-manifest.json), then use `parison publish-dataset-evidence --manifest ... --root ... --policy-file ... --output ...`. Standard `parison verify` and `parison inspect` commands validate and summarize the resulting bundle without exposing source paths or resource IDs.
+For a local 1.4 workflow, verify [`examples/1.4/payout-dataset-manifest.json`](examples/1.4/payout-dataset-manifest.json), produce its complete suite or reconciliation result bundle, then use `parison publish-dataset-evidence --manifest ... --root ... --policy-file ... --result-bundle ... --output ...`. Standard `parison verify` and `parison inspect` commands recursively validate and summarize the resulting bundle without exposing source paths or resource IDs.
 
 Start a new local migration check with `parison init migration-check`. The command writes a minimal keyed recipe, matching smoke-test inputs and a short workflow guide into a missing or empty directory; it never overwrites an existing project.
 

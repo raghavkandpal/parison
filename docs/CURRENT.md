@@ -10,7 +10,7 @@
 ## Recorded next steps
 
 - Follow the active [1.4 roadmap](1.4/153-roadmap.md) and frozen [manifest/reproducibility contract](1.4/154-dataset-manifest-and-reproducibility-contract.md). Keep exact byte identity, semantic agreement and runtime explanation as separate claims.
-- Strict schemas, canonical identities, safe named-file creation/verification, summary-safe results and informational diagnostic comparison are implemented. The opt-in `dataset-evidence` bundle carries the canonical manifest, full verification result, effective policy and diagnostic as separately digested, semantically bound members without changing released bundle readers.
+- Strict schemas, canonical identities, descriptor-relative named-file verification, reviewed closed scopes, summary-safe results and informational diagnostic comparison are implemented. The opt-in `dataset-evidence` bundle carries the canonical manifest, full verification result, effective policy, diagnostic and recursively verified semantic result as semantically bound members without changing released bundle readers.
 - Reject implicit discovery, remote resources, live SQLite state, path traversal, symlinks, aliases and environment inventories. Do not let diagnostic differences alter verification outcomes in v1.
 
 - Follow the active [1.3 roadmap](1.3/148-roadmap.md) and frozen [contract](1.3/149-time-alignment-and-reconciliation-contract.md) as one coherent capability: existing per-dataset parity plus a fixed UTC half-open event window and per-side identity, reference and grouped-sum conservation checks.
