@@ -84,4 +84,12 @@ Diagnostic canonical bytes use the domain `parison:reproducibility-diagnostic-v1
 
 ## Compatibility
 
-Both artifacts are opt-in additions. Released recipes, suites, results, manifests, bundles, canonical bytes, fingerprints, CLI JSON and exit codes remain unchanged. Evidence-bundle integration requires a new version; old bundle verification remains untouched.
+Both artifacts are opt-in additions. Released recipes, suites, results, manifests, bundles, canonical bytes, fingerprints, CLI JSON and exit codes remain unchanged.
+
+## Dataset evidence bundle
+
+`dataset-evidence` schema version 1 is a new opt-in bundle kind. It atomically publishes exactly four separately digested members: canonical `dataset-manifest.json`, full `manifest-result.json`, normalized `effective-policy.json`, and `reproducibility-diagnostic.json`. Its outer manifest binds both artifact fingerprints, the policy kind and fingerprint, and the verification outcome.
+
+Verification checks exact member coverage and bytes, revalidates every closed artifact, recomputes manifest, diagnostic and policy fingerprints, derives result counts, reason codes and outcome from ordered resource statuses, and checks every cross-member binding. It verifies preserved evidence only; it does not reopen source resources. Standard inspection exposes aggregate counts, reason codes, closed runtime facts and fingerprints but no paths, filenames or resource IDs.
+
+Publication uses private staging, atomic no-overwrite installation and cleanup after failure or interruption. Released bundle kinds keep their existing readers and bytes; old readers reject this new kind rather than partially interpreting it.

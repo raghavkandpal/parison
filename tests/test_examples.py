@@ -1,10 +1,11 @@
+import hashlib
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from parison.core import ParisonError, assemble_suite, compare, export_evidence, load_schema, publish, report_ci, run_suite, verify_bundle
-from parison.manifesting import verify_dataset_manifest
+from parison.core import ParisonError, assemble_suite, compare, export_evidence, inspect_bundle, load_schema, load_suite, publish, report_ci, run_suite, verify_bundle
+from parison.manifesting import create_dataset_manifest, publish_dataset_evidence_bundle, verify_dataset_manifest
 from parison.reconciliation import publish_reconciliation_bundle, run_reconciliation, summarize_reconciliation_result
 from jsonschema import Draft202012Validator
 
@@ -25,6 +26,39 @@ class CheckedInExamples(unittest.TestCase):
             path.write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(ParisonError, "does not match"):
                 verify_dataset_manifest(path, root, policy_path=root / "examples/1.3/reconciliation.json")
+
+    def test_1_4_dataset_evidence_bundle_is_self_verifying_and_summary_safe(self):
+        root = Path(__file__).parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "evidence"
+            published = publish_dataset_evidence_bundle(output, root / "examples/1.4/payout-dataset-manifest.json", root, root / "examples/1.3/reconciliation.json")
+            self.assertEqual(published["outcome"], "PASS")
+            self.assertEqual(verify_bundle(output), published)
+            inspected = inspect_bundle(output)
+            self.assertEqual(inspected["kind"], "dataset-evidence")
+            self.assertEqual(inspected["counts"]["matched"], 5)
+            self.assertNotIn("examples/", json.dumps(inspected))
+            with self.assertRaisesRegex(ParisonError, "already exists"):
+                publish_dataset_evidence_bundle(output, root / "examples/1.4/payout-dataset-manifest.json", root, root / "examples/1.3/reconciliation.json")
+            (output / "manifest-result.json").write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(ParisonError, "integrity"):
+                verify_bundle(output)
+            outer = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+            outer["files"]["manifest-result.json"] = hashlib.sha256(b"{}").hexdigest()
+            (output / "manifest.json").write_text(json.dumps(outer), encoding="utf-8")
+            with self.assertRaisesRegex(ParisonError, "incomplete or unsupported"):
+                verify_bundle(output)
+
+    def test_1_4_dataset_evidence_binds_a_suite_v2_policy(self):
+        root = Path(__file__).parents[1]
+        suite_path = root / "examples/0.11/scalable-suite.json"
+        suite_sha256 = load_suite(suite_path)["suite_policy_sha256"]
+        with tempfile.TemporaryDirectory() as directory:
+            manifest_path = Path(directory) / "dataset-manifest.json"
+            create_dataset_manifest(root, "suite-input", "suite", suite_sha256, [("orders", "baseline", "csv", "examples/baseline.csv")], manifest_path, suite_path)
+            output = Path(directory) / "evidence"
+            publish_dataset_evidence_bundle(output, manifest_path, root, suite_path)
+            self.assertEqual(verify_bundle(output)["policy"], {"kind": "suite", "sha256": suite_sha256})
 
     def test_orders_example_is_a_tolerated_pass(self):
         root = Path(__file__).parents[1]

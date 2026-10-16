@@ -5,9 +5,11 @@ import json
 import os
 import platform
 import re
+import shutil
 import sqlite3
 import stat
 import sys
+import tempfile
 import unicodedata
 from importlib import metadata
 from pathlib import Path, PurePosixPath
@@ -129,6 +131,37 @@ def _policy_fingerprint(kind: str, path: str | Path) -> str:
     if suite["suite_version"] != 2:
         raise ParisonError("dataset manifests require suite version 2 policy binding")
     return suite["suite_policy_sha256"]
+
+
+def _effective_policy(kind: str, path: str | Path) -> dict[str, Any]:
+    if kind == "reconciliation":
+        from .reconciliation import explain_reconciliation
+        value = explain_reconciliation(path)
+        return {key: item for key, item in value.items() if key != "reconciliation_sha256"}
+    from .core import load_suite
+    suite = load_suite(path)
+    if suite["suite_version"] != 2:
+        raise ParisonError("dataset manifests require suite version 2 policy binding")
+    return {"suite_version": 2, "cases": [case["portable"] for case in suite["cases"]]}
+
+
+def _effective_policy_fingerprint(kind: str, value: Any) -> str:
+    if kind == "reconciliation":
+        from .reconciliation import normalize_reconciliation
+        normalized = normalize_reconciliation(value)
+    else:
+        if not isinstance(value, dict) or set(value) != {"suite_version", "cases"} or value.get("suite_version") != 2 or not isinstance(value["cases"], list):
+            raise ParisonError("dataset evidence contains an invalid effective suite")
+        normalized = value
+    return hashlib.sha256(json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def _file_digest(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _open_resource(root: Path, relative: str):
@@ -291,3 +324,112 @@ def diff_reproducibility_diagnostics(left_path: str | Path, right_path: str | Pa
         status = "same" if left_value == right_value else "missing-left" if left_value is None else "missing-right" if right_value is None else "different"
         fields.append({"field": name, "status": status})
     return {"diagnostic_diff_version": 1, "outcome": "INFORMATIONAL", "manifest_sha256": left["manifest_sha256"], "fields": fields, "observation_status": "same" if left["observations"] == right["observations"] else "different"}
+
+
+_EVIDENCE_FILES = {"dataset-manifest.json", "manifest-result.json", "reproducibility-diagnostic.json", "effective-policy.json"}
+
+
+def publish_dataset_evidence_bundle(output: str | Path, manifest_path: str | Path, root: str | Path, policy_path: str | Path) -> dict[str, Any]:
+    manifest = explain_dataset_manifest(manifest_path)
+    result = verify_dataset_manifest(manifest_path, root, policy_path=policy_path)
+    policy = _effective_policy(manifest["policy"]["kind"], policy_path)
+    target, stage = Path(output), None
+    if target.exists():
+        raise ParisonError(f"output already exists: {target}")
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        stage = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent))
+        os.chmod(stage, 0o700)
+        declaration = {key: manifest[key] for key in ("manifest_version", "collection_id", "policy", "resources")}
+        (stage / "dataset-manifest.json").write_bytes(canonical_dataset_manifest_bytes(declaration))
+        (stage / "manifest-result.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        (stage / "effective-policy.json").write_text(json.dumps(policy, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        diagnostic = capture_reproducibility_diagnostic(stage / "dataset-manifest.json", stage / "reproducibility-diagnostic.json")
+        outer = {
+            "schema_version": 1,
+            "kind": "dataset-evidence",
+            "complete": True,
+            "outcome": result["outcome"],
+            "manifest_sha256": manifest["manifest_sha256"],
+            "diagnostic_sha256": diagnostic["diagnostic_sha256"],
+            "policy": manifest["policy"],
+            "files": {name: _file_digest(stage / name) for name in sorted(_EVIDENCE_FILES)},
+        }
+        (stage / "manifest.json").write_text(json.dumps(outer, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        from .reconciliation import _rename_no_replace
+        _rename_no_replace(stage, target)
+        stage = None
+        return outer
+    except ParisonError:
+        raise
+    except OSError as exc:
+        raise ParisonError(f"cannot publish dataset evidence bundle: {exc}") from exc
+    finally:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+
+
+def _verify_manifest_result(result: Any, manifest: dict[str, Any]) -> None:
+    required = {"manifest_result_version", "outcome", "complete", "manifest_sha256", "policy", "counts", "reason_codes", "resources"}
+    if not isinstance(result, dict) or set(result) != required or result.get("manifest_result_version") != 1 or result.get("complete") is not True:
+        raise ParisonError("dataset evidence result is incomplete or unsupported")
+    resources = result.get("resources")
+    if not isinstance(resources, list) or len(resources) != len(manifest["resources"]):
+        raise ParisonError("dataset evidence result resources do not match manifest")
+    expected_identity = [(item["id"], item["role"], item["format"]) for item in manifest["resources"]]
+    if [(item.get("id"), item.get("role"), item.get("format")) for item in resources if isinstance(item, dict)] != expected_identity:
+        raise ParisonError("dataset evidence result resources do not match manifest")
+    statuses = [item.get("status") for item in resources]
+    allowed = {"matched", "missing", "size-mismatch", "digest-mismatch"}
+    if any(set(item) != {"id", "role", "format", "status"} for item in resources) or any(status not in allowed for status in statuses):
+        raise ParisonError("dataset evidence result has invalid resource statuses")
+    counts = {
+        "declared": len(resources),
+        "matched": statuses.count("matched"),
+        "missing": statuses.count("missing"),
+        "size_mismatch": statuses.count("size-mismatch"),
+        "digest_mismatch": statuses.count("digest-mismatch"),
+    }
+    reasons = sorted({{"missing": "resource-missing", "size-mismatch": "resource-size-mismatch", "digest-mismatch": "resource-digest-mismatch"}[status] for status in statuses if status != "matched"})
+    outcome = "PASS" if counts["matched"] == counts["declared"] else "FAIL"
+    if result["counts"] != counts or result["reason_codes"] != reasons or result["outcome"] != outcome or result["manifest_sha256"] != manifest["manifest_sha256"] or result["policy"] != manifest["policy"]:
+        raise ParisonError("dataset evidence result metadata is inconsistent")
+
+
+def verify_dataset_evidence_bundle(directory: str | Path) -> dict[str, Any]:
+    root, manifest_path = Path(directory), Path(directory) / "manifest.json"
+    if root.is_symlink() or not root.is_dir() or manifest_path.is_symlink() or not manifest_path.is_file():
+        raise ParisonError("dataset evidence bundle is missing or unsafe")
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+        outer = json.loads(manifest_bytes, object_pairs_hook=_object)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read dataset evidence manifest: {exc}") from exc
+    required = {"schema_version", "kind", "complete", "outcome", "manifest_sha256", "diagnostic_sha256", "policy", "files"}
+    if not isinstance(outer, dict) or set(outer) != required or outer.get("schema_version") != 1 or outer.get("kind") != "dataset-evidence" or outer.get("complete") is not True or outer.get("outcome") not in {"PASS", "FAIL"}:
+        raise ParisonError("dataset evidence manifest is incomplete or unsupported")
+    files = outer.get("files")
+    if not isinstance(files, dict) or set(files) != _EVIDENCE_FILES:
+        raise ParisonError("dataset evidence manifest has invalid file membership")
+    for name, expected in files.items():
+        path = root / name
+        if not _SHA256.fullmatch(expected) or path.is_symlink() or not path.is_file() or _file_digest(path) != expected:
+            raise ParisonError(f"dataset evidence file failed integrity check: {name}")
+    declaration = explain_dataset_manifest(root / "dataset-manifest.json")
+    diagnostic = normalize_reproducibility_diagnostic(_read_json(root / "reproducibility-diagnostic.json", "reproducibility diagnostic"))
+    result = _read_json(root / "manifest-result.json", "dataset manifest result")
+    policy = _read_json(root / "effective-policy.json", "effective policy")
+    _verify_manifest_result(result, declaration)
+    diagnostic_sha256 = _digest(diagnostic, b"parison:reproducibility-diagnostic-v1\0")
+    if outer["manifest_sha256"] != declaration["manifest_sha256"] or outer["diagnostic_sha256"] != diagnostic_sha256 or diagnostic["manifest_sha256"] != declaration["manifest_sha256"] or outer["policy"] != declaration["policy"] or outer["outcome"] != result["outcome"] or _effective_policy_fingerprint(outer["policy"]["kind"], policy) != outer["policy"]["sha256"]:
+        raise ParisonError("dataset evidence bundle metadata is inconsistent")
+    if manifest_path.read_bytes() != manifest_bytes:
+        raise ParisonError("dataset evidence bundle changed during verification")
+    return outer
+
+
+def inspect_dataset_evidence_bundle(directory: str | Path) -> dict[str, Any]:
+    manifest = verify_dataset_evidence_bundle(directory)
+    result = _read_json(Path(directory) / "manifest-result.json", "dataset manifest result")
+    diagnostic = normalize_reproducibility_diagnostic(_read_json(Path(directory) / "reproducibility-diagnostic.json", "reproducibility diagnostic"))
+    return {"kind": "dataset-evidence", "schema_version": 1, "outcome": result["outcome"], "complete": True, "manifest_sha256": manifest["manifest_sha256"], "diagnostic_sha256": manifest["diagnostic_sha256"], "policy": manifest["policy"], "counts": result["counts"], "reason_codes": result["reason_codes"], "runtime": diagnostic["runtime"], "observations": diagnostic["observations"], "bundle_sha256": _file_digest(Path(directory) / "manifest.json"), "manifest_files": sorted(manifest["files"])}

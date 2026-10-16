@@ -24,7 +24,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **1.3.0 released.** Frozen `time-alignment-v1` and `reconciliation-v1` contracts define one UTC half-open event window, source-owned coordination claims and a closed identity/reference/grouped-sum vocabulary. `parison reconcile` composes alignment, existing per-dataset parity and memory/SQLite relationship checks with conservative outcomes, atomic verified bundles and summary-safe inspection.
 
-**1.4 in development.** Strict local dataset manifests bind explicitly named files to exact byte identities, while separate reproducibility diagnostics explain selected runtime differences without changing verification outcomes.
+**1.4 in development.** Strict local dataset manifests bind explicitly named files to exact byte identities, separate reproducibility diagnostics explain selected runtime differences without changing verification outcomes, and atomic dataset-evidence bundles preserve both claims with their effective policy.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -37,6 +37,8 @@ For the complete reviewed-policy, rehearsal, suite and authenticated handoff pat
 For cross-format scalar representation rules, follow the [semantic scalar guide](docs/1.1/140-semantic-scalar-guide.md). For data-free rename, addition, removal, split and merge review, follow the [`schema-evolution-v1` and `policy-diff-v1` contract](docs/1.2/143-schema-evolution-and-policy-diff-contract.md).
 
 For coordinated multi-dataset policy authoring and execution, follow the frozen [`time-alignment-v1` and `reconciliation-v1` contract](docs/1.3/149-time-alignment-and-reconciliation-contract.md).
+
+For a local 1.4 workflow, verify [`examples/1.4/payout-dataset-manifest.json`](examples/1.4/payout-dataset-manifest.json), then use `parison publish-dataset-evidence --manifest ... --root ... --policy-file ... --output ...`. Standard `parison verify` and `parison inspect` commands validate and summarize the resulting bundle without exposing source paths or resource IDs.
 
 Start a new local migration check with `parison init migration-check`. The command writes a minimal keyed recipe, matching smoke-test inputs and a short workflow guide into a missing or empty directory; it never overwrites an existing project.
 

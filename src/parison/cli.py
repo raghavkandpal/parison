@@ -13,7 +13,7 @@ from . import __version__
 from .catalog import add as catalog_add, diff as catalog_diff, history as catalog_history, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
 from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, export_statement, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, report_cutover, run_suite, terminal_result, validate_inputs, verify_bundle, verify_statement
 from .evolution import compile_evolution_mappings, diff_policies, explain_evolution, load_evolution, summarize_policy_diff
-from .manifesting import capture_reproducibility_diagnostic, create_dataset_manifest, diff_reproducibility_diagnostics, explain_dataset_manifest, verify_dataset_manifest
+from .manifesting import capture_reproducibility_diagnostic, create_dataset_manifest, diff_reproducibility_diagnostics, explain_dataset_manifest, publish_dataset_evidence_bundle, verify_dataset_manifest
 from .project import init_project
 from .reconciliation import check_conservation, check_identity_references, explain_reconciliation, explain_time_alignment, inspect_reconciliation_bundle, load_reconciliation, load_time_alignment, preflight_alignment, publish_reconciliation_bundle, run_reconciliation, summarize_reconciliation_result, verify_reconciliation_bundle
 
@@ -172,6 +172,11 @@ def parser() -> argparse.ArgumentParser:
     verify_manifest.add_argument("--root", required=True)
     verify_manifest.add_argument("--summary", action="store_true")
     verify_manifest.add_argument("--policy-file")
+    publish_dataset_evidence = commands.add_parser("publish-dataset-evidence", help="publish a verified manifest, policy and diagnostic bundle")
+    publish_dataset_evidence.add_argument("--manifest", required=True)
+    publish_dataset_evidence.add_argument("--root", required=True)
+    publish_dataset_evidence.add_argument("--policy-file", required=True)
+    publish_dataset_evidence.add_argument("--output", required=True)
     capture_diagnostic = commands.add_parser("capture-reproducibility", help="record bounded runtime facts for one dataset manifest")
     capture_diagnostic.add_argument("--manifest", required=True)
     capture_diagnostic.add_argument("--output", required=True)
@@ -492,6 +497,11 @@ def main(argv: list[str] | None = None) -> int:
             result = verify_dataset_manifest(args.manifest, args.root, args.summary, args.policy_file)
             print(json.dumps(result, indent=2, sort_keys=True))
             print("Manifest PASS proves declared local byte identity only; it is not extraction truth or approval.", file=sys.stderr)
+            return OUTCOME_CODES[result["outcome"]]
+        if args.command == "publish-dataset-evidence":
+            result = publish_dataset_evidence_bundle(args.output, args.manifest, args.root, args.policy_file)
+            print(json.dumps({"output": args.output, "outcome": result["outcome"], "bundle_sha256": hashlib.sha256((Path(args.output) / "manifest.json").read_bytes()).hexdigest()}, sort_keys=True))
+            print("Dataset evidence binds declared local bytes and runtime facts; it is not extraction truth, approval or cutover authorization.", file=sys.stderr)
             return OUTCOME_CODES[result["outcome"]]
         if args.command == "capture-reproducibility":
             result = capture_reproducibility_diagnostic(args.manifest, args.output)
