@@ -5,7 +5,7 @@
 - Theme: explicit time alignment and multi-dataset reconciliation
 - Released: opt-in `semantic-scalar-v1`, strict local `schema-evolution-v1` and deterministic summary-safe `policy-diff-v1`
 - Verified: exact merge `31eb265b64c01bfa6625364cc3c2e7f6240cb791` passed [the full CI matrix](https://github.com/raghavkandpal/parison/actions/runs/38695553104); public assets were checksum-verified and the fresh wheel passed semantic comparison/verification plus evolution and policy-diff smoke workflows
-- Next gate: exact-candidate built-wheel CI for 1.3.0
+- Next gate: merge the qualified 1.3.0 candidate and complete exact-merge publication evidence
 
 ## Recorded next steps
 
@@ -15,7 +15,7 @@
 - Grouped-sum conservation executes independently on both sides with exact or symmetric tolerance comparison over matching integer/scaled-decimal domains and byte-identical bounded memory/SQLite evidence.
 - `parison reconcile` composes alignment, existing keyed/aggregate/multiset parity and all declared relationships under one input-change guard, with conservative FAIL-before-INCONCLUSIVE reduction and a summary-safe projection.
 - Reconciliation bundles publish atomically with no overwrite, bind normalized declarations plus every input/receipt identity, verify semantic membership and outcome reduction, and support summary-safe standard inspection.
-- Three end-to-end scenarios cover payout reconciliation, relationship failure despite parity, and an alignment-INCONCLUSIVE partitioned backfill; local compatibility, atomic no-replace publication, semantic verification binding and the full 303-test gate pass. Independent review reports no remaining blockers; exact-candidate CI remains before release. See the [engineering checkpoint](1.3/150-engineering-checkpoint.md) and active [release checklist](1.3/151-release-checklist.md).
+- Three end-to-end scenarios cover payout reconciliation, relationship failure despite parity, and an alignment-INCONCLUSIVE partitioned backfill; local compatibility, atomic no-replace publication, semantic verification binding and the full 303-test gate pass. Independent review reports no blockers, and exact candidate `b25db99` passed the complete built-wheel matrix plus a fresh Python 3.14 wheel smoke. Merge and publication evidence remain. See the [engineering checkpoint](1.3/150-engineering-checkpoint.md) and active [release checklist](1.3/151-release-checklist.md).
 - Preserve extraction ownership upstream. Snapshot tokens and watermarks remain source-owned claims bound by local evidence; a declared cutoff cannot establish coordination and therefore remains `INCONCLUSIVE`.
 - Deepen the existing suite, keyed/SQLite and aggregate seams. Do not add connectors, a query language, a graph planner or a second orchestration framework.
 

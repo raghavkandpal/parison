@@ -2,7 +2,7 @@
 
 Date: 15 October 2026
 
-Status: **independent review passed; exact-candidate CI pending**
+Status: **exact candidate qualified; merge pending**
 
 ## Delivered capability
 
@@ -25,10 +25,13 @@ Status: **independent review passed; exact-candidate CI pending**
 - Interruption and concurrent-target tests prove SQLite workspace cleanup, publication staging cleanup and preservation of a racing publisher's output.
 - Released compatibility fixtures remain byte-identical and readable through the unchanged standard verifier.
 
+## Candidate evidence
+
+- Exact candidate `b25db9962698a370ff0703da8cc7d7c23abcabc5` passed built-wheel CI on the full Python 3.11–3.14 × Linux/macOS/Windows matrix with pinned Polars 1.44.2.
+- A clean archive produced inspected wheel/source artifacts, and a fresh Python 3.14 environment passed the complete checked-in SQLite reconciliation workflow from the candidate wheel.
+
 ## Remaining release evidence
 
-- Exact-candidate built-wheel CI on the full Python 3.11–3.14 × Linux/macOS/Windows matrix.
-- Fresh-wheel smoke of the complete checked-in reconciliation workflow.
 - Exact-merge CI, public artifact checksum verification and post-release smoke.
 
 ## Boundaries retained
