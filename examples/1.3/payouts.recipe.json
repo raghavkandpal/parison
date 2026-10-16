@@ -1,0 +1,19 @@
+{
+  "recipe_version": 1,
+  "comparison_mode": "keyed",
+  "keys": ["payout_id"],
+  "scope": {"snapshot": "september-close", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": false},
+  "identity": {"null_keys": "reject", "duplicates": "reject"},
+  "nulls_equal": true,
+  "null_tokens": {"baseline": [], "candidate": []},
+  "columns": {
+    "payout_id": {"type": "string", "comparison": "exact"},
+    "occurred_at": {"type": "timestamp", "comparison": "exact", "timezone": "require-aware"},
+    "amount": {"type": "decimal", "comparison": "exact", "scale": 2}
+  },
+  "column_mappings": {},
+  "excluded_columns": {},
+  "delimiters": {"baseline": ",", "candidate": ","},
+  "input_projection": "semantic-scalar-v1",
+  "output": {"sensitivity": "summary"}
+}

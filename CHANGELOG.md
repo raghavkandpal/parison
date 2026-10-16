@@ -2,7 +2,25 @@
 
 All notable changes will be documented in this file.
 
-## Unreleased
+## 1.3.0 - 2026-10-16
+
+### Added
+
+- Frozen opt-in `time-alignment-v1` and `reconciliation-v1` authoring contracts with strict installed schemas, semantic cross-reference validation, deterministic canonical bytes and fingerprints.
+- CLI validation and explanation for fixed UTC half-open event windows, source-owned snapshot/watermark/cutoff claims, and the closed identity/reference/grouped-sum relationship vocabulary.
+- Deterministic alignment preflight that verifies receipt, alignment and effective-policy fingerprints before scanning both dataset sets; enforces exact window edges and resource limits; detects changed inputs; and emits a strict installed result schema with conservative PASS, FAIL or INCONCLUSIVE outcomes.
+- Per-side identity and reference execution with explicit null semantics, duplicate-parent protection, aggregate-only diagnostics, deterministic ordering, input-change detection and equivalent bounded memory/SQLite engines.
+- Per-side grouped-sum conservation over matching integer or scaled-decimal measures, including exact and symmetric tolerance comparison, closed null behavior, distinct failure counts and equivalent bounded memory/SQLite engines.
+- A composed `reconcile` gate that runs alignment, existing per-dataset parity and all declared relationships under one input-change guard, applies conservative FAIL-before-INCONCLUSIVE reduction and offers a summary-safe projection without dataset/check identifiers or detailed counts.
+- Atomic no-overwrite reconciliation bundles with private staging, manifest-bound full and summary evidence, normalized declarations, standard verification and summary-safe inspection.
+
+### Fixed
+
+- Reconciliation publication uses platform-native atomic no-replace directory operations, and verification binds receipt and per-dataset policy identities back to the effective declarations.
+
+### Compatibility
+
+- The 1.3 alignment preflight is a separate opt-in command and does not execute parity or relationship checks. Released recipes, suites, results, bundles, fingerprints, canonical bytes and exit codes remain unchanged.
 
 ## 1.2.0 - 2026-10-15
 

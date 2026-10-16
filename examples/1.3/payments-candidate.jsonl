@@ -1,0 +1,3 @@
+{"payment_id":"pay-3","payout_id":"p-200","occurred_at":"2026-09-30T12:00:00Z","amount":"7.25"}
+{"payment_id":"pay-1","payout_id":"p-100","occurred_at":"2026-09-02T00:00:00Z","amount":"5.00"}
+{"payment_id":"pay-2","payout_id":"p-100","occurred_at":"2026-09-03T00:00:00Z","amount":"7.50"}

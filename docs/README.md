@@ -4,6 +4,14 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 1.3 — release candidate
+
+- [Time alignment and multi-dataset reconciliation research](1.3/147-time-alignment-and-multi-dataset-reconciliation-research.md)
+- [1.3 roadmap](1.3/148-roadmap.md)
+- [`time-alignment-v1` and `reconciliation-v1` contract](1.3/149-time-alignment-and-reconciliation-contract.md)
+- [1.3 engineering checkpoint](1.3/150-engineering-checkpoint.md)
+- [1.3.0 release checklist](1.3/151-release-checklist.md)
+
 ## 1.2 — released
 
 - [Schema evolution and policy-diff research](1.2/141-schema-evolution-and-policy-diff-research.md)

@@ -1,0 +1,4 @@
+payment_id,payout_id,occurred_at,amount
+pay-1,p-100,2026-09-02T00:00:00Z,5.00
+pay-2,p-100,2026-09-03T00:00:00Z,7.50
+pay-3,p-200,2026-09-30T12:00:00Z,7.25

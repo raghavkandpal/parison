@@ -58,6 +58,12 @@ _SCHEMAS = {
     "statement": "statement-v1.schema.json",
     "schema-evolution": "schema-evolution-v1.schema.json",
     "policy-diff": "policy-diff-v1.schema.json",
+    "time-alignment": "time-alignment-v1.schema.json",
+    "reconciliation": "reconciliation-v1.schema.json",
+    "alignment-preflight": "alignment-preflight-v1.schema.json",
+    "relationship-result": "relationship-result-v1.schema.json",
+    "conservation-result": "conservation-result-v1.schema.json",
+    "reconciliation-result": "reconciliation-result-v1.schema.json",
 }
 
 _SUITE_LIMIT_DEFAULTS = {
@@ -2936,7 +2942,10 @@ def _verified_bundle(directory: str | Path) -> tuple[dict[str, Any], bytes]:
         manifest = json.loads(manifest_bytes)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read manifest: {exc}") from exc
-    if isinstance(manifest, dict) and manifest.get("kind") in {"suite", "suite-shard"}:
+    if isinstance(manifest, dict) and manifest.get("kind") == "reconciliation":
+        from parison.reconciliation import verify_reconciliation_bundle
+        manifest = verify_reconciliation_bundle(directory)
+    elif isinstance(manifest, dict) and manifest.get("kind") in {"suite", "suite-shard"}:
         manifest = _verify_suite_bundle(directory, manifest)
     else:
         if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
@@ -2965,6 +2974,9 @@ def verify_bundle(directory: str | Path) -> dict[str, Any]:
 def inspect_bundle(directory: str | Path) -> dict[str, Any]:
     """Return safe, schema-aware metadata from a verified bundle."""
     manifest = verify_bundle(directory)
+    if manifest.get("kind") == "reconciliation":
+        from parison.reconciliation import inspect_reconciliation_bundle
+        return inspect_reconciliation_bundle(directory)
     if manifest.get("kind") in {"suite", "suite-shard"}:
         result = json.loads((Path(directory) / "suite-result.json").read_text(encoding="utf-8"))
         return {
