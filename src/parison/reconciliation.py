@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ctypes
+import errno
 import hashlib
 import json
 import math
@@ -8,6 +10,7 @@ import re
 import shutil
 import sqlite3
 import tempfile
+import sys
 from collections import Counter
 from datetime import datetime
 from decimal import Decimal
@@ -850,6 +853,29 @@ def summarize_reconciliation_result(result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _rename_no_replace(source: Path, target: Path) -> None:
+    if sys.platform == "linux":
+        libc = ctypes.CDLL(None, use_errno=True)
+        rename = libc.renameat2
+        rename.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+        rename.restype = ctypes.c_int
+        status = rename(-100, os.fsencode(source), -100, os.fsencode(target), 1)
+    elif sys.platform == "darwin":
+        libc = ctypes.CDLL(None, use_errno=True)
+        rename = libc.renamex_np
+        rename.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint]
+        rename.restype = ctypes.c_int
+        status = rename(os.fsencode(source), os.fsencode(target), 4)
+    else:
+        os.rename(source, target)
+        return
+    if status:
+        error = ctypes.get_errno()
+        if error in {errno.EEXIST, errno.ENOTEMPTY}:
+            raise FileExistsError(error, os.strerror(error), target)
+        raise OSError(error, os.strerror(error), target)
+
+
 def publish_reconciliation_bundle(
     output: str | Path,
     result: dict[str, Any],
@@ -887,9 +913,7 @@ def publish_reconciliation_bundle(
             "files": files,
         }
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        if target.exists():
-            raise ParisonError(f"output already exists: {target}")
-        os.rename(stage, target)
+        _rename_no_replace(stage, target)
         stage = None
     except ParisonError:
         raise
@@ -953,11 +977,14 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
         if set(item) != {"id", "outcome", "complete", "schema_version", "contract", "policy_sha256", "baseline_sha256", "candidate_sha256", "discrepancy_count"} or item["outcome"] not in {"PASS", "FAIL", "INCONCLUSIVE"}:
             raise ParisonError("reconciliation result has invalid dataset parity")
         component_outcomes.append(item["outcome"])
+    declared_policies = [item["policy_sha256"] for item in normalized_declaration["datasets"]]
     expected_outcome = "FAIL" if "FAIL" in component_outcomes else "INCONCLUSIVE" if "INCONCLUSIVE" in component_outcomes else "PASS"
     if (
         result.get("alignment_sha256") != alignment_sha256
         or result.get("reconciliation_sha256") != reconciliation_sha256
         or normalized_declaration["alignment_sha256"] != alignment_sha256
+        or result.get("receipt_sha256") != normalized_alignment["coordination"]["receipt_sha256"]
+        or [item["policy_sha256"] for item in result["datasets"]] != declared_policies
         or summary != summarize_reconciliation_result(result)
         or manifest["outcome"] != result.get("outcome")
         or manifest["runtime"] != result.get("runtime")

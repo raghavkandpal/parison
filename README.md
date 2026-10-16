@@ -22,7 +22,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **1.2.0 released.** Opt-in semantic scalar projection now gives mixed-format comparisons a closed conversion boundary, while local schema-evolution declarations and policy diffs explain reviewed renames and structural changes without reading datasets or granting approval.
 
-**1.3 in development.** Frozen `time-alignment-v1` and `reconciliation-v1` contracts define one UTC half-open event window, source-owned coordination claims and a closed identity/reference/grouped-sum vocabulary. `parison reconcile` composes alignment, existing per-dataset parity and memory/SQLite relationship checks with conservative outcomes, atomic verified bundles and summary-safe inspection; full workflow and built-wheel qualification remain pending.
+**1.3.0 release candidate.** Frozen `time-alignment-v1` and `reconciliation-v1` contracts define one UTC half-open event window, source-owned coordination claims and a closed identity/reference/grouped-sum vocabulary. `parison reconcile` composes alignment, existing per-dataset parity and memory/SQLite relationship checks with conservative outcomes, atomic verified bundles and summary-safe inspection.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -34,7 +34,7 @@ For the complete reviewed-policy, rehearsal, suite and authenticated handoff pat
 
 For cross-format scalar representation rules, follow the [semantic scalar guide](docs/1.1/140-semantic-scalar-guide.md). For data-free rename, addition, removal, split and merge review, follow the [`schema-evolution-v1` and `policy-diff-v1` contract](docs/1.2/143-schema-evolution-and-policy-diff-contract.md).
 
-For coordinated multi-dataset policy authoring, follow the frozen [`time-alignment-v1` and `reconciliation-v1` contract](docs/1.3/149-time-alignment-and-reconciliation-contract.md). The current release can validate and fingerprint these declarations but does not execute them yet.
+For coordinated multi-dataset policy authoring and execution, follow the frozen [`time-alignment-v1` and `reconciliation-v1` contract](docs/1.3/149-time-alignment-and-reconciliation-contract.md).
 
 Start a new local migration check with `parison init migration-check`. The command writes a minimal keyed recipe, matching smoke-test inputs and a short workflow guide into a missing or empty directory; it never overwrites an existing project.
 

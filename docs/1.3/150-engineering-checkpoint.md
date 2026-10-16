@@ -2,7 +2,7 @@
 
 Date: 15 October 2026
 
-Status: **local capability gate passed; exact-commit CI pending**
+Status: **independent review passed; exact-candidate CI pending**
 
 ## Delivered capability
 
@@ -15,7 +15,7 @@ Status: **local capability gate passed; exact-commit CI pending**
 
 ## Local evidence
 
-- `make check` passes 301 tests with 11 expected skips when optional Polars is absent.
+- `make check` passes 303 tests with 11 expected skips when optional Polars is absent.
 - Canonical byte fixtures cover both authoring contracts.
 - Focused tests cover all coordination modes, exact window edges, malformed timestamp rejection, duplicate IDs/checks, token-domain mismatch, negative lateness, type/arity mismatch, cycles, receipt mismatch, policy mismatch, FAIL-before-INCONCLUSIVE reduction and bundle tampering.
 - Memory/SQLite byte identity is asserted for identity/reference, conservation and composed results.
@@ -27,7 +27,6 @@ Status: **local capability gate passed; exact-commit CI pending**
 
 ## Remaining release evidence
 
-- Independent Standards and Spec review of `origin/main...develop`.
 - Exact-candidate built-wheel CI on the full Python 3.11–3.14 × Linux/macOS/Windows matrix.
 - Fresh-wheel smoke of the complete checked-in reconciliation workflow.
 - Exact-merge CI, public artifact checksum verification and post-release smoke.
@@ -35,3 +34,5 @@ Status: **local capability gate passed; exact-commit CI pending**
 ## Boundaries retained
 
 Core execution remains local, deterministic and credential-free. Receipts and opaque source tokens are bound but not authenticated. Parison does not acquire snapshots, advance watermarks, wait on clocks, connect to sources, infer relationships, repair data, approve policy or authorize cutover. PASS remains agreement under the explicit policy.
+
+Independent Standards and Spec review against `origin/main...develop` found and closed two blockers: publication now uses an atomic OS-native no-replace operation on every supported platform, and bundle verification binds receipt and dataset-policy identities to the normalized declarations. Both review axes report no remaining release blockers.

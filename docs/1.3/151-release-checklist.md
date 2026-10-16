@@ -2,7 +2,7 @@
 
 Date: 15 October 2026
 
-Status: **candidate preparation**
+Status: **exact-candidate qualification**
 
 ## Capability gate
 
@@ -12,12 +12,12 @@ Status: **candidate preparation**
 - [x] Reconciliation publication is atomic, no-overwrite, symlink-safe and cleans private staging/temporary state on failure or interruption.
 - [x] Full evidence binds inputs and receipt identity; summary-safe output excludes paths, dataset/check/column names, keys, groups, values, tokens, receipt contents and samples.
 - [x] The realistic cross-format payout fixture passes both engines and standard bundle verification.
-- [ ] Independent Standards and Spec reviews report no release blockers.
+- [x] Independent Standards and Spec reviews report no release blockers.
 
 ## Exact candidate
 
-- [ ] `make check` passes from the final candidate worktree.
-- [ ] Version and release records identify 1.3.0 without changing released compatibility fixtures.
+- [x] `make check` passes from the final candidate worktree (303 tests; 11 expected optional-Polars skips).
+- [x] Version and release records identify 1.3.0 without changing released compatibility fixtures.
 - [ ] Exact candidate passes built-wheel CI on the full Python 3.11–3.14 × Linux/macOS/Windows matrix with pinned Polars 1.44.2.
 - [ ] A clean archive builds inspected wheel/source artifacts.
 - [ ] A fresh environment installs the candidate wheel and passes the complete reconciliation smoke workflow.

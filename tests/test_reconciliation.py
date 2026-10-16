@@ -1,5 +1,6 @@
 import copy
 import json
+import shutil
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -11,7 +12,7 @@ from jsonschema import Draft202012Validator
 
 from parison.cli import main
 from parison.core import ParisonError, explain_recipe, inspect_bundle, load_schema, verify_bundle
-from parison.reconciliation import canonical_reconciliation_bytes, canonical_time_alignment_bytes, check_conservation, check_identity_references, explain_reconciliation, explain_time_alignment, inspect_reconciliation_bundle, normalize_reconciliation, normalize_time_alignment, preflight_alignment, publish_reconciliation_bundle, run_reconciliation, summarize_reconciliation_result, verify_reconciliation_bundle
+from parison.reconciliation import canonical_reconciliation_bytes, canonical_time_alignment_bytes, check_conservation, check_identity_references, explain_reconciliation, explain_time_alignment, file_digest, inspect_reconciliation_bundle, normalize_reconciliation, normalize_time_alignment, preflight_alignment, publish_reconciliation_bundle, run_reconciliation, summarize_reconciliation_result, verify_reconciliation_bundle
 
 
 ROOT = Path(__file__).parents[1]
@@ -415,6 +416,34 @@ class ReconciliationContracts(unittest.TestCase):
             with self.assertRaisesRegex(ParisonError, "integrity check"):
                 verify_reconciliation_bundle(bundle)
 
+    def test_reconciliation_bundle_verification_binds_receipt_and_dataset_policies(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            bundle = root / "bundle"
+            publish_reconciliation_bundle(bundle, run_reconciliation(*files), files[0], files[1])
+
+            def rewrite(name, mutate):
+                path = bundle / name
+                value = json.loads(path.read_text(encoding="utf-8"))
+                mutate(value)
+                path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+                manifest_path = bundle / "manifest.json"
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                manifest["files"][name] = file_digest(path)
+                manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+            rewrite("reconciliation-result.json", lambda value: value.update(receipt_sha256="f" * 64))
+            rewrite("summary.json", lambda value: value.update(receipt_sha256="f" * 64))
+            with self.assertRaisesRegex(ParisonError, "metadata is inconsistent"):
+                verify_reconciliation_bundle(bundle)
+
+            shutil.rmtree(bundle)
+            publish_reconciliation_bundle(bundle, run_reconciliation(*files), files[0], files[1])
+            rewrite("reconciliation-result.json", lambda value: value["datasets"][0].update(policy_sha256="f" * 64))
+            with self.assertRaisesRegex(ParisonError, "metadata is inconsistent"):
+                verify_reconciliation_bundle(bundle)
+
     def test_reconcile_cli_publishes_and_verifies_bundle(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -438,7 +467,7 @@ class ReconciliationContracts(unittest.TestCase):
                 check_identity_references(files[1], files[3], engine="sqlite", temp_directory=root)
             self.assertEqual(list(root.glob("parison-reconciliation-*")), [])
             result = run_reconciliation(*files)
-            with patch("parison.reconciliation.os.rename", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+            with patch("parison.reconciliation._rename_no_replace", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
                 publish_reconciliation_bundle(root / "interrupted", result, files[0], files[1])
             self.assertFalse((root / "interrupted").exists())
             self.assertEqual(list(root.glob(".interrupted-*")), [])
@@ -449,17 +478,36 @@ class ReconciliationContracts(unittest.TestCase):
             files = self._preflight_files(root)
             result = run_reconciliation(*files)
             target = root / "raced"
-            real_rename = __import__("os").rename
+            from parison.reconciliation import _rename_no_replace
 
             def race(source, destination):
-                Path(destination).mkdir()
-                (Path(destination) / "owner").write_text("other publisher", encoding="utf-8")
-                return real_rename(source, destination)
+                destination.mkdir()
+                return _rename_no_replace(source, destination)
 
-            with patch("parison.reconciliation.os.rename", side_effect=race), self.assertRaisesRegex(ParisonError, "cannot publish"):
+            with patch("parison.reconciliation._rename_no_replace", side_effect=race), self.assertRaisesRegex(ParisonError, "cannot publish"):
                 publish_reconciliation_bundle(target, result, files[0], files[1])
-            self.assertEqual((target / "owner").read_text(encoding="utf-8"), "other publisher")
+            self.assertEqual(list(target.iterdir()), [])
             self.assertEqual(list(root.glob(".raced-*")), [])
+
+    def test_publication_exposes_only_the_complete_bundle(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            result = run_reconciliation(*files)
+            target = root / "bundle"
+            from parison.reconciliation import _rename_no_replace
+
+            def observe(source, destination):
+                self.assertFalse(destination.exists())
+                self.assertEqual(
+                    {path.name for path in source.iterdir()},
+                    {"effective-alignment.json", "effective-reconciliation.json", "manifest.json", "reconciliation-result.json", "summary.json"},
+                )
+                return _rename_no_replace(source, destination)
+
+            with patch("parison.reconciliation._rename_no_replace", side_effect=observe):
+                publish_reconciliation_bundle(target, result, files[0], files[1])
+            self.assertEqual(verify_reconciliation_bundle(target)["outcome"], "PASS")
 
 
 if __name__ == "__main__":
