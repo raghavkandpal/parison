@@ -2,7 +2,7 @@
 
 Date: 16 October 2026
 
-Status: **active implementation**
+Status: **release candidate**
 
 ## Theme
 

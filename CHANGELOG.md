@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 1.4.0 - 2026-10-16
+
 ### Added
 
 - Strict local `dataset-manifest-v1` creation and verification with mandatory existing-policy binding, canonical fingerprints, descriptor-relative safe paths, optional reviewed closed-scope membership, atomic no-overwrite publication and exact SHA-256 byte identity.
