@@ -1,11 +1,11 @@
 # Current development state
 
-- Version: **1.3.0 release candidate**
+- Version: **1.4 active research**
 - Branch: `develop`
-- Theme: explicit time alignment and multi-dataset reconciliation
-- Released: opt-in `semantic-scalar-v1`, strict local `schema-evolution-v1` and deterministic summary-safe `policy-diff-v1`
-- Verified: exact merge `31eb265b64c01bfa6625364cc3c2e7f6240cb791` passed [the full CI matrix](https://github.com/raghavkandpal/parison/actions/runs/38695553104); public assets were checksum-verified and the fresh wheel passed semantic comparison/verification plus evolution and policy-diff smoke workflows
-- Next gate: merge the qualified 1.3.0 candidate and complete exact-merge publication evidence
+- Theme: deterministic dataset manifests and reproducibility diagnostics
+- Released: opt-in `semantic-scalar-v1`, strict schema/policy evolution, and coordinated `time-alignment-v1` plus `reconciliation-v1`
+- Verified: exact 1.3.0 merge `3aec4fb0b7355aea94aa81d8a8a7c5e3372414ea` passed [the full CI matrix](https://github.com/raghavkandpal/parison/actions/runs/38862675947); public assets were checksum-verified and the fresh wheel passed the complete SQLite reconciliation workflow
+- Next gate: research one larger 1.4 capability that binds declared dataset collections to reproducible local evidence without adding connectors or custody
 
 ## Recorded next steps
 

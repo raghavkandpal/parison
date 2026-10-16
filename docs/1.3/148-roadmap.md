@@ -1,6 +1,6 @@
 # Parison 1.3 roadmap
 
-Status: **release candidate qualification**
+Status: **released in 1.3.0**
 
 ## Theme
 
