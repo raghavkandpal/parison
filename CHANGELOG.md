@@ -2,6 +2,13 @@
 
 All notable changes will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- Strict local `dataset-manifest-v1` creation and verification with explicit policy binding, canonical fingerprints, safe relative paths, atomic no-overwrite publication and exact SHA-256 byte identity.
+- Separate `reproducibility-diagnostic-v1` capture and deterministic informational comparison over a closed, summary-safe runtime vocabulary.
+
 ## 1.3.0 - 2026-10-16
 
 ### Added

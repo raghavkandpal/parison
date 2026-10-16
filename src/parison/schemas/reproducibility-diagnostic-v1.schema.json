@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/reproducibility-diagnostic-v1.schema.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["diagnostic_version", "manifest_sha256", "runtime", "observations"],
+  "properties": {
+    "diagnostic_version": {"const": 1},
+    "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "runtime": {
+      "type": "object", "additionalProperties": false,
+      "required": ["parison_version", "python_implementation", "python_version", "os_family", "architecture", "sqlite_version", "parquet_reader"],
+      "properties": {
+        "parison_version": {"type": "string", "minLength": 1}, "python_implementation": {"type": "string", "minLength": 1},
+        "python_version": {"type": "string", "minLength": 1}, "os_family": {"type": "string", "minLength": 1},
+        "architecture": {"type": "string", "minLength": 1}, "sqlite_version": {"type": "string", "minLength": 1},
+        "parquet_reader": {"oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["distribution", "version"], "properties": {"distribution": {"type": "string", "minLength": 1}, "version": {"type": "string", "minLength": 1}}}]}
+      }
+    },
+    "observations": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"}}
+  }
+}

@@ -4,6 +4,12 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 1.4 — active implementation
+
+- [Dataset manifests and reproducibility research](1.4/152-dataset-manifest-and-reproducibility-research.md)
+- [1.4 roadmap](1.4/153-roadmap.md)
+- [`dataset-manifest-v1` and `reproducibility-diagnostic-v1` contract](1.4/154-dataset-manifest-and-reproducibility-contract.md)
+
 ## 1.3 — released
 
 - [Time alignment and multi-dataset reconciliation research](1.3/147-time-alignment-and-multi-dataset-reconciliation-research.md)

@@ -13,6 +13,7 @@ from . import __version__
 from .catalog import add as catalog_add, diff as catalog_diff, history as catalog_history, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
 from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, export_statement, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, report_cutover, run_suite, terminal_result, validate_inputs, verify_bundle, verify_statement
 from .evolution import compile_evolution_mappings, diff_policies, explain_evolution, load_evolution, summarize_policy_diff
+from .manifesting import capture_reproducibility_diagnostic, create_dataset_manifest, diff_reproducibility_diagnostics, explain_dataset_manifest, verify_dataset_manifest
 from .project import init_project
 from .reconciliation import check_conservation, check_identity_references, explain_reconciliation, explain_time_alignment, inspect_reconciliation_bundle, load_reconciliation, load_time_alignment, preflight_alignment, publish_reconciliation_bundle, run_reconciliation, summarize_reconciliation_result, verify_reconciliation_bundle
 
@@ -154,8 +155,29 @@ def parser() -> argparse.ArgumentParser:
     verify_reconciliation_parser.add_argument("bundle")
     inspect_reconciliation_parser = commands.add_parser("inspect-reconciliation", help="print summary-safe metadata from a verified reconciliation bundle")
     inspect_reconciliation_parser.add_argument("bundle")
+    create_manifest = commands.add_parser("create-dataset-manifest", help="bind explicitly named local files to a deterministic manifest")
+    create_manifest.add_argument("--root", required=True)
+    create_manifest.add_argument("--collection-id", required=True)
+    create_manifest.add_argument("--policy-kind", choices=("suite", "reconciliation"), required=True)
+    create_manifest.add_argument("--policy-sha256", required=True)
+    create_manifest.add_argument("--resource", action="append", nargs=4, metavar=("ID", "ROLE", "FORMAT", "PATH"), required=True)
+    create_manifest.add_argument("--output", required=True)
+    validate_manifest = commands.add_parser("validate-dataset-manifest", help="validate a dataset-manifest-v1 declaration")
+    validate_manifest.add_argument("manifest")
+    explain_manifest = commands.add_parser("explain-dataset-manifest", help="print a normalized dataset manifest and fingerprint")
+    explain_manifest.add_argument("manifest")
+    verify_manifest = commands.add_parser("verify-dataset-manifest", help="verify declared local membership and byte identity")
+    verify_manifest.add_argument("--manifest", required=True)
+    verify_manifest.add_argument("--root", required=True)
+    verify_manifest.add_argument("--summary", action="store_true")
+    capture_diagnostic = commands.add_parser("capture-reproducibility", help="record bounded runtime facts for one dataset manifest")
+    capture_diagnostic.add_argument("--manifest", required=True)
+    capture_diagnostic.add_argument("--output", required=True)
+    diff_diagnostic = commands.add_parser("diff-reproducibility", help="compare two diagnostics for the same dataset manifest")
+    diff_diagnostic.add_argument("left")
+    diff_diagnostic.add_argument("right")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
-    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2", "statement", "schema-evolution", "policy-diff", "time-alignment", "reconciliation", "alignment-preflight", "relationship-result", "conservation-result", "reconciliation-result"))
+    schema.add_argument("name", choices=("recipe", "recipe-authoring", "recipe-v2", "recipe-v3", "result", "result-v2", "result-v3", "manifest", "preflight", "preflight-v2", "preflight-v3", "suite", "suite-authoring", "suite-v2", "suite-result", "suite-result-v2", "suite-manifest", "suite-manifest-v2", "statement", "schema-evolution", "policy-diff", "time-alignment", "reconciliation", "alignment-preflight", "relationship-result", "conservation-result", "reconciliation-result", "dataset-manifest", "reproducibility-diagnostic"))
     schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
     schema_export.add_argument("--output", required=True)
     suite = commands.add_parser("validate-suite", help="validate a comparison suite and its references")
@@ -451,6 +473,31 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "inspect-reconciliation":
             print(json.dumps(inspect_reconciliation_bundle(args.bundle), indent=2, sort_keys=True))
+            return 0
+        if args.command == "create-dataset-manifest":
+            result = create_dataset_manifest(args.root, args.collection_id, args.policy_kind, args.policy_sha256, args.resource, args.output)
+            print(json.dumps({"output": args.output, "manifest_sha256": result["manifest_sha256"]}, sort_keys=True))
+            print("Manifest PASS proves declared local byte identity only; it is not extraction truth or approval.", file=sys.stderr)
+            return 0
+        if args.command == "validate-dataset-manifest":
+            explain_dataset_manifest(args.manifest)
+            print("valid")
+            return 0
+        if args.command == "explain-dataset-manifest":
+            print(json.dumps(explain_dataset_manifest(args.manifest), indent=2, sort_keys=True))
+            return 0
+        if args.command == "verify-dataset-manifest":
+            result = verify_dataset_manifest(args.manifest, args.root, args.summary)
+            print(json.dumps(result, indent=2, sort_keys=True))
+            print("Manifest PASS proves declared local byte identity only; it is not extraction truth or approval.", file=sys.stderr)
+            return OUTCOME_CODES[result["outcome"]]
+        if args.command == "capture-reproducibility":
+            result = capture_reproducibility_diagnostic(args.manifest, args.output)
+            print(json.dumps({"output": args.output, "diagnostic_sha256": result["diagnostic_sha256"]}, sort_keys=True))
+            return 0
+        if args.command == "diff-reproducibility":
+            print(json.dumps(diff_reproducibility_diagnostics(args.left, args.right), indent=2, sort_keys=True))
+            print("Runtime differences are informational and do not change verification outcomes.", file=sys.stderr)
             return 0
         if args.command == "schema":
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))

@@ -24,6 +24,8 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **1.3.0 released.** Frozen `time-alignment-v1` and `reconciliation-v1` contracts define one UTC half-open event window, source-owned coordination claims and a closed identity/reference/grouped-sum vocabulary. `parison reconcile` composes alignment, existing per-dataset parity and memory/SQLite relationship checks with conservative outcomes, atomic verified bundles and summary-safe inspection.
 
+**1.4 in development.** Strict local dataset manifests bind explicitly named files to exact byte identities, while separate reproducibility diagnostics explain selected runtime differences without changing verification outcomes.
+
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
 ## Try it
