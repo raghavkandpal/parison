@@ -2,7 +2,7 @@
 
 Date: 16 October 2026
 
-Status: **candidate**
+Status: **released**
 
 ## Capability gate
 
@@ -26,10 +26,15 @@ Candidate SHA-256:
 
 ## Publication
 
-- [ ] Reviewed pull request merged to `main`; exact-merge CI passed.
-- [ ] Wheel, source archive and checksums built from the exact merge.
-- [ ] Annotated tag `1.4.0` and GitHub release identify the exact merge.
-- [ ] Public assets re-downloaded, checksum-verified and smoke-tested from a fresh install.
-- [ ] Roadmap, checklist, changelog, README, documentation index and current-state record identify the release.
+- [x] [Pull request 40](https://github.com/raghavkandpal/parison/pull/40) merged the reviewed candidate to `main` at `13eb551f216595297d012d3ea4b06fbe65670d0e`; exact-merge [CI run 38896813377](https://github.com/raghavkandpal/parison/actions/runs/38896813377) passed.
+- [x] Wheel, source archive and checksums were built from a clean archive of the exact merge.
+- [x] Annotated tag `1.4.0` identifies the exact merge and [GitHub release 1.4.0](https://github.com/raghavkandpal/parison/releases/tag/1.4.0) publishes the tested artifacts; PyPI remains intentionally deferred.
+- [x] Public assets were re-downloaded and checksum-verified, then installed fresh under Python 3.14; the complete manifest, SQLite reconciliation, dataset-evidence publication, verification and inspection workflow passed.
+- [x] Roadmap, checklist, changelog, README, documentation index and current-state record identify the release.
+
+Published SHA-256:
+
+- `parison-1.4.0-py3-none-any.whl`: `ccc887a2977d5ae031815bec28d9fa885c9ae59d78289cccb22958a560672b25`
+- `parison-1.4.0.tar.gz`: `989705efbd2edefe1a692f1dafb89259c439c76f3234373c67fd441e44a59851`
 
 Do not mark 1.4.0 released until code, tag, public assets and release records identify the same tested commit.

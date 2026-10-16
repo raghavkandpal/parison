@@ -1,11 +1,11 @@
 # Current development state
 
-- Version: **1.4.0 release candidate**
+- Version: **1.4.0 released; 1.5 research next**
 - Branch: `develop`
 - Theme: deterministic dataset manifests and reproducibility diagnostics
 - Released: opt-in `semantic-scalar-v1`, strict schema/policy evolution, and coordinated `time-alignment-v1` plus `reconciliation-v1`
-- Verified: exact 1.3.0 merge `3aec4fb0b7355aea94aa81d8a8a7c5e3372414ea` passed [the full CI matrix](https://github.com/raghavkandpal/parison/actions/runs/38862675947); public assets were checksum-verified and the fresh wheel passed the complete SQLite reconciliation workflow
-- Next gate: merge the reviewed candidate, qualify the exact merge, and publish the 1.4.0 artifacts
+- Verified: exact 1.4.0 merge `13eb551f216595297d012d3ea4b06fbe65670d0e` passed [the full CI matrix](https://github.com/raghavkandpal/parison/actions/runs/38896813377); public assets were checksum-verified and the fresh wheel passed the complete manifest, SQLite reconciliation and dataset-evidence workflow
+- Next gate: choose and research one coherent 1.5 capability from the product-direction inventory before freezing a new contract
 
 ## Recorded next steps
 
