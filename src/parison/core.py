@@ -64,6 +64,8 @@ _SCHEMAS = {
     "relationship-result": "relationship-result-v1.schema.json",
     "conservation-result": "conservation-result-v1.schema.json",
     "reconciliation-result": "reconciliation-result-v1.schema.json",
+    "dataset-manifest": "dataset-manifest-v1.schema.json",
+    "reproducibility-diagnostic": "reproducibility-diagnostic-v1.schema.json",
 }
 
 _SUITE_LIMIT_DEFAULTS = {
@@ -2945,6 +2947,9 @@ def _verified_bundle(directory: str | Path) -> tuple[dict[str, Any], bytes]:
     if isinstance(manifest, dict) and manifest.get("kind") == "reconciliation":
         from parison.reconciliation import verify_reconciliation_bundle
         manifest = verify_reconciliation_bundle(directory)
+    elif isinstance(manifest, dict) and manifest.get("kind") == "dataset-evidence":
+        from parison.manifesting import verify_dataset_evidence_bundle
+        manifest = verify_dataset_evidence_bundle(directory)
     elif isinstance(manifest, dict) and manifest.get("kind") in {"suite", "suite-shard"}:
         manifest = _verify_suite_bundle(directory, manifest)
     else:
@@ -2977,6 +2982,9 @@ def inspect_bundle(directory: str | Path) -> dict[str, Any]:
     if manifest.get("kind") == "reconciliation":
         from parison.reconciliation import inspect_reconciliation_bundle
         return inspect_reconciliation_bundle(directory)
+    if manifest.get("kind") == "dataset-evidence":
+        from parison.manifesting import inspect_dataset_evidence_bundle
+        return inspect_dataset_evidence_bundle(directory)
     if manifest.get("kind") in {"suite", "suite-shard"}:
         result = json.loads((Path(directory) / "suite-result.json").read_text(encoding="utf-8"))
         return {

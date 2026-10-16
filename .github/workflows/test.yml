@@ -52,6 +52,13 @@ jobs:
       - run: parison schema relationship-result
       - run: parison schema conservation-result
       - run: parison schema reconciliation-result
+      - run: parison schema dataset-manifest
+      - run: parison schema reproducibility-diagnostic
+      - run: parison verify-dataset-manifest --manifest examples/1.4/payout-dataset-manifest.json --root . --policy-file examples/1.3/reconciliation.json --summary
+      - run: parison reconcile --alignment examples/1.3/alignment.json --reconciliation examples/1.3/reconciliation.json --receipt examples/1.3/extraction-receipt.json --dataset payments examples/1.3/payments.recipe.json examples/1.3/payments-baseline.csv examples/1.3/payments-candidate.jsonl --dataset payouts examples/1.3/payouts.recipe.json examples/1.3/payouts-baseline.csv examples/1.3/payouts-candidate.jsonl --engine sqlite --output ${{ runner.temp }}/parison-1.3-reconciliation --summary
+      - run: parison publish-dataset-evidence --manifest examples/1.4/payout-dataset-manifest.json --root . --policy-file examples/1.3/reconciliation.json --result-bundle ${{ runner.temp }}/parison-1.3-reconciliation --output ${{ runner.temp }}/parison-1.4-dataset-evidence
+      - run: parison verify ${{ runner.temp }}/parison-1.4-dataset-evidence
+      - run: parison inspect ${{ runner.temp }}/parison-1.4-dataset-evidence
       - run: parison validate-evolution examples/1.2/orders.schema-evolution.json
       - run: parison compile-evolution examples/1.2/orders.schema-evolution.json
       - run: parison diff-policy --baseline-recipe examples/1.2/baseline.recipe.json --candidate-recipe examples/1.2/candidate.recipe.json --evolution examples/1.2/orders.schema-evolution.json --summary
@@ -59,9 +66,8 @@ jobs:
         run: |
           parison validate-time-alignment examples/1.3/alignment.json
           parison validate-reconciliation examples/1.3/reconciliation.json
-          parison reconcile --alignment examples/1.3/alignment.json --reconciliation examples/1.3/reconciliation.json --receipt examples/1.3/extraction-receipt.json --dataset payments examples/1.3/payments.recipe.json examples/1.3/payments-baseline.csv examples/1.3/payments-candidate.jsonl --dataset payouts examples/1.3/payouts.recipe.json examples/1.3/payouts-baseline.csv examples/1.3/payouts-candidate.jsonl --engine sqlite --output /tmp/parison-1.3-reconciliation --summary
-          parison verify /tmp/parison-1.3-reconciliation
-          parison inspect /tmp/parison-1.3-reconciliation
+          parison verify ${{ runner.temp }}/parison-1.3-reconciliation
+          parison inspect ${{ runner.temp }}/parison-1.3-reconciliation
       - run: parison export-editor-schemas --output /tmp/parison-editor-schemas
       - run: parison validate-recipe examples/orders.recipe.json
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
@@ -184,9 +190,15 @@ jobs:
       - run: parison schema schema-evolution
       - run: parison schema policy-diff
       - run: parison schema reconciliation-result
+      - run: parison schema dataset-manifest
+      - run: parison schema reproducibility-diagnostic
+      - run: parison verify-dataset-manifest --manifest examples/1.4/payout-dataset-manifest.json --root . --policy-file examples/1.3/reconciliation.json --summary
+      - run: parison reconcile --alignment examples/1.3/alignment.json --reconciliation examples/1.3/reconciliation.json --receipt examples/1.3/extraction-receipt.json --dataset payments examples/1.3/payments.recipe.json examples/1.3/payments-baseline.csv examples/1.3/payments-candidate.jsonl --dataset payouts examples/1.3/payouts.recipe.json examples/1.3/payouts-baseline.csv examples/1.3/payouts-candidate.jsonl --engine sqlite --output ${{ runner.temp }}/parison-1.3-reconciliation --summary
+      - run: parison publish-dataset-evidence --manifest examples/1.4/payout-dataset-manifest.json --root . --policy-file examples/1.3/reconciliation.json --result-bundle ${{ runner.temp }}/parison-1.3-reconciliation --output ${{ runner.temp }}/parison-1.4-dataset-evidence
+      - run: parison verify ${{ runner.temp }}/parison-1.4-dataset-evidence
+      - run: parison inspect ${{ runner.temp }}/parison-1.4-dataset-evidence
       - run: parison validate-evolution examples/1.2/orders.schema-evolution.json
       - run: parison diff-policy --baseline-recipe examples/1.2/baseline.recipe.json --candidate-recipe examples/1.2/candidate.recipe.json --evolution examples/1.2/orders.schema-evolution.json --summary
-      - run: parison reconcile --alignment examples/1.3/alignment.json --reconciliation examples/1.3/reconciliation.json --receipt examples/1.3/extraction-receipt.json --dataset payments examples/1.3/payments.recipe.json examples/1.3/payments-baseline.csv examples/1.3/payments-candidate.jsonl --dataset payouts examples/1.3/payouts.recipe.json examples/1.3/payouts-baseline.csv examples/1.3/payouts-candidate.jsonl --engine sqlite --output ${{ runner.temp }}/parison-1.3-reconciliation --summary
       - run: parison verify ${{ runner.temp }}/parison-1.3-reconciliation
       - run: parison inspect ${{ runner.temp }}/parison-1.3-reconciliation
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv

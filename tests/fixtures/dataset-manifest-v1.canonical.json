@@ -1,0 +1,1 @@
+{"closed_scopes":[],"collection_id":"fixture","manifest_version":1,"policy":{"kind":"suite","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},"resources":[{"bytes":4,"format":"csv","id":"orders","path":"baseline/orders.csv","role":"baseline","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}]}

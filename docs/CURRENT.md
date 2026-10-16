@@ -1,13 +1,17 @@
 # Current development state
 
-- Version: **1.4 active research**
+- Version: **1.4.0 release candidate**
 - Branch: `develop`
 - Theme: deterministic dataset manifests and reproducibility diagnostics
 - Released: opt-in `semantic-scalar-v1`, strict schema/policy evolution, and coordinated `time-alignment-v1` plus `reconciliation-v1`
 - Verified: exact 1.3.0 merge `3aec4fb0b7355aea94aa81d8a8a7c5e3372414ea` passed [the full CI matrix](https://github.com/raghavkandpal/parison/actions/runs/38862675947); public assets were checksum-verified and the fresh wheel passed the complete SQLite reconciliation workflow
-- Next gate: research one larger 1.4 capability that binds declared dataset collections to reproducible local evidence without adding connectors or custody
+- Next gate: merge the reviewed candidate, qualify the exact merge, and publish the 1.4.0 artifacts
 
 ## Recorded next steps
+
+- Follow the active [1.4 roadmap](1.4/153-roadmap.md) and frozen [manifest/reproducibility contract](1.4/154-dataset-manifest-and-reproducibility-contract.md). Keep exact byte identity, semantic agreement and runtime explanation as separate claims.
+- Strict schemas, canonical identities, descriptor-relative named-file verification, reviewed closed scopes, summary-safe results and informational diagnostic comparison are implemented. The opt-in `dataset-evidence` bundle carries the canonical manifest, full verification result, effective policy, diagnostic and recursively verified semantic result as semantically bound members without changing released bundle readers.
+- Reject implicit discovery, remote resources, live SQLite state, path traversal, symlinks, aliases and environment inventories. Do not let diagnostic differences alter verification outcomes in v1.
 
 - Follow the active [1.3 roadmap](1.3/148-roadmap.md) and frozen [contract](1.3/149-time-alignment-and-reconciliation-contract.md) as one coherent capability: existing per-dataset parity plus a fixed UTC half-open event window and per-side identity, reference and grouped-sum conservation checks.
 - `time-alignment-v1` and `reconciliation-v1` now have strict installed schemas, semantic cross-reference validation, canonical bytes and fingerprints. Alignment preflight binds the receipt and policies, scans both sides under explicit resource limits, and emits strict PASS/FAIL/INCONCLUSIVE JSON without changing released comparison execution.
