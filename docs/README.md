@@ -4,7 +4,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
-## 1.4 — release candidate
+## 1.4 — released
 
 - [Dataset manifests and reproducibility research](1.4/152-dataset-manifest-and-reproducibility-research.md)
 - [1.4 roadmap](1.4/153-roadmap.md)
