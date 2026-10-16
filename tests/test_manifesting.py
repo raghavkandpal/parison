@@ -49,6 +49,7 @@ class DatasetManifest(unittest.TestCase):
 
     def test_creation_is_canonical_atomic_and_verifiable(self):
         created = self.create()
+        Draft202012Validator(load_schema("dataset-manifest")).validate({key: created[key] for key in ("manifest_version", "collection_id", "policy", "resources")})
         self.assertEqual([item["role"] for item in created["resources"]], ["baseline", "candidate"])
         explained = explain_dataset_manifest(self.manifest)
         self.assertEqual(created, explained)
@@ -99,6 +100,7 @@ class DatasetManifest(unittest.TestCase):
         left, right = self.root / "left.json", self.root / "right.json"
         first = capture_reproducibility_diagnostic(self.manifest, left)
         second = capture_reproducibility_diagnostic(self.manifest, right)
+        Draft202012Validator(load_schema("reproducibility-diagnostic")).validate({key: first[key] for key in ("diagnostic_version", "manifest_sha256", "runtime", "observations")})
         self.assertEqual(first, second)
         value = json.loads(right.read_text(encoding="utf-8"))
         value["runtime"]["python_version"] = "9.9.9"

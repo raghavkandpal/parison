@@ -15,11 +15,12 @@
       "type": "array", "minItems": 1, "maxItems": 10000,
       "items": {
         "type": "object", "additionalProperties": false,
+        "allOf": [{"if": {"properties": {"format": {"const": "json"}}, "required": ["format"]}, "then": {"properties": {"role": {"enum": ["receipt", "supporting"]}}}}],
         "required": ["id", "role", "format", "path", "bytes", "sha256"],
         "properties": {
           "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
           "role": {"enum": ["baseline", "candidate", "receipt", "supporting"]},
-          "format": {"enum": ["csv", "tsv", "jsonl", "parquet", "sqlite"]},
+          "format": {"enum": ["csv", "tsv", "json", "jsonl", "parquet", "sqlite"]},
           "path": {"type": "string", "minLength": 1},
           "bytes": {"type": "integer", "minimum": 0},
           "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},

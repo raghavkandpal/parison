@@ -20,7 +20,7 @@ from .core import ParisonError, _write_once
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ROLES = {"baseline", "candidate", "receipt", "supporting"}
-_FORMATS = {"csv", "tsv", "jsonl", "parquet", "sqlite"}
+_FORMATS = {"csv", "tsv", "json", "jsonl", "parquet", "sqlite"}
 _RUNTIME_FIELDS = (
     "parison_version", "python_implementation", "python_version", "os_family",
     "architecture", "sqlite_version", "parquet_reader",
@@ -91,6 +91,8 @@ def normalize_dataset_manifest(value: Any) -> dict[str, Any]:
         role, format_name, path = item["role"], item["format"], _resource_path(item["path"])
         if role not in _ROLES or format_name not in _FORMATS:
             raise ParisonError("manifest resource has unsupported role or format")
+        if format_name == "json" and role not in {"receipt", "supporting"}:
+            raise ParisonError("json resources must have receipt or supporting role")
         if type(item["bytes"]) is not int or item["bytes"] < 0:
             raise ParisonError("resource bytes must be a nonnegative integer")
         pair, collision = (identifier, role), unicodedata.normalize("NFC", path).casefold()
@@ -116,6 +118,17 @@ def canonical_dataset_manifest_bytes(value: Any) -> bytes:
 def explain_dataset_manifest(path: str | Path) -> dict[str, Any]:
     value = normalize_dataset_manifest(_read_json(path, "dataset manifest"))
     return {**value, "manifest_sha256": _digest(value, b"parison:dataset-manifest-v1\0")}
+
+
+def _policy_fingerprint(kind: str, path: str | Path) -> str:
+    if kind == "reconciliation":
+        from .reconciliation import explain_reconciliation
+        return explain_reconciliation(path)["reconciliation_sha256"]
+    from .core import load_suite
+    suite = load_suite(path)
+    if suite["suite_version"] != 2:
+        raise ParisonError("dataset manifests require suite version 2 policy binding")
+    return suite["suite_policy_sha256"]
 
 
 def _open_resource(root: Path, relative: str):
@@ -173,7 +186,9 @@ def _identity(root: Path, relative: str, format_name: str) -> tuple[int, str, tu
     return size, digest.hexdigest(), (after.st_dev, after.st_ino)
 
 
-def create_dataset_manifest(root: str | Path, collection_id: str, policy_kind: str, policy_sha256: str, resources: list[tuple[str, str, str, str]], output: str | Path) -> dict[str, Any]:
+def create_dataset_manifest(root: str | Path, collection_id: str, policy_kind: str, policy_sha256: str, resources: list[tuple[str, str, str, str]], output: str | Path, policy_path: str | Path | None = None) -> dict[str, Any]:
+    if policy_path is not None and _policy_fingerprint(policy_kind, policy_path) != policy_sha256:
+        raise ParisonError("declared policy SHA-256 does not match the supplied policy")
     root_path, items, identities = Path(root), [], set()
     for identifier, role, format_name, relative in resources:
         relative = _resource_path(relative)
@@ -190,8 +205,10 @@ def create_dataset_manifest(root: str | Path, collection_id: str, policy_kind: s
     return {**value, "manifest_sha256": _digest(value, b"parison:dataset-manifest-v1\0")}
 
 
-def verify_dataset_manifest(manifest_path: str | Path, root: str | Path, summary: bool = False) -> dict[str, Any]:
+def verify_dataset_manifest(manifest_path: str | Path, root: str | Path, summary: bool = False, policy_path: str | Path | None = None) -> dict[str, Any]:
     manifest = explain_dataset_manifest(manifest_path)
+    if policy_path is not None and _policy_fingerprint(manifest["policy"]["kind"], policy_path) != manifest["policy"]["sha256"]:
+        raise ParisonError("manifest policy SHA-256 does not match the supplied policy")
     counts = {"declared": len(manifest["resources"]), "matched": 0, "missing": 0, "size_mismatch": 0, "digest_mismatch": 0}
     reasons, details, identities = set(), [], set()
     for resource in manifest["resources"]:

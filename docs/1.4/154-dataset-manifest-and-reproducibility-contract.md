@@ -31,7 +31,7 @@ Status: **frozen for 1.4 implementation**
 }
 ```
 
-Top-level and nested objects are closed. Duplicate JSON keys are errors. `collection_id` and resource IDs use Parison's released identifier grammar. Policy kind is `suite` or `reconciliation`; its digest is required. Roles are `baseline`, `candidate`, `receipt` or `supporting`. Formats are `csv`, `tsv`, `jsonl`, `parquet` or `sqlite`.
+Top-level and nested objects are closed. Duplicate JSON keys are errors. `collection_id` and resource IDs use Parison's released identifier grammar. Policy kind is `suite` or `reconciliation`; its digest is required. Roles are `baseline`, `candidate`, `receipt` or `supporting`. Formats are `csv`, `tsv`, `json`, `jsonl`, `parquet` or `sqlite`; `json` is reserved for receipt/supporting artifacts rather than comparison inputs.
 
 Resources are canonicalized by `(id, role, path)`. `(id, role)` pairs and paths are unique. `schema_sha256` is optional. Unknown fields and invalid integers or digests fail closed.
 

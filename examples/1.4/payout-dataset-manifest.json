@@ -1,0 +1,12 @@
+{
+  "collection_id": "september-payout-reconciliation",
+  "manifest_version": 1,
+  "policy": {"kind": "reconciliation", "sha256": "6c249778407258a0d8b2fdcf87a907384b112281746fbab66ad845a6c48a814e"},
+  "resources": [
+    {"bytes": 86, "format": "json", "id": "extraction-receipt", "path": "examples/1.3/extraction-receipt.json", "role": "receipt", "sha256": "9727d36bc5b4a95a798f50a3a15c4233f29e43dc4ae5498070fa6f05ca3e7928"},
+    {"bytes": 154, "format": "csv", "id": "payments", "path": "examples/1.3/payments-baseline.csv", "role": "baseline", "sha256": "3a4e6a06841ea088fbde66e56fdec446ceb1cff913d3f0cc590202feb526b790"},
+    {"bytes": 288, "format": "jsonl", "id": "payments", "path": "examples/1.3/payments-candidate.jsonl", "role": "candidate", "sha256": "df1c1bff1c9774b589bc0d085ec27b14a9d1032df2ab441284e241b8ab776055"},
+    {"bytes": 101, "format": "csv", "id": "payouts", "path": "examples/1.3/payouts-baseline.csv", "role": "baseline", "sha256": "a0e01dca33f961be8d3f47bfbbbeca0e36609a2f3f0bfb172c01a3e3f0d5bf8d"},
+    {"bytes": 158, "format": "jsonl", "id": "payouts", "path": "examples/1.3/payouts-candidate.jsonl", "role": "candidate", "sha256": "04b47916bd315f2f7248e39a67f507b5e5c9714b4fc5fe1ce20206f9a0d1c4e0"}
+  ]
+}

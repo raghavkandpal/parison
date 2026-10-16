@@ -160,6 +160,7 @@ def parser() -> argparse.ArgumentParser:
     create_manifest.add_argument("--collection-id", required=True)
     create_manifest.add_argument("--policy-kind", choices=("suite", "reconciliation"), required=True)
     create_manifest.add_argument("--policy-sha256", required=True)
+    create_manifest.add_argument("--policy-file")
     create_manifest.add_argument("--resource", action="append", nargs=4, metavar=("ID", "ROLE", "FORMAT", "PATH"), required=True)
     create_manifest.add_argument("--output", required=True)
     validate_manifest = commands.add_parser("validate-dataset-manifest", help="validate a dataset-manifest-v1 declaration")
@@ -170,6 +171,7 @@ def parser() -> argparse.ArgumentParser:
     verify_manifest.add_argument("--manifest", required=True)
     verify_manifest.add_argument("--root", required=True)
     verify_manifest.add_argument("--summary", action="store_true")
+    verify_manifest.add_argument("--policy-file")
     capture_diagnostic = commands.add_parser("capture-reproducibility", help="record bounded runtime facts for one dataset manifest")
     capture_diagnostic.add_argument("--manifest", required=True)
     capture_diagnostic.add_argument("--output", required=True)
@@ -475,7 +477,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(inspect_reconciliation_bundle(args.bundle), indent=2, sort_keys=True))
             return 0
         if args.command == "create-dataset-manifest":
-            result = create_dataset_manifest(args.root, args.collection_id, args.policy_kind, args.policy_sha256, args.resource, args.output)
+            result = create_dataset_manifest(args.root, args.collection_id, args.policy_kind, args.policy_sha256, args.resource, args.output, args.policy_file)
             print(json.dumps({"output": args.output, "manifest_sha256": result["manifest_sha256"]}, sort_keys=True))
             print("Manifest PASS proves declared local byte identity only; it is not extraction truth or approval.", file=sys.stderr)
             return 0
@@ -487,7 +489,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(explain_dataset_manifest(args.manifest), indent=2, sort_keys=True))
             return 0
         if args.command == "verify-dataset-manifest":
-            result = verify_dataset_manifest(args.manifest, args.root, args.summary)
+            result = verify_dataset_manifest(args.manifest, args.root, args.summary, args.policy_file)
             print(json.dumps(result, indent=2, sort_keys=True))
             print("Manifest PASS proves declared local byte identity only; it is not extraction truth or approval.", file=sys.stderr)
             return OUTCOME_CODES[result["outcome"]]

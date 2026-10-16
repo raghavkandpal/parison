@@ -1,13 +1,31 @@
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
-from parison.core import assemble_suite, compare, export_evidence, load_schema, publish, report_ci, run_suite, verify_bundle
+from parison.core import ParisonError, assemble_suite, compare, export_evidence, load_schema, publish, report_ci, run_suite, verify_bundle
+from parison.manifesting import verify_dataset_manifest
 from parison.reconciliation import publish_reconciliation_bundle, run_reconciliation, summarize_reconciliation_result
 from jsonschema import Draft202012Validator
 
 
 class CheckedInExamples(unittest.TestCase):
+    def test_1_4_manifest_binds_the_reconciliation_inputs(self):
+        root = Path(__file__).parents[1]
+        result = verify_dataset_manifest(root / "examples/1.4/payout-dataset-manifest.json", root, summary=True, policy_path=root / "examples/1.3/reconciliation.json")
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["counts"], {"declared": 5, "matched": 5, "missing": 0, "size_mismatch": 0, "digest_mismatch": 0})
+
+    def test_1_4_manifest_rejects_a_different_policy(self):
+        root = Path(__file__).parents[1]
+        manifest = json.loads((root / "examples/1.4/payout-dataset-manifest.json").read_text(encoding="utf-8"))
+        manifest["policy"]["sha256"] = "0" * 64
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "manifest.json"
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ParisonError, "does not match"):
+                verify_dataset_manifest(path, root, policy_path=root / "examples/1.3/reconciliation.json")
+
     def test_orders_example_is_a_tolerated_pass(self):
         root = Path(__file__).parents[1]
         result = compare(
