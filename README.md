@@ -24,7 +24,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **1.3.0 released.** Frozen `time-alignment-v1` and `reconciliation-v1` contracts define one UTC half-open event window, source-owned coordination claims and a closed identity/reference/grouped-sum vocabulary. `parison reconcile` composes alignment, existing per-dataset parity and memory/SQLite relationship checks with conservative outcomes, atomic verified bundles and summary-safe inspection.
 
-**1.5.0 release candidate.** Deterministic discrepancy analysis turns verified keyed, aggregate and multiset counters into summary-safe reason groups, compares exact-policy rehearsal series, and permits bounded drill-down only over raw samples already published in run bundles.
+**1.5.0 released.** Deterministic discrepancy analysis turns verified keyed, aggregate and multiset counters into summary-safe reason groups, compares exact-policy rehearsal series, and permits bounded drill-down only over raw samples already published in run bundles.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -48,7 +48,7 @@ Start a new local migration check with `parison init migration-check`. The comma
 
 ```sh
 python -m pip install \
-  https://github.com/raghavkandpal/parison/releases/download/1.4.0/parison-1.4.0-py3-none-any.whl
+  https://github.com/raghavkandpal/parison/releases/download/1.5.0/parison-1.5.0-py3-none-any.whl
 parison --version
 parison validate-recipe examples/orders.recipe.json
 parison validate-inputs --recipe examples/orders.recipe.json \

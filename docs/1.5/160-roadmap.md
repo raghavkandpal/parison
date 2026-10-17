@@ -2,7 +2,7 @@
 
 Date: 17 October 2026
 
-Status: **release candidate**
+Status: **released in 1.5.0**
 
 ## Objective
 
