@@ -2,7 +2,7 @@
 
 Date: 17 October 2026
 
-Status: **candidate preparation**
+Status: **released**
 
 ## Capability gate
 
@@ -24,10 +24,10 @@ Status: **candidate preparation**
 
 ## Publication
 
-- [ ] Reviewed candidate is merged to `main` and exact-merge CI passes.
-- [ ] Wheel, source archive and checksums are rebuilt from the exact merge.
-- [ ] Annotated tag `1.5.0` and GitHub release identify that merge; PyPI remains intentionally deferred.
-- [ ] Public assets are re-downloaded, checksum-verified and smoke-tested fresh.
-- [ ] Roadmap, checklist, changelog, README, documentation index and current-state record identify the release.
+- [x] [Pull request #42](https://github.com/raghavkandpal/parison/pull/42) merged the reviewed candidate as `e960a3eb899181d63a28b24c11f31daeaf6f280b`; [exact-merge CI run 39036693844](https://github.com/raghavkandpal/parison/actions/runs/39036693844) passed.
+- [x] Exact-merge assets were rebuilt from a clean archive. Wheel SHA-256: `4dd92e208d6b52f348b150ce775560accd12441dac1400c180801e71d8231e3d`; source archive: `2cfe01ee6811493d67733f212c0a1314d887b8200208fa7ca230820cb672ea84`.
+- [x] Annotated tag `1.5.0` and the [GitHub release](https://github.com/raghavkandpal/parison/releases/tag/1.5.0) identify the exact merge; PyPI remains intentionally deferred.
+- [x] Public assets were re-downloaded, checksum-verified and smoke-tested in a fresh Python 3.12 environment through installed-schema discovery, three-run analysis and verified raw drill-down.
+- [x] Roadmap, checklist, changelog, README, documentation index and current-state record identify the release.
 
 Do not mark 1.5.0 released until code, tag, public assets and release records identify the same tested commit.

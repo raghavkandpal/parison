@@ -9,7 +9,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Repository quality and layout plan](157-repository-quality-and-layout-plan.md)
 - [Repository maintenance checkpoint](158-repository-maintenance-checkpoint.md)
 
-## 1.5 — research
+## 1.5 — released
 
 - [Deterministic discrepancy analysis research](1.5/159-discrepancy-analysis-research.md)
 - [1.5 roadmap](1.5/160-roadmap.md)

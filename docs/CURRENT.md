@@ -1,11 +1,11 @@
 # Current development state
 
-- Version: **1.5.0 release candidate**
+- Version: **1.5.0 released**
 - Branch: `develop`
 - Theme: deterministic, policy-bound discrepancy analysis across rehearsal runs
-- Released: opt-in `semantic-scalar-v1`, strict schema/policy evolution, and coordinated `time-alignment-v1` plus `reconciliation-v1`
-- Verified: exact 1.5 implementation checkpoint `957fe2a47cec26e46c7de7da4317a317c69b23a7` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39016303344) on Python 3.11–3.14, Linux, macOS and Windows
-- Next gate: merge the reviewed candidate to `main`, qualify the exact merge, then publish and re-verify 1.5.0 assets
+- Released: deterministic discrepancy analysis, exact-policy rehearsal series, live catalog selection and bounded verified raw drill-down
+- Verified: exact merge `e960a3eb899181d63a28b24c11f31daeaf6f280b` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39036693844) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and smoke-tested fresh
+- Next gate: select and research the next larger coherent feature from the recorded product direction before changing scope
 
 ## Recorded next steps
 
