@@ -239,7 +239,7 @@ class InputValidation(unittest.TestCase):
                 baseline.write_text("id,old_value,note\n1,11,x\n", encoding="utf-8")
             return result
 
-        with patch("parison.core._record_diagnostics", side_effect=changing_diagnostics):
+        with patch("parison.inputs._record_diagnostics", side_effect=changing_diagnostics):
             with self.assertRaisesRegex(ParisonError, "input changed while it was being validated"):
                 validate_inputs(self.recipe, baseline, candidate, validate_records=True)
 

@@ -134,7 +134,7 @@ class GzipInput(unittest.TestCase):
                     handle.write("002,20\n")
             return rows
 
-        with patch("parison.core._read", side_effect=changing_read):
+        with patch("parison.inputs._read", side_effect=changing_read):
             with self.assertRaisesRegex(ParisonError, "input changed while it was being inspected"):
                 draft_recipe(left, right)
 
