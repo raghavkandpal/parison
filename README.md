@@ -28,6 +28,8 @@ Parison is an independent data-engineering side project. The proposed product co
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
+Development setup, quality gates and compatibility obligations are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Try it
 
 Python 3.11 or newer is required.

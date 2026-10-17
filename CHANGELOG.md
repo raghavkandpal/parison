@@ -4,6 +4,10 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- Added pinned Ruff lint and formatting gates to local development and CI, plus a single contributor guide for setup, testing, compatibility and evidence-safety standards.
+
 ## 1.4.0 - 2026-10-16
 
 ### Added
