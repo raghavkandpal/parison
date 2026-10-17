@@ -4,6 +4,13 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Deterministic summary-safe discrepancy groups for verified keyed, aggregate and multiset run bundles.
+- Exact-policy ordered series with introduced, resolved, increased, decreased and unchanged transitions.
+- Bounded raw drill-down over already-published discrepancy samples without reopening source inputs.
+- Strict `discrepancy-analysis-v1` schema, canonical atomic analysis bundles and `analyze`, `verify-analysis` and `drilldown` CLI commands.
+
 ### Changed
 
 - Added pinned Ruff lint and formatting gates to local development and CI, plus a single contributor guide for setup, testing, compatibility and evidence-safety standards.

@@ -10,6 +10,14 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .analysis import (
+    analyze_bundle,
+    analyze_series,
+    drill_down,
+    export_drilldown,
+    publish_analysis,
+    verify_analysis_bundle,
+)
 from .catalog import add as catalog_add
 from .catalog import diff as catalog_diff
 from .catalog import history as catalog_history
@@ -328,6 +336,7 @@ def parser() -> argparse.ArgumentParser:
             "reconciliation-result",
             "dataset-manifest",
             "reproducibility-diagnostic",
+            "discrepancy-analysis",
         ),
     )
     schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
@@ -435,6 +444,17 @@ operator and null policy. Suggestions are starting points, not approved policy."
     verify.add_argument("--json", action="store_true", help="print verified manifest metadata as JSON")
     inspect = commands.add_parser("inspect", help="inspect safe metadata from a verified run bundle")
     inspect.add_argument("run_directory")
+    analysis = commands.add_parser("analyze", help="publish summary-safe discrepancy groups from verified runs")
+    analysis.add_argument("bundle", nargs="+")
+    analysis.add_argument("--output", required=True)
+    analysis_verify = commands.add_parser("verify-analysis", help="verify a discrepancy analysis bundle")
+    analysis_verify.add_argument("bundle")
+    drilldown = commands.add_parser("drilldown", help="export bounded raw samples for one discrepancy group")
+    drilldown.add_argument("bundle", nargs="+")
+    drilldown.add_argument("--group-id", required=True)
+    drilldown.add_argument("--limit", type=int, default=100)
+    drilldown.add_argument("--per-run-limit", type=int, default=25)
+    drilldown.add_argument("--output", required=True)
     statement = commands.add_parser("statement", help="export an unsigned in-toto Statement for a verified bundle")
     statement.add_argument("bundle")
     statement.add_argument("--output", required=True)
@@ -551,6 +571,24 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "inspect":
             print(json.dumps(inspect_bundle(args.run_directory), indent=2, sort_keys=True))
+            return 0
+        if args.command == "analyze":
+            result = analyze_bundle(args.bundle[0]) if len(args.bundle) == 1 else analyze_series(args.bundle)
+            print(json.dumps(publish_analysis(args.output, result), sort_keys=True))
+            print(
+                "Analysis summarizes verified evidence; it does not establish cause, repair, approval or cutover readiness.",
+                file=sys.stderr,
+            )
+            return 0
+        if args.command == "verify-analysis":
+            print(json.dumps(verify_analysis_bundle(args.bundle), sort_keys=True))
+            return 0
+        if args.command == "drilldown":
+            result = drill_down(args.bundle, args.group_id, args.limit, args.per_run_limit)
+            print(json.dumps(export_drilldown(args.output, result), sort_keys=True))
+            print(
+                "Drill-down contains raw evidence from published samples; handle it as sensitive data.", file=sys.stderr
+            )
             return 0
         if args.command == "statement":
             print(json.dumps(export_statement(args.bundle, args.output), sort_keys=True))

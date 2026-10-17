@@ -90,6 +90,7 @@ _SCHEMAS = {
     "reconciliation-result": "reconciliation-result-v1.schema.json",
     "dataset-manifest": "dataset-manifest-v1.schema.json",
     "reproducibility-diagnostic": "reproducibility-diagnostic-v1.schema.json",
+    "discrepancy-analysis": "discrepancy-analysis-v1.schema.json",
 }
 
 _SUITE_LIMIT_DEFAULTS = {

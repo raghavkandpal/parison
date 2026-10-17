@@ -1,0 +1,6 @@
+order_id,status,total
+1001,paid,125.00
+1002,pending,80.00
+1003,pending,41.50
+1004,pending,10.10
+1005,refunded,65.00
