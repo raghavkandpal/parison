@@ -60,7 +60,13 @@ RECIPE = {
     "recipe_version": 1,
     "comparison_mode": "keyed",
     "keys": ["id"],
-    "scope": {"snapshot": "suite-test", "cutoff": "2026-10-09T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+    "scope": {
+        "snapshot": "suite-test",
+        "cutoff": "2026-10-09T00:00:00Z",
+        "filters": [],
+        "completeness": "full",
+        "expected_empty": False,
+    },
     "identity": {"null_keys": "reject", "duplicates": "reject"},
     "nulls_equal": True,
     "columns": {"id": {"type": "string"}, "value": {"type": "integer"}},
@@ -114,7 +120,11 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("Validated comparison suite", stderr.getvalue())
 
     def test_suite_v2_listing_selection_limits_and_fingerprint(self):
-        first = self.case("orders") | {"tags": ["critical", "finance"], "description": "Order totals", "limits": {"max_rows": 7}}
+        first = self.case("orders") | {
+            "tags": ["critical", "finance"],
+            "description": "Order totals",
+            "limits": {"max_rows": 7},
+        }
         second = self.case("users") | {"tags": ["critical"]}
         self.write_plan_v2([first, second], {"limits": {"max_input_bytes": 99}})
         schema = load_schema("suite-v2")
@@ -125,7 +135,9 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(listed["cases"][0]["limits"]["max_rows"], 7)
         self.assertEqual(listed["cases"][0]["limits"]["max_input_bytes"], 99)
         self.assertRegex(listed["suite_policy_sha256"], "^[0-9a-f]{64}$")
-        self.assertEqual([case["id"] for case in list_suite(self.plan, shard_index=1, shard_count=2)["cases"]], ["users"])
+        self.assertEqual(
+            [case["id"] for case in list_suite(self.plan, shard_index=1, shard_count=2)["cases"]], ["users"]
+        )
         stdout, stderr = StringIO(), StringIO()
         with redirect_stdout(stdout), redirect_stderr(stderr):
             self.assertEqual(main(["list-suite", str(self.plan), "--tag", "critical", "--json"]), 0)
@@ -147,11 +159,13 @@ class SuiteTests(unittest.TestCase):
             list_suite(self.plan, case_ids=["orders", "missing"])
 
     def test_suite_v2_run_selection_and_shard_are_explicit_and_verifiable(self):
-        self.write_plan_v2([
-            self.case("first") | {"tags": ["critical"]},
-            self.case("second") | {"tags": ["slow"]},
-            self.case("third") | {"tags": ["critical"]},
-        ])
+        self.write_plan_v2(
+            [
+                self.case("first") | {"tags": ["critical"]},
+                self.case("second") | {"tags": ["slow"]},
+                self.case("third") | {"tags": ["critical"]},
+            ]
+        )
         shard = self.root / "shard"
         result = run_suite(self.plan, shard, shard_index=0, shard_count=2)
         self.assertEqual(result["kind"], "suite-shard")
@@ -161,7 +175,9 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(verify_bundle(shard)["kind"], "suite-shard")
         self.assertEqual(inspect_bundle(shard)["selection"]["shard_count"], 2)
         Draft202012Validator(load_schema("suite-result-v2")).validate(result)
-        Draft202012Validator(load_schema("suite-manifest-v2")).validate(json.loads((shard / "manifest.json").read_text(encoding="utf-8")))
+        Draft202012Validator(load_schema("suite-manifest-v2")).validate(
+            json.loads((shard / "manifest.json").read_text(encoding="utf-8"))
+        )
 
         selected = self.root / "selected"
         selected_result = run_suite(self.plan, selected, tags=["slow"])
@@ -212,7 +228,9 @@ class SuiteTests(unittest.TestCase):
         aggregate.pop("keys")
         aggregate.pop("identity")
         aggregate.pop("nulls_equal")
-        aggregate.update(recipe_version=2, comparison_mode="aggregate", group_by=[], measures={"rows": {"operator": "count"}})
+        aggregate.update(
+            recipe_version=2, comparison_mode="aggregate", group_by=[], measures={"rows": {"operator": "count"}}
+        )
         (self.root / "aggregate.json").write_text(json.dumps(aggregate), encoding="utf-8")
         self.write_plan_v2([self.case() | {"recipe": "aggregate.json", "execution": {"engine": "sqlite"}}])
         with self.assertRaisesRegex(ParisonError, "does not support an aggregate"):
@@ -236,19 +254,36 @@ class SuiteTests(unittest.TestCase):
             run_suite(self.plan, self.root / "invalid", jobs=0)
         stdout = StringIO()
         with redirect_stdout(stdout), redirect_stderr(StringIO()):
-            self.assertEqual(main(["run-suite", "--plan", str(self.plan), "--output", str(self.root / "cli-concurrent"), "--jobs", "2"]), 0)
+            self.assertEqual(
+                main(
+                    [
+                        "run-suite",
+                        "--plan",
+                        str(self.plan),
+                        "--output",
+                        str(self.root / "cli-concurrent"),
+                        "--jobs",
+                        "2",
+                    ]
+                ),
+                0,
+            )
         self.assertEqual(json.loads(stdout.getvalue())["cases"], 2)
 
     def test_concurrent_worker_failure_is_explicit_and_does_not_cancel_other_cases(self):
-        self.write_plan_v2([
-            self.case("broken") | {"execution": {"engine": "sqlite", "max_temp_bytes": 1_000_000}},
-            self.case("passing"),
-        ])
+        self.write_plan_v2(
+            [
+                self.case("broken") | {"execution": {"engine": "sqlite", "max_temp_bytes": 1_000_000}},
+                self.case("passing"),
+            ]
+        )
         with patch("parison.core._execute_suite_case", _raising_suite_worker):
             result = run_suite(self.plan, self.root / "worker-failure", jobs=2)
         self.assertEqual(result["outcome"], "ERROR")
         self.assertEqual([case["outcome"] for case in result["cases"]], ["ERROR", "PASS"])
-        child = json.loads((self.root / "worker-failure" / "cases" / "broken" / "result.json").read_text(encoding="utf-8"))
+        child = json.loads(
+            (self.root / "worker-failure" / "cases" / "broken" / "result.json").read_text(encoding="utf-8")
+        )
         self.assertEqual(child["problems"], ["suite worker failed unexpectedly"])
         self.assertEqual(child["runtime"]["execution_engine"], "sqlite")
         self.assertEqual(child["resource_limits"]["max_temp_bytes"], 1_000_000)
@@ -271,6 +306,7 @@ class SuiteTests(unittest.TestCase):
     def test_concurrent_interruption_checkpoints_completed_workspace_children(self):
         self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])
         workspace = self.root / "interrupted-workspace"
+
         def interrupt_after_checkpoint(readers, timeout):
             if (workspace / "checkpoints" / "first.json").exists():
                 raise KeyboardInterrupt
@@ -326,7 +362,22 @@ class SuiteTests(unittest.TestCase):
         stdout, stderr = StringIO(), StringIO()
         cli_output = self.root / "assembled-cli"
         with redirect_stdout(stdout), redirect_stderr(stderr):
-            self.assertEqual(main(["assemble-suite", "--plan", str(self.plan), "--input", str(shard_0), "--input", str(shard_1), "--output", str(cli_output)]), 0)
+            self.assertEqual(
+                main(
+                    [
+                        "assemble-suite",
+                        "--plan",
+                        str(self.plan),
+                        "--input",
+                        str(shard_0),
+                        "--input",
+                        str(shard_1),
+                        "--output",
+                        str(cli_output),
+                    ]
+                ),
+                0,
+            )
         self.assertEqual(json.loads(stdout.getvalue())["cases"], 3)
 
     def test_assemble_suite_rejects_gaps_duplicates_and_tampering(self):
@@ -355,10 +406,12 @@ class SuiteTests(unittest.TestCase):
         (self.root / "candidate.csv").write_text("id,value\na,2\n", encoding="utf-8")
         calls = 0
         from parison.core import compare as real_compare
+
         def counted_compare(*args, **kwargs):
             nonlocal calls
             calls += 1
             return real_compare(*args, **kwargs)
+
         with patch("parison.core.compare", side_effect=counted_compare):
             changed = run_suite(self.plan, self.root / "changed", workspace=workspace, resume=True)
         self.assertEqual(calls, 2)
@@ -414,11 +467,15 @@ class SuiteTests(unittest.TestCase):
         report_ci(bundle, junit, "junit")
         root = ET.parse(junit).getroot()
         self.assertEqual(root.attrib["failures"], "1")
-        outcomes = {node.attrib["name"]: node.find("./properties/property").attrib["value"] for node in root.findall("testcase")}
+        outcomes = {
+            node.attrib["name"]: node.find("./properties/property").attrib["value"] for node in root.findall("testcase")
+        }
         self.assertEqual(outcomes, {"passing": "PASS", "failing": "FAIL"})
         stdout = StringIO()
         with redirect_stdout(stdout), redirect_stderr(StringIO()):
-            self.assertEqual(main(["report-ci", str(bundle), "--format", "markdown", "--output", str(self.root / "cli.md")]), 0)
+            self.assertEqual(
+                main(["report-ci", str(bundle), "--format", "markdown", "--output", str(self.root / "cli.md")]), 0
+            )
         self.assertEqual(json.loads(stdout.getvalue())["format"], "markdown")
 
     def test_rejects_duplicates_unknown_fields_and_policy_drift(self):
@@ -501,10 +558,12 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual([case["outcome"] for case in result["cases"]], ["ERROR", "PASS"])
 
     def test_interruption_stops_after_publishing_interrupted_child(self):
-        self.write_plan_v2([
-            self.case("first") | {"execution": {"engine": "sqlite", "max_temp_bytes": 1_000_000}},
-            self.case("second"),
-        ])
+        self.write_plan_v2(
+            [
+                self.case("first") | {"execution": {"engine": "sqlite", "max_temp_bytes": 1_000_000}},
+                self.case("second"),
+            ]
+        )
         output = self.root / "interrupted"
         with patch("parison.core.compare", side_effect=KeyboardInterrupt):
             result = run_suite(self.plan, output)
@@ -543,7 +602,10 @@ class SuiteTests(unittest.TestCase):
                 raise OSError("injected parent publication failure")
             return real_replace(source, destination)
 
-        with patch("parison.core.os.replace", side_effect=fail_parent), self.assertRaisesRegex(ParisonError, "cannot publish suite"):
+        with (
+            patch("parison.core.os.replace", side_effect=fail_parent),
+            self.assertRaisesRegex(ParisonError, "cannot publish suite"),
+        ):
             run_suite(self.plan, output)
         self.assertFalse(output.exists())
         self.assertEqual(list(self.root.glob(".publication-*")), [])

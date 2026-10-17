@@ -23,16 +23,27 @@ def main():
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         recipe_path = root / "recipe.json"
-        recipe_path.write_text(json.dumps({
-            "recipe_version": 1,
-            "comparison_mode": "keyed",
-            "keys": ["id"],
-            "scope": {"snapshot": "seeded-benchmark", "cutoff": "fixed", "filters": [], "completeness": "full", "expected_empty": False},
-            "identity": {"null_keys": "reject", "duplicates": "reject"},
-            "nulls_equal": True,
-            "columns": {name: {"type": "string", "comparison": "exact"} for name in fields},
-            "output": {"sensitivity": "summary"},
-        }), encoding="utf-8")
+        recipe_path.write_text(
+            json.dumps(
+                {
+                    "recipe_version": 1,
+                    "comparison_mode": "keyed",
+                    "keys": ["id"],
+                    "scope": {
+                        "snapshot": "seeded-benchmark",
+                        "cutoff": "fixed",
+                        "filters": [],
+                        "completeness": "full",
+                        "expected_empty": False,
+                    },
+                    "identity": {"null_keys": "reject", "duplicates": "reject"},
+                    "nulls_equal": True,
+                    "columns": {name: {"type": "string", "comparison": "exact"} for name in fields},
+                    "output": {"sensitivity": "summary"},
+                }
+            ),
+            encoding="utf-8",
+        )
         paths = [root / "baseline.csv", root / "candidate.csv"]
         handles = [path.open("w", encoding="utf-8", newline="") for path in paths]
         try:
@@ -58,17 +69,23 @@ def main():
         tracemalloc.stop()
         output = root / "run"
         publish(output, result, load_recipe(recipe_path))
-        print(json.dumps({
-            "rows_per_input": args.rows,
-            "value_columns": args.columns,
-            "mismatch_every": args.mismatch_every,
-            "input_bytes": sum(path.stat().st_size for path in paths),
-            "output_bytes": sum(path.stat().st_size for path in output.iterdir()),
-            "elapsed_seconds": round(elapsed, 6),
-            "peak_python_bytes": peak,
-            "outcome": result["outcome"],
-            "field_discrepancy_count": result["field_discrepancy_count"],
-        }, indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                {
+                    "rows_per_input": args.rows,
+                    "value_columns": args.columns,
+                    "mismatch_every": args.mismatch_every,
+                    "input_bytes": sum(path.stat().st_size for path in paths),
+                    "output_bytes": sum(path.stat().st_size for path in output.iterdir()),
+                    "elapsed_seconds": round(elapsed, 6),
+                    "peak_python_bytes": peak,
+                    "outcome": result["outcome"],
+                    "field_discrepancy_count": result["field_discrepancy_count"],
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
 
 
 if __name__ == "__main__":

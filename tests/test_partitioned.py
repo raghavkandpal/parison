@@ -14,7 +14,13 @@ RECIPE = {
     "recipe_version": 1,
     "comparison_mode": "keyed",
     "keys": ["id"],
-    "scope": {"snapshot": "partitions", "cutoff": "2026-10-07T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+    "scope": {
+        "snapshot": "partitions",
+        "cutoff": "2026-10-07T00:00:00Z",
+        "filters": [],
+        "completeness": "full",
+        "expected_empty": False,
+    },
     "identity": {"null_keys": "reject", "duplicates": "reject"},
     "nulls_equal": True,
     "columns": {
@@ -43,10 +49,13 @@ class PartitionedInput(unittest.TestCase):
         return directory
 
     def test_csv_directory_is_one_logical_input(self):
-        baseline = self.directory("baseline", {
-            "b.csv": "id,value\n002,20\n",
-            "a.csv": "value,id\n10,001\n",
-        })
+        baseline = self.directory(
+            "baseline",
+            {
+                "b.csv": "id,value\n002,20\n",
+                "a.csv": "value,id\n10,001\n",
+            },
+        )
         candidate = self.root / "candidate.csv"
         candidate.write_text("id,value\n001,10\n002,20\n", encoding="utf-8")
         result = compare(self.recipe, baseline, candidate)
@@ -60,19 +69,25 @@ class PartitionedInput(unittest.TestCase):
         self.assertEqual(draft["columns"]["value"]["type"], "integer")
 
     def test_jsonl_partitions_mix_with_csv(self):
-        baseline = self.directory("jsonl", {
-            "a.jsonl": '{"id":"001","value":10}\n',
-            "b.ndjson": '{"value":20,"id":"002"}\n',
-        })
+        baseline = self.directory(
+            "jsonl",
+            {
+                "a.jsonl": '{"id":"001","value":10}\n',
+                "b.ndjson": '{"value":20,"id":"002"}\n',
+            },
+        )
         candidate = self.root / "candidate.csv"
         candidate.write_text("id,value\n001,10\n002,20\n", encoding="utf-8")
         self.assertEqual(compare(self.recipe, baseline, candidate)["outcome"], "PASS")
 
     def test_cross_partition_duplicates_and_total_row_limit(self):
-        duplicate = self.directory("duplicate", {
-            "a.csv": "id,value\n001,10\n",
-            "b.csv": "id,value\n001,10\n",
-        })
+        duplicate = self.directory(
+            "duplicate",
+            {
+                "a.csv": "id,value\n001,10\n",
+                "b.csv": "id,value\n001,10\n",
+            },
+        )
         candidate = self.root / "candidate.csv"
         candidate.write_text("id,value\n001,10\n", encoding="utf-8")
         result = compare(self.recipe, duplicate, candidate)

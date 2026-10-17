@@ -15,7 +15,13 @@ RECIPE = {
     "recipe_version": 1,
     "comparison_mode": "keyed",
     "keys": ["id"],
-    "scope": {"snapshot": "gzip", "cutoff": "2026-10-08T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+    "scope": {
+        "snapshot": "gzip",
+        "cutoff": "2026-10-08T00:00:00Z",
+        "filters": [],
+        "completeness": "full",
+        "expected_empty": False,
+    },
     "identity": {"null_keys": "reject", "duplicates": "reject"},
     "nulls_equal": True,
     "columns": {
@@ -74,10 +80,19 @@ class GzipInput(unittest.TestCase):
 
         stderr = StringIO()
         with redirect_stderr(stderr):
-            code = main([
-                "validate-inputs", "--recipe", str(self.recipe), "--baseline", str(left),
-                "--candidate", str(right), "--max-decoded-bytes", "1",
-            ])
+            code = main(
+                [
+                    "validate-inputs",
+                    "--recipe",
+                    str(self.recipe),
+                    "--baseline",
+                    str(left),
+                    "--candidate",
+                    str(right),
+                    "--max-decoded-bytes",
+                    "1",
+                ]
+            )
         self.assertEqual(code, 2)
         self.assertIn("decoded input size exceeds limit", stderr.getvalue())
 

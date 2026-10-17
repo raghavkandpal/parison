@@ -15,7 +15,13 @@ RECIPE = {
     "recipe_version": 1,
     "comparison_mode": "keyed",
     "keys": ["order_id"],
-    "scope": {"snapshot": "synthetic-orders-v1", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+    "scope": {
+        "snapshot": "synthetic-orders-v1",
+        "cutoff": "2026-10-01T00:00:00Z",
+        "filters": [],
+        "completeness": "full",
+        "expected_empty": False,
+    },
     "identity": {"null_keys": "reject", "duplicates": "reject"},
     "nulls_equal": True,
     "columns": {
@@ -59,20 +65,36 @@ class ParisonTests(unittest.TestCase):
         return path
 
     def test_pass_with_symmetric_tolerance_and_reordering(self):
-        left = self.csv("left.csv", [{"order_id": "001", "status": "ok", "total": "10.00"}, {"order_id": "002", "status": "ok", "total": "2"}])
-        right = self.csv("right.csv", [{"order_id": "002", "status": "ok", "total": "2"}, {"order_id": "001", "status": "ok", "total": "10.01"}])
+        left = self.csv(
+            "left.csv",
+            [{"order_id": "001", "status": "ok", "total": "10.00"}, {"order_id": "002", "status": "ok", "total": "2"}],
+        )
+        right = self.csv(
+            "right.csv",
+            [{"order_id": "002", "status": "ok", "total": "2"}, {"order_id": "001", "status": "ok", "total": "10.01"}],
+        )
         result = compare(self.recipe, left, right)
         self.assertEqual(result["outcome"], "PASS")
         self.assertEqual(result["counts"]["matched_within_tolerance"], 1)
         self.assertEqual(result["counts"]["matched_exact"], 1)
 
     def test_missing_and_different_rows_fail_with_conserved_counts(self):
-        left = self.csv("left.csv", [{"order_id": "001", "status": "ok", "total": "10"}, {"order_id": "002", "status": "ok", "total": "2"}])
-        right = self.csv("right.csv", [{"order_id": "001", "status": "bad", "total": "10"}, {"order_id": "003", "status": "ok", "total": "2"}])
+        left = self.csv(
+            "left.csv",
+            [{"order_id": "001", "status": "ok", "total": "10"}, {"order_id": "002", "status": "ok", "total": "2"}],
+        )
+        right = self.csv(
+            "right.csv",
+            [{"order_id": "001", "status": "bad", "total": "10"}, {"order_id": "003", "status": "ok", "total": "2"}],
+        )
         result = compare(self.recipe, left, right)
         self.assertEqual(result["outcome"], "FAIL")
-        self.assertEqual(result["counts"]["baseline"], result["counts"]["common_keys"] + result["counts"]["baseline_only"])
-        self.assertEqual(result["counts"]["candidate"], result["counts"]["common_keys"] + result["counts"]["candidate_only"])
+        self.assertEqual(
+            result["counts"]["baseline"], result["counts"]["common_keys"] + result["counts"]["baseline_only"]
+        )
+        self.assertEqual(
+            result["counts"]["candidate"], result["counts"]["common_keys"] + result["counts"]["candidate_only"]
+        )
 
     def test_duplicate_or_empty_identity_is_inconclusive(self):
         rows = [{"order_id": "001", "status": "ok", "total": "1"}] * 2
@@ -91,28 +113,34 @@ class ParisonTests(unittest.TestCase):
         spill = self.root / "spill"
         spill.mkdir()
         left.write_text(
-            "order_id,legacy_status,total\n"
-            "b,old,2.00\na,ok,1.00\nd, ok ,4.00\n",
+            "order_id,legacy_status,total\nb,old,2.00\na,ok,1.00\nd, ok ,4.00\n",
             encoding="utf-8",
         )
         right.write_text(
-            "order_id,status,total\n"
-            "c,new,3.00\na,ok,1.01\nd,bad,4.00\n",
+            "order_id,status,total\nc,new,3.00\na,ok,1.01\nd,bad,4.00\n",
             encoding="utf-8",
         )
         memory = compare(self.recipe, left, right, sample_limit=10)
         sqlite_result = compare(
-            self.recipe, left, right, sample_limit=10, engine="sqlite",
-            max_temp_bytes=1_000_000, temp_directory=spill,
+            self.recipe,
+            left,
+            right,
+            sample_limit=10,
+            engine="sqlite",
+            max_temp_bytes=1_000_000,
+            temp_directory=spill,
         )
         self.assertEqual(canonical_engine_result(sqlite_result), canonical_engine_result(memory))
         self.assertEqual(list(spill.iterdir()), [])
 
     def test_sqlite_keyed_engine_preserves_identity_failures_and_limits(self):
-        left = self.csv("left.csv", [
-            {"order_id": "001", "status": "ok", "total": "1"},
-            {"order_id": "001", "status": "changed", "total": "2"},
-        ])
+        left = self.csv(
+            "left.csv",
+            [
+                {"order_id": "001", "status": "ok", "total": "1"},
+                {"order_id": "001", "status": "changed", "total": "2"},
+            ],
+        )
         right = self.csv("right.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
         memory = compare(self.recipe, left, right)
         sqlite_result = compare(self.recipe, left, right, engine="sqlite")
@@ -135,7 +163,10 @@ class ParisonTests(unittest.TestCase):
         self.assertEqual(canonical_engine_result(sqlite_result), canonical_engine_result(memory))
         spill = self.root / "spill"
         spill.mkdir()
-        with patch("parison.core._iter_input_rows", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+        with (
+            patch("parison.core._iter_input_rows", side_effect=KeyboardInterrupt),
+            self.assertRaises(KeyboardInterrupt),
+        ):
             compare(self.recipe, left, right, engine="sqlite", temp_directory=spill)
         self.assertEqual(list(spill.iterdir()), [])
 
@@ -165,8 +196,25 @@ class ParisonTests(unittest.TestCase):
         left = self.csv("left.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
         right = self.csv("right.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
         output = self.root / "run"
-        self.assertEqual(main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output)]), 0)
-        self.assertEqual({p.name for p in output.iterdir()}, {"result.json", "effective-recipe.json", "report.html", "manifest.json"})
+        self.assertEqual(
+            main(
+                [
+                    "compare",
+                    "--recipe",
+                    str(self.recipe),
+                    "--baseline",
+                    str(left),
+                    "--candidate",
+                    str(right),
+                    "--output",
+                    str(output),
+                ]
+            ),
+            0,
+        )
+        self.assertEqual(
+            {p.name for p in output.iterdir()}, {"result.json", "effective-recipe.json", "report.html", "manifest.json"}
+        )
         manifest = json.loads((output / "manifest.json").read_text())
         self.assertEqual(manifest["outcome"], "PASS")
         self.assertEqual(manifest["runtime"]["contract"], "keyed-v1")
@@ -201,9 +249,38 @@ class ParisonTests(unittest.TestCase):
         left.write_text("order_id,legacy_status,total,updated_at\n001,ok,1,old\n", encoding="utf-8")
         right.write_text("order_id,status,total,updated_at\n001,ok,1,new\n", encoding="utf-8")
         output = self.root / "report-run"
-        self.assertEqual(main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output)]), 0)
+        self.assertEqual(
+            main(
+                [
+                    "compare",
+                    "--recipe",
+                    str(self.recipe),
+                    "--baseline",
+                    str(left),
+                    "--candidate",
+                    str(right),
+                    "--output",
+                    str(output),
+                ]
+            ),
+            0,
+        )
         report = (output / "report.html").read_text(encoding="utf-8")
-        for expected in ("synthetic-orders-v1", "status", "legacy_status", "Candidate column", "updated_at", "nondeterministic metadata", "nulls equal", "symmetric-v1", "trim", "casefold", "max input bytes", "keyed-v1", "SHA-256"):
+        for expected in (
+            "synthetic-orders-v1",
+            "status",
+            "legacy_status",
+            "Candidate column",
+            "updated_at",
+            "nondeterministic metadata",
+            "nulls equal",
+            "symmetric-v1",
+            "trim",
+            "casefold",
+            "max input bytes",
+            "keyed-v1",
+            "SHA-256",
+        ):
             self.assertIn(expected, report)
         self.assertIn('id="field-class"', report)
         self.assertIn('id="field-count" role="status"', report)
@@ -255,11 +332,21 @@ class ParisonTests(unittest.TestCase):
 
     def test_cli_policy_fingerprint_mismatch_publishes_safe_error(self):
         output = self.root / "policy-error"
-        code = main([
-            "compare", "--recipe", str(self.recipe), "--baseline", "missing-left.csv",
-            "--candidate", "missing-right.csv", "--output", str(output),
-            "--expected-policy-sha256", "0" * 64,
-        ])
+        code = main(
+            [
+                "compare",
+                "--recipe",
+                str(self.recipe),
+                "--baseline",
+                "missing-left.csv",
+                "--candidate",
+                "missing-right.csv",
+                "--output",
+                str(output),
+                "--expected-policy-sha256",
+                "0" * 64,
+            ]
+        )
         self.assertEqual(code, 2)
         result = json.loads((output / "result.json").read_text())
         self.assertEqual(result["outcome"], "ERROR")
@@ -276,7 +363,24 @@ class ParisonTests(unittest.TestCase):
         output = self.root / "raw-run"
         stderr = StringIO()
         with redirect_stderr(stderr):
-            self.assertEqual(main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output), "--sample-limit", "1"]), 1)
+            self.assertEqual(
+                main(
+                    [
+                        "compare",
+                        "--recipe",
+                        str(self.recipe),
+                        "--baseline",
+                        str(left),
+                        "--candidate",
+                        str(right),
+                        "--output",
+                        str(output),
+                        "--sample-limit",
+                        "1",
+                    ]
+                ),
+                1,
+            )
         guidance = stderr.getvalue()
         self.assertIn("parison export-evidence", guidance)
         self.assertIn(str(output), guidance)
@@ -284,12 +388,25 @@ class ParisonTests(unittest.TestCase):
         report = (output / "report.html").read_text(encoding="utf-8")
         self.assertNotIn("<script>old</script>", report)
         self.assertIn("&lt;script&gt;old&lt;/script&gt;", report)
-        for hook in ('id="raw-key"', 'id="raw-field"', 'id="raw-class"', 'id="raw-count" role="status"', 'id="raw-evidence"', 'data-class="different"', "Showing 1 of 1 sampled items"):
+        for hook in (
+            'id="raw-key"',
+            'id="raw-field"',
+            'id="raw-class"',
+            'id="raw-count" role="status"',
+            'id="raw-evidence"',
+            'data-class="different"',
+            "Showing 1 of 1 sampled items",
+        ):
             self.assertIn(hook, report)
         self.assertEqual(json.loads((output / "manifest.json").read_text())["sensitivity"], "raw")
         evidence = self.root / "status-evidence.jsonl"
         with redirect_stdout(StringIO()):
-            self.assertEqual(main(["export-evidence", str(output), "--kind", "field", "--name", "status", "--output", str(evidence)]), 0)
+            self.assertEqual(
+                main(
+                    ["export-evidence", str(output), "--kind", "field", "--name", "status", "--output", str(evidence)]
+                ),
+                0,
+            )
         lines = [json.loads(line) for line in evidence.read_text(encoding="utf-8").splitlines()]
         self.assertEqual(lines[0]["_parison_export"]["name"], "status")
         self.assertEqual(lines[1]["field"], "status")
@@ -323,7 +440,19 @@ class ParisonTests(unittest.TestCase):
         ragged = self.root / "ragged.csv"
         ragged.write_text("order_id,status,total\n001,ok,1,secret-value\n", encoding="utf-8")
         output = self.root / "error-run"
-        code = main(["compare", "--recipe", str(self.recipe), "--baseline", str(good), "--candidate", str(ragged), "--output", str(output)])
+        code = main(
+            [
+                "compare",
+                "--recipe",
+                str(self.recipe),
+                "--baseline",
+                str(good),
+                "--candidate",
+                str(ragged),
+                "--output",
+                str(output),
+            ]
+        )
         self.assertEqual(code, 2)
         result = json.loads((output / "result.json").read_text())
         self.assertEqual(result["outcome"], "ERROR")
@@ -338,10 +467,19 @@ class ParisonTests(unittest.TestCase):
         output = self.root / "parse-error"
         stderr = StringIO()
         with redirect_stderr(stderr):
-            code = main([
-                "compare", "--recipe", str(self.recipe), "--baseline", str(good),
-                "--candidate", str(invalid), "--output", str(output),
-            ])
+            code = main(
+                [
+                    "compare",
+                    "--recipe",
+                    str(self.recipe),
+                    "--baseline",
+                    str(good),
+                    "--candidate",
+                    str(invalid),
+                    "--output",
+                    str(output),
+                ]
+            )
         evidence = json.dumps(json.loads((output / "result.json").read_text())) + stderr.getvalue()
         self.assertEqual(code, 2)
         self.assertIn("cannot parse column total as decimal", evidence)
@@ -356,14 +494,20 @@ class ParisonTests(unittest.TestCase):
 
         stage = self.root / ".chmod-stage"
         stage.mkdir()
-        with patch("parison.core.tempfile.mkdtemp", return_value=str(stage)), patch("parison.core.os.chmod", side_effect=OSError("permissions unavailable")):
+        with (
+            patch("parison.core.tempfile.mkdtemp", return_value=str(stage)),
+            patch("parison.core.os.chmod", side_effect=OSError("permissions unavailable")),
+        ):
             with self.assertRaisesRegex(ParisonError, "cannot prepare bundle output: permissions unavailable"):
                 publish(self.root / "run", result, None)
         self.assertFalse(stage.exists())
 
         stage = self.root / ".run-stage"
         stage.mkdir()
-        with patch("parison.core.tempfile.mkdtemp", return_value=str(stage)), patch("parison.core.os.replace", side_effect=OSError("read-only filesystem")):
+        with (
+            patch("parison.core.tempfile.mkdtemp", return_value=str(stage)),
+            patch("parison.core.os.replace", side_effect=OSError("read-only filesystem")),
+        ):
             with self.assertRaisesRegex(ParisonError, "cannot publish bundle: read-only filesystem"):
                 publish(self.root / "run", result, None)
         self.assertFalse(stage.exists())
@@ -372,7 +516,22 @@ class ParisonTests(unittest.TestCase):
         left = self.csv("left.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
         right = self.csv("right.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
         output = self.root / "run"
-        self.assertEqual(main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output)]), 0)
+        self.assertEqual(
+            main(
+                [
+                    "compare",
+                    "--recipe",
+                    str(self.recipe),
+                    "--baseline",
+                    str(left),
+                    "--candidate",
+                    str(right),
+                    "--output",
+                    str(output),
+                ]
+            ),
+            0,
+        )
         self.assertTrue(verify_bundle(output)["complete"])
         (output / "result.json").write_text("{}", encoding="utf-8")
         with self.assertRaisesRegex(ParisonError, "failed integrity"):
@@ -421,11 +580,30 @@ class ParisonTests(unittest.TestCase):
         stdout = StringIO()
         stderr = StringIO()
         with redirect_stdout(stdout), redirect_stderr(stderr):
-            code = main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output)])
+            code = main(
+                [
+                    "compare",
+                    "--recipe",
+                    str(self.recipe),
+                    "--baseline",
+                    str(left),
+                    "--candidate",
+                    str(right),
+                    "--output",
+                    str(output),
+                ]
+            )
         self.assertEqual(code, 1)
         self.assertEqual(json.loads(stdout.getvalue()), {"outcome": "FAIL", "output": str(output)})
         summary = stderr.getvalue()
-        for expected in ("Parison FAIL", "Rows:", "Matches:", "Sensitivity: summary", f"Bundle: {output}", "Exit 1 means the comparison completed"):
+        for expected in (
+            "Parison FAIL",
+            "Rows:",
+            "Matches:",
+            "Sensitivity: summary",
+            f"Bundle: {output}",
+            "Exit 1 means the comparison completed",
+        ):
             self.assertIn(expected, summary)
         self.assertIn("parison verify", summary)
         self.assertIn("parison inspect", summary)
@@ -437,7 +615,22 @@ class ParisonTests(unittest.TestCase):
     def test_verify_keeps_valid_stdout_and_explains_integrity(self):
         left = self.csv("left.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
         output = self.root / "verify-run"
-        self.assertEqual(main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(left), "--output", str(output)]), 0)
+        self.assertEqual(
+            main(
+                [
+                    "compare",
+                    "--recipe",
+                    str(self.recipe),
+                    "--baseline",
+                    str(left),
+                    "--candidate",
+                    str(left),
+                    "--output",
+                    str(output),
+                ]
+            ),
+            0,
+        )
         stdout = StringIO()
         stderr = StringIO()
         with redirect_stdout(stdout), redirect_stderr(stderr):
@@ -460,12 +653,20 @@ class ParisonTests(unittest.TestCase):
     def test_raw_sample_includes_missing_keys_with_one_shared_limit(self):
         raw_recipe = dict(RECIPE, output={"sensitivity": "raw"})
         self.recipe.write_text(json.dumps(raw_recipe), encoding="utf-8")
-        left = self.csv("left.csv", [{"order_id": "001", "status": "old", "total": "1"}, {"order_id": "002", "status": "ok", "total": "1"}])
-        right = self.csv("right.csv", [{"order_id": "001", "status": "new", "total": "1"}, {"order_id": "003", "status": "ok", "total": "1"}])
+        left = self.csv(
+            "left.csv",
+            [{"order_id": "001", "status": "old", "total": "1"}, {"order_id": "002", "status": "ok", "total": "1"}],
+        )
+        right = self.csv(
+            "right.csv",
+            [{"order_id": "001", "status": "new", "total": "1"}, {"order_id": "003", "status": "ok", "total": "1"}],
+        )
         result = compare(self.recipe, left, right, sample_limit=2)
         self.assertEqual(result["discrepancy_count"], 3)
         self.assertEqual(len(result["discrepancy_sample"]), 2)
-        self.assertEqual({item["classification"] for item in result["discrepancy_sample"]}, {"baseline_only", "candidate_only"})
+        self.assertEqual(
+            {item["classification"] for item in result["discrepancy_sample"]}, {"baseline_only", "candidate_only"}
+        )
 
     def test_empty_string_is_not_a_null_string(self):
         left = self.csv("left.csv", [{"order_id": "", "status": "", "total": "1"}])
@@ -479,7 +680,21 @@ class ParisonTests(unittest.TestCase):
         left = self.csv("left.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
         right = self.csv("right.csv", [{"order_id": "001", "status": "ok", "total": "1"}])
         output = self.root / "limited-run"
-        code = main(["compare", "--recipe", str(self.recipe), "--baseline", str(left), "--candidate", str(right), "--output", str(output), "--max-input-bytes", "1"])
+        code = main(
+            [
+                "compare",
+                "--recipe",
+                str(self.recipe),
+                "--baseline",
+                str(left),
+                "--candidate",
+                str(right),
+                "--output",
+                str(output),
+                "--max-input-bytes",
+                "1",
+            ]
+        )
         self.assertEqual(code, 2)
         self.assertEqual(json.loads((output / "result.json").read_text())["outcome"], "ERROR")
 
@@ -487,7 +702,19 @@ class ParisonTests(unittest.TestCase):
         output = self.root / "interrupted-run"
         stderr = StringIO()
         with patch("parison.cli.compare", side_effect=KeyboardInterrupt), redirect_stderr(stderr):
-            code = main(["compare", "--recipe", str(self.recipe), "--baseline", "unused-a.csv", "--candidate", "unused-b.csv", "--output", str(output)])
+            code = main(
+                [
+                    "compare",
+                    "--recipe",
+                    str(self.recipe),
+                    "--baseline",
+                    "unused-a.csv",
+                    "--candidate",
+                    "unused-b.csv",
+                    "--output",
+                    str(output),
+                ]
+            )
         self.assertEqual(code, 130)
         result = json.loads((output / "result.json").read_text())
         self.assertEqual(result["outcome"], "INTERRUPTED")

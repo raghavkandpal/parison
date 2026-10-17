@@ -21,7 +21,13 @@ RECIPE = {
     "recipe_version": 1,
     "comparison_mode": "keyed",
     "keys": ["id"],
-    "scope": {"snapshot": "preflight", "cutoff": "2026-10-07T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+    "scope": {
+        "snapshot": "preflight",
+        "cutoff": "2026-10-07T00:00:00Z",
+        "filters": [],
+        "completeness": "full",
+        "expected_empty": False,
+    },
     "identity": {"null_keys": "reject", "duplicates": "reject"},
     "nulls_equal": True,
     "columns": {
@@ -56,12 +62,15 @@ class InputValidation(unittest.TestCase):
         self.assertEqual(result["inputs"]["candidate"]["format"], "jsonl")
         self.assertEqual(result["canonical_columns"], 2)
         self.assertEqual(result["policy_sha256"], explain_recipe(self.recipe)["policy_sha256"])
-        self.assertEqual(result["inputs"]["baseline"]["schema"], {
-            "missing": [],
-            "unexpected": [],
-            "mapped": {"value": "old_value"},
-            "excluded_present": ["note"],
-        })
+        self.assertEqual(
+            result["inputs"]["baseline"]["schema"],
+            {
+                "missing": [],
+                "unexpected": [],
+                "mapped": {"value": "old_value"},
+                "excluded_present": ["note"],
+            },
+        )
         self.assertNotIn("secret", json.dumps(result))
         self.assertNotIn("private", json.dumps(result))
 
@@ -93,7 +102,17 @@ class InputValidation(unittest.TestCase):
         candidate.write_text("id,value\n1,10\n", encoding="utf-8")
         stdout, stderr = StringIO(), StringIO()
         with redirect_stdout(stdout), redirect_stderr(stderr):
-            code = main(["validate-inputs", "--recipe", str(self.recipe), "--baseline", str(baseline), "--candidate", str(candidate)])
+            code = main(
+                [
+                    "validate-inputs",
+                    "--recipe",
+                    str(self.recipe),
+                    "--baseline",
+                    str(baseline),
+                    "--candidate",
+                    str(candidate),
+                ]
+            )
         self.assertEqual(code, 2)
         self.assertEqual(json.loads(stdout.getvalue())["status"], "invalid")
         self.assertIn("JSON diagnostics", stderr.getvalue())
@@ -107,7 +126,17 @@ class InputValidation(unittest.TestCase):
         candidate.write_text("id,value,note\n1,10,x\n", encoding="utf-8")
         stdout, stderr = StringIO(), StringIO()
         with redirect_stdout(stdout), redirect_stderr(stderr):
-            code = main(["validate-inputs", "--recipe", str(self.recipe), "--baseline", str(baseline), "--candidate", str(candidate)])
+            code = main(
+                [
+                    "validate-inputs",
+                    "--recipe",
+                    str(self.recipe),
+                    "--baseline",
+                    str(baseline),
+                    "--candidate",
+                    str(candidate),
+                ]
+            )
         result = json.loads(stdout.getvalue())
         self.assertEqual(code, 0)
         self.assertEqual(result["inputs"]["baseline"]["partitions"], 2)
@@ -118,20 +147,33 @@ class InputValidation(unittest.TestCase):
         candidate = self.root / "candidate.jsonl"
         baseline.write_text('{"id":null,"old_value":10,"note":"private"}\n', encoding="utf-8")
         candidate.write_text(
-            '{"id":"secret","value":10,"note":"private"}\n'
-            '{"id":"secret","value":11,"note":"private"}\n',
+            '{"id":"secret","value":10,"note":"private"}\n{"id":"secret","value":11,"note":"private"}\n',
             encoding="utf-8",
         )
         result = validate_inputs(self.recipe, baseline, candidate, validate_records=True)
         self.assertEqual(result["status"], "invalid")
-        self.assertEqual(result["inputs"]["baseline"]["records"], {
-            "status": "invalid", "rows": 1, "invalid_rows": 0, "invalid_fields": {},
-            "null_key_rows": 1, "duplicate_keys": 0,
-        })
-        self.assertEqual(result["inputs"]["candidate"]["records"], {
-            "status": "invalid", "rows": 2, "invalid_rows": 0, "invalid_fields": {},
-            "null_key_rows": 0, "duplicate_keys": 1,
-        })
+        self.assertEqual(
+            result["inputs"]["baseline"]["records"],
+            {
+                "status": "invalid",
+                "rows": 1,
+                "invalid_rows": 0,
+                "invalid_fields": {},
+                "null_key_rows": 1,
+                "duplicate_keys": 0,
+            },
+        )
+        self.assertEqual(
+            result["inputs"]["candidate"]["records"],
+            {
+                "status": "invalid",
+                "rows": 2,
+                "invalid_rows": 0,
+                "invalid_fields": {},
+                "null_key_rows": 0,
+                "duplicate_keys": 1,
+            },
+        )
         self.assertNotIn("secret", json.dumps(result))
         self.assertNotIn("private", json.dumps(result))
 
@@ -142,15 +184,25 @@ class InputValidation(unittest.TestCase):
         candidate.write_text("id,value,note\n1,10,x\n", encoding="utf-8")
         stdout, stderr = StringIO(), StringIO()
         with redirect_stdout(stdout), redirect_stderr(stderr):
-            code = main([
-                "validate-inputs", "--records", "--recipe", str(self.recipe),
-                "--baseline", str(baseline), "--candidate", str(candidate),
-            ])
+            code = main(
+                [
+                    "validate-inputs",
+                    "--records",
+                    "--recipe",
+                    str(self.recipe),
+                    "--baseline",
+                    str(baseline),
+                    "--candidate",
+                    str(candidate),
+                ]
+            )
         result = json.loads(stdout.getvalue())
         self.assertEqual(code, 0)
         self.assertEqual(result["inputs"]["baseline"]["records"]["rows"], 1)
         self.assertIn("Baseline records: 1 rows, 0 invalid rows, 0 null-key rows, 0 duplicate keys.", stderr.getvalue())
-        self.assertIn("Candidate records: 1 rows, 0 invalid rows, 0 null-key rows, 0 duplicate keys.", stderr.getvalue())
+        self.assertIn(
+            "Candidate records: 1 rows, 0 invalid rows, 0 null-key rows, 0 duplicate keys.", stderr.getvalue()
+        )
 
         candidate.write_text("id,value,note\n1,rejected-source-value,x\n", encoding="utf-8")
         result = validate_inputs(self.recipe, baseline, candidate, validate_records=True)
@@ -167,7 +219,9 @@ class InputValidation(unittest.TestCase):
         candidate = self.root / "candidate.csv"
         baseline.write_text("id,old_value,note\n1,10,x\n", encoding="utf-8")
         candidate.write_text("id,value,note\n1,rejected,x\n1,20,y\n", encoding="utf-8")
-        records = validate_inputs(self.recipe, baseline, candidate, validate_records=True)["inputs"]["candidate"]["records"]
+        records = validate_inputs(self.recipe, baseline, candidate, validate_records=True)["inputs"]["candidate"][
+            "records"
+        ]
         self.assertEqual(records["invalid_rows"], 1)
         self.assertEqual(records["invalid_fields"], {"value": 1})
         self.assertEqual(records["duplicate_keys"], 1)

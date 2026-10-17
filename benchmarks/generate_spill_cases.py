@@ -8,7 +8,11 @@ FIELDS = ["event_id", "category", "amount"]
 
 
 def row(index: int) -> dict[str, str]:
-    return {"event_id": f"event-{index:012d}", "category": f"category-{index % 17:02d}", "amount": f"{index % 10000}.{index % 100:02d}"}
+    return {
+        "event_id": f"event-{index:012d}",
+        "category": f"category-{index % 17:02d}",
+        "amount": f"{index % 10000}.{index % 100:02d}",
+    }
 
 
 def generate(root: Path, rows: int, mode: str = "multiset") -> Path:
@@ -23,8 +27,18 @@ def generate(root: Path, rows: int, mode: str = "multiset") -> Path:
     recipe = {
         "recipe_version": 3 if mode == "multiset" else 1,
         "comparison_mode": mode,
-        "scope": {"snapshot": f"synthetic-spill-{rows}", "cutoff": "2026-10-11T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
-        "columns": {"event_id": {"type": "string"}, "category": {"type": "string"}, "amount": {"type": "decimal", "scale": 2}},
+        "scope": {
+            "snapshot": f"synthetic-spill-{rows}",
+            "cutoff": "2026-10-11T00:00:00Z",
+            "filters": [],
+            "completeness": "full",
+            "expected_empty": False,
+        },
+        "columns": {
+            "event_id": {"type": "string"},
+            "category": {"type": "string"},
+            "amount": {"type": "decimal", "scale": 2},
+        },
         "output": {"sensitivity": "summary"},
     }
     if mode == "keyed":
@@ -32,9 +46,14 @@ def generate(root: Path, rows: int, mode: str = "multiset") -> Path:
         expected = {
             "outcome": "PASS",
             "counts": {
-                "baseline": rows, "candidate": rows, "common_keys": rows,
-                "baseline_only": 0, "candidate_only": 0, "matched_exact": rows,
-                "matched_within_tolerance": 0, "matched_with_required_difference": 0,
+                "baseline": rows,
+                "candidate": rows,
+                "common_keys": rows,
+                "baseline_only": 0,
+                "candidate_only": 0,
+                "matched_exact": rows,
+                "matched_within_tolerance": 0,
+                "matched_with_required_difference": 0,
             },
         }
     else:

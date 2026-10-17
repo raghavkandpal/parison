@@ -19,34 +19,47 @@ class ParquetCompatibility(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
         self.recipe = self.root / "recipe.json"
-        self.recipe.write_text(json.dumps({
-            "recipe_version": 1,
-            "comparison_mode": "keyed",
-            "keys": ["id"],
-            "scope": {"snapshot": "parquet-fixture", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
-            "identity": {"null_keys": "reject", "duplicates": "reject"},
-            "nulls_equal": True,
-            "columns": {
-                "id": {"type": "string", "comparison": "exact"},
-                "amount": {
-                    "type": "decimal",
-                    "scale": 4,
-                    "comparison": "numeric",
-                    "tolerance": {"formula": "symmetric-v1", "absolute": "0.01", "relative": "0"},
-                },
-            },
-            "output": {"sensitivity": "summary"},
-        }), encoding="utf-8")
+        self.recipe.write_text(
+            json.dumps(
+                {
+                    "recipe_version": 1,
+                    "comparison_mode": "keyed",
+                    "keys": ["id"],
+                    "scope": {
+                        "snapshot": "parquet-fixture",
+                        "cutoff": "2026-10-01T00:00:00Z",
+                        "filters": [],
+                        "completeness": "full",
+                        "expected_empty": False,
+                    },
+                    "identity": {"null_keys": "reject", "duplicates": "reject"},
+                    "nulls_equal": True,
+                    "columns": {
+                        "id": {"type": "string", "comparison": "exact"},
+                        "amount": {
+                            "type": "decimal",
+                            "scale": 4,
+                            "comparison": "numeric",
+                            "tolerance": {"formula": "symmetric-v1", "absolute": "0.01", "relative": "0"},
+                        },
+                    },
+                    "output": {"sensitivity": "summary"},
+                }
+            ),
+            encoding="utf-8",
+        )
 
     def tearDown(self):
         self.tmp.cleanup()
 
     def parquet(self, name, ids, amounts):
         path = self.root / name
-        pl.DataFrame({
-            "id": pl.Series(ids, dtype=pl.String),
-            "amount": pl.Series(amounts, dtype=pl.Decimal(precision=20, scale=4)),
-        }).write_parquet(path)
+        pl.DataFrame(
+            {
+                "id": pl.Series(ids, dtype=pl.String),
+                "amount": pl.Series(amounts, dtype=pl.Decimal(precision=20, scale=4)),
+            }
+        ).write_parquet(path)
         return path
 
     def test_decimal_parquet_comparison(self):

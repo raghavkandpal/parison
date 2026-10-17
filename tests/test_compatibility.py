@@ -43,10 +43,34 @@ class HistoricalArtifactCompatibility(unittest.TestCase):
     def test_released_artifact_families_remain_readable(self):
         fixtures = ROOT / "tests" / "fixtures" / "compatibility"
         expected = {
-            "aggregate-0.7.0": ("0.7.0", "aggregate-v1", "run", 2, "0b7169ee51d3dc79a4a5d22601ad37249f051948575a409e7393e4556ee4db5b"),
-            "multiset-0.8.0": ("0.8.0", "multiset-v1", "run", 3, "41013f7850d9205ccde82252c070a467540126f19609b1dc6c9457670eb04f8b"),
-            "suite-v1-0.10.0": ("0.10.0", "suite-v1", "suite", 1, "d5cfabab463ed7c1684cc3eea9928d41252c0d017dc6d5253bd9f4bbe6418620"),
-            "suite-v2-0.11.0": ("0.11.0", "suite-v2", "suite", 2, "3f05c7904cf434ca914ef0c31fde9a3e1dc43a5a8f7cf7457b506847025256ff"),
+            "aggregate-0.7.0": (
+                "0.7.0",
+                "aggregate-v1",
+                "run",
+                2,
+                "0b7169ee51d3dc79a4a5d22601ad37249f051948575a409e7393e4556ee4db5b",
+            ),
+            "multiset-0.8.0": (
+                "0.8.0",
+                "multiset-v1",
+                "run",
+                3,
+                "41013f7850d9205ccde82252c070a467540126f19609b1dc6c9457670eb04f8b",
+            ),
+            "suite-v1-0.10.0": (
+                "0.10.0",
+                "suite-v1",
+                "suite",
+                1,
+                "d5cfabab463ed7c1684cc3eea9928d41252c0d017dc6d5253bd9f4bbe6418620",
+            ),
+            "suite-v2-0.11.0": (
+                "0.11.0",
+                "suite-v2",
+                "suite",
+                2,
+                "3f05c7904cf434ca914ef0c31fde9a3e1dc43a5a8f7cf7457b506847025256ff",
+            ),
         }
         for name, (version, contract, kind, schema, digest) in expected.items():
             with self.subTest(name=name):

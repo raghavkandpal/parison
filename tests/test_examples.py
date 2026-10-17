@@ -31,18 +31,36 @@ class CheckedInExamples(unittest.TestCase):
     def reconciliation_bundle(self, root, output):
         example = root / "examples/1.3"
         inputs = {
-            "payments": {"recipe": example / "payments.recipe.json", "baseline": example / "payments-baseline.csv", "candidate": example / "payments-candidate.jsonl"},
-            "payouts": {"recipe": example / "payouts.recipe.json", "baseline": example / "payouts-baseline.csv", "candidate": example / "payouts-candidate.jsonl"},
+            "payments": {
+                "recipe": example / "payments.recipe.json",
+                "baseline": example / "payments-baseline.csv",
+                "candidate": example / "payments-candidate.jsonl",
+            },
+            "payouts": {
+                "recipe": example / "payouts.recipe.json",
+                "baseline": example / "payouts-baseline.csv",
+                "candidate": example / "payouts-candidate.jsonl",
+            },
         }
-        result = run_reconciliation(example / "alignment.json", example / "reconciliation.json", example / "extraction-receipt.json", inputs)
+        result = run_reconciliation(
+            example / "alignment.json", example / "reconciliation.json", example / "extraction-receipt.json", inputs
+        )
         publish_reconciliation_bundle(output, result, example / "alignment.json", example / "reconciliation.json")
         return output
 
     def test_1_4_manifest_binds_the_reconciliation_inputs(self):
         root = Path(__file__).parents[1]
-        result = verify_dataset_manifest(root / "examples/1.4/payout-dataset-manifest.json", root, root / "examples/1.3/reconciliation.json", summary=True)
+        result = verify_dataset_manifest(
+            root / "examples/1.4/payout-dataset-manifest.json",
+            root,
+            root / "examples/1.3/reconciliation.json",
+            summary=True,
+        )
         self.assertEqual(result["outcome"], "PASS")
-        self.assertEqual(result["counts"], {"declared": 5, "matched": 5, "missing": 0, "undeclared": 0, "size_mismatch": 0, "digest_mismatch": 0})
+        self.assertEqual(
+            result["counts"],
+            {"declared": 5, "matched": 5, "missing": 0, "undeclared": 0, "size_mismatch": 0, "digest_mismatch": 0},
+        )
 
     def test_1_4_manifest_rejects_a_different_policy(self):
         root = Path(__file__).parents[1]
@@ -59,7 +77,13 @@ class CheckedInExamples(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "evidence"
             semantic = self.reconciliation_bundle(root, Path(directory) / "semantic")
-            published = publish_dataset_evidence_bundle(output, root / "examples/1.4/payout-dataset-manifest.json", root, root / "examples/1.3/reconciliation.json", semantic)
+            published = publish_dataset_evidence_bundle(
+                output,
+                root / "examples/1.4/payout-dataset-manifest.json",
+                root,
+                root / "examples/1.3/reconciliation.json",
+                semantic,
+            )
             self.assertEqual(published["outcome"], "PASS")
             self.assertEqual(verify_bundle(output), published)
             with redirect_stdout(StringIO()) as stdout, redirect_stderr(StringIO()):
@@ -85,7 +109,13 @@ class CheckedInExamples(unittest.TestCase):
             member.unlink()
             member.write_bytes(saved)
             with self.assertRaisesRegex(ParisonError, "already exists"):
-                publish_dataset_evidence_bundle(output, root / "examples/1.4/payout-dataset-manifest.json", root, root / "examples/1.3/reconciliation.json", semantic)
+                publish_dataset_evidence_bundle(
+                    output,
+                    root / "examples/1.4/payout-dataset-manifest.json",
+                    root,
+                    root / "examples/1.3/reconciliation.json",
+                    semantic,
+                )
             (output / "manifest-result.json").write_text("{}", encoding="utf-8")
             with self.assertRaisesRegex(ParisonError, "integrity"):
                 verify_bundle(output)
@@ -223,7 +253,9 @@ class CheckedInExamples(unittest.TestCase):
             output = Path(directory) / "suite"
             result = run_suite(root / "examples/0.10/mixed-suite.json", output)
             self.assertEqual(result["outcome"], "PASS")
-            self.assertEqual([case["contract"] for case in result["cases"]], ["keyed-v1", "aggregate-v1", "multiset-v1"])
+            self.assertEqual(
+                [case["contract"] for case in result["cases"]], ["keyed-v1", "aggregate-v1", "multiset-v1"]
+            )
             self.assertEqual(verify_bundle(output)["kind"], "suite")
 
     def test_0_11_suite_shards_assemble_and_export_ci(self):
@@ -263,7 +295,9 @@ class CheckedInExamples(unittest.TestCase):
             self.assertEqual(result["outcome"], "PASS")
             self.assertEqual(result["outcome_counts"]["PASS"], 2)
             verify_bundle(output)
-        aggregate = compare(root / "payout-aggregate.recipe.json", root / "processor.csv", root / "ledger-with-error.csv")
+        aggregate = compare(
+            root / "payout-aggregate.recipe.json", root / "processor.csv", root / "ledger-with-error.csv"
+        )
         keyed = compare(root / "payout-keyed.recipe.json", root / "processor.csv", root / "ledger-with-error.csv")
         self.assertEqual(aggregate["outcome"], "FAIL")
         self.assertEqual(keyed["outcome"], "FAIL")
@@ -279,8 +313,16 @@ class CheckedInExamples(unittest.TestCase):
     def test_1_3_reconciliation_example_is_cross_format_and_cross_engine(self):
         root = Path(__file__).parents[1] / "examples" / "1.3"
         inputs = {
-            "payments": {"recipe": root / "payments.recipe.json", "baseline": root / "payments-baseline.csv", "candidate": root / "payments-candidate.jsonl"},
-            "payouts": {"recipe": root / "payouts.recipe.json", "baseline": root / "payouts-baseline.csv", "candidate": root / "payouts-candidate.jsonl"},
+            "payments": {
+                "recipe": root / "payments.recipe.json",
+                "baseline": root / "payments-baseline.csv",
+                "candidate": root / "payments-candidate.jsonl",
+            },
+            "payouts": {
+                "recipe": root / "payouts.recipe.json",
+                "baseline": root / "payouts-baseline.csv",
+                "candidate": root / "payouts-candidate.jsonl",
+            },
         }
         arguments = (root / "alignment.json", root / "reconciliation.json", root / "extraction-receipt.json", inputs)
         memory = run_reconciliation(*arguments)

@@ -9,11 +9,16 @@ def parison_evidence() -> dg.MaterializeResult:
     output = "/evidence/parison-run"
     comparison = subprocess.run(
         [
-            "parison", "compare",
-            "--recipe", "/data/migration.recipe.json",
-            "--baseline", "/data/baseline.csv",
-            "--candidate", "/data/candidate.csv",
-            "--output", output,
+            "parison",
+            "compare",
+            "--recipe",
+            "/data/migration.recipe.json",
+            "--baseline",
+            "/data/baseline.csv",
+            "--candidate",
+            "/data/candidate.csv",
+            "--output",
+            output,
         ],
         check=False,
     )

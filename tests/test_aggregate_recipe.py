@@ -113,8 +113,14 @@ class AggregateRecipeTests(unittest.TestCase):
         return path
 
     def test_grouped_aggregate_passes_under_reordering_and_tolerance(self):
-        left = self.csv("left.csv", "region,amount,ordered_at\n East ,10.00,2026-01-01T00:00:00Z\nwest,4.00,2026-01-02T00:00:00Z\neast,-1.00,2026-01-03T00:00:00Z\n")
-        right = self.csv("right.csv", "region,amount,ordered_at\nWEST,4.00,2026-01-02T00:00:00Z\neast,-0.99,2026-01-03T00:00:00Z\neast,10.00,2026-01-01T00:00:00Z\n")
+        left = self.csv(
+            "left.csv",
+            "region,amount,ordered_at\n East ,10.00,2026-01-01T00:00:00Z\nwest,4.00,2026-01-02T00:00:00Z\neast,-1.00,2026-01-03T00:00:00Z\n",
+        )
+        right = self.csv(
+            "right.csv",
+            "region,amount,ordered_at\nWEST,4.00,2026-01-02T00:00:00Z\neast,-0.99,2026-01-03T00:00:00Z\neast,10.00,2026-01-01T00:00:00Z\n",
+        )
         result = compare(self.path, left, right)
         Draft202012Validator(load_schema("result-v2")).validate(result)
         self.assertEqual(result["outcome"], "PASS")
@@ -125,8 +131,12 @@ class AggregateRecipeTests(unittest.TestCase):
         self.assertNotIn("east", json.dumps(result).lower())
 
     def test_offsetting_groups_and_measure_differences_fail(self):
-        left = self.csv("left.csv", "region,amount,ordered_at\neast,1.00,2026-01-01T00:00:00Z\nwest,2.00,2026-01-01T00:00:00Z\n")
-        right = self.csv("right.csv", "region,amount,ordered_at\neast,3.00,2026-01-01T00:00:00Z\nnorth,0.00,2026-01-01T00:00:00Z\n")
+        left = self.csv(
+            "left.csv", "region,amount,ordered_at\neast,1.00,2026-01-01T00:00:00Z\nwest,2.00,2026-01-01T00:00:00Z\n"
+        )
+        right = self.csv(
+            "right.csv", "region,amount,ordered_at\neast,3.00,2026-01-01T00:00:00Z\nnorth,0.00,2026-01-01T00:00:00Z\n"
+        )
         result = compare(self.path, left, right)
         self.assertEqual(result["outcome"], "FAIL")
         self.assertEqual(result["counts"]["baseline_only_groups"], 1)
@@ -159,7 +169,10 @@ class AggregateRecipeTests(unittest.TestCase):
         self.assertEqual(compare(self.path, left, right)["outcome"], "PASS")
 
     def test_null_group_and_rejected_measure_are_inconclusive(self):
-        left = self.csv("left.jsonl", '{"region":null,"amount":"1.00","ordered_at":"2026-01-01T00:00:00Z"}\n{"region":"east","amount":null,"ordered_at":"2026-01-01T00:00:00Z"}\n')
+        left = self.csv(
+            "left.jsonl",
+            '{"region":null,"amount":"1.00","ordered_at":"2026-01-01T00:00:00Z"}\n{"region":"east","amount":null,"ordered_at":"2026-01-01T00:00:00Z"}\n',
+        )
         result = compare(self.path, left, left)
         self.assertEqual(result["outcome"], "INCONCLUSIVE")
         self.assertFalse(result["complete"])
@@ -177,7 +190,9 @@ class AggregateRecipeTests(unittest.TestCase):
         self.assertEqual(result["counts"]["baseline_groups"], 1)
         value["group_by"] = ["region"]
         self.write(value)
-        rows = self.csv("rows.csv", "region,amount,ordered_at\neast,1,2026-01-01T00:00:00Z\nwest,1,2026-01-01T00:00:00Z\n")
+        rows = self.csv(
+            "rows.csv", "region,amount,ordered_at\neast,1,2026-01-01T00:00:00Z\nwest,1,2026-01-01T00:00:00Z\n"
+        )
         with self.assertRaisesRegex(ParisonError, "group count exceeds limit 1"):
             compare(self.path, rows, rows, max_groups=1)
 
@@ -195,7 +210,10 @@ class AggregateRecipeTests(unittest.TestCase):
         value = json.loads(json.dumps(RECIPE))
         value["measures"] = {"latest": {"operator": "max", "column": "ordered_at", "nulls": "ignore"}}
         self.write(value)
-        rows = self.csv("nulls.jsonl", '{"region":"east","amount":"1.00","ordered_at":null}\n{"region":"east","amount":"2.00","ordered_at":null}\n')
+        rows = self.csv(
+            "nulls.jsonl",
+            '{"region":"east","amount":"1.00","ordered_at":null}\n{"region":"east","amount":"2.00","ordered_at":null}\n',
+        )
         result = compare(self.path, rows, rows)
         self.assertEqual(result["outcome"], "PASS")
         self.assertEqual(result["measure_counts"]["latest"]["exact"], 1)
@@ -236,7 +254,10 @@ class AggregateRecipeTests(unittest.TestCase):
         self.assertIn("Aggregate equality does not prove row equality", (output / "report.html").read_text())
 
     def test_record_preflight_is_privacy_safe_and_schema_valid(self):
-        source = self.csv("records.jsonl", '{"region":"east","amount":"1.00","ordered_at":"2026-01-01T00:00:00Z"}\n{"region":"west","amount":"2.00","ordered_at":"2026-01-02T00:00:00Z"}\n')
+        source = self.csv(
+            "records.jsonl",
+            '{"region":"east","amount":"1.00","ordered_at":"2026-01-01T00:00:00Z"}\n{"region":"west","amount":"2.00","ordered_at":"2026-01-02T00:00:00Z"}\n',
+        )
         result = validate_inputs(self.path, source, source, validate_records=True)
         Draft202012Validator(load_schema("preflight-v2")).validate(result)
         self.assertEqual(result["status"], "valid")
@@ -244,7 +265,10 @@ class AggregateRecipeTests(unittest.TestCase):
         self.assertNotIn("east", json.dumps(result))
 
     def test_record_preflight_reports_group_and_null_failures(self):
-        source = self.csv("invalid.jsonl", '{"region":null,"amount":"secret","ordered_at":"2026-01-01T00:00:00Z"}\n{"region":"east","amount":null,"ordered_at":"2026-01-02T00:00:00Z"}\n{"region":"west","amount":"1.00","ordered_at":"2026-01-02T00:00:00Z"}\n')
+        source = self.csv(
+            "invalid.jsonl",
+            '{"region":null,"amount":"secret","ordered_at":"2026-01-01T00:00:00Z"}\n{"region":"east","amount":null,"ordered_at":"2026-01-02T00:00:00Z"}\n{"region":"west","amount":"1.00","ordered_at":"2026-01-02T00:00:00Z"}\n',
+        )
         result = validate_inputs(self.path, source, source, validate_records=True, max_groups=1)
         records = result["inputs"]["baseline"]["records"]
         self.assertEqual(result["status"], "invalid")

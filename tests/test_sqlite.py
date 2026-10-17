@@ -9,9 +9,18 @@ from pathlib import Path
 from parison.core import ParisonError, compare, draft_recipe
 
 RECIPE = {
-    "recipe_version": 1, "comparison_mode": "keyed", "keys": ["id"],
-    "scope": {"snapshot": "sqlite-test", "cutoff": "2026-10-06T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
-    "identity": {"null_keys": "reject", "duplicates": "reject"}, "nulls_equal": True,
+    "recipe_version": 1,
+    "comparison_mode": "keyed",
+    "keys": ["id"],
+    "scope": {
+        "snapshot": "sqlite-test",
+        "cutoff": "2026-10-06T00:00:00Z",
+        "filters": [],
+        "completeness": "full",
+        "expected_empty": False,
+    },
+    "identity": {"null_keys": "reject", "duplicates": "reject"},
+    "nulls_equal": True,
     "columns": {"id": {"type": "string", "comparison": "exact"}, "value": {"type": "integer", "comparison": "exact"}},
     "output": {"sensitivity": "summary"},
 }
@@ -64,12 +73,19 @@ class SqliteInput(unittest.TestCase):
             connection.commit()
         result = compare(self.recipe, baseline, self.source)
         self.assertEqual(result["outcome"], "FAIL")
-        self.assertEqual(result["counts"], {
-            "baseline": 2, "candidate": 2, "common_keys": 1,
-            "baseline_only": 1, "candidate_only": 1,
-            "matched_exact": 0, "matched_within_tolerance": 0,
-            "matched_with_required_difference": 1,
-        })
+        self.assertEqual(
+            result["counts"],
+            {
+                "baseline": 2,
+                "candidate": 2,
+                "common_keys": 1,
+                "baseline_only": 1,
+                "candidate_only": 1,
+                "matched_exact": 0,
+                "matched_within_tolerance": 0,
+                "matched_with_required_difference": 1,
+            },
+        )
 
     def test_sqlite_rejects_views_blobs_journals_and_row_overruns(self):
         with closing(sqlite3.connect(self.database)) as connection:

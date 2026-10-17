@@ -17,10 +17,13 @@ class ProjectInit(unittest.TestCase):
             with redirect_stdout(stdout), redirect_stderr(stderr):
                 self.assertEqual(main(["init", str(project)]), 0)
 
-            self.assertEqual(json.loads(stdout.getvalue()), {
-                "directory": str(project),
-                "files": ["README.md", "baseline.csv", "candidate.csv", "recipe.json"],
-            })
+            self.assertEqual(
+                json.loads(stdout.getvalue()),
+                {
+                    "directory": str(project),
+                    "files": ["README.md", "baseline.csv", "candidate.csv", "recipe.json"],
+                },
+            )
             self.assertIn("Next: cd", stderr.getvalue())
             self.assertEqual(
                 sorted(path.name for path in project.iterdir()),
@@ -28,12 +31,22 @@ class ProjectInit(unittest.TestCase):
             )
             with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
                 self.assertEqual(main(["validate-recipe", str(project / "recipe.json")]), 0)
-                self.assertEqual(main([
-                    "compare", "--recipe", str(project / "recipe.json"),
-                    "--baseline", str(project / "baseline.csv"),
-                    "--candidate", str(project / "candidate.csv"),
-                    "--output", str(project / "run"),
-                ]), 0)
+                self.assertEqual(
+                    main(
+                        [
+                            "compare",
+                            "--recipe",
+                            str(project / "recipe.json"),
+                            "--baseline",
+                            str(project / "baseline.csv"),
+                            "--candidate",
+                            str(project / "candidate.csv"),
+                            "--output",
+                            str(project / "run"),
+                        ]
+                    ),
+                    0,
+                )
                 self.assertEqual(main(["verify", str(project / "run")]), 0)
 
     def test_init_accepts_existing_empty_directory(self):
@@ -96,10 +109,33 @@ class ProjectInit(unittest.TestCase):
                     self.assertEqual(main(arguments), 0, arguments)
 
             run(["init", str(project)])
-            run(["validate-inputs", "--records", "--recipe", str(project / "recipe.json"), "--baseline", str(project / "baseline.csv"), "--candidate", str(project / "candidate.csv")])
+            run(
+                [
+                    "validate-inputs",
+                    "--records",
+                    "--recipe",
+                    str(project / "recipe.json"),
+                    "--baseline",
+                    str(project / "baseline.csv"),
+                    "--candidate",
+                    str(project / "candidate.csv"),
+                ]
+            )
             for name in ("rehearsal-1", "rehearsal-2"):
                 output = project / name
-                run(["compare", "--recipe", str(project / "recipe.json"), "--baseline", str(project / "baseline.csv"), "--candidate", str(project / "candidate.csv"), "--output", str(output)])
+                run(
+                    [
+                        "compare",
+                        "--recipe",
+                        str(project / "recipe.json"),
+                        "--baseline",
+                        str(project / "baseline.csv"),
+                        "--candidate",
+                        str(project / "candidate.csv"),
+                        "--output",
+                        str(output),
+                    ]
+                )
                 run(["catalog", "add", "--database", str(catalog), str(output)])
 
             stdout = StringIO()
@@ -107,9 +143,26 @@ class ProjectInit(unittest.TestCase):
                 self.assertEqual(main(["explain", str(project / "recipe.json")]), 0)
             policy = json.loads(stdout.getvalue())["policy_sha256"]
             run(["catalog", "history", "--database", str(catalog), "--policy-sha256", policy])
-            run(["catalog", "diff", "--database", str(catalog), str(project / "rehearsal-1"), str(project / "rehearsal-2")])
+            run(
+                [
+                    "catalog",
+                    "diff",
+                    "--database",
+                    str(catalog),
+                    str(project / "rehearsal-1"),
+                    str(project / "rehearsal-2"),
+                ]
+            )
 
-            run(["run-suite", "--plan", str(repository / "examples" / "0.15" / "payout-suite.json"), "--output", str(suite)])
+            run(
+                [
+                    "run-suite",
+                    "--plan",
+                    str(repository / "examples" / "0.15" / "payout-suite.json"),
+                    "--output",
+                    str(suite),
+                ]
+            )
             run(["verify", str(suite)])
             run(["statement", str(suite), "--output", str(statement)])
             run(["verify-statement", str(suite), str(statement)])
