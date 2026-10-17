@@ -2,7 +2,7 @@
 
 Date: 17 October 2026
 
-Status: **planned for the next development session, before 1.5 product work**
+Status: **completed at `35fe2d0` before 1.5 product work**
 
 ## Objective
 

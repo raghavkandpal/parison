@@ -7,6 +7,11 @@ All notable changes will be documented in this file.
 ### Changed
 
 - Added pinned Ruff lint and formatting gates to local development and CI, plus a single contributor guide for setup, testing, compatibility and evidence-safety standards.
+- Split policy, input, comparison, evidence and suite implementation out of `parison.core` while preserving its released import surface as a compatibility facade.
+
+### Fixed
+
+- Consolidated atomic no-replace directory publication and output-parent safety so run, suite, editor-schema, reconciliation and dataset-evidence publishers resist concurrently created destinations consistently across supported platforms.
 
 ## 1.4.0 - 2026-10-16
 
