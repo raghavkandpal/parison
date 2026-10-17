@@ -271,7 +271,7 @@ class MultisetRecipeTests(unittest.TestCase):
         spill = Path(self.tmp.name) / "spill"
         spill.mkdir()
         with (
-            patch("parison.core._iter_input_rows", side_effect=KeyboardInterrupt),
+            patch("parison.comparison._iter_input_rows", side_effect=KeyboardInterrupt),
             self.assertRaises(KeyboardInterrupt),
         ):
             compare(self.path, source, source, engine="sqlite", temp_directory=spill)

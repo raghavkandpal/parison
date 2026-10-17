@@ -164,7 +164,7 @@ class ParisonTests(unittest.TestCase):
         spill = self.root / "spill"
         spill.mkdir()
         with (
-            patch("parison.core._iter_input_rows", side_effect=KeyboardInterrupt),
+            patch("parison.comparison._iter_input_rows", side_effect=KeyboardInterrupt),
             self.assertRaises(KeyboardInterrupt),
         ):
             compare(self.recipe, left, right, engine="sqlite", temp_directory=spill)
@@ -487,7 +487,7 @@ class ParisonTests(unittest.TestCase):
 
     def test_publication_io_failure_is_a_controlled_error(self):
         result = error_result("test")
-        with patch("parison.core.tempfile.mkdtemp", side_effect=OSError("disk full")):
+        with patch("parison.evidence.tempfile.mkdtemp", side_effect=OSError("disk full")):
             with self.assertRaisesRegex(ParisonError, "cannot prepare bundle output: disk full"):
                 publish(self.root / "run", result, None)
         self.assertFalse((self.root / "run").exists())
@@ -495,8 +495,8 @@ class ParisonTests(unittest.TestCase):
         stage = self.root / ".chmod-stage"
         stage.mkdir()
         with (
-            patch("parison.core.tempfile.mkdtemp", return_value=str(stage)),
-            patch("parison.core.os.chmod", side_effect=OSError("permissions unavailable")),
+            patch("parison.evidence.tempfile.mkdtemp", return_value=str(stage)),
+            patch("parison.evidence.os.chmod", side_effect=OSError("permissions unavailable")),
         ):
             with self.assertRaisesRegex(ParisonError, "cannot prepare bundle output: permissions unavailable"):
                 publish(self.root / "run", result, None)
@@ -505,8 +505,8 @@ class ParisonTests(unittest.TestCase):
         stage = self.root / ".run-stage"
         stage.mkdir()
         with (
-            patch("parison.core.tempfile.mkdtemp", return_value=str(stage)),
-            patch("parison.core.os.replace", side_effect=OSError("read-only filesystem")),
+            patch("parison.evidence.tempfile.mkdtemp", return_value=str(stage)),
+            patch("parison.evidence.os.replace", side_effect=OSError("read-only filesystem")),
         ):
             with self.assertRaisesRegex(ParisonError, "cannot publish bundle: read-only filesystem"):
                 publish(self.root / "run", result, None)
