@@ -1,11 +1,11 @@
 # Current development state
 
-- Version: **1.4.0 released; 1.5 capability research in progress**
+- Version: **1.4.0 released; 1.5 discrepancy analysis in progress**
 - Branch: `develop`
 - Theme: deterministic dataset manifests and reproducibility diagnostics
 - Released: opt-in `semantic-scalar-v1`, strict schema/policy evolution, and coordinated `time-alignment-v1` plus `reconciliation-v1`
 - Verified: exact 1.4.0 merge `13eb551f216595297d012d3ea4b06fbe65670d0e` passed [the full CI matrix](https://github.com/raghavkandpal/parison/actions/runs/38896813377); public assets were checksum-verified and the fresh wheel passed the complete manifest, SQLite reconciliation and dataset-evidence workflow
-- Next gate: research and specify one coherent 1.5 discrepancy-analysis capability, then implement it as a larger release slice
+- Next gate: implement and qualify the [`discrepancy-analysis-v1` contract](1.5/161-discrepancy-analysis-contract.md) as one larger release slice
 
 ## Recorded next steps
 

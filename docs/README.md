@@ -12,6 +12,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 ## 1.5 — research
 
 - [Deterministic discrepancy analysis research](1.5/159-discrepancy-analysis-research.md)
+- [1.5 roadmap](1.5/160-roadmap.md)
+- [`discrepancy-analysis-v1` contract](1.5/161-discrepancy-analysis-contract.md)
 
 ## 1.4 — released
 
