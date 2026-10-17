@@ -277,7 +277,7 @@ class SuiteTests(unittest.TestCase):
                 self.case("passing"),
             ]
         )
-        with patch("parison.core._execute_suite_case", _raising_suite_worker):
+        with patch("parison.suites._execute_suite_case", _raising_suite_worker):
             result = run_suite(self.plan, self.root / "worker-failure", jobs=2)
         self.assertEqual(result["outcome"], "ERROR")
         self.assertEqual([case["outcome"] for case in result["cases"]], ["ERROR", "PASS"])
@@ -293,7 +293,7 @@ class SuiteTests(unittest.TestCase):
     def test_abrupt_worker_process_death_publishes_verifiable_evidence(self):
         self.write_plan_v2([self.case("broken"), self.case("other")])
         output = self.root / "abrupt-worker-death"
-        with patch("parison.core._execute_suite_case", _crashing_suite_worker):
+        with patch("parison.suites._execute_suite_case", _crashing_suite_worker):
             result = run_suite(self.plan, output, jobs=2)
         self.assertEqual(result["outcome"], "ERROR")
         self.assertEqual(result["completed_cases"], 2)
@@ -314,8 +314,8 @@ class SuiteTests(unittest.TestCase):
 
         started = time.monotonic()
         with (
-            patch("parison.core._execute_suite_case", _slow_suite_worker),
-            patch("parison.core.wait", interrupt_after_checkpoint),
+            patch("parison.suites._execute_suite_case", _slow_suite_worker),
+            patch("parison.suites.wait", interrupt_after_checkpoint),
             self.assertRaises(KeyboardInterrupt),
         ):
             run_suite(self.plan, self.root / "interrupted-output", workspace=workspace, jobs=2)
@@ -338,8 +338,8 @@ class SuiteTests(unittest.TestCase):
 
         started = time.monotonic()
         with (
-            patch("parison.core._execute_suite_case", _stubborn_suite_worker),
-            patch("parison.core.wait", interrupt_when_running),
+            patch("parison.suites._execute_suite_case", _stubborn_suite_worker),
+            patch("parison.suites.wait", interrupt_when_running),
             self.assertRaises(KeyboardInterrupt),
         ):
             run_suite(self.plan, self.root / "stubborn-output", jobs=2)
@@ -398,7 +398,7 @@ class SuiteTests(unittest.TestCase):
         self.write_plan_v2([self.case("first"), self.case("second")])
         workspace = self.root / "workspace"
         run_suite(self.plan, self.root / "initial", workspace=workspace)
-        with patch("parison.core.compare", side_effect=AssertionError("comparison should be reused")):
+        with patch("parison.suites.compare", side_effect=AssertionError("comparison should be reused")):
             resumed = run_suite(self.plan, self.root / "resumed", workspace=workspace, resume=True)
         self.assertEqual(resumed["outcome"], "PASS")
         self.assertEqual(verify_bundle(self.root / "resumed")["kind"], "suite")
@@ -412,7 +412,7 @@ class SuiteTests(unittest.TestCase):
             calls += 1
             return real_compare(*args, **kwargs)
 
-        with patch("parison.core.compare", side_effect=counted_compare):
+        with patch("parison.suites.compare", side_effect=counted_compare):
             changed = run_suite(self.plan, self.root / "changed", workspace=workspace, resume=True)
         self.assertEqual(calls, 2)
         self.assertEqual(changed["outcome"], "FAIL")
@@ -565,7 +565,7 @@ class SuiteTests(unittest.TestCase):
             ]
         )
         output = self.root / "interrupted"
-        with patch("parison.core.compare", side_effect=KeyboardInterrupt):
+        with patch("parison.suites.compare", side_effect=KeyboardInterrupt):
             result = run_suite(self.plan, output)
         self.assertEqual(result["outcome"], "INTERRUPTED")
         self.assertEqual(result["completed_cases"], 1)
@@ -603,7 +603,7 @@ class SuiteTests(unittest.TestCase):
             return real_replace(source, destination)
 
         with (
-            patch("parison.core.os.replace", side_effect=fail_parent),
+            patch("parison.suites.os.replace", side_effect=fail_parent),
             self.assertRaisesRegex(ParisonError, "cannot publish suite"),
         ):
             run_suite(self.plan, output)
