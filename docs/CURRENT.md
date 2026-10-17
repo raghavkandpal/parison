@@ -1,11 +1,11 @@
 # Current development state
 
-- Version: **1.4.0 released; 1.5 discrepancy analysis in progress**
+- Version: **1.5.0 release candidate**
 - Branch: `develop`
 - Theme: deterministic, policy-bound discrepancy analysis across rehearsal runs
 - Released: opt-in `semantic-scalar-v1`, strict schema/policy evolution, and coordinated `time-alignment-v1` plus `reconciliation-v1`
-- Verified: exact 1.4.0 merge `13eb551f216595297d012d3ea4b06fbe65670d0e` passed [the full CI matrix](https://github.com/raghavkandpal/parison/actions/runs/38896813377); public assets were checksum-verified and the fresh wheel passed the complete manifest, SQLite reconciliation and dataset-evidence workflow
-- Next gate: complete realistic rehearsal and built-wheel qualification for the implemented [`discrepancy-analysis-v1` contract](1.5/161-discrepancy-analysis-contract.md)
+- Verified: exact 1.5 implementation checkpoint `957fe2a47cec26e46c7de7da4317a317c69b23a7` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39016303344) on Python 3.11–3.14, Linux, macOS and Windows
+- Next gate: qualify the exact versioned candidate, review and merge it to `main`, then publish and re-verify 1.5.0 assets
 
 ## Recorded next steps
 

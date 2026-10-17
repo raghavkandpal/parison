@@ -15,6 +15,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [1.5 roadmap](1.5/160-roadmap.md)
 - [`discrepancy-analysis-v1` contract](1.5/161-discrepancy-analysis-contract.md)
 - [Discrepancy analysis guide](1.5/162-discrepancy-analysis-guide.md)
+- [1.5 engineering checkpoint](1.5/163-engineering-checkpoint.md)
+- [1.5.0 release checklist](1.5/164-release-checklist.md)
 
 ## 1.4 — released
 

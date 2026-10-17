@@ -2,7 +2,7 @@
 
 Date: 17 October 2026
 
-Status: **active**
+Status: **release candidate**
 
 ## Objective
 
