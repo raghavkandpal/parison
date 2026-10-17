@@ -16,6 +16,8 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from . import __version__
+from ._safe_fs import check_output_parent as _check_output_parent
+from ._safe_fs import rename_no_replace as _rename_no_replace
 from .core import ParisonError, _write_once
 from .core import _digest as _file_digest
 
@@ -1006,8 +1008,6 @@ def publish_dataset_evidence_bundle(
         raise ParisonError(f"output already exists: {target}")
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        from .reconciliation import _check_output_parent, _rename_no_replace
-
         _check_output_parent(target.parent)
         stage = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent))
         os.chmod(stage, 0o700)

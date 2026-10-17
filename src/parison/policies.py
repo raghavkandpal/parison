@@ -16,6 +16,8 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+from ._safe_fs import check_output_parent as _check_output_parent
+from ._safe_fs import rename_no_replace as _rename_no_replace
 from .core import (
     _AGGREGATE_RECIPE_KEYS,
     _COLUMN_KEYS,
@@ -57,12 +59,13 @@ def export_editor_schemas(output: str | Path) -> dict[str, Any]:
     stage = None
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
+        _check_output_parent(target.parent)
         stage = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent))
         for filename, name in exports.items():
             schema = load_schema(name)
             schema.pop("$id")
             (stage / filename).write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        os.replace(stage, target)
+        _rename_no_replace(stage, target)
         return {"output": str(target), "files": sorted(exports)}
     except OSError as exc:
         if stage is not None:

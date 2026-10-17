@@ -506,7 +506,7 @@ class ParisonTests(unittest.TestCase):
         stage.mkdir()
         with (
             patch("parison.evidence.tempfile.mkdtemp", return_value=str(stage)),
-            patch("parison.evidence.os.replace", side_effect=OSError("read-only filesystem")),
+            patch("parison.evidence._rename_no_replace", side_effect=OSError("read-only filesystem")),
         ):
             with self.assertRaisesRegex(ParisonError, "cannot publish bundle: read-only filesystem"):
                 publish(self.root / "run", result, None)

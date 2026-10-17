@@ -595,15 +595,15 @@ class SuiteTests(unittest.TestCase):
     def test_parent_publication_failure_cleans_staging(self):
         self.write_plan([self.case()])
         output = self.root / "publication"
-        real_replace = os.replace
+        from parison._safe_fs import rename_no_replace
 
         def fail_parent(source, destination):
             if Path(destination) == output:
                 raise OSError("injected parent publication failure")
-            return real_replace(source, destination)
+            return rename_no_replace(source, destination)
 
         with (
-            patch("parison.suites.os.replace", side_effect=fail_parent),
+            patch("parison.suites._rename_no_replace", side_effect=fail_parent),
             self.assertRaisesRegex(ParisonError, "cannot publish suite"),
         ):
             run_suite(self.plan, output)

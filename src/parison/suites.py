@@ -13,6 +13,8 @@ from multiprocessing.connection import wait
 from pathlib import Path
 from typing import Any
 
+from ._safe_fs import check_output_parent as _check_output_parent
+from ._safe_fs import rename_no_replace as _rename_no_replace
 from .core import (
     _MAX_SUITE_JOBS,
     DEFAULT_MAX_TEMP_BYTES,
@@ -100,6 +102,7 @@ def assemble_suite(plan: str | Path, inputs: list[str | Path], output: str | Pat
     stage = None
     try:
         output.parent.mkdir(parents=True, exist_ok=True)
+        _check_output_parent(output.parent)
         stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
         os.chmod(stage, 0o700)
         (stage / "cases").mkdir()
@@ -151,7 +154,7 @@ def assemble_suite(plan: str | Path, inputs: list[str | Path], output: str | Pat
             "cases": {case["id"]: case["manifest_sha256"] for case in cases},
         }
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        os.replace(stage, output)
+        _rename_no_replace(stage, output)
         return result
     except OSError as exc:
         if stage is not None:
@@ -375,6 +378,7 @@ def run_suite(
     stage = None
     try:
         output.parent.mkdir(parents=True, exist_ok=True)
+        _check_output_parent(output.parent)
         stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
         os.chmod(stage, 0o700)
         (stage / "cases").mkdir()
@@ -606,7 +610,7 @@ def run_suite(
             "cases": {case["id"]: case["manifest_sha256"] for case in cases},
         }
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        os.replace(stage, output)
+        _rename_no_replace(stage, output)
         return result
     except OSError as exc:
         if stage is not None:

@@ -11,6 +11,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
+from ._safe_fs import check_output_parent as _check_output_parent
+from ._safe_fs import rename_no_replace as _rename_no_replace
 from .core import (
     OUTCOME_CODES,
     ParisonError,
@@ -131,6 +133,7 @@ def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] |
     stage = None
     try:
         output.parent.mkdir(parents=True, exist_ok=True)
+        _check_output_parent(output.parent)
         stage = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
         os.chmod(stage, 0o700)
     except OSError as exc:
@@ -158,7 +161,7 @@ def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] |
             "files": files,
         }
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        os.replace(stage, output)
+        _rename_no_replace(stage, output)
     except OSError as exc:
         shutil.rmtree(stage, ignore_errors=True)
         raise ParisonError(f"cannot publish bundle: {exc}") from exc
@@ -651,21 +654,6 @@ def _evidence_snapshot(directory: str | Path) -> tuple[dict[str, Any], dict[str,
 def evidence_statement(directory: str | Path) -> dict[str, Any]:
     """Build the deterministic unsigned Statement for a verified bundle."""
     return _evidence_snapshot(directory)[0]
-
-
-def _check_output_parent(parent: Path) -> None:
-    parent = parent.absolute()
-    trusted = [
-        root.absolute()
-        for root in (Path.cwd(), Path(tempfile.gettempdir()))
-        if parent == root.absolute() or parent.is_relative_to(root.absolute())
-    ]
-    boundary = max(trusted, key=lambda root: len(root.parts), default=Path(parent.anchor))
-    current = parent
-    while current != boundary:
-        if current.is_symlink():
-            raise ParisonError(f"output parent is unsafe: {current}")
-        current = current.parent
 
 
 def _write_once(target: Path, content: str, error: str) -> None:

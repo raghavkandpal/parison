@@ -132,13 +132,13 @@ class CheckedInExamples(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             parent, output = Path(directory), Path(directory) / "race"
             semantic = self.reconciliation_bundle(root, parent / "semantic")
-            from parison.reconciliation import _rename_no_replace
+            from parison._safe_fs import rename_no_replace
 
             def race(source, target):
                 target.mkdir()
-                _rename_no_replace(source, target)
+                rename_no_replace(source, target)
 
-            with patch("parison.reconciliation._rename_no_replace", side_effect=race):
+            with patch("parison.manifesting._rename_no_replace", side_effect=race):
                 with self.assertRaisesRegex(ParisonError, "cannot publish"):
                     publish_dataset_evidence_bundle(output, manifest, root, policy, semantic)
             self.assertTrue(output.is_dir())
@@ -146,7 +146,7 @@ class CheckedInExamples(unittest.TestCase):
             self.assertEqual(list(parent.glob(".race-*")), [])
 
             interrupted = parent / "interrupted"
-            with patch("parison.reconciliation._rename_no_replace", side_effect=KeyboardInterrupt):
+            with patch("parison.manifesting._rename_no_replace", side_effect=KeyboardInterrupt):
                 with self.assertRaises(KeyboardInterrupt):
                     publish_dataset_evidence_bundle(interrupted, manifest, root, policy, semantic)
             self.assertFalse(interrupted.exists())

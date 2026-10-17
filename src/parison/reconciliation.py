@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import ctypes
-import errno
 import hashlib
 import json
 import math
@@ -9,7 +7,6 @@ import os
 import re
 import shutil
 import sqlite3
-import sys
 import tempfile
 from collections import Counter
 from datetime import datetime
@@ -18,9 +15,10 @@ from pathlib import Path
 from typing import Any
 
 from parison import __version__
+from parison._safe_fs import check_output_parent as _check_output_parent
+from parison._safe_fs import rename_no_replace as _rename_no_replace
 from parison.core import (
     ParisonError,
-    _check_output_parent,
     _classify,
     _decoded_sizes,
     _iter_input_rows,
@@ -1070,29 +1068,6 @@ def summarize_reconciliation_result(result: dict[str, Any]) -> dict[str, Any]:
         "dataset_outcome_counts": component_counts,
         "relationship_outcome_counts": relationship_counts,
     }
-
-
-def _rename_no_replace(source: Path, target: Path) -> None:
-    if sys.platform == "linux":
-        libc = ctypes.CDLL(None, use_errno=True)
-        rename = libc.renameat2
-        rename.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
-        rename.restype = ctypes.c_int
-        status = rename(-100, os.fsencode(source), -100, os.fsencode(target), 1)
-    elif sys.platform == "darwin":
-        libc = ctypes.CDLL(None, use_errno=True)
-        rename = libc.renamex_np
-        rename.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint]
-        rename.restype = ctypes.c_int
-        status = rename(os.fsencode(source), os.fsencode(target), 4)
-    else:
-        os.rename(source, target)
-        return
-    if status:
-        error = ctypes.get_errno()
-        if error in {errno.EEXIST, errno.ENOTEMPTY}:
-            raise FileExistsError(error, os.strerror(error), target)
-        raise OSError(error, os.strerror(error), target)
 
 
 def publish_reconciliation_bundle(
