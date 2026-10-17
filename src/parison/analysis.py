@@ -181,30 +181,10 @@ def analyze_series(directories: Iterable[str | Path]) -> dict[str, Any]:
         groups.append(
             {key: value for key, value in descriptors[identifier].items() if key != "count"} | {"counts": counts}
         )
-        for index, (before, after) in enumerate(itertools.pairwise(counts)):
-            delta = after - before
-            status = (
-                "introduced"
-                if before == 0 < after
-                else "resolved"
-                if before > 0 == after
-                else "increased"
-                if delta > 0
-                else "decreased"
-                if delta < 0
-                else "unchanged"
-            )
-            transitions.append(
-                {
-                    "group_id": identifier,
-                    "from_run": index,
-                    "to_run": index + 1,
-                    "before": before,
-                    "after": after,
-                    "delta": delta,
-                    "status": status,
-                }
-            )
+        transitions.extend(
+            _transition(identifier, index, before, after)
+            for index, (before, after) in enumerate(itertools.pairwise(counts))
+        )
     return {
         "analysis_version": 1,
         "kind": "series",
@@ -443,36 +423,40 @@ def _validate_analysis(analysis: Any) -> None:
         raise ParisonError("series analysis has invalid provenance or counts")
     expected_transitions = []
     for group in groups:
-        for index, (before, after) in enumerate(itertools.pairwise(group["counts"])):
-            delta = after - before
-            status = (
-                "introduced"
-                if before == 0 < after
-                else "resolved"
-                if before > 0 == after
-                else "increased"
-                if delta > 0
-                else "decreased"
-                if delta < 0
-                else "unchanged"
-            )
-            expected_transitions.append(
-                {
-                    "group_id": group["group_id"],
-                    "from_run": index,
-                    "to_run": index + 1,
-                    "before": before,
-                    "after": after,
-                    "delta": delta,
-                    "status": status,
-                }
-            )
+        expected_transitions.extend(
+            _transition(group["group_id"], index, before, after)
+            for index, (before, after) in enumerate(itertools.pairwise(group["counts"]))
+        )
     if transitions != expected_transitions:
         raise ParisonError("series analysis transitions are not canonical")
 
 
 def _is_sha(value: Any) -> bool:
     return isinstance(value, str) and len(value) == 64 and all(character in "0123456789abcdef" for character in value)
+
+
+def _transition(group_id: str, index: int, before: int, after: int) -> dict[str, Any]:
+    delta = after - before
+    status = (
+        "introduced"
+        if before == 0 < after
+        else "resolved"
+        if before > 0 == after
+        else "increased"
+        if delta > 0
+        else "decreased"
+        if delta < 0
+        else "unchanged"
+    )
+    return {
+        "group_id": group_id,
+        "from_run": index,
+        "to_run": index + 1,
+        "before": before,
+        "after": after,
+        "delta": delta,
+        "status": status,
+    }
 
 
 def _expected_group_metadata(descriptor: dict[str, str]) -> tuple[str, list[str]]:

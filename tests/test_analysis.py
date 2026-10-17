@@ -150,6 +150,15 @@ class DiscrepancyAnalysisTests(unittest.TestCase):
             {"baseline_surplus", "candidate_surplus"},
         )
 
+    def test_released_aggregate_analysis_is_byte_exact(self):
+        fixtures = Path(__file__).parent / "fixtures"
+        analysis = analyze_bundle(fixtures / "compatibility" / "aggregate-0.7.0")
+        expected = (fixtures / "analysis" / "aggregate-run.json").read_bytes()
+        self.assertEqual(
+            (json.dumps(analysis, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode(),
+            expected,
+        )
+
     def test_drilldown_reads_only_bounded_published_raw_samples(self):
         recipe = copy.deepcopy(RECIPE)
         recipe["output"]["sensitivity"] = "raw"
