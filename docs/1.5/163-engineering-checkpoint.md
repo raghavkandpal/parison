@@ -18,7 +18,8 @@ Status: **implementation qualified**
 - The post-review local gate passes with 342 tests and 11 expected optional-Polars skips.
 - Exact implementation checkpoint `957fe2a47cec26e46c7de7da4317a317c69b23a7` passed [CI run 39016303344](https://github.com/raghavkandpal/parison/actions/runs/39016303344): built wheels on Python 3.11–3.14 and platform smoke on macOS and Windows.
 - A fresh Python 3.12 environment installed the locally built wheel and completed compare, per-run analysis and analysis-bundle verification against the 1.5 rehearsal.
-- Independent review findings were corrected with policy-value references, frozen descriptor vocabulary, canonical run/series/raw fixtures, strict drill-down verification, live catalog-backed selection and the complete transition/truncation/engine-equivalence matrix. The corrected exact commit still requires the cross-platform candidate gate.
+- Independent review findings were corrected with policy-value references, frozen descriptor vocabulary, canonical run/series/raw fixtures, strict drill-down verification, live catalog-backed selection and the complete transition/truncation/engine-equivalence matrix.
+- Corrected candidate `d19b8b769c5fb8cf5764a380c3fcde53c194c2c8` passed [CI run 39036296368](https://github.com/raghavkandpal/parison/actions/runs/39036296368) across Python 3.11–3.14, macOS and Windows. A fresh Python 3.12 environment installed its local wheel, discovered both installed schemas and completed the three-run summary plus bounded raw drill-down workflow.
 
 ## Boundaries retained
 
