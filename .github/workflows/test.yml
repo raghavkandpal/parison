@@ -8,6 +8,17 @@ permissions:
   contents: read
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: python -m pip install 'ruff==0.17.1'
+      - run: make lint format-check
+
   test:
     runs-on: ubuntu-latest
     strategy:
