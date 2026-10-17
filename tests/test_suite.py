@@ -15,7 +15,20 @@ from unittest.mock import patch
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, _execute_suite_case, assemble_suite, explain_recipe, export_evidence, inspect_bundle, list_suite, load_schema, load_suite, report_ci, run_suite, verify_bundle
+from parison.core import (
+    ParisonError,
+    _execute_suite_case,
+    assemble_suite,
+    explain_recipe,
+    export_evidence,
+    inspect_bundle,
+    list_suite,
+    load_schema,
+    load_suite,
+    report_ci,
+    run_suite,
+    verify_bundle,
+)
 
 
 def _crashing_suite_worker(case, *args):

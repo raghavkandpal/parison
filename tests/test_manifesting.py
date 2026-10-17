@@ -14,8 +14,16 @@ from jsonschema import Draft202012Validator
 
 from parison.cli import main
 from parison.core import ParisonError, load_schema
-from parison.manifesting import canonical_dataset_manifest_bytes, canonical_reproducibility_diagnostic_bytes, capture_reproducibility_diagnostic, create_dataset_manifest, diff_reproducibility_diagnostics, explain_dataset_manifest, normalize_dataset_manifest, verify_dataset_manifest
-
+from parison.manifesting import (
+    canonical_dataset_manifest_bytes,
+    canonical_reproducibility_diagnostic_bytes,
+    capture_reproducibility_diagnostic,
+    create_dataset_manifest,
+    diff_reproducibility_diagnostics,
+    explain_dataset_manifest,
+    normalize_dataset_manifest,
+    verify_dataset_manifest,
+)
 
 ROOT = Path(__file__).parents[1]
 

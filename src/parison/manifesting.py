@@ -16,8 +16,8 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from . import __version__
-from .core import ParisonError, _digest as _file_digest, _write_once
-
+from .core import ParisonError, _write_once
+from .core import _digest as _file_digest
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")

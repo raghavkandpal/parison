@@ -2,8 +2,8 @@
 import argparse
 import json
 import platform
-import subprocess
 import statistics
+import subprocess
 import sys
 import time
 import tracemalloc

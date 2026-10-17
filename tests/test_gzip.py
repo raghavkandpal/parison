@@ -11,7 +11,6 @@ from parison import core
 from parison.cli import main
 from parison.core import ParisonError, compare, draft_recipe, validate_inputs
 
-
 RECIPE = {
     "recipe_version": 1,
     "comparison_mode": "keyed",

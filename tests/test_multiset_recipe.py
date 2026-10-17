@@ -1,19 +1,31 @@
-import json
 import hashlib
+import json
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
-from pathlib import Path
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from datetime import date, datetime, timezone
-from unittest.mock import patch
 from io import StringIO
+from pathlib import Path
+from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
-from parison.core import ParisonError, _multiset_encoding, compare, error_result, export_evidence, explain_recipe, inspect_bundle, load_recipe, load_schema, publish, validate_inputs, verify_bundle
 from parison.cli import main
-
+from parison.core import (
+    ParisonError,
+    _multiset_encoding,
+    compare,
+    error_result,
+    explain_recipe,
+    export_evidence,
+    inspect_bundle,
+    load_recipe,
+    load_schema,
+    publish,
+    validate_inputs,
+    verify_bundle,
+)
 
 RECIPE = {
     "recipe_version": 3,
@@ -167,14 +179,14 @@ class MultisetRecipeTests(unittest.TestCase):
             "d_float": {"type": "float"}, "e_date": {"type": "date"}, "f_timestamp": {"type": "timestamp", "timezone": "require-aware"}, "g_string": {"type": "string"},
         }
         names = sorted(recipe["columns"])
-        encoded = _multiset_encoding((True, 7, Decimal("1.20"), 1.5, date(2026, 10, 9), datetime(2026, 10, 9, tzinfo=timezone.utc), "é"), names, recipe)
+        encoded = _multiset_encoding((True, 7, Decimal("1.20"), 1.5, date(2026, 10, 9), datetime(2026, 10, 9, tzinfo=UTC), "é"), names, recipe)
         tags = []
         offset = 0
         while offset < len(encoded):
             tags.append(encoded[offset])
             offset += 1 + 8 + int.from_bytes(encoded[offset + 1:offset + 9], "big")
         self.assertEqual(tags, [1, 2, 3, 7, 5, 6, 4])
-        self.assertIn("2026-10-09T00:00:00.000000Z".encode(), encoded)
+        self.assertIn(b"2026-10-09T00:00:00.000000Z", encoded)
 
     def test_raw_evidence_is_invariant_under_row_order(self):
         recipe = json.loads(json.dumps(RECIPE))

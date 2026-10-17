@@ -9,8 +9,15 @@ from unittest.mock import patch
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, evidence_statement, export_statement, load_schema, report_cutover, run_suite, verify_statement
-
+from parison.core import (
+    ParisonError,
+    evidence_statement,
+    export_statement,
+    load_schema,
+    report_cutover,
+    run_suite,
+    verify_statement,
+)
 
 RECIPE = {
     "recipe_version": 1,

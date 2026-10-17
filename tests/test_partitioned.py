@@ -10,7 +10,6 @@ except ImportError:
 
 from parison.core import ParisonError, compare, draft_recipe
 
-
 RECIPE = {
     "recipe_version": 1,
     "comparison_mode": "keyed",

@@ -9,8 +9,16 @@ from jsonschema import Draft202012Validator
 
 from parison.cli import main
 from parison.core import ParisonError, explain_recipe, load_schema
-from parison.evolution import _closed_policy_path, canonical_evolution_bytes, compile_evolution_mappings, diff_policies, explain_evolution, load_evolution, normalize_evolution, summarize_policy_diff
-
+from parison.evolution import (
+    _closed_policy_path,
+    canonical_evolution_bytes,
+    compile_evolution_mappings,
+    diff_policies,
+    explain_evolution,
+    load_evolution,
+    normalize_evolution,
+    summarize_policy_diff,
+)
 
 ROOT = Path(__file__).parents[1]
 EXAMPLE = ROOT / "examples" / "1.2" / "orders.schema-evolution.json"

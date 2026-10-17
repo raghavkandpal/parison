@@ -9,8 +9,8 @@ import os
 import re
 import shutil
 import sqlite3
-import tempfile
 import sys
+import tempfile
 from collections import Counter
 from datetime import datetime
 from decimal import Decimal
@@ -20,24 +20,25 @@ from typing import Any
 from parison import __version__
 from parison.core import (
     ParisonError,
-    _decoded_sizes,
+    _check_output_parent,
     _classify,
-    _digest as file_digest,
+    _decoded_sizes,
     _iter_input_rows,
-    _normalize,
     _multiset_encoding,
+    _normalize,
     _parse_input,
     _parse_row,
     _source_bytes,
     _source_digest,
     _source_name,
-    _check_output_parent,
     _verify_manifest_files,
     compare,
     explain_recipe,
     load_recipe,
 )
-
+from parison.core import (
+    _digest as file_digest,
+)
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")

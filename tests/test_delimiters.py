@@ -6,7 +6,6 @@ from pathlib import Path
 
 from parison.core import ParisonError, compare, draft_recipe, explain_recipe, load_recipe, validate_inputs
 
-
 RECIPE = {
     "recipe_version": 1,
     "comparison_mode": "keyed",

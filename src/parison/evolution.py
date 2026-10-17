@@ -8,7 +8,6 @@ from typing import Any
 
 from parison.core import ParisonError, explain_recipe
 
-
 _CHANGES = ("unchanged", "renamed", "added", "removed", "split", "merged")
 _FIELD_KEYS = {"id", "name", "presence", "nullability", "default"}
 

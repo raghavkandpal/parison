@@ -11,7 +11,6 @@ from parison import __version__
 from parison.cli import main
 from parison.core import ParisonError, compare, error_result, explain_recipe, load_recipe, publish, verify_bundle
 
-
 RECIPE = {
     "recipe_version": 1,
     "comparison_mode": "keyed",

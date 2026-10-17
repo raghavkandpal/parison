@@ -11,7 +11,6 @@ from typing import Any
 
 from .core import ParisonError, bundle_integrity_matches, inspect_bundle
 
-
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
     path TEXT PRIMARY KEY,

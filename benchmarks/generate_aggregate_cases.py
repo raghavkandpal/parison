@@ -4,7 +4,6 @@ import csv
 import json
 from pathlib import Path
 
-
 PROFILES = {"global": 1, "low": 10, "high": None}
 
 

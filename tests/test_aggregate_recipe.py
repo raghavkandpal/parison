@@ -5,8 +5,18 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from parison.core import ParisonError, compare, error_result, explain_recipe, export_evidence, load_recipe, load_schema, publish, validate_inputs, verify_bundle
-
+from parison.core import (
+    ParisonError,
+    compare,
+    error_result,
+    explain_recipe,
+    export_evidence,
+    load_recipe,
+    load_schema,
+    publish,
+    validate_inputs,
+    verify_bundle,
+)
 
 RECIPE = {
     "recipe_version": 2,

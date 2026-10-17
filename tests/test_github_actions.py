@@ -9,7 +9,6 @@ from pathlib import Path
 from parison.cli import main
 from parison.core import verify_bundle
 
-
 WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison.yml"
 SUITE_WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison-suite-v2.yml"
 SIGNING_WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison-evidence-signing.yml"

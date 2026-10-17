@@ -12,8 +12,22 @@ from jsonschema import Draft202012Validator
 
 from parison.cli import main
 from parison.core import ParisonError, explain_recipe, inspect_bundle, load_schema, verify_bundle
-from parison.reconciliation import canonical_reconciliation_bytes, canonical_time_alignment_bytes, check_conservation, check_identity_references, explain_reconciliation, explain_time_alignment, file_digest, inspect_reconciliation_bundle, normalize_reconciliation, normalize_time_alignment, preflight_alignment, publish_reconciliation_bundle, run_reconciliation, summarize_reconciliation_result, verify_reconciliation_bundle
-
+from parison.reconciliation import (
+    canonical_reconciliation_bytes,
+    canonical_time_alignment_bytes,
+    check_conservation,
+    check_identity_references,
+    explain_time_alignment,
+    file_digest,
+    inspect_reconciliation_bundle,
+    normalize_reconciliation,
+    normalize_time_alignment,
+    preflight_alignment,
+    publish_reconciliation_bundle,
+    run_reconciliation,
+    summarize_reconciliation_result,
+    verify_reconciliation_bundle,
+)
 
 ROOT = Path(__file__).parents[1]
 

@@ -17,13 +17,12 @@ import time
 import unicodedata
 import xml.etree.ElementTree as ET
 from collections import Counter
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from importlib import metadata, resources
 from multiprocessing.connection import wait
 from pathlib import Path
 from typing import Any
-
 
 OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPTED": 130}
 _RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "input_projection", "output"}
@@ -1516,7 +1515,7 @@ def draft_recipe(
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being inspected")
     cutoff = datetime.fromtimestamp(
-        max(path.stat().st_mtime for source in (baseline, candidate) for path in _source_paths(source)), timezone.utc
+        max(path.stat().st_mtime for source in (baseline, candidate) for path in _source_paths(source)), UTC
     ).isoformat().replace("+00:00", "Z")
     columns = {name: _suggest_type([row[name] for row in baseline_rows + candidate_rows]) for name in shared}
     common = {
@@ -1594,7 +1593,7 @@ def _multiset_encoding(row: tuple[Any, ...], names: list[str], recipe: dict[str,
         elif kind == "date":
             payload, tag = value.isoformat().encode("ascii"), _MULTISET_TAGS["date"]
         elif kind == "timestamp":
-            utc = value.astimezone(timezone.utc)
+            utc = value.astimezone(UTC)
             text = utc.strftime("%Y-%m-%dT%H:%M:%S.") + f"{utc.microsecond:06d}Z"
             payload, tag = text.encode("ascii"), _MULTISET_TAGS["timestamp"]
         else:

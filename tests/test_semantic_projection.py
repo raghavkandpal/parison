@@ -1,10 +1,10 @@
-import json
 import csv
+import json
 import sqlite3
 import tempfile
 import unittest
 from contextlib import closing
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch
@@ -236,8 +236,8 @@ class SemanticScalarCompatibilityCorpus(unittest.TestCase):
             "label": pl.Series(["é", "雪", ""], dtype=pl.String),
             "day": pl.Series([date(1969, 12, 31), date(2026, 10, 15), None], dtype=pl.Date),
             "observed_at": pl.Series([
-                datetime(1969, 12, 31, 23, 59, 59, 123456, tzinfo=timezone.utc),
-                datetime(2026, 10, 15, tzinfo=timezone.utc),
+                datetime(1969, 12, 31, 23, 59, 59, 123456, tzinfo=UTC),
+                datetime(2026, 10, 15, tzinfo=UTC),
                 None,
             ], dtype=pl.Datetime("us", "UTC")),
         }).write_parquet(path)
@@ -300,7 +300,7 @@ class SemanticScalarCompatibilityCorpus(unittest.TestCase):
             ("1", {"type": "boolean"}, "expected true or false"),
             ("TRUE", {"type": "boolean"}, "expected true or false"),
             ("", {"type": "boolean"}, "boolean"),
-            (datetime(2026, 10, 15, tzinfo=timezone.utc), {"type": "date"}, "date"),
+            (datetime(2026, 10, 15, tzinfo=UTC), {"type": "date"}, "date"),
             (0, {"type": "date"}, "date"),
             ("15/10/2026", {"type": "date"}, "date"),
             ("", {"type": "date"}, "date"),
@@ -337,7 +337,7 @@ class SemanticScalarParquetProjection(unittest.TestCase):
             "active": pl.Series([True], dtype=pl.Boolean),
             "label": pl.Series(["same"], dtype=pl.String),
             "day": pl.Series([date(2026, 10, 14)], dtype=pl.Date),
-            "observed_at": pl.Series([datetime(2026, 10, 14, tzinfo=timezone.utc)], dtype=pl.Datetime("us", "UTC")),
+            "observed_at": pl.Series([datetime(2026, 10, 14, tzinfo=UTC)], dtype=pl.Datetime("us", "UTC")),
         }
         columns.update(overrides)
         path = self.root / "candidate.parquet"
@@ -385,8 +385,8 @@ class SemanticScalarParquetProjection(unittest.TestCase):
             ({"type": "string"}, "é", pl.Series(["é"], dtype=pl.String), "string"),
             ({"type": "date"}, "1969-12-31", pl.Series([date(1969, 12, 31)], dtype=pl.Date), "date-native"),
             ({"type": "date"}, "1969-12-31", pl.Series(["1969-12-31"], dtype=pl.String), "date-string"),
-            ({"type": "timestamp", "timezone": "require-aware"}, "1969-12-31T23:59:59.123000Z", pl.Series([datetime(1969, 12, 31, 23, 59, 59, 123000, tzinfo=timezone.utc)], dtype=pl.Datetime("ms", "UTC")), "timestamp-ms"),
-            ({"type": "timestamp", "timezone": "require-aware"}, "1969-12-31T23:59:59.123456Z", pl.Series([datetime(1969, 12, 31, 23, 59, 59, 123456, tzinfo=timezone.utc)], dtype=pl.Datetime("us", "UTC")), "timestamp-us"),
+            ({"type": "timestamp", "timezone": "require-aware"}, "1969-12-31T23:59:59.123000Z", pl.Series([datetime(1969, 12, 31, 23, 59, 59, 123000, tzinfo=UTC)], dtype=pl.Datetime("ms", "UTC")), "timestamp-ms"),
+            ({"type": "timestamp", "timezone": "require-aware"}, "1969-12-31T23:59:59.123456Z", pl.Series([datetime(1969, 12, 31, 23, 59, 59, 123456, tzinfo=UTC)], dtype=pl.Datetime("us", "UTC")), "timestamp-us"),
             ({"type": "timestamp", "timezone": "require-aware"}, "1969-12-31T23:59:59Z", pl.Series(["1969-12-31T23:59:59Z"], dtype=pl.String), "timestamp-string"),
         ])
         for policy, baseline, series, suffix in cases:
@@ -424,7 +424,7 @@ class SemanticScalarParquetProjection(unittest.TestCase):
 
     def test_parquet_rejects_nanoseconds_and_timezone_naive_datetimes(self):
         values = (
-            pl.Series([datetime(2026, 10, 14, tzinfo=timezone.utc)], dtype=pl.Datetime("ns", "UTC")),
+            pl.Series([datetime(2026, 10, 14, tzinfo=UTC)], dtype=pl.Datetime("ns", "UTC")),
             pl.Series([datetime(2026, 10, 14)], dtype=pl.Datetime("us")),
         )
         for index, value in enumerate(values):

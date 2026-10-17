@@ -5,7 +5,6 @@ import json
 from decimal import Decimal
 from pathlib import Path
 
-
 PAYLOAD_COLUMNS = [f"payload_{index}" for index in range(1, 8)]
 FIELDS = ["id", "status", "total", *PAYLOAD_COLUMNS]
 

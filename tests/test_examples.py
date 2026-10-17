@@ -7,11 +7,24 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from parison.core import ParisonError, assemble_suite, compare, export_evidence, inspect_bundle, load_schema, load_suite, publish, report_ci, run_suite, verify_bundle
+from jsonschema import Draft202012Validator
+
 from parison.cli import main
+from parison.core import (
+    ParisonError,
+    assemble_suite,
+    compare,
+    export_evidence,
+    inspect_bundle,
+    load_schema,
+    load_suite,
+    publish,
+    report_ci,
+    run_suite,
+    verify_bundle,
+)
 from parison.manifesting import create_dataset_manifest, publish_dataset_evidence_bundle, verify_dataset_manifest
 from parison.reconciliation import publish_reconciliation_bundle, run_reconciliation, summarize_reconciliation_result
-from jsonschema import Draft202012Validator
 
 
 class CheckedInExamples(unittest.TestCase):

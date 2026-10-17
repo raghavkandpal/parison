@@ -3,12 +3,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from benchmarks.generate_aggregate_cases import PROFILES as AGGREGATE_PROFILES
+from benchmarks.generate_aggregate_cases import generate as generate_aggregate
 from benchmarks.generate_cases import generate
-from benchmarks.generate_aggregate_cases import PROFILES as AGGREGATE_PROFILES, generate as generate_aggregate
+from benchmarks.generate_matrix import PROFILES
+from benchmarks.generate_matrix import generate as generate_profile
 from benchmarks.generate_spill_cases import generate as generate_spill
-from benchmarks.run_spill_cases import measure as measure_spill
-from benchmarks.generate_matrix import PROFILES, generate as generate_profile
 from benchmarks.run_cases import measure
+from benchmarks.run_spill_cases import measure as measure_spill
 from benchmarks.run_suite_cases import measure_suite_scale
 from parison.core import compare
 

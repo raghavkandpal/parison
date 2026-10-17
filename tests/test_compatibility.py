@@ -4,7 +4,6 @@ from pathlib import Path
 
 from parison.core import evidence_statement, inspect_bundle, report_cutover, verify_bundle
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 

@@ -10,12 +10,68 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .catalog import add as catalog_add, diff as catalog_diff, history as catalog_history, list_runs as catalog_list, remove as catalog_remove, show as catalog_show
-from .core import DEFAULT_MAX_TEMP_BYTES, OUTCOME_CODES, ParisonError, assemble_suite, compare, draft_recipe, error_result, explain_recipe, export_editor_schemas, export_evidence, export_statement, inspect_bundle, list_suite, load_recipe, load_schema, load_suite, publish, report_ci, report_cutover, run_suite, terminal_result, validate_inputs, verify_bundle, verify_statement
-from .evolution import compile_evolution_mappings, diff_policies, explain_evolution, load_evolution, summarize_policy_diff
-from .manifesting import capture_reproducibility_diagnostic, create_dataset_manifest, diff_reproducibility_diagnostics, explain_dataset_manifest, publish_dataset_evidence_bundle, verify_dataset_manifest
+from .catalog import add as catalog_add
+from .catalog import diff as catalog_diff
+from .catalog import history as catalog_history
+from .catalog import list_runs as catalog_list
+from .catalog import remove as catalog_remove
+from .catalog import show as catalog_show
+from .core import (
+    DEFAULT_MAX_TEMP_BYTES,
+    OUTCOME_CODES,
+    ParisonError,
+    assemble_suite,
+    compare,
+    draft_recipe,
+    error_result,
+    explain_recipe,
+    export_editor_schemas,
+    export_evidence,
+    export_statement,
+    inspect_bundle,
+    list_suite,
+    load_recipe,
+    load_schema,
+    load_suite,
+    publish,
+    report_ci,
+    report_cutover,
+    run_suite,
+    terminal_result,
+    validate_inputs,
+    verify_bundle,
+    verify_statement,
+)
+from .evolution import (
+    compile_evolution_mappings,
+    diff_policies,
+    explain_evolution,
+    load_evolution,
+    summarize_policy_diff,
+)
+from .manifesting import (
+    capture_reproducibility_diagnostic,
+    create_dataset_manifest,
+    diff_reproducibility_diagnostics,
+    explain_dataset_manifest,
+    publish_dataset_evidence_bundle,
+    verify_dataset_manifest,
+)
 from .project import init_project
-from .reconciliation import check_conservation, check_identity_references, explain_reconciliation, explain_time_alignment, inspect_reconciliation_bundle, load_reconciliation, load_time_alignment, preflight_alignment, publish_reconciliation_bundle, run_reconciliation, summarize_reconciliation_result, verify_reconciliation_bundle
+from .reconciliation import (
+    check_conservation,
+    check_identity_references,
+    explain_reconciliation,
+    explain_time_alignment,
+    inspect_reconciliation_bundle,
+    load_reconciliation,
+    load_time_alignment,
+    preflight_alignment,
+    publish_reconciliation_bundle,
+    run_reconciliation,
+    summarize_reconciliation_result,
+    verify_reconciliation_bundle,
+)
 
 
 def _shell_command(parts: list[str]) -> str:

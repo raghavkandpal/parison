@@ -10,7 +10,6 @@ from jsonschema import Draft202012Validator, RefResolver
 from parison.cli import main
 from parison.core import ParisonError, compare, error_result, export_editor_schemas, load_schema, validate_inputs
 
-
 ROOT = Path(__file__).parents[1]
 
 

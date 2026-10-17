@@ -12,7 +12,6 @@ from parison.catalog import add, diff, history, list_runs, remove, show
 from parison.cli import main
 from parison.core import ParisonError, compare, publish, run_suite
 
-
 RECIPE = {
     "recipe_version": 1,
     "comparison_mode": "keyed",

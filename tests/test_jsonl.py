@@ -6,7 +6,6 @@ from pathlib import Path
 
 from parison.core import ParisonError, compare, draft_recipe
 
-
 RECIPE = {
     "recipe_version": 1, "comparison_mode": "keyed", "keys": ["id"],
     "scope": {"snapshot": "jsonl-test", "cutoff": "2026-10-06T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
