@@ -11,7 +11,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 
 ## 1.5 — research
 
-- Deterministic discrepancy analysis research (in progress)
+- [Deterministic discrepancy analysis research](1.5/159-discrepancy-analysis-research.md)
 
 ## 1.4 — released
 
