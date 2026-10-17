@@ -72,7 +72,6 @@ class JsonSchemas(unittest.TestCase):
         }
 
     def test_committed_recipes_match_recipe_schema(self):
-        validator = Draft202012Validator(self.recipe_schema)
         recipes = sorted(ROOT.glob("examples/**/*.recipe.json"))
         self.assertTrue(recipes)
         for path in recipes:

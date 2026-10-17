@@ -313,7 +313,7 @@ class SemanticScalarCompatibilityCorpus(unittest.TestCase):
         values = [values[2], values[0], values[1]]
         path.write_text(
             "".join(
-                json.dumps(dict(zip(self.columns, row)), ensure_ascii=False, separators=(",", ":")) + "\n"
+                json.dumps(dict(zip(self.columns, row, strict=False)), ensure_ascii=False, separators=(",", ":")) + "\n"
                 for row in values
             ),
             encoding="utf-8",

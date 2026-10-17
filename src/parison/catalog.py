@@ -6,6 +6,7 @@ import json
 import os
 import sqlite3
 from contextlib import closing
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -248,7 +249,7 @@ def history(database: str | Path, policy_sha256: str) -> dict[str, Any]:
                 "delta": after["discrepancy_count"] - before["discrepancy_count"],
             },
         }
-        for before, after in zip(runs, runs[1:])
+        for before, after in pairwise(runs)
     ]
     return {"policy_sha256": policy_sha256, "runs": runs, "transitions": transitions}
 

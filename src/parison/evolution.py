@@ -193,9 +193,9 @@ def _leaf_changes(left: Any, right: Any, path: tuple[str, ...] = ()) -> list[tup
         changes = []
         for key in sorted(set(left) | set(right)):
             if key not in left or key not in right:
-                changes.append((path + (key,), left.get(key), right.get(key)))
+                changes.append(((*path, key), left.get(key), right.get(key)))
             else:
-                changes.extend(_leaf_changes(left[key], right[key], path + (key,)))
+                changes.extend(_leaf_changes(left[key], right[key], (*path, key)))
         return changes
     return [] if left == right else [(path, left, right)]
 

@@ -594,7 +594,7 @@ def _identity(root: Path, relative: str, format_name: str) -> tuple[int, str, tu
     opened = _open_resource(root, relative)
     if opened is None:
         return None
-    path, descriptor, before, locks, sidecar_exists = opened
+    _path, descriptor, before, locks, sidecar_exists = opened
     try:
         if format_name == "sqlite" and any(sidecar_exists(suffix) for suffix in ("-wal", "-journal", "-shm")):
             raise ParisonError("SQLite resource has ambiguous journal state")

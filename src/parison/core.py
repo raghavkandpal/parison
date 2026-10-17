@@ -1169,7 +1169,7 @@ def _sqlite_rows(source: str | Path, max_rows: int):
                 raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
             if any(isinstance(value, bytes) for value in values):
                 raise ParisonError(f"SQLite table contains an unsupported BLOB value: {table}")
-            yield headers, dict(zip(headers, values))
+            yield headers, dict(zip(headers, values, strict=False))
     except ParisonError:
         raise
     except sqlite3.Error as exc:
@@ -1774,7 +1774,7 @@ _MULTISET_TAGS = {
 
 def _multiset_encoding(row: tuple[Any, ...], names: list[str], recipe: dict[str, Any]) -> bytes:
     encoded = bytearray()
-    for name, value in zip(names, row):
+    for name, value in zip(names, row, strict=False):
         policy = recipe["columns"][name]
         kind = policy["type"]
         if value is None:
@@ -1822,7 +1822,7 @@ def _index(
         problems.append(f"{side} has {null_count} row(s) with null key components")
     if duplicates:
         problems.append(f"{side} has {len(duplicates)} duplicate key(s)")
-    return dict(zip(values, rows)), problems
+    return dict(zip(values, rows, strict=False)), problems
 
 
 def _iter_input_rows(
@@ -2053,7 +2053,7 @@ def _sqlite_keyed_summary(
                 connection.execute("CREATE INDEX records_order ON records (side, key_order)")
                 row_totals: list[int] = []
                 null_totals: list[int] = []
-                for side_id, (side, source) in enumerate(zip(("baseline", "candidate"), sources)):
+                for side_id, (side, source) in enumerate(zip(("baseline", "candidate"), sources, strict=False)):
                     rows = nulls = 0
                     for raw in _iter_input_rows(source, recipe, max_rows, side, decoded_sizes):
                         row = _parse_row(raw, recipe, side, preserve_raw=raw_output)
@@ -2086,7 +2086,7 @@ def _sqlite_keyed_summary(
                     for side_id in (0, 1)
                 ]
                 problems = []
-                for side, nulls, repeated in zip(("baseline", "candidate"), null_totals, duplicates):
+                for side, nulls, repeated in zip(("baseline", "candidate"), null_totals, duplicates, strict=False):
                     if nulls:
                         problems.append(f"{side} has {nulls} row(s) with null key components")
                     if repeated:
@@ -2708,14 +2708,14 @@ def _sqlite_multiset_counts(
                     "CREATE TABLE counts (side INTEGER NOT NULL, encoded BLOB NOT NULL, row_json TEXT NOT NULL, occurrences INTEGER NOT NULL, PRIMARY KEY (side, encoded)) WITHOUT ROWID"
                 )
                 row_totals: list[int] = []
-                for side_id, (side, source) in enumerate(zip(("baseline", "candidate"), sources)):
+                for side_id, (side, source) in enumerate(zip(("baseline", "candidate"), sources, strict=False)):
                     rows = distinct = 0
                     for raw in _iter_input_rows(source, recipe, max_rows, side, decoded_sizes):
                         row = _parse_row(raw, recipe, side)
                         values = tuple(row[name] for name in names)
                         encoded = _multiset_encoding(values, names, recipe)
                         rendered = json.dumps(
-                            {name: _json_value(value) for name, value in zip(names, values)},
+                            {name: _json_value(value) for name, value in zip(names, values, strict=False)},
                             sort_keys=True,
                             separators=(",", ":"),
                             ensure_ascii=False,
@@ -2846,11 +2846,14 @@ def _compare_multiset(
 
         left, baseline_rows = counted(baseline_path, "baseline")
         right, candidate_rows = counted(candidate_path, "candidate")
-        sort_key = lambda row: _multiset_encoding(row, names, recipe)
+
+        def sort_key(row):
+            return _multiset_encoding(row, names, recipe)
+
         all_rows = sorted(set(left) | set(right), key=sort_key)
         counts, differing_rows, differing_count = _summarize_multiset(
             (
-                ({name: _json_value(value) for name, value in zip(names, row)}, left[row], right[row])
+                ({name: _json_value(value) for name, value in zip(names, row, strict=False)}, left[row], right[row])
                 for row in all_rows
             ),
             baseline_rows,
@@ -3016,7 +3019,9 @@ if(rawTable){{const key=document.querySelector('#raw-key'),field=document.queryS
 
 
 def _aggregate_report(result: dict[str, Any]) -> str:
-    esc = lambda value: html.escape(str(value))
+    def esc(value):
+        return html.escape(str(value))
+
     counts = "".join(
         f"<tr><th>{esc(name.replace('_', ' '))}</th><td>{value}</td></tr>" for name, value in result["counts"].items()
     )
@@ -3050,7 +3055,9 @@ def _aggregate_report(result: dict[str, Any]) -> str:
 
 
 def _multiset_report(result: dict[str, Any]) -> str:
-    esc = lambda value: html.escape(str(value))
+    def esc(value):
+        return html.escape(str(value))
+
     counts = "".join(
         f"<tr><th>{esc(name.replace('_', ' '))}</th><td>{value}</td></tr>" for name, value in result["counts"].items()
     )
@@ -3779,7 +3786,10 @@ def verify_statement(directory: str | Path, statement_path: str | Path) -> dict[
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read Statement: {exc}") from exc
     expected = evidence_statement(directory)
-    canonical = lambda value: json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+    def canonical(value):
+        return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
     if canonical(actual) != canonical(expected):
         raise ParisonError("authenticated Statement does not match verified bundle")
     return {"status": "valid", "bundle_sha256": expected["subject"][0]["digest"]["sha256"]}
@@ -4477,7 +4487,7 @@ def run_suite(
                     item = next(waiting)
                 except StopIteration:
                     return False
-                case, child, workspace_child, checkpoint, limits = item
+                case, child, workspace_child, _checkpoint, limits = item
                 receiver, sender = context.Pipe(duplex=False)
                 process = context.Process(
                     target=_suite_worker,

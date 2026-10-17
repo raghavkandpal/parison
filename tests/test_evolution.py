@@ -330,7 +330,7 @@ class SchemaEvolution(unittest.TestCase):
         def leaves(value, path=()):
             if isinstance(value, dict):
                 for key, item in value.items():
-                    yield from leaves(item, path + (key,))
+                    yield from leaves(item, (*path, key))
             else:
                 yield path
 

@@ -66,11 +66,14 @@ def measure_suite_scale(repository: Path, case_count: int, shard_count: int = 4)
         started = time.perf_counter()
         resumed = run_suite(plan, root / "resumed", workspace=workspace, resume=True)
         resume_seconds = time.perf_counter() - started
-        semantic = lambda result: (
-            result["outcome"],
-            result["outcome_counts"],
-            [(case["id"], case["outcome"]) for case in result["cases"]],
-        )
+
+        def semantic(result):
+            return (
+                result["outcome"],
+                result["outcome_counts"],
+                [(case["id"], case["outcome"]) for case in result["cases"]],
+            )
+
         if (
             clean["outcome"] != "PASS"
             or resumed["outcome"] != "PASS"
