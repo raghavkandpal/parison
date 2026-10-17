@@ -17,7 +17,13 @@ def recipe(columns=None, keys=None):
         "recipe_version": 1,
         "comparison_mode": "keyed",
         "keys": keys or ["id"],
-        "scope": {"snapshot": "fixture", "cutoff": "2026-10-01T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+        "scope": {
+            "snapshot": "fixture",
+            "cutoff": "2026-10-01T00:00:00Z",
+            "filters": [],
+            "completeness": "full",
+            "expected_empty": False,
+        },
         "identity": {"null_keys": "reject", "duplicates": "reject"},
         "nulls_equal": True,
         "columns": columns,
@@ -60,7 +66,8 @@ class SemanticCorpus(unittest.TestCase):
             "value": {"type": "string", "comparison": "exact"},
         }
         result = self.run_rows(
-            recipe(columns, ["a", "b"]), ["a", "b", "value"],
+            recipe(columns, ["a", "b"]),
+            ["a", "b", "value"],
             [{"a": "a|b", "b": "c", "value": "x"}],
             [{"a": "a", "b": "b|c", "value": "x"}],
         )
@@ -69,8 +76,10 @@ class SemanticCorpus(unittest.TestCase):
 
     def test_leading_zero_string_key_stays_distinct(self):
         result = self.run_rows(
-            recipe(), ["id", "value"],
-            [{"id": "001", "value": "x"}], [{"id": "1", "value": "x"}],
+            recipe(),
+            ["id", "value"],
+            [{"id": "001", "value": "x"}],
+            [{"id": "1", "value": "x"}],
         )
         self.assertEqual(result["counts"]["common_keys"], 0)
 
@@ -103,7 +112,10 @@ class SemanticCorpus(unittest.TestCase):
         invalid = (
             ({"missing": {"baseline": "a", "candidate": "b"}}, "canonical column"),
             ({"id": {"baseline": "legacy_id"}}, "exactly baseline and candidate"),
-            ({"id": {"baseline": "same", "candidate": "id"}, "value": {"baseline": "same", "candidate": "value"}}, "unique baseline"),
+            (
+                {"id": {"baseline": "same", "candidate": "id"}, "value": {"baseline": "same", "candidate": "value"}},
+                "unique baseline",
+            ),
         )
         for mappings, message in invalid:
             with self.subTest(message=message):
@@ -154,7 +166,8 @@ class SemanticCorpus(unittest.TestCase):
         spec = recipe()
         spec["excluded_columns"] = {"updated_at": "nondeterministic metadata"}
         result = self.run_rows(
-            spec, ["id", "value", "updated_at"],
+            spec,
+            ["id", "value", "updated_at"],
             [{"id": "1", "value": "a", "updated_at": "old"}],
             [{"id": "1", "value": "a", "updated_at": "new"}],
         )
@@ -172,8 +185,10 @@ class SemanticCorpus(unittest.TestCase):
         for left_value, right_value in (("é", "e\u0301"), ("value", " value "), ("ABC", "abc")):
             with self.subTest(left=left_value, right=right_value):
                 result = self.run_rows(
-                    recipe(), ["id", "value"],
-                    [{"id": "1", "value": left_value}], [{"id": "1", "value": right_value}],
+                    recipe(),
+                    ["id", "value"],
+                    [{"id": "1", "value": left_value}],
+                    [{"id": "1", "value": right_value}],
                 )
                 self.assertEqual(result["outcome"], "FAIL")
 
@@ -183,7 +198,8 @@ class SemanticCorpus(unittest.TestCase):
             "value": {"type": "string", "comparison": "exact", "normalize": ["unicode_nfc"]},
         }
         result = self.run_rows(
-            recipe(columns), ["id", "value"],
+            recipe(columns),
+            ["id", "value"],
             [{"id": " ABC ", "value": "e\u0301"}],
             [{"id": "abc", "value": "é"}],
         )
@@ -198,7 +214,8 @@ class SemanticCorpus(unittest.TestCase):
         spec = recipe(columns)
         spec["output"]["sensitivity"] = "raw"
         result = self.run_rows(
-            spec, ["id", "value"],
+            spec,
+            ["id", "value"],
             [{"id": " 1 ", "value": " LEFT "}],
             [{"id": "1", "value": "right"}],
         )
@@ -239,10 +256,17 @@ class SemanticCorpus(unittest.TestCase):
             "value": {"type": "date", "comparison": "exact"},
         }
         spec = recipe(columns)
-        different = self.run_rows(spec, ["id", "value"], [{"id": "1", "value": "2026-01-01"}], [{"id": "1", "value": "2026-01-02"}])
+        different = self.run_rows(
+            spec, ["id", "value"], [{"id": "1", "value": "2026-01-01"}], [{"id": "1", "value": "2026-01-02"}]
+        )
         self.assertEqual(different["outcome"], "FAIL")
         with self.assertRaisesRegex(ParisonError, "cannot parse column value as date"):
-            self.run_rows(spec, ["id", "value"], [{"id": "1", "value": "2026-01-01"}], [{"id": "1", "value": "2026-01-01T00:00:00"}])
+            self.run_rows(
+                spec,
+                ["id", "value"],
+                [{"id": "1", "value": "2026-01-01"}],
+                [{"id": "1", "value": "2026-01-01T00:00:00"}],
+            )
 
     def test_parse_errors_do_not_echo_invalid_source_values(self):
         columns = {
@@ -261,7 +285,8 @@ class SemanticCorpus(unittest.TestCase):
             "value": {"type": "integer", "comparison": "exact"},
         }
         result = self.run_rows(
-            recipe(columns), ["id", "value"],
+            recipe(columns),
+            ["id", "value"],
             [{"id": "1", "value": "9007199254740992"}],
             [{"id": "1", "value": "9007199254740993"}],
         )
@@ -269,7 +294,8 @@ class SemanticCorpus(unittest.TestCase):
 
     def test_quoted_newlines_are_parsed_without_row_loss(self):
         result = self.run_rows(
-            recipe(), ["id", "value"],
+            recipe(),
+            ["id", "value"],
             [{"id": "1", "value": "line one\nline two"}],
             [{"id": "1", "value": "line one\nline two"}],
         )
@@ -280,17 +306,24 @@ class SemanticCorpus(unittest.TestCase):
         columns = {
             "id": {"type": "string", "comparison": "exact"},
             "value": {
-                "type": "decimal", "comparison": "numeric",
+                "type": "decimal",
+                "comparison": "numeric",
                 "scale": 2,
                 "tolerance": {"formula": "symmetric-v1", "absolute": "0.01", "relative": "0.1"},
             },
         }
         spec = recipe(columns)
-        for left_value, right_value, expected in (("0", "0.01", "PASS"), ("-10", "-11.01", "PASS"), ("-10", "-11.13", "FAIL")):
+        for left_value, right_value, expected in (
+            ("0", "0.01", "PASS"),
+            ("-10", "-11.01", "PASS"),
+            ("-10", "-11.13", "FAIL"),
+        ):
             with self.subTest(left=left_value, right=right_value):
                 result = self.run_rows(
-                    spec, ["id", "value"],
-                    [{"id": "1", "value": left_value}], [{"id": "1", "value": right_value}],
+                    spec,
+                    ["id", "value"],
+                    [{"id": "1", "value": left_value}],
+                    [{"id": "1", "value": right_value}],
                 )
                 self.assertEqual(result["outcome"], expected)
 
@@ -301,14 +334,17 @@ class SemanticCorpus(unittest.TestCase):
                     columns = {
                         "id": {"type": "string", "comparison": "exact"},
                         "value": {
-                        "type": kind, "comparison": "numeric",
-                        "tolerance": {"formula": "symmetric-v1", "absolute": "0", "relative": "0"},
+                            "type": kind,
+                            "comparison": "numeric",
+                            "tolerance": {"formula": "symmetric-v1", "absolute": "0", "relative": "0"},
                         },
                     }
                     if kind == "decimal":
                         columns["value"]["scale"] = 2
                     with self.assertRaisesRegex(ParisonError, "cannot parse"):
-                        self.run_rows(recipe(columns), ["id", "value"], [{"id": "1", "value": "1"}], [{"id": "1", "value": token}])
+                        self.run_rows(
+                            recipe(columns), ["id", "value"], [{"id": "1", "value": "1"}], [{"id": "1", "value": token}]
+                        )
 
     def test_null_equality_is_explicit_and_one_null_never_matches(self):
         columns = {
@@ -337,23 +373,27 @@ class SemanticCorpus(unittest.TestCase):
         }
         spec = recipe(columns)
         equal = self.run_rows(
-            spec, ["id", "value"],
+            spec,
+            ["id", "value"],
             [{"id": "1", "value": "2026-01-01T00:00:00+00:00"}],
             [{"id": "1", "value": "2026-01-01T05:30:00+05:30"}],
         )
         self.assertEqual(equal["outcome"], "PASS")
         with self.assertRaisesRegex(ParisonError, "explicit timezone"):
             self.run_rows(
-                spec, ["id", "value"],
+                spec,
+                ["id", "value"],
                 [{"id": "1", "value": "2026-01-01T00:00:00"}],
                 [{"id": "1", "value": "2026-01-01T00:00:00+00:00"}],
             )
 
     def test_timestamp_policy_must_be_explicit_and_type_specific(self):
-        value = recipe({
-            "id": {"type": "string", "comparison": "exact"},
-            "time": {"type": "timestamp", "comparison": "exact"},
-        })
+        value = recipe(
+            {
+                "id": {"type": "string", "comparison": "exact"},
+                "time": {"type": "timestamp", "comparison": "exact"},
+            }
+        )
         with self.assertRaisesRegex(ParisonError, "timezone must be 'require-aware'"):
             load_recipe(self.write_recipe(value))
         value = recipe()
@@ -365,7 +405,8 @@ class SemanticCorpus(unittest.TestCase):
         numeric = {
             "id": {"type": "string", "comparison": "exact"},
             "value": {
-                "type": "decimal", "comparison": "numeric",
+                "type": "decimal",
+                "comparison": "numeric",
                 "scale": 2,
                 "tolerance": {"formula": "symmetric-v1", "absolute": "0", "relative": "0"},
             },

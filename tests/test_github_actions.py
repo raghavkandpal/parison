@@ -9,7 +9,6 @@ from pathlib import Path
 from parison.cli import main
 from parison.core import verify_bundle
 
-
 WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison.yml"
 SUITE_WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison-suite-v2.yml"
 SIGNING_WORKFLOW = Path(__file__).parents[1] / "examples" / "github-actions" / "parison-evidence-signing.yml"
@@ -19,7 +18,7 @@ PYPROJECT = Path(__file__).parents[1] / "pyproject.toml"
 class GitHubActionsReference(unittest.TestCase):
     def test_windows_wheels_install_iana_timezone_data(self):
         metadata = PYPROJECT.read_text(encoding="utf-8")
-        self.assertIn('"tzdata; platform_system == \'Windows\'"', metadata)
+        self.assertIn("\"tzdata; platform_system == 'Windows'\"", metadata)
 
     def test_suite_reference_shards_then_verifies_assembly(self):
         workflow = SUITE_WORKFLOW.read_text(encoding="utf-8")
@@ -56,10 +55,16 @@ class GitHubActionsReference(unittest.TestCase):
 
     def test_installed_wheel_ci_runs_initialized_project_quickstart(self):
         workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
-        for command in ("parison init", "parison validate-recipe", "parison validate-inputs", "parison compare", "parison verify"):
+        for command in (
+            "parison init",
+            "parison validate-recipe",
+            "parison validate-inputs",
+            "parison compare",
+            "parison verify",
+        ):
             self.assertGreaterEqual(workflow.count(command), 2)
         self.assertIn("platform-smoke:", workflow)
-        platform = workflow[workflow.index("platform-smoke:"):]
+        platform = workflow[workflow.index("platform-smoke:") :]
         self.assertIn("python -m build", platform)
         self.assertIn("dist/parison-*.whl", platform)
         self.assertIn("--mode keyed", platform)
@@ -77,8 +82,16 @@ class GitHubActionsReference(unittest.TestCase):
         self.assertLess(workflow.index("parison statement"), workflow.index("cosign sign-blob"))
         self.assertLess(workflow.index("cosign verify-blob"), workflow.index("parison verify-statement"))
         self.assertLess(workflow.index("parison verify-statement"), workflow.index("actions/upload-artifact"))
-        acceptance = (Path(__file__).parents[1] / ".github" / "workflows" / "evidence-signing.yml").read_text(encoding="utf-8")
-        for required in ("workflow_dispatch:", "id-token: write", "cosign sign-blob", "cosign verify-blob", "parison verify-statement"):
+        acceptance = (Path(__file__).parents[1] / ".github" / "workflows" / "evidence-signing.yml").read_text(
+            encoding="utf-8"
+        )
+        for required in (
+            "workflow_dispatch:",
+            "id-token: write",
+            "cosign sign-blob",
+            "cosign verify-blob",
+            "parison verify-statement",
+        ):
             self.assertIn(required, acceptance)
 
     def test_every_ci_outcome_publishes_a_verifiable_bundle(self):
@@ -86,10 +99,19 @@ class GitHubActionsReference(unittest.TestCase):
             "recipe_version": 1,
             "comparison_mode": "keyed",
             "keys": ["id"],
-            "scope": {"snapshot": "ci-contract", "cutoff": "2026-10-06T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+            "scope": {
+                "snapshot": "ci-contract",
+                "cutoff": "2026-10-06T00:00:00Z",
+                "filters": [],
+                "completeness": "full",
+                "expected_empty": False,
+            },
             "identity": {"null_keys": "reject", "duplicates": "reject"},
             "nulls_equal": True,
-            "columns": {"id": {"type": "string", "comparison": "exact"}, "value": {"type": "string", "comparison": "exact"}},
+            "columns": {
+                "id": {"type": "string", "comparison": "exact"},
+                "value": {"type": "string", "comparison": "exact"},
+            },
             "output": {"sensitivity": "summary"},
         }
         cases = {
@@ -114,7 +136,19 @@ class GitHubActionsReference(unittest.TestCase):
                         paths.append(path)
                     output = root / f"run-{outcome}"
                     with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
-                        code = main(["compare", "--recipe", str(recipe_path), "--baseline", str(paths[0]), "--candidate", str(paths[1]), "--output", str(output)])
+                        code = main(
+                            [
+                                "compare",
+                                "--recipe",
+                                str(recipe_path),
+                                "--baseline",
+                                str(paths[0]),
+                                "--candidate",
+                                str(paths[1]),
+                                "--output",
+                                str(output),
+                            ]
+                        )
                     self.assertEqual(code, expected_code)
                     self.assertEqual(verify_bundle(output)["outcome"], outcome)
 

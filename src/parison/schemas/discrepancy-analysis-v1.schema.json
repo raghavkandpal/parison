@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/discrepancy-analysis-v1.schema.json",
+  "title": "Parison discrepancy analysis v1",
+  "oneOf": [
+    {"$ref": "#/$defs/run"},
+    {"$ref": "#/$defs/series"}
+  ],
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "reference": {"type": "object", "required": ["path", "value"], "properties": {"path": {"type": "string", "pattern": "^/"}, "value": true}, "additionalProperties": false},
+    "descriptor": {
+      "type": "object",
+      "required": ["analysis_version", "comparison_mode", "kind", "classification"],
+      "properties": {
+        "analysis_version": {"const": 1},
+        "comparison_mode": {"enum": ["keyed", "aggregate", "multiset"]},
+        "kind": {"enum": ["record", "field", "group", "measure", "row"]},
+        "classification": {"enum": ["baseline_only", "candidate_only", "within_tolerance", "different", "baseline_surplus", "candidate_surplus"]},
+        "logical_name": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "groupBase": {
+      "type": "object",
+      "required": ["group_id", "descriptor", "count_source", "reason_codes", "policy_references"],
+      "properties": {
+        "group_id": {"$ref": "#/$defs/sha"},
+        "descriptor": {"$ref": "#/$defs/descriptor"},
+        "count_source": {"type": "string", "pattern": "^/"},
+        "reason_codes": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "policy_references": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/reference"}}
+      }
+    },
+    "runGroup": {
+      "allOf": [{"$ref": "#/$defs/groupBase"}, {"type": "object", "required": ["count"], "properties": {"count": {"type": "integer", "minimum": 0}}}],
+      "unevaluatedProperties": false
+    },
+    "seriesGroup": {
+      "allOf": [{"$ref": "#/$defs/groupBase"}, {"type": "object", "required": ["counts"], "properties": {"counts": {"type": "array", "minItems": 2, "items": {"type": "integer", "minimum": 0}}}}],
+      "unevaluatedProperties": false
+    },
+    "run": {
+      "type": "object",
+      "required": ["analysis_version", "kind", "bundle_sha256", "policy_sha256", "comparison_mode", "sensitivity", "scope_references", "groups"],
+      "properties": {
+        "analysis_version": {"const": 1}, "kind": {"const": "run"}, "bundle_sha256": {"$ref": "#/$defs/sha"}, "policy_sha256": {"$ref": "#/$defs/sha"},
+        "comparison_mode": {"enum": ["keyed", "aggregate", "multiset"]}, "sensitivity": {"const": "summary"},
+        "scope_references": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/reference"}}, "groups": {"type": "array", "items": {"$ref": "#/$defs/runGroup"}}
+      },
+      "additionalProperties": false
+    },
+    "series": {
+      "type": "object",
+      "required": ["analysis_version", "kind", "policy_sha256", "comparison_mode", "sensitivity", "runs", "groups", "transitions"],
+      "properties": {
+        "analysis_version": {"const": 1}, "kind": {"const": "series"}, "policy_sha256": {"$ref": "#/$defs/sha"},
+        "comparison_mode": {"enum": ["keyed", "aggregate", "multiset"]}, "sensitivity": {"const": "summary"},
+        "runs": {"type": "array", "minItems": 2, "items": {"type": "object", "required": ["bundle_sha256"], "properties": {"bundle_sha256": {"$ref": "#/$defs/sha"}}, "additionalProperties": false}},
+        "groups": {"type": "array", "items": {"$ref": "#/$defs/seriesGroup"}},
+        "transitions": {"type": "array", "items": {"type": "object", "required": ["group_id", "from_run", "to_run", "before", "after", "delta", "status"], "properties": {"group_id": {"$ref": "#/$defs/sha"}, "from_run": {"type": "integer", "minimum": 0}, "to_run": {"type": "integer", "minimum": 1}, "before": {"type": "integer", "minimum": 0}, "after": {"type": "integer", "minimum": 0}, "delta": {"type": "integer"}, "status": {"enum": ["introduced", "resolved", "increased", "decreased", "unchanged"]}}, "additionalProperties": false}}
+      },
+      "additionalProperties": false
+    }
+  }
+}

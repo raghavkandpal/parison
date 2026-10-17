@@ -16,8 +16,10 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from . import __version__
-from .core import ParisonError, _digest as _file_digest, _write_once
-
+from ._safe_fs import check_output_parent as _check_output_parent
+from ._safe_fs import rename_no_replace as _rename_no_replace
+from .core import ParisonError, _write_once
+from .core import _digest as _file_digest
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -25,8 +27,13 @@ _ROLES = {"baseline", "candidate", "receipt", "supporting"}
 _FORMATS = {"csv", "tsv", "json", "jsonl", "parquet", "sqlite"}
 _OBSERVATIONS = {"parquet-writer-differs", "runtime-version-differs", "semantic-pass-byte-identity-differs"}
 _RUNTIME_FIELDS = (
-    "parison_version", "python_implementation", "python_version", "os_family",
-    "architecture", "sqlite_version", "parquet_reader",
+    "parison_version",
+    "python_implementation",
+    "python_version",
+    "os_family",
+    "architecture",
+    "sqlite_version",
+    "parquet_reader",
 )
 
 
@@ -50,7 +57,9 @@ def _read_json(path: str | Path, label: str) -> dict[str, Any]:
 
 
 def _digest(value: Any, domain: bytes) -> str:
-    return hashlib.sha256(domain + json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
+    return hashlib.sha256(
+        domain + json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
 
 
 def _sha256(value: Any, label: str) -> str:
@@ -83,9 +92,15 @@ def _scope_path(value: Any) -> str:
 def normalize_dataset_manifest(value: Any) -> dict[str, Any]:
     required = {"manifest_version", "collection_id", "policy", "closed_scopes", "resources"}
     if not isinstance(value, dict) or set(value) != required or value.get("manifest_version") != 1:
-        raise ParisonError("dataset manifest must contain exactly manifest_version 1, collection_id, policy, closed_scopes and resources")
+        raise ParisonError(
+            "dataset manifest must contain exactly manifest_version 1, collection_id, policy, closed_scopes and resources"
+        )
     policy = value["policy"]
-    if not isinstance(policy, dict) or set(policy) != {"kind", "sha256"} or policy.get("kind") not in {"suite", "reconciliation"}:
+    if (
+        not isinstance(policy, dict)
+        or set(policy) != {"kind", "sha256"}
+        or policy.get("kind") not in {"suite", "reconciliation"}
+    ):
         raise ParisonError("manifest policy must contain kind suite/reconciliation and sha256")
     normalized = []
     pairs, paths, collisions = set(), set(), set()
@@ -94,7 +109,11 @@ def normalize_dataset_manifest(value: Any) -> dict[str, Any]:
         raise ParisonError("manifest resources must contain 1 to 10000 entries")
     for item in resources:
         allowed = {"id", "role", "format", "path", "bytes", "sha256", "schema_sha256"}
-        if not isinstance(item, dict) or set(item) - allowed or not {"id", "role", "format", "path", "bytes", "sha256"} <= set(item):
+        if (
+            not isinstance(item, dict)
+            or set(item) - allowed
+            or not {"id", "role", "format", "path", "bytes", "sha256"} <= set(item)
+        ):
             raise ParisonError("manifest resource has invalid fields")
         identifier = _identifier(item["id"], "resource id")
         role, format_name, path = item["role"], item["format"], _resource_path(item["path"])
@@ -107,8 +126,17 @@ def normalize_dataset_manifest(value: Any) -> dict[str, Any]:
         pair, collision = (identifier, role), unicodedata.normalize("NFC", path).casefold()
         if pair in pairs or path in paths or collision in collisions:
             raise ParisonError("manifest resources contain duplicate or non-portable identities")
-        pairs.add(pair); paths.add(path); collisions.add(collision)
-        resource = {"id": identifier, "role": role, "format": format_name, "path": path, "bytes": item["bytes"], "sha256": _sha256(item["sha256"], "resource sha256")}
+        pairs.add(pair)
+        paths.add(path)
+        collisions.add(collision)
+        resource = {
+            "id": identifier,
+            "role": role,
+            "format": format_name,
+            "path": path,
+            "bytes": item["bytes"],
+            "sha256": _sha256(item["sha256"], "resource sha256"),
+        }
         if "schema_sha256" in item:
             resource["schema_sha256"] = _sha256(item["schema_sha256"], "schema_sha256")
         normalized.append(resource)
@@ -117,9 +145,16 @@ def normalize_dataset_manifest(value: Any) -> dict[str, Any]:
         raise ParisonError("closed_scopes must be an array of at most 100 reviewed directories")
     normalized_scopes = sorted(_scope_path(item) for item in scopes)
     scope_collisions = [unicodedata.normalize("NFC", item).casefold() for item in normalized_scopes]
-    if len(scope_collisions) != len(set(scope_collisions)) or any(left != right and (left == "." or right.startswith(left + "/")) for left in scope_collisions for right in scope_collisions):
+    if len(scope_collisions) != len(set(scope_collisions)) or any(
+        left != right and (left == "." or right.startswith(left + "/"))
+        for left in scope_collisions
+        for right in scope_collisions
+    ):
         raise ParisonError("closed_scopes must be unique and non-overlapping")
-    if normalized_scopes and any(not any(scope == "." or item["path"].startswith(scope + "/") for scope in normalized_scopes) for item in normalized):
+    if normalized_scopes and any(
+        not any(scope == "." or item["path"].startswith(scope + "/") for scope in normalized_scopes)
+        for item in normalized
+    ):
         raise ParisonError("every resource must be inside a declared closed scope")
     return {
         "manifest_version": 1,
@@ -131,7 +166,9 @@ def normalize_dataset_manifest(value: Any) -> dict[str, Any]:
 
 
 def canonical_dataset_manifest_bytes(value: Any) -> bytes:
-    return json.dumps(normalize_dataset_manifest(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return json.dumps(
+        normalize_dataset_manifest(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
 
 
 def explain_dataset_manifest(path: str | Path) -> dict[str, Any]:
@@ -146,9 +183,11 @@ def _policy_fingerprint(kind: str, path: str | Path) -> str:
 def _effective_policy(kind: str, path: str | Path) -> dict[str, Any]:
     if kind == "reconciliation":
         from .reconciliation import explain_reconciliation
+
         value = explain_reconciliation(path)
         return {key: item for key, item in value.items() if key != "reconciliation_sha256"}
     from .core import load_suite
+
     suite = load_suite(path)
     if suite["suite_version"] != 2:
         raise ParisonError("dataset manifests require suite version 2 policy binding")
@@ -158,12 +197,20 @@ def _effective_policy(kind: str, path: str | Path) -> dict[str, Any]:
 def _effective_policy_fingerprint(kind: str, value: Any) -> str:
     if kind == "reconciliation":
         from .reconciliation import normalize_reconciliation
+
         normalized = normalize_reconciliation(value)
     else:
-        if not isinstance(value, dict) or set(value) != {"suite_version", "cases"} or value.get("suite_version") != 2 or not isinstance(value["cases"], list):
+        if (
+            not isinstance(value, dict)
+            or set(value) != {"suite_version", "cases"}
+            or value.get("suite_version") != 2
+            or not isinstance(value["cases"], list)
+        ):
             raise ParisonError("dataset evidence contains an invalid effective suite")
         normalized = value
-    return hashlib.sha256(json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
+    return hashlib.sha256(
+        json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
 
 
 def _read_regular_bytes(path: Path, label: str) -> bytes:
@@ -184,7 +231,13 @@ def _read_regular_bytes(path: Path, label: str) -> bytes:
         observed = path.lstat()
     except OSError as exc:
         raise ParisonError(f"{label} is missing or unsafe") from exc
-    if not stat.S_ISREG(before.st_mode) or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns) or stat.S_ISLNK(observed.st_mode) or (after.st_dev, after.st_ino) != (observed.st_dev, observed.st_ino):
+    if (
+        not stat.S_ISREG(before.st_mode)
+        or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+        != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+        or stat.S_ISLNK(observed.st_mode)
+        or (after.st_dev, after.st_ino) != (observed.st_dev, observed.st_ino)
+    ):
         raise ParisonError(f"{label} changed during verification")
     return value
 
@@ -201,7 +254,9 @@ def _read_bundle_json(path: Path, label: str) -> dict[str, Any]:
 
 def _open_resource(root: Path, relative: str):
     parts = PurePosixPath(relative).parts
-    directory_flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    directory_flags = (
+        os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    )
     file_flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
     if os.open in os.supports_dir_fd and getattr(os, "O_NOFOLLOW", 0):
         keep_directory = False
@@ -233,6 +288,7 @@ def _open_resource(root: Path, relative: str):
         if not stat.S_ISREG(before.st_mode):
             os.close(descriptor)
             raise ParisonError("declared resource must be a regular non-symlink file")
+
         def sidecar_exists(suffix: str) -> bool:
             try:
                 os.stat(parts[-1] + suffix, dir_fd=current_fd, follow_symlinks=False)
@@ -241,6 +297,7 @@ def _open_resource(root: Path, relative: str):
             except OSError as exc:
                 raise ParisonError("cannot safely inspect SQLite journal state") from exc
             return True
+
         return root.joinpath(*parts), descriptor, before, [(os.close, current_fd)], sidecar_exists
 
     if os.name == "nt":
@@ -272,7 +329,11 @@ def _open_resource(root: Path, relative: str):
         raise ParisonError("cannot safely open declared resource") from exc
     before = os.fstat(descriptor)
     after_lstat = path.lstat()
-    if not stat.S_ISREG(before.st_mode) or stat.S_ISLNK(after_lstat.st_mode) or (before.st_dev, before.st_ino) != (after_lstat.st_dev, after_lstat.st_ino):
+    if (
+        not stat.S_ISREG(before.st_mode)
+        or stat.S_ISLNK(after_lstat.st_mode)
+        or (before.st_dev, before.st_ino) != (after_lstat.st_dev, after_lstat.st_ino)
+    ):
         os.close(descriptor)
         raise ParisonError("declared resource changed during safe open")
     return path, descriptor, before, [], lambda suffix: Path(str(path) + suffix).exists()
@@ -285,16 +346,29 @@ def _open_resource_windows(root: Path, parts: tuple[str, ...]):
 
     class FileInformation(ctypes.Structure):
         _fields_ = [
-            ("dwFileAttributes", wintypes.DWORD), ("ftCreationTime", wintypes.FILETIME),
-            ("ftLastAccessTime", wintypes.FILETIME), ("ftLastWriteTime", wintypes.FILETIME),
-            ("dwVolumeSerialNumber", wintypes.DWORD), ("nFileSizeHigh", wintypes.DWORD),
-            ("nFileSizeLow", wintypes.DWORD), ("nNumberOfLinks", wintypes.DWORD),
-            ("nFileIndexHigh", wintypes.DWORD), ("nFileIndexLow", wintypes.DWORD),
+            ("dwFileAttributes", wintypes.DWORD),
+            ("ftCreationTime", wintypes.FILETIME),
+            ("ftLastAccessTime", wintypes.FILETIME),
+            ("ftLastWriteTime", wintypes.FILETIME),
+            ("dwVolumeSerialNumber", wintypes.DWORD),
+            ("nFileSizeHigh", wintypes.DWORD),
+            ("nFileSizeLow", wintypes.DWORD),
+            ("nNumberOfLinks", wintypes.DWORD),
+            ("nFileIndexHigh", wintypes.DWORD),
+            ("nFileIndexLow", wintypes.DWORD),
         ]
 
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
     create = kernel.CreateFileW
-    create.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    create.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    ]
     create.restype = wintypes.HANDLE
     information = kernel.GetFileInformationByHandle
     information.argtypes = [wintypes.HANDLE, ctypes.POINTER(FileInformation)]
@@ -345,7 +419,13 @@ def _open_resource_windows(root: Path, parts: tuple[str, ...]):
         except OSError:
             close(file_handle)
             raise
-        return path, descriptor, os.fstat(descriptor), [(close, handle) for handle in handles], lambda suffix: Path(str(path) + suffix).exists()
+        return (
+            path,
+            descriptor,
+            os.fstat(descriptor),
+            [(close, handle) for handle in handles],
+            lambda suffix: Path(str(path) + suffix).exists(),
+        )
     except Exception:
         for handle in reversed(handles):
             close(handle)
@@ -358,7 +438,7 @@ def _open_scope(root: Path, relative: str) -> int | Path:
         descriptor = None
         try:
             descriptor = os.open(root, flags)
-            for part in (() if relative == "." else PurePosixPath(relative).parts):
+            for part in () if relative == "." else PurePosixPath(relative).parts:
                 next_descriptor = os.open(part, flags, dir_fd=descriptor)
                 os.close(descriptor)
                 descriptor = next_descriptor
@@ -386,16 +466,29 @@ def _windows_directory_lock(path: Path):
 
     class FileInformation(ctypes.Structure):
         _fields_ = [
-            ("dwFileAttributes", wintypes.DWORD), ("ftCreationTime", wintypes.FILETIME),
-            ("ftLastAccessTime", wintypes.FILETIME), ("ftLastWriteTime", wintypes.FILETIME),
-            ("dwVolumeSerialNumber", wintypes.DWORD), ("nFileSizeHigh", wintypes.DWORD),
-            ("nFileSizeLow", wintypes.DWORD), ("nNumberOfLinks", wintypes.DWORD),
-            ("nFileIndexHigh", wintypes.DWORD), ("nFileIndexLow", wintypes.DWORD),
+            ("dwFileAttributes", wintypes.DWORD),
+            ("ftCreationTime", wintypes.FILETIME),
+            ("ftLastAccessTime", wintypes.FILETIME),
+            ("ftLastWriteTime", wintypes.FILETIME),
+            ("dwVolumeSerialNumber", wintypes.DWORD),
+            ("nFileSizeHigh", wintypes.DWORD),
+            ("nFileSizeLow", wintypes.DWORD),
+            ("nNumberOfLinks", wintypes.DWORD),
+            ("nFileIndexHigh", wintypes.DWORD),
+            ("nFileIndexLow", wintypes.DWORD),
         ]
 
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
     create, information, close = kernel.CreateFileW, kernel.GetFileInformationByHandle, kernel.CloseHandle
-    create.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    create.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    ]
     create.restype = wintypes.HANDLE
     information.argtypes = [wintypes.HANDLE, ctypes.POINTER(FileInformation)]
     information.restype = wintypes.BOOL
@@ -405,7 +498,11 @@ def _windows_directory_lock(path: Path):
     if handle == ctypes.c_void_p(-1).value:
         raise ParisonError("closed scope is missing or unsafe")
     value = FileInformation()
-    if not information(handle, ctypes.byref(value)) or value.dwFileAttributes & 0x00000400 or not value.dwFileAttributes & 0x00000010:
+    if (
+        not information(handle, ctypes.byref(value))
+        or value.dwFileAttributes & 0x00000400
+        or not value.dwFileAttributes & 0x00000010
+    ):
         close(handle)
         raise ParisonError("closed scope is missing or unsafe")
     return close, handle
@@ -416,6 +513,7 @@ def _enumerate_scope(root: Path, relative: str) -> set[str]:
     prefix = "" if relative == "." else relative
     found: set[str] = set()
     if isinstance(opened, int):
+
         def walk(descriptor: int, parent: str) -> None:
             try:
                 names = sorted(os.listdir(descriptor))
@@ -440,6 +538,7 @@ def _enumerate_scope(root: Path, relative: str) -> set[str]:
                     found.add(portable)
                 else:
                     raise ParisonError("closed scope contains an unsupported object")
+
         try:
             walk(opened, prefix)
         finally:
@@ -467,11 +566,12 @@ def _enumerate_scope(root: Path, relative: str) -> set[str]:
         finally:
             if lock is not None:
                 lock[0](lock[1])
+
     ancestor_locks = []
     if os.name == "nt":
         current = root
         ancestor_locks.append(_windows_directory_lock(current))
-        for part in (() if relative == "." else PurePosixPath(relative).parts):
+        for part in () if relative == "." else PurePosixPath(relative).parts:
             current = current / part
             ancestor_locks.append(_windows_directory_lock(current))
     try:
@@ -496,16 +596,22 @@ def _identity(root: Path, relative: str, format_name: str) -> tuple[int, str, tu
     opened = _open_resource(root, relative)
     if opened is None:
         return None
-    path, descriptor, before, locks, sidecar_exists = opened
+    _path, descriptor, before, locks, sidecar_exists = opened
     try:
         if format_name == "sqlite" and any(sidecar_exists(suffix) for suffix in ("-wal", "-journal", "-shm")):
             raise ParisonError("SQLite resource has ambiguous journal state")
         digest, size = hashlib.sha256(), 0
         with os.fdopen(descriptor, "rb") as handle:
             while chunk := handle.read(1024 * 1024):
-                digest.update(chunk); size += len(chunk)
+                digest.update(chunk)
+                size += len(chunk)
             after = os.fstat(handle.fileno())
-        stable = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) == (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+        stable = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) == (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+        )
         if not stable or size != after.st_size:
             raise ParisonError("resource-changed-during-read")
         if format_name == "sqlite" and any(sidecar_exists(suffix) for suffix in ("-wal", "-journal", "-shm")):
@@ -528,7 +634,16 @@ def _identity(root: Path, relative: str, format_name: str) -> tuple[int, str, tu
             close(handle)
 
 
-def create_dataset_manifest(root: str | Path, collection_id: str, policy_kind: str, policy_sha256: str, resources: list[tuple[str, str, str, str]], output: str | Path, policy_path: str | Path, closed_scopes: list[str] | None = None) -> dict[str, Any]:
+def create_dataset_manifest(
+    root: str | Path,
+    collection_id: str,
+    policy_kind: str,
+    policy_sha256: str,
+    resources: list[tuple[str, str, str, str]],
+    output: str | Path,
+    policy_path: str | Path,
+    closed_scopes: list[str] | None = None,
+) -> dict[str, Any]:
     if _policy_fingerprint(policy_kind, policy_path) != policy_sha256:
         raise ParisonError("declared policy SHA-256 does not match the supplied policy")
     root_path, items, identities = Path(root), [], set()
@@ -543,8 +658,18 @@ def create_dataset_manifest(root: str | Path, collection_id: str, policy_kind: s
         if file_identity in identities:
             raise ParisonError("manifest resources contain hard-link aliases")
         identities.add(file_identity)
-        items.append({"id": identifier, "role": role, "format": format_name, "path": relative, "bytes": size, "sha256": digest})
-    value = normalize_dataset_manifest({"manifest_version": 1, "collection_id": collection_id, "policy": {"kind": policy_kind, "sha256": policy_sha256}, "closed_scopes": closed_scopes, "resources": items})
+        items.append(
+            {"id": identifier, "role": role, "format": format_name, "path": relative, "bytes": size, "sha256": digest}
+        )
+    value = normalize_dataset_manifest(
+        {
+            "manifest_version": 1,
+            "collection_id": collection_id,
+            "policy": {"kind": policy_kind, "sha256": policy_sha256},
+            "closed_scopes": closed_scopes,
+            "resources": items,
+        }
+    )
     after_scope = _scope_members(root_path, value["closed_scopes"])
     if before_scope != after_scope:
         raise ParisonError("closed scope changed during manifest creation")
@@ -554,31 +679,53 @@ def create_dataset_manifest(root: str | Path, collection_id: str, policy_kind: s
     return {**value, "manifest_sha256": _digest(value, b"parison:dataset-manifest-v1\0")}
 
 
-def verify_dataset_manifest(manifest_path: str | Path, root: str | Path, policy_path: str | Path, summary: bool = False) -> dict[str, Any]:
+def verify_dataset_manifest(
+    manifest_path: str | Path, root: str | Path, policy_path: str | Path, summary: bool = False
+) -> dict[str, Any]:
     manifest = explain_dataset_manifest(manifest_path)
     if _policy_fingerprint(manifest["policy"]["kind"], policy_path) != manifest["policy"]["sha256"]:
         raise ParisonError("manifest policy SHA-256 does not match the supplied policy")
     before_scope = _scope_members(Path(root), manifest["closed_scopes"])
-    counts = {"declared": len(manifest["resources"]), "matched": 0, "missing": 0, "undeclared": 0, "size_mismatch": 0, "digest_mismatch": 0}
+    counts = {
+        "declared": len(manifest["resources"]),
+        "matched": 0,
+        "missing": 0,
+        "undeclared": 0,
+        "size_mismatch": 0,
+        "digest_mismatch": 0,
+    }
     reasons, details, identities = set(), [], set()
     for resource in manifest["resources"]:
         identity = _identity(Path(root), resource["path"], resource["format"])
         status = "matched"
         if identity is None:
-            status = "missing"; counts["missing"] += 1; reasons.add("resource-missing")
+            status = "missing"
+            counts["missing"] += 1
+            reasons.add("resource-missing")
         else:
             size, digest, file_identity = identity
             if file_identity in identities:
                 raise ParisonError("manifest resources contain hard-link aliases")
             identities.add(file_identity)
             if size != resource["bytes"]:
-                status = "size-mismatch"; counts["size_mismatch"] += 1; reasons.add("resource-size-mismatch")
+                status = "size-mismatch"
+                counts["size_mismatch"] += 1
+                reasons.add("resource-size-mismatch")
             elif digest != resource["sha256"]:
-                status = "digest-mismatch"; counts["digest_mismatch"] += 1; reasons.add("resource-digest-mismatch")
+                status = "digest-mismatch"
+                counts["digest_mismatch"] += 1
+                reasons.add("resource-digest-mismatch")
             else:
                 counts["matched"] += 1
         if not summary:
-            detail = {"id": resource["id"], "role": resource["role"], "format": resource["format"], "bytes": resource["bytes"], "sha256": resource["sha256"], "status": status}
+            detail = {
+                "id": resource["id"],
+                "role": resource["role"],
+                "format": resource["format"],
+                "bytes": resource["bytes"],
+                "sha256": resource["sha256"],
+                "status": status,
+            }
             if "schema_sha256" in resource:
                 detail["schema_sha256"] = resource["schema_sha256"]
             details.append(detail)
@@ -590,14 +737,26 @@ def verify_dataset_manifest(manifest_path: str | Path, root: str | Path, policy_
     if undeclared:
         reasons.add("resource-undeclared")
     outcome = "PASS" if counts["matched"] == counts["declared"] and not undeclared else "FAIL"
-    result = {"manifest_result_version": 1, "outcome": outcome, "complete": True, "manifest_sha256": manifest["manifest_sha256"], "policy": manifest["policy"], "counts": counts, "reason_codes": sorted(reasons)}
+    result = {
+        "manifest_result_version": 1,
+        "outcome": outcome,
+        "complete": True,
+        "manifest_sha256": manifest["manifest_sha256"],
+        "policy": manifest["policy"],
+        "counts": counts,
+        "reason_codes": sorted(reasons),
+    }
     if not summary:
         result["resources"] = details
     return result
 
 
 def normalize_reproducibility_diagnostic(value: Any) -> dict[str, Any]:
-    if not isinstance(value, dict) or set(value) != {"diagnostic_version", "manifest_sha256", "runtime", "observations"} or value.get("diagnostic_version") != 1:
+    if (
+        not isinstance(value, dict)
+        or set(value) != {"diagnostic_version", "manifest_sha256", "runtime", "observations"}
+        or value.get("diagnostic_version") != 1
+    ):
         raise ParisonError("reproducibility diagnostic has invalid fields or version")
     runtime = value["runtime"]
     if not isinstance(runtime, dict) or set(runtime) != set(_RUNTIME_FIELDS):
@@ -606,16 +765,31 @@ def normalize_reproducibility_diagnostic(value: Any) -> dict[str, Any]:
         if not isinstance(runtime[key], str) or not runtime[key]:
             raise ParisonError(f"diagnostic runtime {key} must be a non-empty string")
     reader = runtime["parquet_reader"]
-    if reader is not None and (not isinstance(reader, dict) or set(reader) != {"distribution", "version"} or not all(isinstance(item, str) and item for item in reader.values())):
+    if reader is not None and (
+        not isinstance(reader, dict)
+        or set(reader) != {"distribution", "version"}
+        or not all(isinstance(item, str) and item for item in reader.values())
+    ):
         raise ParisonError("parquet_reader must be null or contain distribution and version")
     observations = value["observations"]
-    if not isinstance(observations, list) or any(item not in _OBSERVATIONS for item in observations) or observations != sorted(set(observations)):
+    if (
+        not isinstance(observations, list)
+        or any(item not in _OBSERVATIONS for item in observations)
+        or observations != sorted(set(observations))
+    ):
         raise ParisonError("diagnostic observations must be sorted unique reason codes")
-    return {"diagnostic_version": 1, "manifest_sha256": _sha256(value["manifest_sha256"], "manifest_sha256"), "runtime": {name: runtime[name] for name in _RUNTIME_FIELDS}, "observations": observations}
+    return {
+        "diagnostic_version": 1,
+        "manifest_sha256": _sha256(value["manifest_sha256"], "manifest_sha256"),
+        "runtime": {name: runtime[name] for name in _RUNTIME_FIELDS},
+        "observations": observations,
+    }
 
 
 def canonical_reproducibility_diagnostic_bytes(value: Any) -> bytes:
-    return json.dumps(normalize_reproducibility_diagnostic(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return json.dumps(
+        normalize_reproducibility_diagnostic(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
 
 
 def capture_reproducibility_diagnostic(manifest_path: str | Path, output: str | Path) -> dict[str, Any]:
@@ -635,8 +809,17 @@ def capture_reproducibility_diagnostic(manifest_path: str | Path, output: str | 
         "sqlite_version": sqlite3.sqlite_version,
         "parquet_reader": reader,
     }
-    value = normalize_reproducibility_diagnostic({"diagnostic_version": 1, "manifest_sha256": manifest["manifest_sha256"], "runtime": runtime, "observations": []})
-    _write_once(Path(output), json.dumps(value, indent=2, sort_keys=False) + "\n", "cannot publish reproducibility diagnostic")
+    value = normalize_reproducibility_diagnostic(
+        {
+            "diagnostic_version": 1,
+            "manifest_sha256": manifest["manifest_sha256"],
+            "runtime": runtime,
+            "observations": [],
+        }
+    )
+    _write_once(
+        Path(output), json.dumps(value, indent=2, sort_keys=False) + "\n", "cannot publish reproducibility diagnostic"
+    )
     return {**value, "diagnostic_sha256": _digest(value, b"parison:reproducibility-diagnostic-v1\0")}
 
 
@@ -648,12 +831,31 @@ def diff_reproducibility_diagnostics(left_path: str | Path, right_path: str | Pa
     fields = []
     for name in _RUNTIME_FIELDS:
         left_value, right_value = left["runtime"][name], right["runtime"][name]
-        status = "same" if left_value == right_value else "missing-left" if left_value is None else "missing-right" if right_value is None else "different"
+        status = (
+            "same"
+            if left_value == right_value
+            else "missing-left"
+            if left_value is None
+            else "missing-right"
+            if right_value is None
+            else "different"
+        )
         fields.append({"field": name, "status": status})
-    return {"diagnostic_diff_version": 1, "outcome": "INFORMATIONAL", "manifest_sha256": left["manifest_sha256"], "fields": fields, "observation_status": "same" if left["observations"] == right["observations"] else "different"}
+    return {
+        "diagnostic_diff_version": 1,
+        "outcome": "INFORMATIONAL",
+        "manifest_sha256": left["manifest_sha256"],
+        "fields": fields,
+        "observation_status": "same" if left["observations"] == right["observations"] else "different",
+    }
 
 
-_EVIDENCE_FILES = {"dataset-manifest.json", "manifest-result.json", "reproducibility-diagnostic.json", "effective-policy.json"}
+_EVIDENCE_FILES = {
+    "dataset-manifest.json",
+    "manifest-result.json",
+    "reproducibility-diagnostic.json",
+    "effective-policy.json",
+}
 
 
 def _read_regular_at(directory: int | Path, name: str, label: str) -> bytes:
@@ -668,17 +870,28 @@ def _read_regular_at(directory: int | Path, name: str, label: str) -> bytes:
             after = os.fstat(handle.fileno())
     except OSError as exc:
         raise ParisonError(f"{label} is missing or unsafe") from exc
-    if not stat.S_ISREG(before.st_mode) or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
+    if not stat.S_ISREG(before.st_mode) or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
+        after.st_dev,
+        after.st_ino,
+        after.st_size,
+        after.st_mtime_ns,
+    ):
         raise ParisonError(f"{label} changed during verification")
     return value
 
 
 def _bundle_manifest_at(directory: int | Path) -> dict[str, Any]:
     try:
-        value = json.loads(_read_regular_at(directory, "manifest.json", "semantic bundle manifest"), object_pairs_hook=_object)
+        value = json.loads(
+            _read_regular_at(directory, "manifest.json", "semantic bundle manifest"), object_pairs_hook=_object
+        )
     except (UnicodeError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot decode semantic bundle manifest: {exc}") from exc
-    if not isinstance(value, dict) or not isinstance(value.get("files"), dict) or not isinstance(value.get("cases", {}), dict):
+    if (
+        not isinstance(value, dict)
+        or not isinstance(value.get("files"), dict)
+        or not isinstance(value.get("cases", {}), dict)
+    ):
         raise ParisonError("semantic bundle manifest is invalid")
     return value
 
@@ -723,6 +936,7 @@ def _copy_bundle_snapshot(source: int | Path, target: Path) -> None:
 
 def _copy_verified_bundle(source: Path, target: Path) -> dict[str, Any]:
     from .core import verify_bundle
+
     opened = _open_scope(source, ".")
     try:
         _copy_bundle_snapshot(opened, target)
@@ -734,12 +948,17 @@ def _copy_verified_bundle(source: Path, target: Path) -> dict[str, Any]:
 
 def _semantic_result_metadata(bundle: Path, declaration: dict[str, Any]) -> dict[str, Any]:
     from .core import verify_bundle
+
     bundle_manifest = verify_bundle(bundle)
     policy_kind = declaration["policy"]["kind"]
     expected_kind = "reconciliation" if policy_kind == "reconciliation" else "suite"
     if bundle_manifest.get("kind") != expected_kind:
         raise ParisonError(f"dataset manifest policy requires a complete {expected_kind} result bundle")
-    declared = {(item["id"], item["role"]): item["sha256"] for item in declaration["resources"] if item["role"] in {"baseline", "candidate"}}
+    declared = {
+        (item["id"], item["role"]): item["sha256"]
+        for item in declaration["resources"]
+        if item["role"] in {"baseline", "candidate"}
+    }
     observed: dict[tuple[str, str], str] = {}
     if expected_kind == "reconciliation":
         result = _read_bundle_json(bundle / "reconciliation-result.json", "semantic reconciliation result")
@@ -756,7 +975,11 @@ def _semantic_result_metadata(bundle: Path, declaration: dict[str, Any]) -> dict
             raise ParisonError("dataset manifest receipt does not match semantic reconciliation result")
     else:
         result = _read_bundle_json(bundle / "suite-result.json", "semantic suite result")
-        if result.get("complete") is not True or result.get("scope_complete") is not True or result.get("execution_complete") is not True:
+        if (
+            result.get("complete") is not True
+            or result.get("scope_complete") is not True
+            or result.get("execution_complete") is not True
+        ):
             raise ParisonError("semantic suite result must have complete execution and scope")
         if result.get("suite_policy_sha256") != declaration["policy"]["sha256"]:
             raise ParisonError("semantic suite policy does not match dataset manifest")
@@ -767,10 +990,16 @@ def _semantic_result_metadata(bundle: Path, declaration: dict[str, Any]) -> dict
                 observed[(case["id"], role)] = child_result["inputs"][role]["sha256"]
     if declared != observed:
         raise ParisonError("dataset manifest resources do not exactly match semantic result inputs")
-    return {"kind": expected_kind, "outcome": bundle_manifest["outcome"], "manifest_sha256": _file_digest(bundle / "manifest.json")}
+    return {
+        "kind": expected_kind,
+        "outcome": bundle_manifest["outcome"],
+        "manifest_sha256": _file_digest(bundle / "manifest.json"),
+    }
 
 
-def publish_dataset_evidence_bundle(output: str | Path, manifest_path: str | Path, root: str | Path, policy_path: str | Path, result_bundle: str | Path) -> dict[str, Any]:
+def publish_dataset_evidence_bundle(
+    output: str | Path, manifest_path: str | Path, root: str | Path, policy_path: str | Path, result_bundle: str | Path
+) -> dict[str, Any]:
     manifest = explain_dataset_manifest(manifest_path)
     result = verify_dataset_manifest(manifest_path, root, policy_path)
     policy = _effective_policy(manifest["policy"]["kind"], policy_path)
@@ -779,18 +1008,25 @@ def publish_dataset_evidence_bundle(output: str | Path, manifest_path: str | Pat
         raise ParisonError(f"output already exists: {target}")
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        from .reconciliation import _check_output_parent, _rename_no_replace
         _check_output_parent(target.parent)
         stage = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent))
         os.chmod(stage, 0o700)
-        declaration = {key: manifest[key] for key in ("manifest_version", "collection_id", "policy", "closed_scopes", "resources")}
+        declaration = {
+            key: manifest[key] for key in ("manifest_version", "collection_id", "policy", "closed_scopes", "resources")
+        }
         (stage / "dataset-manifest.json").write_bytes(canonical_dataset_manifest_bytes(declaration))
-        (stage / "effective-policy.json").write_text(json.dumps(policy, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        diagnostic = capture_reproducibility_diagnostic(stage / "dataset-manifest.json", stage / "reproducibility-diagnostic.json")
+        (stage / "effective-policy.json").write_text(
+            json.dumps(policy, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        diagnostic = capture_reproducibility_diagnostic(
+            stage / "dataset-manifest.json", stage / "reproducibility-diagnostic.json"
+        )
         _copy_verified_bundle(Path(result_bundle), stage / "semantic-result")
         semantic_result = _semantic_result_metadata(stage / "semantic-result", manifest)
         result.update({"diagnostic_sha256": diagnostic["diagnostic_sha256"], "semantic_result": semantic_result})
-        (stage / "manifest-result.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        (stage / "manifest-result.json").write_text(
+            json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
         outer = {
             "schema_version": 1,
             "kind": "dataset-evidence",
@@ -816,19 +1052,52 @@ def publish_dataset_evidence_bundle(output: str | Path, manifest_path: str | Pat
 
 
 def _verify_manifest_result(result: Any, manifest: dict[str, Any]) -> None:
-    required = {"manifest_result_version", "outcome", "complete", "manifest_sha256", "policy", "counts", "reason_codes", "resources", "diagnostic_sha256", "semantic_result"}
-    if not isinstance(result, dict) or set(result) != required or result.get("manifest_result_version") != 1 or result.get("complete") is not True:
+    required = {
+        "manifest_result_version",
+        "outcome",
+        "complete",
+        "manifest_sha256",
+        "policy",
+        "counts",
+        "reason_codes",
+        "resources",
+        "diagnostic_sha256",
+        "semantic_result",
+    }
+    if (
+        not isinstance(result, dict)
+        or set(result) != required
+        or result.get("manifest_result_version") != 1
+        or result.get("complete") is not True
+    ):
         raise ParisonError("dataset evidence result is incomplete or unsupported")
     resources = result.get("resources")
     if not isinstance(resources, list) or len(resources) != len(manifest["resources"]):
         raise ParisonError("dataset evidence result resources do not match manifest")
-    expected_identity = [(item["id"], item["role"], item["format"], item["bytes"], item["sha256"], item.get("schema_sha256")) for item in manifest["resources"]]
-    if [(item.get("id"), item.get("role"), item.get("format"), item.get("bytes"), item.get("sha256"), item.get("schema_sha256")) for item in resources if isinstance(item, dict)] != expected_identity:
+    expected_identity = [
+        (item["id"], item["role"], item["format"], item["bytes"], item["sha256"], item.get("schema_sha256"))
+        for item in manifest["resources"]
+    ]
+    if [
+        (
+            item.get("id"),
+            item.get("role"),
+            item.get("format"),
+            item.get("bytes"),
+            item.get("sha256"),
+            item.get("schema_sha256"),
+        )
+        for item in resources
+        if isinstance(item, dict)
+    ] != expected_identity:
         raise ParisonError("dataset evidence result resources do not match manifest")
     statuses = [item.get("status") for item in resources]
     allowed = {"matched", "missing", "size-mismatch", "digest-mismatch"}
     allowed_resource_fields = {"id", "role", "format", "bytes", "sha256", "schema_sha256", "status"}
-    if any(set(item) - allowed_resource_fields or not {"id", "role", "format", "bytes", "sha256", "status"} <= set(item) for item in resources) or any(status not in allowed for status in statuses):
+    if any(
+        set(item) - allowed_resource_fields or not {"id", "role", "format", "bytes", "sha256", "status"} <= set(item)
+        for item in resources
+    ) or any(status not in allowed for status in statuses):
         raise ParisonError("dataset evidence result has invalid resource statuses")
     counts = {
         "declared": len(resources),
@@ -838,16 +1107,38 @@ def _verify_manifest_result(result: Any, manifest: dict[str, Any]) -> None:
         "size_mismatch": statuses.count("size-mismatch"),
         "digest_mismatch": statuses.count("digest-mismatch"),
     }
-    reasons = sorted({{"missing": "resource-missing", "size-mismatch": "resource-size-mismatch", "digest-mismatch": "resource-digest-mismatch"}[status] for status in statuses if status != "matched"})
+    reasons = sorted(
+        {
+            {
+                "missing": "resource-missing",
+                "size-mismatch": "resource-size-mismatch",
+                "digest-mismatch": "resource-digest-mismatch",
+            }[status]
+            for status in statuses
+            if status != "matched"
+        }
+    )
     if type(counts["undeclared"]) is not int or counts["undeclared"] < 0:
         raise ParisonError("dataset evidence result has invalid undeclared count")
     if counts["undeclared"]:
         reasons.append("resource-undeclared")
     outcome = "PASS" if counts["matched"] == counts["declared"] and not counts["undeclared"] else "FAIL"
     semantic = result["semantic_result"]
-    if not isinstance(semantic, dict) or set(semantic) != {"kind", "outcome", "manifest_sha256"} or semantic.get("kind") not in {"suite", "reconciliation"} or semantic.get("outcome") not in {"PASS", "FAIL", "INCONCLUSIVE", "ERROR", "INTERRUPTED"} or not isinstance(result.get("diagnostic_sha256"), str):
+    if (
+        not isinstance(semantic, dict)
+        or set(semantic) != {"kind", "outcome", "manifest_sha256"}
+        or semantic.get("kind") not in {"suite", "reconciliation"}
+        or semantic.get("outcome") not in {"PASS", "FAIL", "INCONCLUSIVE", "ERROR", "INTERRUPTED"}
+        or not isinstance(result.get("diagnostic_sha256"), str)
+    ):
         raise ParisonError("dataset evidence result has invalid semantic or diagnostic binding")
-    if result["counts"] != counts or result["reason_codes"] != reasons or result["outcome"] != outcome or result["manifest_sha256"] != manifest["manifest_sha256"] or result["policy"] != manifest["policy"]:
+    if (
+        result["counts"] != counts
+        or result["reason_codes"] != reasons
+        or result["outcome"] != outcome
+        or result["manifest_sha256"] != manifest["manifest_sha256"]
+        or result["policy"] != manifest["policy"]
+    ):
         raise ParisonError("dataset evidence result metadata is inconsistent")
 
 
@@ -873,8 +1164,25 @@ def _verified_dataset_evidence(directory: str | Path) -> tuple[dict[str, Any], d
             lock[0](lock[1])
         raise ParisonError(f"cannot read dataset evidence manifest: {exc}") from exc
     try:
-        required = {"schema_version", "kind", "complete", "outcome", "manifest_sha256", "diagnostic_sha256", "semantic_result", "policy", "files"}
-        if not isinstance(outer, dict) or set(outer) != required or outer.get("schema_version") != 1 or outer.get("kind") != "dataset-evidence" or outer.get("complete") is not True or outer.get("outcome") not in {"PASS", "FAIL"}:
+        required = {
+            "schema_version",
+            "kind",
+            "complete",
+            "outcome",
+            "manifest_sha256",
+            "diagnostic_sha256",
+            "semantic_result",
+            "policy",
+            "files",
+        }
+        if (
+            not isinstance(outer, dict)
+            or set(outer) != required
+            or outer.get("schema_version") != 1
+            or outer.get("kind") != "dataset-evidence"
+            or outer.get("complete") is not True
+            or outer.get("outcome") not in {"PASS", "FAIL"}
+        ):
             raise ParisonError("dataset evidence manifest is incomplete or unsupported")
         files = outer.get("files")
         if not isinstance(files, dict) or set(files) != _EVIDENCE_FILES:
@@ -882,7 +1190,11 @@ def _verified_dataset_evidence(directory: str | Path) -> tuple[dict[str, Any], d
         values: dict[str, bytes] = {}
         for name, expected in files.items():
             values[name] = _read_regular_at(opened, name, f"dataset evidence file {name}")
-            if not isinstance(expected, str) or not _SHA256.fullmatch(expected) or hashlib.sha256(values[name]).hexdigest() != expected:
+            if (
+                not isinstance(expected, str)
+                or not _SHA256.fullmatch(expected)
+                or hashlib.sha256(values[name]).hexdigest() != expected
+            ):
                 raise ParisonError(f"dataset evidence file failed integrity check: {name}")
 
         def decoded(name: str, label: str) -> dict[str, Any]:
@@ -896,7 +1208,9 @@ def _verified_dataset_evidence(directory: str | Path) -> tuple[dict[str, Any], d
 
         declaration = normalize_dataset_manifest(decoded("dataset-manifest.json", "dataset manifest"))
         declaration["manifest_sha256"] = _digest(declaration, b"parison:dataset-manifest-v1\0")
-        diagnostic = normalize_reproducibility_diagnostic(decoded("reproducibility-diagnostic.json", "reproducibility diagnostic"))
+        diagnostic = normalize_reproducibility_diagnostic(
+            decoded("reproducibility-diagnostic.json", "reproducibility diagnostic")
+        )
         result = decoded("manifest-result.json", "dataset manifest result")
         policy = decoded("effective-policy.json", "effective policy")
         _verify_manifest_result(result, declaration)
@@ -916,9 +1230,21 @@ def _verified_dataset_evidence(directory: str | Path) -> tuple[dict[str, Any], d
             else:
                 _copy_bundle_snapshot(root / "semantic-result", snapshot)
             semantic_result = _semantic_result_metadata(snapshot, declaration)
-        if outer["manifest_sha256"] != declaration["manifest_sha256"] or outer["diagnostic_sha256"] != diagnostic_sha256 or result["diagnostic_sha256"] != diagnostic_sha256 or diagnostic["manifest_sha256"] != declaration["manifest_sha256"] or outer["policy"] != declaration["policy"] or outer["outcome"] != result["outcome"] or outer["semantic_result"] != semantic_result or result["semantic_result"] != semantic_result or _effective_policy_fingerprint(outer["policy"]["kind"], policy) != outer["policy"]["sha256"]:
+        if (
+            outer["manifest_sha256"] != declaration["manifest_sha256"]
+            or outer["diagnostic_sha256"] != diagnostic_sha256
+            or result["diagnostic_sha256"] != diagnostic_sha256
+            or diagnostic["manifest_sha256"] != declaration["manifest_sha256"]
+            or outer["policy"] != declaration["policy"]
+            or outer["outcome"] != result["outcome"]
+            or outer["semantic_result"] != semantic_result
+            or result["semantic_result"] != semantic_result
+            or _effective_policy_fingerprint(outer["policy"]["kind"], policy) != outer["policy"]["sha256"]
+        ):
             raise ParisonError("dataset evidence bundle metadata is inconsistent")
-        if _read_regular_at(opened, "manifest.json", "dataset evidence manifest") != manifest_bytes or set(os.listdir(opened)) != _EVIDENCE_FILES | {"manifest.json", "semantic-result"}:
+        if _read_regular_at(opened, "manifest.json", "dataset evidence manifest") != manifest_bytes or set(
+            os.listdir(opened)
+        ) != _EVIDENCE_FILES | {"manifest.json", "semantic-result"}:
             raise ParisonError("dataset evidence bundle changed during verification")
         return outer, result, diagnostic, hashlib.sha256(manifest_bytes).hexdigest()
     finally:
@@ -934,4 +1260,19 @@ def verify_dataset_evidence_bundle(directory: str | Path) -> dict[str, Any]:
 
 def inspect_dataset_evidence_bundle(directory: str | Path) -> dict[str, Any]:
     manifest, result, diagnostic, bundle_sha256 = _verified_dataset_evidence(directory)
-    return {"kind": "dataset-evidence", "schema_version": 1, "outcome": result["outcome"], "complete": True, "manifest_sha256": manifest["manifest_sha256"], "diagnostic_sha256": manifest["diagnostic_sha256"], "semantic_result": manifest["semantic_result"], "policy": manifest["policy"], "counts": result["counts"], "reason_codes": result["reason_codes"], "runtime": diagnostic["runtime"], "observations": diagnostic["observations"], "bundle_sha256": bundle_sha256, "manifest_files": sorted(manifest["files"])}
+    return {
+        "kind": "dataset-evidence",
+        "schema_version": 1,
+        "outcome": result["outcome"],
+        "complete": True,
+        "manifest_sha256": manifest["manifest_sha256"],
+        "diagnostic_sha256": manifest["diagnostic_sha256"],
+        "semantic_result": manifest["semantic_result"],
+        "policy": manifest["policy"],
+        "counts": result["counts"],
+        "reason_codes": result["reason_codes"],
+        "runtime": diagnostic["runtime"],
+        "observations": diagnostic["observations"],
+        "bundle_sha256": bundle_sha256,
+        "manifest_files": sorted(manifest["files"]),
+    }

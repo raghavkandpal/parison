@@ -2,8 +2,8 @@
 import argparse
 import json
 import platform
-import subprocess
 import statistics
+import subprocess
 import sys
 import time
 import tracemalloc
@@ -19,16 +19,22 @@ def measure(case: Path, input_format: str = "csv", sample_limit: int = 100) -> d
     suffix = ".parquet" if input_format == "parquet" else ".csv"
     tracemalloc.start()
     started = time.perf_counter()
-    result = compare(case / "recipe.json", case / f"baseline{suffix}", case / f"candidate{suffix}", sample_limit=sample_limit)
+    result = compare(
+        case / "recipe.json", case / f"baseline{suffix}", case / f"candidate{suffix}", sample_limit=sample_limit
+    )
     elapsed = time.perf_counter() - started
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     if result["outcome"] != expected["outcome"] or result["counts"] != expected["counts"]:
         raise SystemExit(f"accuracy check failed for {case}")
-    if "field_discrepancy_count" in expected and result["field_discrepancy_count"] != expected["field_discrepancy_count"]:
+    if (
+        "field_discrepancy_count" in expected
+        and result["field_discrepancy_count"] != expected["field_discrepancy_count"]
+    ):
         raise SystemExit(f"accuracy check failed for {case}")
     try:
         import resource
+
         rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         rss_bytes = rss if platform.system() == "Darwin" else rss * 1024
     except ImportError:
@@ -43,7 +49,16 @@ def measure(case: Path, input_format: str = "csv", sample_limit: int = 100) -> d
 
 def child_measurement(case: Path, input_format: str, sample_limit: int) -> dict:
     completed = subprocess.run(
-        [sys.executable, str(Path(__file__).resolve()), "--worker", "--format", input_format, "--sample-limit", str(sample_limit), str(case.resolve())],
+        [
+            sys.executable,
+            str(Path(__file__).resolve()),
+            "--worker",
+            "--format",
+            input_format,
+            "--sample-limit",
+            str(sample_limit),
+            str(case.resolve()),
+        ],
         check=True,
         capture_output=True,
         text=True,
@@ -59,7 +74,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Measure generated Parison cases and verify accuracy")
     parser.add_argument("cases", type=Path, nargs="+", help="directories created by generate_cases.py")
     parser.add_argument("--repeats", type=int, default=3)
-    parser.add_argument("--max-memory-per-row", type=float, help="fail when median peak Python bytes per baseline row exceeds this value")
+    parser.add_argument(
+        "--max-memory-per-row",
+        type=float,
+        help="fail when median peak Python bytes per baseline row exceeds this value",
+    )
     parser.add_argument("--json-output", type=Path)
     parser.add_argument("--format", choices=("csv", "parquet"), default="csv")
     parser.add_argument("--sample-limit", type=int, default=100)
@@ -77,7 +96,9 @@ def main() -> None:
     measurements = []
     for case in args.cases:
         expected = json.loads((case / "expected.json").read_text(encoding="utf-8"))
-        child_measurement(case, args.format, args.sample_limit)  # Unmeasured warm-up verifies the case and primes filesystem caches.
+        child_measurement(
+            case, args.format, args.sample_limit
+        )  # Unmeasured warm-up verifies the case and primes filesystem caches.
         runs = []
         for _ in range(args.repeats):
             runs.append(child_measurement(case, args.format, args.sample_limit))
@@ -89,26 +110,33 @@ def main() -> None:
         baseline_rows = expected["counts"].get("baseline", expected["counts"].get("baseline_rows"))
         memory_per_row = peak / baseline_rows
         if args.max_memory_per_row is not None and memory_per_row > args.max_memory_per_row:
-            raise SystemExit(f"memory regression for {case}: {memory_per_row:.1f} > {args.max_memory_per_row:.1f} bytes/row")
-        measurements.append({
-            "case": case.name,
-            "format": args.format,
-            "accuracy": "verified",
-            "repeats": args.repeats,
-            "median_elapsed_seconds": round(elapsed, 6),
-            "min_elapsed_seconds": round(min(elapsed_runs), 6),
-            "max_elapsed_seconds": round(max(elapsed_runs), 6),
-            "baseline_rows_per_second": round(baseline_rows / elapsed, 1),
-            "median_peak_python_bytes": peak,
-            "peak_python_bytes_per_baseline_row": round(memory_per_row, 1),
-            "median_peak_rss_bytes": statistics.median(rss_runs) if rss_runs else None,
-            "min_peak_rss_bytes": min(rss_runs) if rss_runs else None,
-            "max_peak_rss_bytes": max(rss_runs) if rss_runs else None,
-            "sample_limit": args.sample_limit,
-            "median_result_json_bytes": statistics.median(run["result_json_bytes"] for run in runs),
-            "input_bytes": sum((case / f"{name}.{'parquet' if args.format == 'parquet' else 'csv'}").stat().st_size for name in ("baseline", "candidate")),
-            **expected,
-        })
+            raise SystemExit(
+                f"memory regression for {case}: {memory_per_row:.1f} > {args.max_memory_per_row:.1f} bytes/row"
+            )
+        measurements.append(
+            {
+                "case": case.name,
+                "format": args.format,
+                "accuracy": "verified",
+                "repeats": args.repeats,
+                "median_elapsed_seconds": round(elapsed, 6),
+                "min_elapsed_seconds": round(min(elapsed_runs), 6),
+                "max_elapsed_seconds": round(max(elapsed_runs), 6),
+                "baseline_rows_per_second": round(baseline_rows / elapsed, 1),
+                "median_peak_python_bytes": peak,
+                "peak_python_bytes_per_baseline_row": round(memory_per_row, 1),
+                "median_peak_rss_bytes": statistics.median(rss_runs) if rss_runs else None,
+                "min_peak_rss_bytes": min(rss_runs) if rss_runs else None,
+                "max_peak_rss_bytes": max(rss_runs) if rss_runs else None,
+                "sample_limit": args.sample_limit,
+                "median_result_json_bytes": statistics.median(run["result_json_bytes"] for run in runs),
+                "input_bytes": sum(
+                    (case / f"{name}.{'parquet' if args.format == 'parquet' else 'csv'}").stat().st_size
+                    for name in ("baseline", "candidate")
+                ),
+                **expected,
+            }
+        )
     payload = {
         "environment": {
             "date": date.today().isoformat(),

@@ -5,7 +5,6 @@ from pathlib import Path
 
 from .core import ParisonError
 
-
 _RECIPE = {
     "recipe_version": 1,
     "comparison_mode": "keyed",

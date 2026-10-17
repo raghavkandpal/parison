@@ -1,10 +1,10 @@
-import json
 import csv
+import json
 import sqlite3
 import tempfile
 import unittest
 from contextlib import closing
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch
@@ -22,7 +22,13 @@ def recipe(projection=True):
         "recipe_version": 1,
         "comparison_mode": "keyed",
         "keys": ["id"],
-        "scope": {"snapshot": "projection-test", "cutoff": "2026-10-14T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+        "scope": {
+            "snapshot": "projection-test",
+            "cutoff": "2026-10-14T00:00:00Z",
+            "filters": [],
+            "completeness": "full",
+            "expected_empty": False,
+        },
         "identity": {"null_keys": "reject", "duplicates": "reject"},
         "nulls_equal": True,
         "columns": {
@@ -64,7 +70,16 @@ class SemanticScalarProjection(unittest.TestCase):
         return path
 
     def test_policy_directed_scalars_match_across_jsonl_and_sqlite(self):
-        baseline = self.jsonl({"id": 1, "amount": "10.00", "active": True, "label": "same", "day": "2026-10-14", "observed_at": "2026-10-14T01:00:00+01:00"})
+        baseline = self.jsonl(
+            {
+                "id": 1,
+                "amount": "10.00",
+                "active": True,
+                "label": "same",
+                "day": "2026-10-14",
+                "observed_at": "2026-10-14T01:00:00+01:00",
+            }
+        )
         candidate = self.sqlite(
             "id INTEGER, amount INTEGER, active TEXT, label TEXT, day TEXT, observed_at TEXT",
             (1, 10, "true", "same", "2026-10-14", "2026-10-14T00:00:00Z"),
@@ -75,11 +90,32 @@ class SemanticScalarProjection(unittest.TestCase):
         self.assertEqual(explain_recipe(self.recipe)["input_projection"], "semantic-scalar-v1")
 
     def test_projection_rejects_implicit_string_decimal_boolean_and_empty_coercions(self):
-        baseline = self.jsonl({"id": 1, "amount": "1.50", "active": True, "label": "1", "day": "2026-10-14", "observed_at": "2026-10-14T00:00:00Z"})
+        baseline = self.jsonl(
+            {
+                "id": 1,
+                "amount": "1.50",
+                "active": True,
+                "label": "1",
+                "day": "2026-10-14",
+                "observed_at": "2026-10-14T00:00:00Z",
+            }
+        )
         cases = (
-            ("id INTEGER, amount REAL, active TEXT, label TEXT, day TEXT, observed_at TEXT", (1, 1.5, "true", "1", "2026-10-14", "2026-10-14T00:00:00Z"), "amount"),
-            ("id INTEGER, amount INTEGER, active INTEGER, label TEXT, day TEXT, observed_at TEXT", (1, 1, 1, "1", "2026-10-14", "2026-10-14T00:00:00Z"), "active"),
-            ("id INTEGER, amount INTEGER, active TEXT, label INTEGER, day TEXT, observed_at TEXT", (1, 1, "true", 1, "2026-10-14", "2026-10-14T00:00:00Z"), "label"),
+            (
+                "id INTEGER, amount REAL, active TEXT, label TEXT, day TEXT, observed_at TEXT",
+                (1, 1.5, "true", "1", "2026-10-14", "2026-10-14T00:00:00Z"),
+                "amount",
+            ),
+            (
+                "id INTEGER, amount INTEGER, active INTEGER, label TEXT, day TEXT, observed_at TEXT",
+                (1, 1, 1, "1", "2026-10-14", "2026-10-14T00:00:00Z"),
+                "active",
+            ),
+            (
+                "id INTEGER, amount INTEGER, active TEXT, label INTEGER, day TEXT, observed_at TEXT",
+                (1, 1, "true", 1, "2026-10-14", "2026-10-14T00:00:00Z"),
+                "label",
+            ),
         )
         for index, (definition, values, column) in enumerate(cases):
             with self.subTest(column=column):
@@ -90,12 +126,23 @@ class SemanticScalarProjection(unittest.TestCase):
                     compare(self.recipe, baseline, candidate)
 
         csv = self.root / "empty.csv"
-        csv.write_text("id,amount,active,label,day,observed_at\n1,,true,1,2026-10-14,2026-10-14T00:00:00Z\n", encoding="utf-8")
+        csv.write_text(
+            "id,amount,active,label,day,observed_at\n1,,true,1,2026-10-14,2026-10-14T00:00:00Z\n", encoding="utf-8"
+        )
         with self.assertRaisesRegex(ParisonError, "project column amount"):
             compare(self.recipe, baseline, csv)
 
     def test_projection_rejects_integer_outside_signed_64_bit_range(self):
-        baseline = self.jsonl({"id": 2**63, "amount": "1.00", "active": True, "label": "x", "day": "2026-10-14", "observed_at": "2026-10-14T00:00:00Z"})
+        baseline = self.jsonl(
+            {
+                "id": 2**63,
+                "amount": "1.00",
+                "active": True,
+                "label": "x",
+                "day": "2026-10-14",
+                "observed_at": "2026-10-14T00:00:00Z",
+            }
+        )
         with self.assertRaisesRegex(ParisonError, "outside signed 64-bit range"):
             compare(self.recipe, baseline, baseline)
 
@@ -109,7 +156,14 @@ class SemanticScalarProjection(unittest.TestCase):
         )
         for timestamp in timestamps:
             with self.subTest(timestamp=timestamp):
-                value = {"id": 1, "amount": "1.00", "active": True, "label": "x", "day": "2026-10-14", "observed_at": timestamp}
+                value = {
+                    "id": 1,
+                    "amount": "1.00",
+                    "active": True,
+                    "label": "x",
+                    "day": "2026-10-14",
+                    "observed_at": timestamp,
+                }
                 source = self.jsonl(value)
                 with self.assertRaisesRegex(ParisonError, "precision exceeds microseconds"):
                     compare(self.recipe, source, source)
@@ -117,10 +171,19 @@ class SemanticScalarProjection(unittest.TestCase):
     def test_legacy_recipe_keeps_incidental_coercions_and_policy_identity(self):
         legacy = self.root / "legacy.json"
         legacy.write_text(json.dumps(recipe(False)), encoding="utf-8")
-        baseline = self.jsonl({"id": 1, "amount": "1.50", "active": True, "label": 1, "day": "2026-10-14", "observed_at": "2026-10-14T00:00:00Z"})
+        baseline = self.jsonl(
+            {
+                "id": 1,
+                "amount": "1.50",
+                "active": True,
+                "label": 1,
+                "day": "2026-10-14",
+                "observed_at": "2026-10-14T00:00:00Z",
+            }
+        )
         self.assertEqual(compare(legacy, baseline, baseline)["outcome"], "PASS")
         raw = "2026-10-14 00:00:00.1234567Z"
-        with patch("parison.core._parse", return_value="legacy-result") as parse:
+        with patch("parison.policies._parse", return_value="legacy-result") as parse:
             self.assertEqual(_parse_input(raw, {"type": "timestamp"}, "observed_at", recipe(False)), "legacy-result")
             parse.assert_called_once_with(raw, {"type": "timestamp"}, "observed_at")
         self.assertNotIn("input_projection", explain_recipe(legacy))
@@ -131,13 +194,25 @@ class SemanticScalarProjection(unittest.TestCase):
         baseline.write_text("label,amount\neast,10.00\nwest,2.00\n", encoding="utf-8")
         candidate.write_text('{"amount":10,"label":"east"}\n{"label":"west","amount":2}\n', encoding="utf-8")
         common = {
-            "scope": {"snapshot": "projection-modes", "cutoff": "2026-10-14T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+            "scope": {
+                "snapshot": "projection-modes",
+                "cutoff": "2026-10-14T00:00:00Z",
+                "filters": [],
+                "completeness": "full",
+                "expected_empty": False,
+            },
             "columns": {"label": {"type": "string"}, "amount": {"type": "decimal", "scale": 2}},
             "input_projection": "semantic-scalar-v1",
             "output": {"sensitivity": "summary"},
         }
         recipes = (
-            {"recipe_version": 2, "comparison_mode": "aggregate", "group_by": ["label"], "measures": {"total": {"operator": "sum", "column": "amount", "nulls": "reject"}}, **common},
+            {
+                "recipe_version": 2,
+                "comparison_mode": "aggregate",
+                "group_by": ["label"],
+                "measures": {"total": {"operator": "sum", "column": "amount", "nulls": "reject"}},
+                **common,
+            },
             {"recipe_version": 3, "comparison_mode": "multiset", **common},
         )
         for spec in recipes:
@@ -156,7 +231,7 @@ class SemanticScalarCompatibilityCorpus(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
         self.rows = [
-            (-2**63, "-0.00", -0.0, False, "e\u0301", "1969-12-31", "1969-12-31T18:59:59.123456-05:00"),
+            (-(2**63), "-0.00", -0.0, False, "e\u0301", "1969-12-31", "1969-12-31T18:59:59.123456-05:00"),
             (2**63 - 1, "123.00", 2.0, True, "雪", "2026-10-15", "2026-10-15T05:30:00+05:30"),
             (0, None, None, None, "", None, None),
         ]
@@ -166,7 +241,13 @@ class SemanticScalarCompatibilityCorpus(unittest.TestCase):
 
     def spec(self, mode):
         common = {
-            "scope": {"snapshot": "semantic-corpus", "cutoff": "2026-10-15T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+            "scope": {
+                "snapshot": "semantic-corpus",
+                "cutoff": "2026-10-15T00:00:00Z",
+                "filters": [],
+                "completeness": "full",
+                "expected_empty": False,
+            },
             "columns": {
                 "id": {"type": "integer"},
                 "amount": {"type": "decimal", "scale": 2},
@@ -181,9 +262,22 @@ class SemanticScalarCompatibilityCorpus(unittest.TestCase):
             "output": {"sensitivity": "summary"},
         }
         if mode == "keyed":
-            return {"recipe_version": 1, "comparison_mode": "keyed", "keys": ["id"], "identity": {"null_keys": "reject", "duplicates": "reject"}, "nulls_equal": True, **common}
+            return {
+                "recipe_version": 1,
+                "comparison_mode": "keyed",
+                "keys": ["id"],
+                "identity": {"null_keys": "reject", "duplicates": "reject"},
+                "nulls_equal": True,
+                **common,
+            }
         if mode == "aggregate":
-            return {"recipe_version": 2, "comparison_mode": "aggregate", "group_by": ["id"], "measures": {"rows": {"operator": "count"}}, **common}
+            return {
+                "recipe_version": 2,
+                "comparison_mode": "aggregate",
+                "group_by": ["id"],
+                "measures": {"rows": {"operator": "count"}},
+                **common,
+            }
         return {"recipe_version": 3, "comparison_mode": "multiset", **common}
 
     def write_csv(self):
@@ -192,13 +286,19 @@ class SemanticScalarCompatibilityCorpus(unittest.TestCase):
             writer = csv.writer(handle)
             writer.writerow(self.columns)
             for row in self.rows:
-                writer.writerow("NULL" if value is None else str(value).lower() if isinstance(value, bool) else value for value in row)
+                writer.writerow(
+                    "NULL" if value is None else str(value).lower() if isinstance(value, bool) else value
+                    for value in row
+                )
         return path
 
     def write_tsv(self):
         csv_path = self.write_csv()
         path = self.root / "rows.tsv"
-        with csv_path.open(newline="", encoding="utf-8") as source, path.open("w", newline="", encoding="utf-8") as target:
+        with (
+            csv_path.open(newline="", encoding="utf-8") as source,
+            path.open("w", newline="", encoding="utf-8") as target,
+        ):
             writer = csv.writer(target, delimiter="\t")
             writer.writerows(csv.reader(source))
         return path
@@ -206,45 +306,66 @@ class SemanticScalarCompatibilityCorpus(unittest.TestCase):
     def write_jsonl(self):
         path = self.root / "rows.jsonl"
         values = [
-            (-2**63, "-0.00", -0.0, False, "é", "1969-12-31", "1969-12-31T23:59:59.123456Z"),
+            (-(2**63), "-0.00", -0.0, False, "é", "1969-12-31", "1969-12-31T23:59:59.123456Z"),
             (2**63 - 1, 123, 2, True, "雪", "2026-10-15", "2026-10-15T00:00:00Z"),
             (0, None, None, None, "", None, None),
         ]
         values = [values[2], values[0], values[1]]
-        path.write_text("".join(json.dumps(dict(zip(self.columns, row)), ensure_ascii=False, separators=(",", ":")) + "\n" for row in values), encoding="utf-8")
+        path.write_text(
+            "".join(
+                json.dumps(dict(zip(self.columns, row, strict=False)), ensure_ascii=False, separators=(",", ":")) + "\n"
+                for row in values
+            ),
+            encoding="utf-8",
+        )
         return path
 
     def write_sqlite(self):
         path = self.root / "rows.sqlite"
         with closing(sqlite3.connect(path)) as connection:
-            connection.execute("CREATE TABLE records (id INTEGER, amount, ratio, active TEXT, label TEXT, day TEXT, observed_at TEXT)")
-            connection.executemany("INSERT INTO records VALUES (?,?,?,?,?,?,?)", [
-                (-2**63, "-0.00", -0.0, "false", "é", "1969-12-31", "1969-12-31T23:59:59.123456+00:00"),
-                (2**63 - 1, 123, 2, "true", "雪", "2026-10-15", "2026-10-15T00:00:00Z"),
-                (0, None, None, None, "", None, None),
-            ])
+            connection.execute(
+                "CREATE TABLE records (id INTEGER, amount, ratio, active TEXT, label TEXT, day TEXT, observed_at TEXT)"
+            )
+            connection.executemany(
+                "INSERT INTO records VALUES (?,?,?,?,?,?,?)",
+                [
+                    (-(2**63), "-0.00", -0.0, "false", "é", "1969-12-31", "1969-12-31T23:59:59.123456+00:00"),
+                    (2**63 - 1, 123, 2, "true", "雪", "2026-10-15", "2026-10-15T00:00:00Z"),
+                    (0, None, None, None, "", None, None),
+                ],
+            )
             connection.commit()
         return f"sqlite:{path}#records"
 
     def write_parquet(self):
         path = self.root / "rows.parquet"
-        pl.DataFrame({
-            "id": pl.Series([-2**63, 2**63 - 1, 0], dtype=pl.Int64),
-            "amount": pl.Series([Decimal("-0.00"), Decimal("123.00"), None], dtype=pl.Decimal(20, 2)),
-            "ratio": pl.Series([-0.0, 2.0, None], dtype=pl.Float64),
-            "active": pl.Series([False, True, None], dtype=pl.Boolean),
-            "label": pl.Series(["é", "雪", ""], dtype=pl.String),
-            "day": pl.Series([date(1969, 12, 31), date(2026, 10, 15), None], dtype=pl.Date),
-            "observed_at": pl.Series([
-                datetime(1969, 12, 31, 23, 59, 59, 123456, tzinfo=timezone.utc),
-                datetime(2026, 10, 15, tzinfo=timezone.utc),
-                None,
-            ], dtype=pl.Datetime("us", "UTC")),
-        }).write_parquet(path)
+        pl.DataFrame(
+            {
+                "id": pl.Series([-(2**63), 2**63 - 1, 0], dtype=pl.Int64),
+                "amount": pl.Series([Decimal("-0.00"), Decimal("123.00"), None], dtype=pl.Decimal(20, 2)),
+                "ratio": pl.Series([-0.0, 2.0, None], dtype=pl.Float64),
+                "active": pl.Series([False, True, None], dtype=pl.Boolean),
+                "label": pl.Series(["é", "雪", ""], dtype=pl.String),
+                "day": pl.Series([date(1969, 12, 31), date(2026, 10, 15), None], dtype=pl.Date),
+                "observed_at": pl.Series(
+                    [
+                        datetime(1969, 12, 31, 23, 59, 59, 123456, tzinfo=UTC),
+                        datetime(2026, 10, 15, tzinfo=UTC),
+                        None,
+                    ],
+                    dtype=pl.Datetime("us", "UTC"),
+                ),
+            }
+        ).write_parquet(path)
         return path
 
     def sources(self):
-        sources = {"csv": self.write_csv(), "tsv": self.write_tsv(), "jsonl": self.write_jsonl(), "sqlite": self.write_sqlite()}
+        sources = {
+            "csv": self.write_csv(),
+            "tsv": self.write_tsv(),
+            "jsonl": self.write_jsonl(),
+            "sqlite": self.write_sqlite(),
+        }
         if pl:
             sources["parquet"] = self.write_parquet()
         return sources
@@ -258,7 +379,10 @@ class SemanticScalarCompatibilityCorpus(unittest.TestCase):
                     with self.subTest(mode=mode, left=left_name, right=right_name):
                         recipe_path = self.root / f"{mode}.recipe.json"
                         spec = self.spec(mode)
-                        spec["delimiters"] = {"baseline": "\t" if left_name == "tsv" else ",", "candidate": "\t" if right_name == "tsv" else ","}
+                        spec["delimiters"] = {
+                            "baseline": "\t" if left_name == "tsv" else ",",
+                            "candidate": "\t" if right_name == "tsv" else ",",
+                        }
                         recipe_path.write_text(json.dumps(spec), encoding="utf-8")
                         self.assertEqual(compare(recipe_path, left, right)["outcome"], "PASS")
             for name, source in sources.items():
@@ -270,11 +394,15 @@ class SemanticScalarCompatibilityCorpus(unittest.TestCase):
                 names = sorted(loaded["columns"])
                 rows, _ = _read(source, loaded, 10, "baseline")
                 encodings[name] = sorted(
-                    _multiset_encoding(tuple(row[column] for column in names), names, loaded).hex()
-                    for row in rows
+                    _multiset_encoding(tuple(row[column] for column in names), names, loaded).hex() for row in rows
                 )
         self.assertEqual(len({tuple(value) for value in encodings.values()}), 1)
-        self.assertEqual(encodings["csv"], json.loads((Path(__file__).parent / "fixtures" / "semantic-scalar-v1-rows.json").read_text(encoding="utf-8")))
+        self.assertEqual(
+            encodings["csv"],
+            json.loads(
+                (Path(__file__).parent / "fixtures" / "semantic-scalar-v1-rows.json").read_text(encoding="utf-8")
+            ),
+        )
 
     def test_every_ambiguous_or_lossy_scalar_class_fails_closed(self):
         projection = {"input_projection": "semantic-scalar-v1"}
@@ -300,7 +428,7 @@ class SemanticScalarCompatibilityCorpus(unittest.TestCase):
             ("1", {"type": "boolean"}, "expected true or false"),
             ("TRUE", {"type": "boolean"}, "expected true or false"),
             ("", {"type": "boolean"}, "boolean"),
-            (datetime(2026, 10, 15, tzinfo=timezone.utc), {"type": "date"}, "date"),
+            (datetime(2026, 10, 15, tzinfo=UTC), {"type": "date"}, "date"),
             (0, {"type": "date"}, "date"),
             ("15/10/2026", {"type": "date"}, "date"),
             ("", {"type": "date"}, "date"),
@@ -325,7 +453,10 @@ class SemanticScalarParquetProjection(unittest.TestCase):
         self.spec = recipe()
         self.recipe.write_text(json.dumps(self.spec), encoding="utf-8")
         self.baseline = self.root / "baseline.jsonl"
-        self.baseline.write_text('{"id":1,"amount":"10.00","active":true,"label":"same","day":"2026-10-14","observed_at":"2026-10-14T00:00:00Z"}\n', encoding="utf-8")
+        self.baseline.write_text(
+            '{"id":1,"amount":"10.00","active":true,"label":"same","day":"2026-10-14","observed_at":"2026-10-14T00:00:00Z"}\n',
+            encoding="utf-8",
+        )
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -337,7 +468,7 @@ class SemanticScalarParquetProjection(unittest.TestCase):
             "active": pl.Series([True], dtype=pl.Boolean),
             "label": pl.Series(["same"], dtype=pl.String),
             "day": pl.Series([date(2026, 10, 14)], dtype=pl.Date),
-            "observed_at": pl.Series([datetime(2026, 10, 14, tzinfo=timezone.utc)], dtype=pl.Datetime("us", "UTC")),
+            "observed_at": pl.Series([datetime(2026, 10, 14, tzinfo=UTC)], dtype=pl.Datetime("us", "UTC")),
         }
         columns.update(overrides)
         path = self.root / "candidate.parquet"
@@ -349,7 +480,13 @@ class SemanticScalarParquetProjection(unittest.TestCase):
             "recipe_version": 1,
             "comparison_mode": "keyed",
             "keys": ["id"],
-            "scope": {"snapshot": "parquet-dtypes", "cutoff": "2026-10-15T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+            "scope": {
+                "snapshot": "parquet-dtypes",
+                "cutoff": "2026-10-15T00:00:00Z",
+                "filters": [],
+                "completeness": "full",
+                "expected_empty": False,
+            },
             "identity": {"null_keys": "reject", "duplicates": "reject"},
             "nulls_equal": True,
             "columns": {"id": {"type": "integer"}, "value": policy},
@@ -370,32 +507,59 @@ class SemanticScalarParquetProjection(unittest.TestCase):
     def test_every_admitted_parquet_scalar_dtype_family_matches_text(self):
         integer_dtypes = (pl.Int8, pl.Int16, pl.Int32, pl.Int64, pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64)
         cases = []
-        cases.extend(({"type": "integer"}, 1, pl.Series([1], dtype=dtype), f"integer-{dtype}") for dtype in integer_dtypes)
-        cases.extend([
-            ({"type": "integer"}, 1, pl.Series(["1"], dtype=pl.String), "integer-string"),
-            ({"type": "decimal", "scale": 2}, "1.20", pl.Series([Decimal("1.20")], dtype=pl.Decimal(10, 2)), "decimal-native"),
-            ({"type": "decimal", "scale": 2}, "1.00", pl.Series([1], dtype=pl.Int64), "decimal-integer"),
-            ({"type": "decimal", "scale": 2}, "1.20", pl.Series(["1.20"], dtype=pl.String), "decimal-string"),
-            ({"type": "float"}, "1.5", pl.Series([1.5], dtype=pl.Float32), "float32"),
-            ({"type": "float"}, "1.5", pl.Series([1.5], dtype=pl.Float64), "float64"),
-            ({"type": "float"}, "1", pl.Series([1], dtype=pl.UInt64), "float-integer"),
-            ({"type": "float"}, "1.5", pl.Series(["1.5"], dtype=pl.String), "float-string"),
-            ({"type": "boolean"}, True, pl.Series([True], dtype=pl.Boolean), "boolean-native"),
-            ({"type": "boolean"}, True, pl.Series(["true"], dtype=pl.String), "boolean-string"),
-            ({"type": "string"}, "é", pl.Series(["é"], dtype=pl.String), "string"),
-            ({"type": "date"}, "1969-12-31", pl.Series([date(1969, 12, 31)], dtype=pl.Date), "date-native"),
-            ({"type": "date"}, "1969-12-31", pl.Series(["1969-12-31"], dtype=pl.String), "date-string"),
-            ({"type": "timestamp", "timezone": "require-aware"}, "1969-12-31T23:59:59.123000Z", pl.Series([datetime(1969, 12, 31, 23, 59, 59, 123000, tzinfo=timezone.utc)], dtype=pl.Datetime("ms", "UTC")), "timestamp-ms"),
-            ({"type": "timestamp", "timezone": "require-aware"}, "1969-12-31T23:59:59.123456Z", pl.Series([datetime(1969, 12, 31, 23, 59, 59, 123456, tzinfo=timezone.utc)], dtype=pl.Datetime("us", "UTC")), "timestamp-us"),
-            ({"type": "timestamp", "timezone": "require-aware"}, "1969-12-31T23:59:59Z", pl.Series(["1969-12-31T23:59:59Z"], dtype=pl.String), "timestamp-string"),
-        ])
+        cases.extend(
+            ({"type": "integer"}, 1, pl.Series([1], dtype=dtype), f"integer-{dtype}") for dtype in integer_dtypes
+        )
+        cases.extend(
+            [
+                ({"type": "integer"}, 1, pl.Series(["1"], dtype=pl.String), "integer-string"),
+                (
+                    {"type": "decimal", "scale": 2},
+                    "1.20",
+                    pl.Series([Decimal("1.20")], dtype=pl.Decimal(10, 2)),
+                    "decimal-native",
+                ),
+                ({"type": "decimal", "scale": 2}, "1.00", pl.Series([1], dtype=pl.Int64), "decimal-integer"),
+                ({"type": "decimal", "scale": 2}, "1.20", pl.Series(["1.20"], dtype=pl.String), "decimal-string"),
+                ({"type": "float"}, "1.5", pl.Series([1.5], dtype=pl.Float32), "float32"),
+                ({"type": "float"}, "1.5", pl.Series([1.5], dtype=pl.Float64), "float64"),
+                ({"type": "float"}, "1", pl.Series([1], dtype=pl.UInt64), "float-integer"),
+                ({"type": "float"}, "1.5", pl.Series(["1.5"], dtype=pl.String), "float-string"),
+                ({"type": "boolean"}, True, pl.Series([True], dtype=pl.Boolean), "boolean-native"),
+                ({"type": "boolean"}, True, pl.Series(["true"], dtype=pl.String), "boolean-string"),
+                ({"type": "string"}, "é", pl.Series(["é"], dtype=pl.String), "string"),
+                ({"type": "date"}, "1969-12-31", pl.Series([date(1969, 12, 31)], dtype=pl.Date), "date-native"),
+                ({"type": "date"}, "1969-12-31", pl.Series(["1969-12-31"], dtype=pl.String), "date-string"),
+                (
+                    {"type": "timestamp", "timezone": "require-aware"},
+                    "1969-12-31T23:59:59.123000Z",
+                    pl.Series([datetime(1969, 12, 31, 23, 59, 59, 123000, tzinfo=UTC)], dtype=pl.Datetime("ms", "UTC")),
+                    "timestamp-ms",
+                ),
+                (
+                    {"type": "timestamp", "timezone": "require-aware"},
+                    "1969-12-31T23:59:59.123456Z",
+                    pl.Series([datetime(1969, 12, 31, 23, 59, 59, 123456, tzinfo=UTC)], dtype=pl.Datetime("us", "UTC")),
+                    "timestamp-us",
+                ),
+                (
+                    {"type": "timestamp", "timezone": "require-aware"},
+                    "1969-12-31T23:59:59Z",
+                    pl.Series(["1969-12-31T23:59:59Z"], dtype=pl.String),
+                    "timestamp-string",
+                ),
+            ]
+        )
         for policy, baseline, series, suffix in cases:
             with self.subTest(suffix=suffix):
                 self.assert_parquet_value_matches(policy, baseline, series, suffix)
         for kind, policy in (
-            ("string", {"type": "string"}), ("integer", {"type": "integer"}),
-            ("decimal", {"type": "decimal", "scale": 2}), ("float", {"type": "float"}),
-            ("boolean", {"type": "boolean"}), ("date", {"type": "date"}),
+            ("string", {"type": "string"}),
+            ("integer", {"type": "integer"}),
+            ("decimal", {"type": "decimal", "scale": 2}),
+            ("float", {"type": "float"}),
+            ("boolean", {"type": "boolean"}),
+            ("date", {"type": "date"}),
             ("timestamp", {"type": "timestamp", "timezone": "require-aware"}),
         ):
             with self.subTest(null=kind):
@@ -419,12 +583,15 @@ class SemanticScalarParquetProjection(unittest.TestCase):
             pl.Series([{"part": 1}], dtype=pl.Struct({"part": pl.Int64})),
         )
         for value in values:
-            with self.subTest(dtype=str(value.dtype)), self.assertRaisesRegex(ParisonError, "unsupported semantic-scalar-v1 type"):
+            with (
+                self.subTest(dtype=str(value.dtype)),
+                self.assertRaisesRegex(ParisonError, "unsupported semantic-scalar-v1 type"),
+            ):
                 compare(self.recipe, self.baseline, self.parquet(extra=value))
 
     def test_parquet_rejects_nanoseconds_and_timezone_naive_datetimes(self):
         values = (
-            pl.Series([datetime(2026, 10, 14, tzinfo=timezone.utc)], dtype=pl.Datetime("ns", "UTC")),
+            pl.Series([datetime(2026, 10, 14, tzinfo=UTC)], dtype=pl.Datetime("ns", "UTC")),
             pl.Series([datetime(2026, 10, 14)], dtype=pl.Datetime("us")),
         )
         for index, value in enumerate(values):

@@ -9,8 +9,15 @@ from unittest.mock import patch
 from jsonschema import Draft202012Validator
 
 from parison.cli import main
-from parison.core import ParisonError, evidence_statement, export_statement, load_schema, report_cutover, run_suite, verify_statement
-
+from parison.core import (
+    ParisonError,
+    evidence_statement,
+    export_statement,
+    load_schema,
+    report_cutover,
+    run_suite,
+    verify_statement,
+)
 
 RECIPE = {
     "recipe_version": 1,
@@ -42,10 +49,22 @@ class StatementTests(unittest.TestCase):
         self.candidate.write_text("id,value\na,1\n", encoding="utf-8")
         self.bundle = self.root / "run"
         with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
-            self.assertEqual(main([
-                "compare", "--recipe", str(self.recipe), "--baseline", str(self.baseline),
-                "--candidate", str(self.candidate), "--output", str(self.bundle),
-            ]), 0)
+            self.assertEqual(
+                main(
+                    [
+                        "compare",
+                        "--recipe",
+                        str(self.recipe),
+                        "--baseline",
+                        str(self.baseline),
+                        "--candidate",
+                        str(self.candidate),
+                        "--output",
+                        str(self.bundle),
+                    ]
+                ),
+                0,
+            )
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -75,7 +94,9 @@ class StatementTests(unittest.TestCase):
         repository = Path(__file__).parents[1]
         output = self.root / "fixture.json"
         export_statement(repository / "examples" / "output", output)
-        self.assertEqual(output.read_bytes(), (repository / "examples" / "0.17" / "parison-statement.json").read_bytes())
+        self.assertEqual(
+            output.read_bytes(), (repository / "examples" / "0.17" / "parison-statement.json").read_bytes()
+        )
 
     def test_statement_rejects_semantic_or_bundle_substitution(self):
         output = self.root / "statement.json"
@@ -137,12 +158,22 @@ class StatementTests(unittest.TestCase):
 
     def test_suite_statement_has_suite_policy_and_scope(self):
         plan = self.root / "suite.json"
-        plan.write_text(json.dumps({
-            "suite_version": 2,
-            "cases": [{
-                "id": "orders", "recipe": "recipe.json", "baseline": "baseline.csv", "candidate": "candidate.csv",
-            }],
-        }), encoding="utf-8")
+        plan.write_text(
+            json.dumps(
+                {
+                    "suite_version": 2,
+                    "cases": [
+                        {
+                            "id": "orders",
+                            "recipe": "recipe.json",
+                            "baseline": "baseline.csv",
+                            "candidate": "candidate.csv",
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
         suite = self.root / "suite-run"
         run_suite(plan, suite)
         statement = evidence_statement(suite)
@@ -196,12 +227,22 @@ class StatementTests(unittest.TestCase):
 
     def test_suite_cutover_report_lists_ordered_cases_and_scope(self):
         plan = self.root / "report-suite.json"
-        plan.write_text(json.dumps({
-            "suite_version": 2,
-            "cases": [{
-                "id": "orders", "recipe": "recipe.json", "baseline": "baseline.csv", "candidate": "candidate.csv",
-            }],
-        }), encoding="utf-8")
+        plan.write_text(
+            json.dumps(
+                {
+                    "suite_version": 2,
+                    "cases": [
+                        {
+                            "id": "orders",
+                            "recipe": "recipe.json",
+                            "baseline": "baseline.csv",
+                            "candidate": "candidate.csv",
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
         suite = self.root / "report-suite"
         run_suite(plan, suite)
         output = self.root / "suite-cutover.md"

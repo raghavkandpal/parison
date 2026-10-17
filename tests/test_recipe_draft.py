@@ -20,22 +20,38 @@ class RecipeDraft(unittest.TestCase):
             output = root / "draft.json"
             stdout, stderr = StringIO(), StringIO()
             with redirect_stdout(stdout), redirect_stderr(stderr):
-                code = main(["draft-recipe", "--baseline", str(baseline), "--candidate", str(candidate), "--output", str(output)])
+                code = main(
+                    [
+                        "draft-recipe",
+                        "--baseline",
+                        str(baseline),
+                        "--candidate",
+                        str(candidate),
+                        "--output",
+                        str(output),
+                    ]
+                )
             self.assertEqual(code, 0)
             self.assertEqual(json.loads(stdout.getvalue()), {"output": str(output)})
             self.assertIn("inferred suggestions", stderr.getvalue())
             self.assertIn("validate-recipe", stderr.getvalue())
             draft = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(list(draft["columns"]), ["id", "amount"])
-            self.assertEqual(draft["excluded_columns"], {
-                "baseline_note": "present only in baseline",
-                "candidate_note": "present only in candidate",
-            })
+            self.assertEqual(
+                draft["excluded_columns"],
+                {
+                    "baseline_note": "present only in baseline",
+                    "candidate_note": "present only in candidate",
+                },
+            )
             self.assertEqual(draft["keys"], ["id"])
-            self.assertEqual(draft["columns"], {
-                "id": {"type": "string", "comparison": "exact"},
-                "amount": {"type": "integer", "comparison": "exact"},
-            })
+            self.assertEqual(
+                draft["columns"],
+                {
+                    "id": {"type": "string", "comparison": "exact"},
+                    "amount": {"type": "integer", "comparison": "exact"},
+                },
+            )
             self.assertEqual(draft["scope"]["completeness"], "full")
             self.assertFalse(draft["scope"]["expected_empty"])
             self.assertEqual(draft["output"], {"sensitivity": "summary"})
@@ -83,7 +99,9 @@ class RecipeDraft(unittest.TestCase):
             self.assertEqual(draft["comparison_mode"], "aggregate")
             self.assertEqual(draft["group_by"], ["region"])
             self.assertEqual(draft["measures"]["rows"], {"operator": "count"})
-            self.assertEqual(draft["measures"]["sum_amount"], {"operator": "sum", "column": "amount", "nulls": "reject"})
+            self.assertEqual(
+                draft["measures"]["sum_amount"], {"operator": "sum", "column": "amount", "nulls": "reject"}
+            )
             path = root / "aggregate.json"
             path.write_text(json.dumps(draft), encoding="utf-8")
             self.assertEqual(load_recipe(path), draft)
@@ -94,7 +112,21 @@ class RecipeDraft(unittest.TestCase):
             source, output = root / "input.csv", root / "draft.json"
             source.write_text("region,amount\neast,1\neast,2\nwest,3\n", encoding="utf-8")
             with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
-                self.assertEqual(main(["draft-recipe", "--aggregate", "--baseline", str(source), "--candidate", str(source), "--output", str(output)]), 0)
+                self.assertEqual(
+                    main(
+                        [
+                            "draft-recipe",
+                            "--aggregate",
+                            "--baseline",
+                            str(source),
+                            "--candidate",
+                            str(source),
+                            "--output",
+                            str(output),
+                        ]
+                    ),
+                    0,
+                )
             self.assertEqual(json.loads(output.read_text())["comparison_mode"], "aggregate")
 
     def test_explicit_multiset_draft_is_valid(self):
@@ -103,7 +135,21 @@ class RecipeDraft(unittest.TestCase):
             source, output = root / "input.csv", root / "draft.json"
             source.write_text("region,amount\neast,1\neast,1\nwest,2\n", encoding="utf-8")
             with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
-                self.assertEqual(main(["draft-recipe", "--multiset", "--baseline", str(source), "--candidate", str(source), "--output", str(output)]), 0)
+                self.assertEqual(
+                    main(
+                        [
+                            "draft-recipe",
+                            "--multiset",
+                            "--baseline",
+                            str(source),
+                            "--candidate",
+                            str(source),
+                            "--output",
+                            str(output),
+                        ]
+                    ),
+                    0,
+                )
             draft = json.loads(output.read_text())
             self.assertEqual(draft["recipe_version"], 3)
             self.assertEqual(load_recipe(output), draft)
@@ -117,10 +163,13 @@ class RecipeDraft(unittest.TestCase):
             first = draft_recipe(baseline, candidate)
             second = draft_recipe(baseline, candidate)
             self.assertEqual(first, second)
-            self.assertEqual(first["columns"], {
-                "id": {"type": "string", "comparison": "exact"},
-                "value": {"type": "string", "comparison": "exact"},
-            })
+            self.assertEqual(
+                first["columns"],
+                {
+                    "id": {"type": "string", "comparison": "exact"},
+                    "value": {"type": "string", "comparison": "exact"},
+                },
+            )
             self.assertEqual(first["keys"], ["id"])
             self.assertTrue(first["scope"]["expected_empty"])
 
@@ -159,7 +208,9 @@ class RecipeDraft(unittest.TestCase):
             source.write_text("id\n1\n", encoding="utf-8")
             output.write_text("keep me", encoding="utf-8")
             with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
-                code = main(["draft-recipe", "--baseline", str(source), "--candidate", str(source), "--output", str(output)])
+                code = main(
+                    ["draft-recipe", "--baseline", str(source), "--candidate", str(source), "--output", str(output)]
+                )
             self.assertEqual(code, 2)
             self.assertEqual(output.read_text(encoding="utf-8"), "keep me")
 

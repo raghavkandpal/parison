@@ -1,7 +1,7 @@
 PYTHON ?= python
 TEST ?=
 
-.PHONY: context test check build
+.PHONY: context test lint format format-check check build
 
 context:
 	@git status --short --branch
@@ -11,7 +11,16 @@ context:
 test:
 	PYTHONPATH=src $(PYTHON) -m unittest $(if $(TEST),$(TEST),discover -s tests) -q
 
-check: test
+lint:
+	$(PYTHON) -m ruff check .
+
+format:
+	$(PYTHON) -m ruff format .
+
+format-check:
+	$(PYTHON) -m ruff format --check .
+
+check: lint format-check test
 	git diff --check
 
 build:

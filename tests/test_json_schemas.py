@@ -10,7 +10,6 @@ from jsonschema import Draft202012Validator, RefResolver
 from parison.cli import main
 from parison.core import ParisonError, compare, error_result, export_editor_schemas, load_schema, validate_inputs
 
-
 ROOT = Path(__file__).parents[1]
 
 
@@ -40,6 +39,7 @@ class JsonSchemas(unittest.TestCase):
         cls.relationship_result_schema = load_schema("relationship-result")
         cls.conservation_result_schema = load_schema("conservation-result")
         cls.reconciliation_result_schema = load_schema("reconciliation-result")
+        cls.discrepancy_analysis_schema = load_schema("discrepancy-analysis")
         Draft202012Validator.check_schema(cls.recipe_schema)
         Draft202012Validator.check_schema(cls.recipe_v2_schema)
         Draft202012Validator.check_schema(cls.recipe_v3_schema)
@@ -61,19 +61,31 @@ class JsonSchemas(unittest.TestCase):
         Draft202012Validator.check_schema(cls.relationship_result_schema)
         Draft202012Validator.check_schema(cls.conservation_result_schema)
         Draft202012Validator.check_schema(cls.reconciliation_result_schema)
+        Draft202012Validator.check_schema(cls.discrepancy_analysis_schema)
         cls.schema_store = {
             schema["$id"]: schema
-            for schema in (cls.recipe_schema, cls.recipe_v2_schema, cls.recipe_v3_schema, cls.suite_schema, cls.suite_v2_schema)
+            for schema in (
+                cls.recipe_schema,
+                cls.recipe_v2_schema,
+                cls.recipe_v3_schema,
+                cls.suite_schema,
+                cls.suite_v2_schema,
+            )
         }
 
     def test_committed_recipes_match_recipe_schema(self):
-        validator = Draft202012Validator(self.recipe_schema)
         recipes = sorted(ROOT.glob("examples/**/*.recipe.json"))
         self.assertTrue(recipes)
         for path in recipes:
             with self.subTest(path=path):
                 value = json.loads(path.read_text(encoding="utf-8"))
-                schema = self.recipe_v2_schema if value.get("recipe_version") == 2 else self.recipe_v3_schema if value.get("recipe_version") == 3 else self.recipe_schema
+                schema = (
+                    self.recipe_v2_schema
+                    if value.get("recipe_version") == 2
+                    else self.recipe_v3_schema
+                    if value.get("recipe_version") == 3
+                    else self.recipe_schema
+                )
                 Draft202012Validator(schema).validate(value)
 
     def test_authoring_schemas_resolve_offline_and_cover_all_examples(self):
@@ -101,11 +113,13 @@ class JsonSchemas(unittest.TestCase):
     def test_complete_and_terminal_results_match_result_schema(self):
         validator = Draft202012Validator(self.result_schema)
         validator.validate(json.loads((ROOT / "examples/output/result.json").read_text(encoding="utf-8")))
-        validator.validate(compare(
-            ROOT / "examples/0.3/migration.recipe.json",
-            ROOT / "examples/0.3/baseline",
-            ROOT / "examples/0.3/candidate.jsonl",
-        ))
+        validator.validate(
+            compare(
+                ROOT / "examples/0.3/migration.recipe.json",
+                ROOT / "examples/0.3/baseline",
+                ROOT / "examples/0.3/candidate.jsonl",
+            )
+        )
         validator.validate(error_result("safe diagnostic"))
 
     def test_committed_manifest_matches_manifest_schema(self):
@@ -146,7 +160,9 @@ class JsonSchemas(unittest.TestCase):
                 resolver=RefResolver((output / "suite.schema.json").as_uri(), suite_schema),
             )
             recipe_validator.validate(json.loads((ROOT / "examples/orders.recipe.json").read_text(encoding="utf-8")))
-            suite_validator.validate(json.loads((ROOT / "examples/0.11/scalable-suite.json").read_text(encoding="utf-8")))
+            suite_validator.validate(
+                json.loads((ROOT / "examples/0.11/scalable-suite.json").read_text(encoding="utf-8"))
+            )
             with self.assertRaisesRegex(ParisonError, "already exists"):
                 export_editor_schemas(output)
             cli_output, stdout = Path(temporary) / "cli-schemas", StringIO()

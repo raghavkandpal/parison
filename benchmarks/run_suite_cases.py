@@ -26,10 +26,17 @@ def measure_suite_scale(repository: Path, case_count: int, shard_count: int = 4)
             "candidate": os.path.relpath(repository / "examples/candidate.csv", root),
         }
         plan = root / "suite.json"
-        plan.write_text(json.dumps({
-            "suite_version": 2,
-            "cases": [{"id": f"case-{index:03d}", "tags": ["benchmark"], **references} for index in range(case_count)],
-        }), encoding="utf-8")
+        plan.write_text(
+            json.dumps(
+                {
+                    "suite_version": 2,
+                    "cases": [
+                        {"id": f"case-{index:03d}", "tags": ["benchmark"], **references} for index in range(case_count)
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
 
         started = time.perf_counter()
         clean = run_suite(plan, root / "clean")
@@ -59,12 +66,22 @@ def measure_suite_scale(repository: Path, case_count: int, shard_count: int = 4)
         started = time.perf_counter()
         resumed = run_suite(plan, root / "resumed", workspace=workspace, resume=True)
         resume_seconds = time.perf_counter() - started
-        semantic = lambda result: (result["outcome"], result["outcome_counts"], [(case["id"], case["outcome"]) for case in result["cases"]])
+
+        def semantic(result):
+            return (
+                result["outcome"],
+                result["outcome_counts"],
+                [(case["id"], case["outcome"]) for case in result["cases"]],
+            )
+
         if (
             clean["outcome"] != "PASS"
             or resumed["outcome"] != "PASS"
             or verify_bundle(assembled)["outcome"] != "PASS"
-            or any(semantic(result) != semantic(clean) or verify_bundle(root / f"jobs-{jobs}")["outcome"] != "PASS" for jobs, result in concurrent_results.items())
+            or any(
+                semantic(result) != semantic(clean) or verify_bundle(root / f"jobs-{jobs}")["outcome"] != "PASS"
+                for jobs, result in concurrent_results.items()
+            )
         ):
             raise RuntimeError("suite benchmark accuracy check failed")
         return {

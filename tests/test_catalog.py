@@ -12,12 +12,17 @@ from parison.catalog import add, diff, history, list_runs, remove, show
 from parison.cli import main
 from parison.core import ParisonError, compare, publish, run_suite
 
-
 RECIPE = {
     "recipe_version": 1,
     "comparison_mode": "keyed",
     "keys": ["id"],
-    "scope": {"snapshot": "catalog-test", "cutoff": "2026-10-11T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+    "scope": {
+        "snapshot": "catalog-test",
+        "cutoff": "2026-10-11T00:00:00Z",
+        "filters": [],
+        "completeness": "full",
+        "expected_empty": False,
+    },
     "identity": {"null_keys": "reject", "duplicates": "reject"},
     "nulls_equal": True,
     "columns": {"id": {"type": "string"}, "value": {"type": "string"}},
@@ -68,9 +73,14 @@ class CatalogTests(unittest.TestCase):
         shutil.rmtree(missing)
         entries = list_runs(self.database, outcome="FAIL", kind="run")
         self.assertEqual([entry["path"] for entry in entries], sorted(entry["path"] for entry in entries))
-        self.assertEqual({Path(entry["path"]).name: entry["state"] for entry in entries}, {
-            "run": "current", "copied-run": "modified", "missing-run": "missing",
-        })
+        self.assertEqual(
+            {Path(entry["path"]).name: entry["state"] for entry in entries},
+            {
+                "run": "current",
+                "copied-run": "modified",
+                "missing-run": "missing",
+            },
+        )
         self.assertTrue(all(entry["duplicate_paths"] == 3 for entry in entries))
         self.assertEqual(list_runs(self.database, outcome="PASS"), [])
         policy = show(self.database, self.bundle)["metadata"]["policy_sha256"]
@@ -115,12 +125,17 @@ class CatalogTests(unittest.TestCase):
         result = history(self.database, policy)
         self.assertEqual([Path(run["path"]).name for run in result["runs"]], ["run", "passing-run"])
         self.assertEqual([run["catalog_order"] for run in result["runs"]], [1, 2])
-        self.assertEqual(result["transitions"], [{
-            "from_catalog_order": 1,
-            "to_catalog_order": 2,
-            "outcome": {"before": "FAIL", "after": "PASS"},
-            "discrepancy_count": {"before": 1, "after": 0, "delta": -1},
-        }])
+        self.assertEqual(
+            result["transitions"],
+            [
+                {
+                    "from_catalog_order": 1,
+                    "to_catalog_order": 2,
+                    "outcome": {"before": "FAIL", "after": "PASS"},
+                    "discrepancy_count": {"before": 1, "after": 0, "delta": -1},
+                }
+            ],
+        )
         self.assertEqual(result["runs"][0]["input_sha256"]["baseline"], result["runs"][1]["input_sha256"]["baseline"])
 
     def test_catalog_order_survives_deletion_and_vacuum(self):
@@ -190,13 +205,22 @@ class CatalogTests(unittest.TestCase):
 
     def test_policy_filter_finds_matching_cases_inside_suites(self):
         plan = self.root / "suite.json"
-        plan.write_text(json.dumps({
-            "suite_version": 1,
-            "cases": [{
-                "id": "raw-difference", "recipe": "recipe.json",
-                "baseline": "baseline.csv", "candidate": "candidate.csv",
-            }],
-        }), encoding="utf-8")
+        plan.write_text(
+            json.dumps(
+                {
+                    "suite_version": 1,
+                    "cases": [
+                        {
+                            "id": "raw-difference",
+                            "recipe": "recipe.json",
+                            "baseline": "baseline.csv",
+                            "candidate": "candidate.csv",
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
         suite = self.root / "suite-run"
         run_suite(plan, suite)
         add(self.database, suite)
@@ -212,11 +236,15 @@ class CatalogTests(unittest.TestCase):
         policy = show(self.database, self.bundle)["metadata"]["policy_sha256"]
         stdout = StringIO()
         with redirect_stdout(stdout):
-            self.assertEqual(main(["catalog", "history", "--database", str(self.database), "--policy-sha256", policy]), 0)
+            self.assertEqual(
+                main(["catalog", "history", "--database", str(self.database), "--policy-sha256", policy]), 0
+            )
         self.assertEqual(len(json.loads(stdout.getvalue())["runs"]), 2)
         stdout = StringIO()
         with redirect_stdout(stdout):
-            self.assertEqual(main(["catalog", "diff", "--database", str(self.database), str(self.bundle), str(passing)]), 0)
+            self.assertEqual(
+                main(["catalog", "diff", "--database", str(self.database), str(self.bundle), str(passing)]), 0
+            )
         self.assertTrue(json.loads(stdout.getvalue())["changed"])
 
     def test_catalog_rejects_unverified_bundles_unknown_entries_and_unsafe_database(self):

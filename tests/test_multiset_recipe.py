@@ -1,24 +1,42 @@
-import json
 import hashlib
+import json
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
-from pathlib import Path
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from datetime import date, datetime, timezone
-from unittest.mock import patch
 from io import StringIO
+from pathlib import Path
+from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
-from parison.core import ParisonError, _multiset_encoding, compare, error_result, export_evidence, explain_recipe, inspect_bundle, load_recipe, load_schema, publish, validate_inputs, verify_bundle
 from parison.cli import main
-
+from parison.core import (
+    ParisonError,
+    _multiset_encoding,
+    compare,
+    error_result,
+    explain_recipe,
+    export_evidence,
+    inspect_bundle,
+    load_recipe,
+    load_schema,
+    publish,
+    validate_inputs,
+    verify_bundle,
+)
 
 RECIPE = {
     "recipe_version": 3,
     "comparison_mode": "multiset",
-    "scope": {"snapshot": "orders-v5", "cutoff": "2026-10-09T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
+    "scope": {
+        "snapshot": "orders-v5",
+        "cutoff": "2026-10-09T00:00:00Z",
+        "filters": [],
+        "completeness": "full",
+        "expected_empty": False,
+    },
     "columns": {
         "region": {"type": "string", "normalize": ["trim", "casefold"]},
         "amount": {"type": "decimal", "scale": 2},
@@ -49,7 +67,11 @@ class MultisetRecipeTests(unittest.TestCase):
         self.assertRegex(policy["policy_sha256"], r"^[0-9a-f]{64}$")
 
     def test_rejects_cross_mode_fields_and_tolerance(self):
-        for field, value in (("keys", ["region"]), ("group_by", ["region"]), ("measures", {"rows": {"operator": "count"}})):
+        for field, value in (
+            ("keys", ["region"]),
+            ("group_by", ["region"]),
+            ("measures", {"rows": {"operator": "count"}}),
+        ):
             recipe = json.loads(json.dumps(RECIPE))
             recipe[field] = value
             self.path.write_text(json.dumps(recipe), encoding="utf-8")
@@ -119,7 +141,9 @@ class MultisetRecipeTests(unittest.TestCase):
         tampered = Path(self.tmp.name) / "tampered"
         publish(tampered, result, load_recipe(self.path))
         manifest = tampered / "manifest.json"
-        manifest.write_text(manifest.read_text(encoding="utf-8").replace('"outcome": "FAIL"', '"outcome": "PASS"'), encoding="utf-8")
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8").replace('"outcome": "FAIL"', '"outcome": "PASS"'), encoding="utf-8"
+        )
         with self.assertRaisesRegex(ParisonError, "manifest outcome does not match result"):
             inspect_bundle(tampered)
         malformed = Path(self.tmp.name) / "malformed"
@@ -163,18 +187,25 @@ class MultisetRecipeTests(unittest.TestCase):
     def test_encoding_golden_scalar_tags(self):
         recipe = json.loads(json.dumps(RECIPE))
         recipe["columns"] = {
-            "a_bool": {"type": "boolean"}, "b_int": {"type": "integer"}, "c_decimal": {"type": "decimal", "scale": 2},
-            "d_float": {"type": "float"}, "e_date": {"type": "date"}, "f_timestamp": {"type": "timestamp", "timezone": "require-aware"}, "g_string": {"type": "string"},
+            "a_bool": {"type": "boolean"},
+            "b_int": {"type": "integer"},
+            "c_decimal": {"type": "decimal", "scale": 2},
+            "d_float": {"type": "float"},
+            "e_date": {"type": "date"},
+            "f_timestamp": {"type": "timestamp", "timezone": "require-aware"},
+            "g_string": {"type": "string"},
         }
         names = sorted(recipe["columns"])
-        encoded = _multiset_encoding((True, 7, Decimal("1.20"), 1.5, date(2026, 10, 9), datetime(2026, 10, 9, tzinfo=timezone.utc), "é"), names, recipe)
+        encoded = _multiset_encoding(
+            (True, 7, Decimal("1.20"), 1.5, date(2026, 10, 9), datetime(2026, 10, 9, tzinfo=UTC), "é"), names, recipe
+        )
         tags = []
         offset = 0
         while offset < len(encoded):
             tags.append(encoded[offset])
-            offset += 1 + 8 + int.from_bytes(encoded[offset + 1:offset + 9], "big")
+            offset += 1 + 8 + int.from_bytes(encoded[offset + 1 : offset + 9], "big")
         self.assertEqual(tags, [1, 2, 3, 7, 5, 6, 4])
-        self.assertIn("2026-10-09T00:00:00.000000Z".encode(), encoded)
+        self.assertIn(b"2026-10-09T00:00:00.000000Z", encoded)
 
     def test_raw_evidence_is_invariant_under_row_order(self):
         recipe = json.loads(json.dumps(RECIPE))
@@ -202,8 +233,13 @@ class MultisetRecipeTests(unittest.TestCase):
 
         memory = compare(self.path, left, right, sample_limit=10)
         sqlite_result = compare(
-            self.path, left, right, sample_limit=10, engine="sqlite",
-            max_temp_bytes=1_000_000, temp_directory=spill,
+            self.path,
+            left,
+            right,
+            sample_limit=10,
+            engine="sqlite",
+            max_temp_bytes=1_000_000,
+            temp_directory=spill,
         )
 
         self.assertEqual(sqlite_result["outcome"], memory["outcome"])
@@ -234,7 +270,10 @@ class MultisetRecipeTests(unittest.TestCase):
         source.write_text("region,amount\na,1.00\n", encoding="utf-8")
         spill = Path(self.tmp.name) / "spill"
         spill.mkdir()
-        with patch("parison.core._iter_input_rows", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+        with (
+            patch("parison.comparison._iter_input_rows", side_effect=KeyboardInterrupt),
+            self.assertRaises(KeyboardInterrupt),
+        ):
             compare(self.path, source, source, engine="sqlite", temp_directory=spill)
         self.assertEqual(list(spill.iterdir()), [])
 
@@ -243,10 +282,23 @@ class MultisetRecipeTests(unittest.TestCase):
         source.write_text("region,amount\na,1.00\n", encoding="utf-8")
         output = Path(self.tmp.name) / "error-run"
         with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
-            code = main([
-                "compare", "--recipe", str(self.path), "--baseline", str(source), "--candidate", str(source),
-                "--engine", "sqlite", "--max-temp-bytes", "1", "--output", str(output),
-            ])
+            code = main(
+                [
+                    "compare",
+                    "--recipe",
+                    str(self.path),
+                    "--baseline",
+                    str(source),
+                    "--candidate",
+                    str(source),
+                    "--engine",
+                    "sqlite",
+                    "--max-temp-bytes",
+                    "1",
+                    "--output",
+                    str(output),
+                ]
+            )
         self.assertEqual(code, 2)
         result = json.loads((output / "result.json").read_text(encoding="utf-8"))
         self.assertEqual(result["runtime"]["execution_engine"], "sqlite")

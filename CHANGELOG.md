@@ -2,7 +2,23 @@
 
 All notable changes will be documented in this file.
 
-## Unreleased
+## 1.5.0 - 2026-10-17
+
+### Added
+
+- Deterministic summary-safe discrepancy groups for verified keyed, aggregate and multiset run bundles.
+- Exact-policy ordered series with introduced, resolved, increased, decreased and unchanged transitions.
+- Bounded raw drill-down over already-published discrepancy samples without reopening source inputs, with strict canonical verification and exact bundle/policy provenance.
+- Strict `discrepancy-analysis-v1` and `discrepancy-drilldown-v1` schemas, canonical atomic artifacts, direct or live catalog-backed series selection, and `analyze`, `verify-analysis`, `drilldown` and `verify-drilldown` CLI commands.
+
+### Changed
+
+- Added pinned Ruff lint and formatting gates to local development and CI, plus a single contributor guide for setup, testing, compatibility and evidence-safety standards.
+- Split policy, input, comparison, evidence and suite implementation out of `parison.core` while preserving its released import surface as a compatibility facade.
+
+### Fixed
+
+- Consolidated atomic no-replace directory publication and output-parent safety so run, suite, editor-schema, reconciliation and dataset-evidence publishers resist concurrently created destinations consistently across supported platforms.
 
 ## 1.4.0 - 2026-10-16
 

@@ -8,7 +8,6 @@ from typing import Any
 
 from parison.core import ParisonError, explain_recipe
 
-
 _CHANGES = ("unchanged", "renamed", "added", "removed", "split", "merged")
 _FIELD_KEYS = {"id", "name", "presence", "nullability", "default"}
 
@@ -23,13 +22,15 @@ def _object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _valid_scalar(value: Any) -> bool:
-    return value is None or isinstance(value, (str, bool, int)) or (
-        isinstance(value, float) and math.isfinite(value)
-    )
+    return value is None or isinstance(value, (str, bool, int)) or (isinstance(value, float) and math.isfinite(value))
 
 
 def _field(value: Any, where: str) -> dict[str, Any]:
-    if not isinstance(value, dict) or not {"id", "name", "presence", "nullability"} <= set(value) or set(value) - _FIELD_KEYS:
+    if (
+        not isinstance(value, dict)
+        or not {"id", "name", "presence", "nullability"} <= set(value)
+        or set(value) - _FIELD_KEYS
+    ):
         raise ParisonError(f"{where} must contain id, name, presence and nullability, with optional default")
     if not isinstance(value["id"], str) or not value["id"]:
         raise ParisonError(f"{where}.id must be a nonempty string")
@@ -81,7 +82,10 @@ def normalize_evolution(value: Any) -> dict[str, Any]:
 
         counts = (len(sides["baseline"]), len(sides["candidate"]))
         expected = {
-            "unchanged": (1, 1), "renamed": (1, 1), "added": (0, 1), "removed": (1, 0),
+            "unchanged": (1, 1),
+            "renamed": (1, 1),
+            "added": (0, 1),
+            "removed": (1, 0),
         }
         if change in expected and counts != expected[change]:
             raise ParisonError(f"{where} has invalid baseline/candidate cardinality for {change}")
@@ -142,7 +146,9 @@ def compile_evolution_mappings(path: str | Path) -> dict[str, Any]:
     evolution = explain_evolution(path)
     transformations = [item["change"] for item in evolution["changes"] if item["change"] in {"split", "merged"}]
     if transformations:
-        raise ParisonError("split and merged evolution requires upstream materialization and cannot compile to column mappings")
+        raise ParisonError(
+            "split and merged evolution requires upstream materialization and cannot compile to column mappings"
+        )
     mappings = {}
     for item in evolution["changes"]:
         if item["change"] not in {"unchanged", "renamed"}:
@@ -162,7 +168,9 @@ def _column_index(policy: dict[str, Any], side: str) -> dict[str, dict[str, Any]
         source = configured[source_key]
         if source in index:
             raise ParisonError(f"effective policy repeats {side} physical column {source!r}")
-        semantic = {key: value for key, value in configured.items() if key not in {"baseline_column", "candidate_column"}}
+        semantic = {
+            key: value for key, value in configured.items() if key not in {"baseline_column", "candidate_column"}
+        }
         index[source] = {"canonical": canonical, "semantic": semantic, "role": _role(policy, canonical, semantic)}
     return index
 
@@ -185,22 +193,37 @@ def _leaf_changes(left: Any, right: Any, path: tuple[str, ...] = ()) -> list[tup
         changes = []
         for key in sorted(set(left) | set(right)):
             if key not in left or key not in right:
-                changes.append((path + (key,), left.get(key), right.get(key)))
+                changes.append(((*path, key), left.get(key), right.get(key)))
             else:
-                changes.extend(_leaf_changes(left[key], right[key], path + (key,)))
+                changes.extend(_leaf_changes(left[key], right[key], (*path, key)))
         return changes
     return [] if left == right else [(path, left, right)]
 
 
 _GLOBAL_PATHS = {
-    ("schema_version",), ("recipe_version",), ("comparison_mode",), ("aggregate_contract",),
-    ("multiset_contract",), ("canonical_encoding",), ("input_projection",), ("nulls_equal",),
-    ("group_nulls",), ("column_order",), ("group_by",),
-    ("scope", "snapshot"), ("scope", "cutoff"), ("scope", "filters"),
-    ("scope", "completeness"), ("scope", "expected_empty"),
-    ("identity", "null_keys"), ("identity", "duplicates"),
-    ("delimiters", "baseline"), ("delimiters", "candidate"),
-    ("null_tokens", "baseline"), ("null_tokens", "candidate"), ("output", "sensitivity"),
+    ("schema_version",),
+    ("recipe_version",),
+    ("comparison_mode",),
+    ("aggregate_contract",),
+    ("multiset_contract",),
+    ("canonical_encoding",),
+    ("input_projection",),
+    ("nulls_equal",),
+    ("group_nulls",),
+    ("column_order",),
+    ("group_by",),
+    ("scope", "snapshot"),
+    ("scope", "cutoff"),
+    ("scope", "filters"),
+    ("scope", "completeness"),
+    ("scope", "expected_empty"),
+    ("identity", "null_keys"),
+    ("identity", "duplicates"),
+    ("delimiters", "baseline"),
+    ("delimiters", "candidate"),
+    ("null_tokens", "baseline"),
+    ("null_tokens", "candidate"),
+    ("output", "sensitivity"),
 }
 _MEASURE_FIELDS = {"operator", "column", "nulls", "comparison"}
 _TOLERANCE_FIELDS = {"formula", "absolute", "relative"}
@@ -224,7 +247,9 @@ def _record(kind: str, compatibility: str, impact: str, reason: str, **metadata:
     return {"kind": kind, "compatibility": compatibility, "impact": impact, "reason": reason, **metadata}
 
 
-def diff_policies(baseline_recipe: str | Path, candidate_recipe: str | Path, evolution_path: str | Path) -> dict[str, Any]:
+def diff_policies(
+    baseline_recipe: str | Path, candidate_recipe: str | Path, evolution_path: str | Path
+) -> dict[str, Any]:
     baseline = explain_recipe(baseline_recipe)
     candidate = explain_recipe(candidate_recipe)
     evolution = explain_evolution(evolution_path)
@@ -235,17 +260,29 @@ def diff_policies(baseline_recipe: str | Path, candidate_recipe: str | Path, evo
     seen = {"baseline": set(), "candidate": set()}
     changes: list[dict[str, Any]] = []
 
-    global_baseline = {key: value for key, value in baseline.items() if key not in {"policy_sha256", "columns", "excluded_columns"}}
-    global_candidate = {key: value for key, value in candidate.items() if key not in {"policy_sha256", "columns", "excluded_columns"}}
+    global_baseline = {
+        key: value for key, value in baseline.items() if key not in {"policy_sha256", "columns", "excluded_columns"}
+    }
+    global_candidate = {
+        key: value for key, value in candidate.items() if key not in {"policy_sha256", "columns", "excluded_columns"}
+    }
     for path, old, new in _leaf_changes(global_baseline, global_candidate):
         closed_path, policy_names = _closed_policy_path(path)
         if closed_path is None:
             changes.append(_record("policy-modified", "INCONCLUSIVE", "unknown", "UNKNOWN_POLICY_PATH", path="unknown"))
         else:
-            changes.append(_record(
-                "policy-modified", "DENY", "meaning-changed", "GLOBAL_POLICY_CHANGED",
-                path=closed_path, baseline=old, candidate=new, **({"policy_names": policy_names} if policy_names else {}),
-            ))
+            changes.append(
+                _record(
+                    "policy-modified",
+                    "DENY",
+                    "meaning-changed",
+                    "GLOBAL_POLICY_CHANGED",
+                    path=closed_path,
+                    baseline=old,
+                    candidate=new,
+                    **({"policy_names": policy_names} if policy_names else {}),
+                )
+            )
 
     for operation in evolution["changes"]:
         kind = operation["change"]
@@ -257,50 +294,187 @@ def diff_policies(baseline_recipe: str | Path, candidate_recipe: str | Path, evo
             new = candidate_index.get(new_field["name"])
             old_is_excluded = old_field["name"] in baseline_excluded
             new_is_excluded = new_field["name"] in candidate_excluded
-            old_contract = {key: old_field.get(key) for key in ("presence", "nullability", "default") if key in old_field}
-            new_contract = {key: new_field.get(key) for key in ("presence", "nullability", "default") if key in new_field}
+            old_contract = {
+                key: old_field.get(key) for key in ("presence", "nullability", "default") if key in old_field
+            }
+            new_contract = {
+                key: new_field.get(key) for key in ("presence", "nullability", "default") if key in new_field
+            }
             if old_contract != new_contract:
-                changes.append(_record(kind, "DENY", "meaning-changed", "FIELD_CONTRACT_CHANGED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]]))
+                changes.append(
+                    _record(
+                        kind,
+                        "DENY",
+                        "meaning-changed",
+                        "FIELD_CONTRACT_CHANGED",
+                        logical_ids=[old_field["id"]],
+                        baseline_names=[old_field["name"]],
+                        candidate_names=[new_field["name"]],
+                    )
+                )
             elif old_is_excluded and new_is_excluded:
-                changes.append(_record(kind, "ACCEPT", "input-only", "EXCLUDED_FIELD_IDENTITY_PRESERVED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]]))
+                changes.append(
+                    _record(
+                        kind,
+                        "ACCEPT",
+                        "input-only",
+                        "EXCLUDED_FIELD_IDENTITY_PRESERVED",
+                        logical_ids=[old_field["id"]],
+                        baseline_names=[old_field["name"]],
+                        candidate_names=[new_field["name"]],
+                    )
+                )
             elif old is None or new is None:
-                changes.append(_record(kind, "DENY", "meaning-changed", "MAPPED_FIELD_NOT_COMPARED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]]))
+                changes.append(
+                    _record(
+                        kind,
+                        "DENY",
+                        "meaning-changed",
+                        "MAPPED_FIELD_NOT_COMPARED",
+                        logical_ids=[old_field["id"]],
+                        baseline_names=[old_field["name"]],
+                        candidate_names=[new_field["name"]],
+                    )
+                )
             elif old_field["presence"] != "required":
-                changes.append(_record(kind, "DENY", "meaning-changed", "COMPARED_FIELD_NOT_REQUIRED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]]))
+                changes.append(
+                    _record(
+                        kind,
+                        "DENY",
+                        "meaning-changed",
+                        "COMPARED_FIELD_NOT_REQUIRED",
+                        logical_ids=[old_field["id"]],
+                        baseline_names=[old_field["name"]],
+                        candidate_names=[new_field["name"]],
+                    )
+                )
             elif old["semantic"] != new["semantic"] or old["role"] != new["role"]:
-                changes.append(_record(kind, "DENY", "meaning-changed", "FIELD_POLICY_CHANGED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]], baseline={"role": old["role"], "policy": old["semantic"]}, candidate={"role": new["role"], "policy": new["semantic"]}))
+                changes.append(
+                    _record(
+                        kind,
+                        "DENY",
+                        "meaning-changed",
+                        "FIELD_POLICY_CHANGED",
+                        logical_ids=[old_field["id"]],
+                        baseline_names=[old_field["name"]],
+                        candidate_names=[new_field["name"]],
+                        baseline={"role": old["role"], "policy": old["semantic"]},
+                        candidate={"role": new["role"], "policy": new["semantic"]},
+                    )
+                )
             else:
-                changes.append(_record(kind, "ACCEPT", "none" if kind == "unchanged" else "input-only", "FIELD_IDENTITY_PRESERVED", logical_ids=[old_field["id"]], baseline_names=[old_field["name"]], candidate_names=[new_field["name"]]))
+                changes.append(
+                    _record(
+                        kind,
+                        "ACCEPT",
+                        "none" if kind == "unchanged" else "input-only",
+                        "FIELD_IDENTITY_PRESERVED",
+                        logical_ids=[old_field["id"]],
+                        baseline_names=[old_field["name"]],
+                        candidate_names=[new_field["name"]],
+                    )
+                )
         elif kind in {"added", "removed"}:
             side = "candidate" if kind == "added" else "baseline"
             field = operation[side][0]
             active = candidate_index if side == "candidate" else baseline_index
             excluded = candidate_excluded if side == "candidate" else baseline_excluded
             if field["name"] in active:
-                changes.append(_record(kind, "DENY", "meaning-changed", "STRUCTURAL_FIELD_IS_COMPARED", logical_ids=[field["id"]], **{f"{side}_names": [field["name"]]}))
+                changes.append(
+                    _record(
+                        kind,
+                        "DENY",
+                        "meaning-changed",
+                        "STRUCTURAL_FIELD_IS_COMPARED",
+                        logical_ids=[field["id"]],
+                        **{f"{side}_names": [field["name"]]},
+                    )
+                )
             elif field["name"] not in excluded:
-                changes.append(_record(kind, "INCONCLUSIVE", "unknown", "STRUCTURAL_FIELD_ROLE_UNKNOWN", logical_ids=[field["id"]], **{f"{side}_names": [field["name"]]}))
+                changes.append(
+                    _record(
+                        kind,
+                        "INCONCLUSIVE",
+                        "unknown",
+                        "STRUCTURAL_FIELD_ROLE_UNKNOWN",
+                        logical_ids=[field["id"]],
+                        **{f"{side}_names": [field["name"]]},
+                    )
+                )
             elif field["presence"] != "required" or field["nullability"] != "non-null" or "default" in field:
-                changes.append(_record(kind, "DENY", "meaning-changed", "STRUCTURAL_FIELD_CONTRACT_UNSAFE", logical_ids=[field["id"]], **{f"{side}_names": [field["name"]]}))
+                changes.append(
+                    _record(
+                        kind,
+                        "DENY",
+                        "meaning-changed",
+                        "STRUCTURAL_FIELD_CONTRACT_UNSAFE",
+                        logical_ids=[field["id"]],
+                        **{f"{side}_names": [field["name"]]},
+                    )
+                )
             else:
-                changes.append(_record(kind, "ACCEPT", "input-only", "EXCLUDED_STRUCTURAL_FIELD", logical_ids=[field["id"]], **{f"{side}_names": [field["name"]]}))
+                changes.append(
+                    _record(
+                        kind,
+                        "ACCEPT",
+                        "input-only",
+                        "EXCLUDED_STRUCTURAL_FIELD",
+                        logical_ids=[field["id"]],
+                        **{f"{side}_names": [field["name"]]},
+                    )
+                )
         else:
             active_names = [
-                field["name"] for side, index in (("baseline", baseline_index), ("candidate", candidate_index))
-                for field in operation[side] if field["name"] in index
+                field["name"]
+                for side, index in (("baseline", baseline_index), ("candidate", candidate_index))
+                for field in operation[side]
+                if field["name"] in index
             ]
             compatibility = "DENY" if active_names else "INCONCLUSIVE"
-            reason = "TRANSFORMATION_FIELD_IS_COMPARED" if active_names else "TRANSFORMATION_REQUIRES_UPSTREAM_MATERIALIZATION"
-            changes.append(_record(kind, compatibility, "unsupported-transformation", reason, logical_ids=sorted(field["id"] for side in ("baseline", "candidate") for field in operation[side]), baseline_names=[field["name"] for field in operation["baseline"]], candidate_names=[field["name"] for field in operation["candidate"]]))
+            reason = (
+                "TRANSFORMATION_FIELD_IS_COMPARED"
+                if active_names
+                else "TRANSFORMATION_REQUIRES_UPSTREAM_MATERIALIZATION"
+            )
+            changes.append(
+                _record(
+                    kind,
+                    compatibility,
+                    "unsupported-transformation",
+                    reason,
+                    logical_ids=sorted(field["id"] for side in ("baseline", "candidate") for field in operation[side]),
+                    baseline_names=[field["name"] for field in operation["baseline"]],
+                    candidate_names=[field["name"] for field in operation["candidate"]],
+                )
+            )
 
     for side, index, excluded in (
-        ("baseline", baseline_index, baseline_excluded), ("candidate", candidate_index, candidate_excluded),
+        ("baseline", baseline_index, baseline_excluded),
+        ("candidate", candidate_index, candidate_excluded),
     ):
         for name in sorted((set(index) | set(excluded)) - seen[side]):
-            changes.append(_record("policy-modified", "DENY", "meaning-changed", "UNDECLARED_POLICY_FIELD", path=f"{side}.field", **{f"{side}_names": [name]}))
+            changes.append(
+                _record(
+                    "policy-modified",
+                    "DENY",
+                    "meaning-changed",
+                    "UNDECLARED_POLICY_FIELD",
+                    path=f"{side}.field",
+                    **{f"{side}_names": [name]},
+                )
+            )
 
     order = {name: index for index, name in enumerate((*_CHANGES, "policy-modified"))}
-    changes.sort(key=lambda item: (order[item["kind"]], item.get("path", ""), tuple(item.get("logical_ids", [])), tuple(item.get("baseline_names", [])), tuple(item.get("candidate_names", [])), item["reason"]))
+    changes.sort(
+        key=lambda item: (
+            order[item["kind"]],
+            item.get("path", ""),
+            tuple(item.get("logical_ids", [])),
+            tuple(item.get("baseline_names", [])),
+            tuple(item.get("candidate_names", [])),
+            item["reason"],
+        )
+    )
     labels = {item["compatibility"] for item in changes}
     compatibility = "DENY" if "DENY" in labels else "INCONCLUSIVE" if "INCONCLUSIVE" in labels else "ACCEPT"
     result = {
@@ -312,12 +486,17 @@ def diff_policies(baseline_recipe: str | Path, candidate_recipe: str | Path, evo
         "evolution_sha256": evolution["evolution_sha256"],
         "changes": changes,
     }
-    result["policy_diff_sha256"] = hashlib.sha256(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    result["policy_diff_sha256"] = hashlib.sha256(
+        json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
     return result
 
 
 def summarize_policy_diff(result: dict[str, Any]) -> dict[str, Any]:
-    counts = {label: sum(item["compatibility"] == label for item in result["changes"]) for label in ("ACCEPT", "DENY", "INCONCLUSIVE")}
+    counts = {
+        label: sum(item["compatibility"] == label for item in result["changes"])
+        for label in ("ACCEPT", "DENY", "INCONCLUSIVE")
+    }
     reasons = sorted({item["reason"] for item in result["changes"]})
     return {
         "policy_diff_version": result["policy_diff_version"],

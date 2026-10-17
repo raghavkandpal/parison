@@ -41,14 +41,31 @@ def main():
     write_csv(output / "candidate-a.csv", candidate_a)
     write_csv(output / "candidate-b.csv", candidate_b)
     recipe = {
-        "recipe_version": 1, "comparison_mode": "keyed", "keys": ["id"],
-        "scope": {"snapshot": "synthetic-filter-study-v1", "cutoff": "2026-10-06T00:00:00Z", "filters": [], "completeness": "full", "expected_empty": False},
-        "identity": {"null_keys": "reject", "duplicates": "reject"}, "nulls_equal": True,
+        "recipe_version": 1,
+        "comparison_mode": "keyed",
+        "keys": ["id"],
+        "scope": {
+            "snapshot": "synthetic-filter-study-v1",
+            "cutoff": "2026-10-06T00:00:00Z",
+            "filters": [],
+            "completeness": "full",
+            "expected_empty": False,
+        },
+        "identity": {"null_keys": "reject", "duplicates": "reject"},
+        "nulls_equal": True,
         "columns": {
             "id": {"type": "string", "comparison": "exact"},
-            "amount": {"type": "decimal", "scale": 2, "comparison": "numeric", "tolerance": {"formula": "symmetric-v1", "absolute": "0.10", "relative": "0"}},
-            "status": {"type": "string", "comparison": "exact"}, "note": {"type": "string", "comparison": "exact"}},
-        "output": {"sensitivity": "raw"}}
+            "amount": {
+                "type": "decimal",
+                "scale": 2,
+                "comparison": "numeric",
+                "tolerance": {"formula": "symmetric-v1", "absolute": "0.10", "relative": "0"},
+            },
+            "status": {"type": "string", "comparison": "exact"},
+            "note": {"type": "string", "comparison": "exact"},
+        },
+        "output": {"sensitivity": "raw"},
+    }
     (output / "recipe.json").write_text(json.dumps(recipe, indent=2) + "\n", encoding="utf-8")
     print(output)
 

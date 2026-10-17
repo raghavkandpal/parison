@@ -4,6 +4,20 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## Pre-1.5 repository maintenance
+
+- [Repository quality and layout plan](157-repository-quality-and-layout-plan.md)
+- [Repository maintenance checkpoint](158-repository-maintenance-checkpoint.md)
+
+## 1.5 — research
+
+- [Deterministic discrepancy analysis research](1.5/159-discrepancy-analysis-research.md)
+- [1.5 roadmap](1.5/160-roadmap.md)
+- [`discrepancy-analysis-v1` contract](1.5/161-discrepancy-analysis-contract.md)
+- [Discrepancy analysis guide](1.5/162-discrepancy-analysis-guide.md)
+- [1.5 engineering checkpoint](1.5/163-engineering-checkpoint.md)
+- [1.5.0 release checklist](1.5/164-release-checklist.md)
+
 ## 1.4 — released
 
 - [Dataset manifests and reproducibility research](1.4/152-dataset-manifest-and-reproducibility-research.md)
