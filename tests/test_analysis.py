@@ -185,7 +185,9 @@ class DiscrepancyAnalysisTests(unittest.TestCase):
         recipe = json.loads((example / "orders.recipe.json").read_text(encoding="utf-8"))
         bundles = []
         for index in range(1, 4):
-            result = compare(example / "orders.recipe.json", example / "baseline.csv", example / f"rehearsal-{index}.csv")
+            result = compare(
+                example / "orders.recipe.json", example / "baseline.csv", example / f"rehearsal-{index}.csv"
+            )
             bundle = self.root / f"rehearsal-{index}"
             publish(bundle, result, recipe)
             bundles.append(bundle)
