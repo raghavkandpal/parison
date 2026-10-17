@@ -183,7 +183,7 @@ class SemanticScalarProjection(unittest.TestCase):
         )
         self.assertEqual(compare(legacy, baseline, baseline)["outcome"], "PASS")
         raw = "2026-10-14 00:00:00.1234567Z"
-        with patch("parison.core._parse", return_value="legacy-result") as parse:
+        with patch("parison.policies._parse", return_value="legacy-result") as parse:
             self.assertEqual(_parse_input(raw, {"type": "timestamp"}, "observed_at", recipe(False)), "legacy-result")
             parse.assert_called_once_with(raw, {"type": "timestamp"}, "observed_at")
         self.assertNotIn("input_projection", explain_recipe(legacy))
