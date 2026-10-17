@@ -25,16 +25,61 @@ from pathlib import Path
 from typing import Any
 
 OUTCOME_CODES = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 3, "INTERRUPTED": 130}
-_RECIPE_KEYS = {"recipe_version", "comparison_mode", "keys", "scope", "identity", "nulls_equal", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "input_projection", "output"}
-_AGGREGATE_RECIPE_KEYS = {"recipe_version", "comparison_mode", "group_by", "measures", "scope", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "input_projection", "output"}
-_MULTISET_RECIPE_KEYS = {"recipe_version", "comparison_mode", "scope", "null_tokens", "columns", "column_mappings", "excluded_columns", "delimiters", "input_projection", "output"}
+_RECIPE_KEYS = {
+    "recipe_version",
+    "comparison_mode",
+    "keys",
+    "scope",
+    "identity",
+    "nulls_equal",
+    "null_tokens",
+    "columns",
+    "column_mappings",
+    "excluded_columns",
+    "delimiters",
+    "input_projection",
+    "output",
+}
+_AGGREGATE_RECIPE_KEYS = {
+    "recipe_version",
+    "comparison_mode",
+    "group_by",
+    "measures",
+    "scope",
+    "null_tokens",
+    "columns",
+    "column_mappings",
+    "excluded_columns",
+    "delimiters",
+    "input_projection",
+    "output",
+}
+_MULTISET_RECIPE_KEYS = {
+    "recipe_version",
+    "comparison_mode",
+    "scope",
+    "null_tokens",
+    "columns",
+    "column_mappings",
+    "excluded_columns",
+    "delimiters",
+    "input_projection",
+    "output",
+}
 _COLUMN_KEYS = {"type", "comparison", "tolerance", "timezone", "scale", "normalize"}
 _MEASURE_KEYS = {"operator", "column", "nulls", "comparison", "tolerance"}
 _TYPES = {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
 _NORMALIZATIONS = {"trim", "casefold", "unicode_nfc"}
 _INPUT_PROJECTIONS = {"semantic-scalar-v1"}
 _RAW_VALUE = object()
-_FILE_FORMATS = {".csv": "csv", ".tsv": "tsv", ".jsonl": "jsonl", ".ndjson": "jsonl", ".parquet": "parquet", ".pq": "parquet"}
+_FILE_FORMATS = {
+    ".csv": "csv",
+    ".tsv": "tsv",
+    ".jsonl": "jsonl",
+    ".ndjson": "jsonl",
+    ".parquet": "parquet",
+    ".pq": "parquet",
+}
 _SCHEMAS = {
     "recipe-authoring": "recipe-authoring.schema.json",
     "recipe": "recipe-v1.schema.json",
@@ -189,11 +234,20 @@ def load_suite(path: str | Path) -> dict[str, Any]:
     loaded, identifiers = [], set()
     for index, case in enumerate(cases):
         required = {"id", "recipe", "baseline", "candidate"}
-        optional = {"expected_policy_sha256"} | ({"tags", "description", "limits", "execution"} if version == 2 else set())
+        optional = {"expected_policy_sha256"} | (
+            {"tags", "description", "limits", "execution"} if version == 2 else set()
+        )
         if not isinstance(case, dict) or not required <= set(case) or set(case) - required - optional:
             raise ParisonError(f"suite case {index} has invalid fields")
         identifier = case["id"]
-        if not isinstance(identifier, str) or not identifier or any(character not in "abcdefghijklmnopqrstuvwxyz0123456789-" for character in identifier) or identifier.startswith("-") or identifier.endswith("-") or "--" in identifier:
+        if (
+            not isinstance(identifier, str)
+            or not identifier
+            or any(character not in "abcdefghijklmnopqrstuvwxyz0123456789-" for character in identifier)
+            or identifier.startswith("-")
+            or identifier.endswith("-")
+            or "--" in identifier
+        ):
             raise ParisonError(f"suite case {index} has an invalid id")
         if identifier in identifiers:
             raise ParisonError(f"duplicate suite case id: {identifier}")
@@ -237,7 +291,9 @@ def load_suite(path: str | Path) -> dict[str, Any]:
             ):
                 raise ParisonError(f"suite case {identifier} tags must be sorted unique portable identifiers")
             description = case.get("description")
-            if description is not None and (not isinstance(description, str) or not description or len(description) > 500):
+            if description is not None and (
+                not isinstance(description, str) or not description or len(description) > 500
+            ):
                 raise ParisonError(f"suite case {identifier} has an invalid description")
             limits = case.get("limits", {})
             _validate_suite_limits(limits, f"suite case {identifier}")
@@ -246,7 +302,14 @@ def load_suite(path: str | Path) -> dict[str, Any]:
                 not isinstance(execution, dict)
                 or set(execution) - {"engine", "max_temp_bytes"}
                 or (execution and execution.get("engine") != "sqlite")
-                or ("max_temp_bytes" in execution and (not isinstance(execution["max_temp_bytes"], int) or isinstance(execution["max_temp_bytes"], bool) or execution["max_temp_bytes"] <= 0))
+                or (
+                    "max_temp_bytes" in execution
+                    and (
+                        not isinstance(execution["max_temp_bytes"], int)
+                        or isinstance(execution["max_temp_bytes"], bool)
+                        or execution["max_temp_bytes"] <= 0
+                    )
+                )
             ):
                 raise ParisonError(f"suite case {identifier} has invalid execution settings")
             if execution and recipe["comparison_mode"] == "aggregate":
@@ -313,7 +376,8 @@ def select_suite_cases(
     if shard_count is not None and (not 1 <= shard_count <= 100 or not 0 <= shard_index < shard_count):
         raise ParisonError("shard count must be 1..100 and index must be within it")
     selected = [
-        case for case in suite["cases"]
+        case
+        for case in suite["cases"]
         if (not case_ids or case["id"] in case_ids) and (not tags or all(tag in case.get("tags", []) for tag in tags))
     ]
     if shard_count is not None:
@@ -337,7 +401,12 @@ def list_suite(
         "suite_policy_sha256": suite.get("suite_policy_sha256"),
         "total_cases": len(suite["cases"]),
         "selected_cases": len(selected),
-        "selection": {"case_ids": case_ids or [], "tags": tags or [], "shard_index": shard_index, "shard_count": shard_count},
+        "selection": {
+            "case_ids": case_ids or [],
+            "tags": tags or [],
+            "shard_index": shard_index,
+            "shard_count": shard_count,
+        },
         "cases": [
             {name: case[name] for name in ("id", "tags", "description", "limits", "execution") if name in case}
             | {"comparison_mode": load_recipe(case["recipe"])["comparison_mode"]}
@@ -390,7 +459,12 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     if recipe.get("comparison_mode") != "keyed":
         raise ParisonError("comparison_mode must be 'keyed'")
     keys = recipe.get("keys")
-    if not isinstance(keys, list) or not keys or not all(isinstance(k, str) and k for k in keys) or len(keys) != len(set(keys)):
+    if (
+        not isinstance(keys, list)
+        or not keys
+        or not all(isinstance(k, str) and k for k in keys)
+        or len(keys) != len(set(keys))
+    ):
         raise ParisonError("keys must be a nonempty list of unique column names")
     scope = recipe.get("scope")
     if not isinstance(scope, dict) or set(scope) != {"snapshot", "cutoff", "filters", "completeness", "expected_empty"}:
@@ -479,7 +553,9 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         if normalize and policy["type"] != "string":
             raise ParisonError(f"columns.{name}.normalize is only valid for strings")
     excluded = recipe.get("excluded_columns", {})
-    if not isinstance(excluded, dict) or not all(isinstance(k, str) and isinstance(v, str) and v for k, v in excluded.items()):
+    if not isinstance(excluded, dict) or not all(
+        isinstance(k, str) and isinstance(v, str) and v for k, v in excluded.items()
+    ):
         raise ParisonError("excluded_columns must map column names to nonempty rationales")
     overlap = set(columns) & set(excluded)
     if overlap:
@@ -502,7 +578,11 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         if mapped_exclusions:
             raise ParisonError(f"mapped source columns cannot also be excluded: {', '.join(sorted(mapped_exclusions))}")
     output = recipe.get("output", {"sensitivity": "summary"})
-    if not isinstance(output, dict) or set(output) != {"sensitivity"} or output["sensitivity"] not in {"summary", "raw"}:
+    if (
+        not isinstance(output, dict)
+        or set(output) != {"sensitivity"}
+        or output["sensitivity"] not in {"summary", "raw"}
+    ):
         raise ParisonError("output must contain sensitivity='summary' or sensitivity='raw'")
     recipe["output"] = output
     _validate_input_projection(recipe)
@@ -514,7 +594,11 @@ def _load_aggregate_recipe(recipe: dict[str, Any]) -> dict[str, Any]:
     if recipe.get("comparison_mode") != "aggregate":
         raise ParisonError("recipe_version 2 requires comparison_mode='aggregate'")
     group_by = recipe.get("group_by")
-    if not isinstance(group_by, list) or not all(isinstance(name, str) and name for name in group_by) or len(group_by) != len(set(group_by)):
+    if (
+        not isinstance(group_by, list)
+        or not all(isinstance(name, str) and name for name in group_by)
+        or len(group_by) != len(set(group_by))
+    ):
         raise ParisonError("group_by must be a list of unique column names")
     measures = recipe.get("measures")
     if not isinstance(measures, dict) or not measures:
@@ -614,39 +698,61 @@ def _validate_common_recipe(recipe: dict[str, Any], mode: str = "aggregate") -> 
         elif "timezone" in policy:
             raise ParisonError(f"columns.{name}.timezone is only valid for timestamps")
         normalize = policy.get("normalize", [])
-        if not isinstance(normalize, list) or len(normalize) != len(set(normalize)) or not all(rule in _NORMALIZATIONS for rule in normalize):
+        if (
+            not isinstance(normalize, list)
+            or len(normalize) != len(set(normalize))
+            or not all(rule in _NORMALIZATIONS for rule in normalize)
+        ):
             raise ParisonError(f"columns.{name}.normalize must be a list of unique supported rules")
         if normalize and policy["type"] != "string":
             raise ParisonError(f"columns.{name}.normalize is only valid for strings")
     delimiters = recipe.get("delimiters", {"baseline": ",", "candidate": ","})
     if not isinstance(delimiters, dict) or set(delimiters) != {"baseline", "candidate"}:
         raise ParisonError("delimiters must contain exactly baseline and candidate")
-    if any(not isinstance(value, str) or len(value) != 1 or value in {'"', "\r", "\n", "\0"} for value in delimiters.values()):
+    if any(
+        not isinstance(value, str) or len(value) != 1 or value in {'"', "\r", "\n", "\0"}
+        for value in delimiters.values()
+    ):
         raise ParisonError("delimiters must be one character other than quote, newline or NUL")
     recipe["delimiters"] = delimiters
     null_tokens = recipe.get("null_tokens", {"baseline": [], "candidate": []})
     if not isinstance(null_tokens, dict) or set(null_tokens) != {"baseline", "candidate"}:
         raise ParisonError("null_tokens must contain exactly baseline and candidate")
-    if any(not isinstance(tokens, list) or len(tokens) != len(set(tokens)) or not all(isinstance(token, str) and token for token in tokens) for tokens in null_tokens.values()):
+    if any(
+        not isinstance(tokens, list)
+        or len(tokens) != len(set(tokens))
+        or not all(isinstance(token, str) and token for token in tokens)
+        for tokens in null_tokens.values()
+    ):
         raise ParisonError("null_tokens must contain lists of unique nonempty strings")
     recipe["null_tokens"] = null_tokens
     mappings = recipe.get("column_mappings", {})
     if not isinstance(mappings, dict) or not set(mappings) <= set(columns):
         raise ParisonError("column_mappings must name configured columns")
     for name, mapping in mappings.items():
-        if not isinstance(mapping, dict) or set(mapping) != {"baseline", "candidate"} or not all(isinstance(value, str) and value for value in mapping.values()):
+        if (
+            not isinstance(mapping, dict)
+            or set(mapping) != {"baseline", "candidate"}
+            or not all(isinstance(value, str) and value for value in mapping.values())
+        ):
             raise ParisonError(f"column_mappings.{name} must contain nonempty baseline and candidate names")
     for side in ("baseline", "candidate"):
         source_names = [mappings.get(name, {}).get(side, name) for name in columns]
         if len(source_names) != len(set(source_names)):
             raise ParisonError(f"column_mappings must use unique {side} source columns")
     excluded = recipe.get("excluded_columns", {})
-    if not isinstance(excluded, dict) or not all(isinstance(name, str) and isinstance(reason, str) and reason for name, reason in excluded.items()):
+    if not isinstance(excluded, dict) or not all(
+        isinstance(name, str) and isinstance(reason, str) and reason for name, reason in excluded.items()
+    ):
         raise ParisonError("excluded_columns must map column names to nonempty rationales")
     if set(columns) & set(excluded):
         raise ParisonError("columns cannot also be excluded")
     output = recipe.get("output", {"sensitivity": "summary"})
-    if not isinstance(output, dict) or set(output) != {"sensitivity"} or output["sensitivity"] not in {"summary", "raw"}:
+    if (
+        not isinstance(output, dict)
+        or set(output) != {"sensitivity"}
+        or output["sensitivity"] not in {"summary", "raw"}
+    ):
         raise ParisonError("output must contain sensitivity='summary' or sensitivity='raw'")
     recipe["output"] = output
     _validate_input_projection(recipe)
@@ -728,7 +834,9 @@ def _parse_input(raw: Any, policy: dict[str, Any], column: str, recipe: dict[str
         raise ParisonError(f"cannot project column {column} to timestamp under semantic-scalar-v1: timezone required")
     value = _parse(raw, policy, column)
     if kind == "integer" and not -(2**63) <= value < 2**63:
-        raise ParisonError(f"cannot project column {column} to integer under semantic-scalar-v1: outside signed 64-bit range")
+        raise ParisonError(
+            f"cannot project column {column} to integer under semantic-scalar-v1: outside signed 64-bit range"
+        )
     return value
 
 
@@ -758,19 +866,22 @@ def _effective_policy(recipe: dict[str, Any]) -> dict[str, Any]:
             "candidate_column": _source_name(recipe, name, "candidate"),
             **policy,
         }
-    policy = _with_input_projection(recipe, {
-        "schema_version": 1,
-        "recipe_version": recipe["recipe_version"],
-        "comparison_mode": recipe["comparison_mode"],
-        "scope": recipe["scope"],
-        "identity": recipe["identity"],
-        "nulls_equal": recipe["nulls_equal"],
-        "delimiters": recipe["delimiters"],
-        "null_tokens": recipe["null_tokens"],
-        "columns": columns,
-        "excluded_columns": recipe.get("excluded_columns", {}),
-        "output": recipe.get("output", {"sensitivity": "summary"}),
-    })
+    policy = _with_input_projection(
+        recipe,
+        {
+            "schema_version": 1,
+            "recipe_version": recipe["recipe_version"],
+            "comparison_mode": recipe["comparison_mode"],
+            "scope": recipe["scope"],
+            "identity": recipe["identity"],
+            "nulls_equal": recipe["nulls_equal"],
+            "delimiters": recipe["delimiters"],
+            "null_tokens": recipe["null_tokens"],
+            "columns": columns,
+            "excluded_columns": recipe.get("excluded_columns", {}),
+            "output": recipe.get("output", {"sensitivity": "summary"}),
+        },
+    )
     policy["policy_sha256"] = hashlib.sha256(
         json.dumps(policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     ).hexdigest()
@@ -795,21 +906,24 @@ def _effective_aggregate_policy(recipe: dict[str, Any]) -> dict[str, Any]:
         if measure["operator"] != "count":
             measure["comparison"] = measure.get("comparison", "exact")
         measures[name] = measure
-    policy = _with_input_projection(recipe, {
-        "schema_version": 2,
-        "recipe_version": 2,
-        "comparison_mode": "aggregate",
-        "aggregate_contract": "aggregate-v1",
-        "scope": recipe["scope"],
-        "group_by": recipe["group_by"],
-        "group_nulls": "reject",
-        "measures": measures,
-        "delimiters": recipe["delimiters"],
-        "null_tokens": recipe["null_tokens"],
-        "columns": columns,
-        "excluded_columns": recipe.get("excluded_columns", {}),
-        "output": recipe["output"],
-    })
+    policy = _with_input_projection(
+        recipe,
+        {
+            "schema_version": 2,
+            "recipe_version": 2,
+            "comparison_mode": "aggregate",
+            "aggregate_contract": "aggregate-v1",
+            "scope": recipe["scope"],
+            "group_by": recipe["group_by"],
+            "group_nulls": "reject",
+            "measures": measures,
+            "delimiters": recipe["delimiters"],
+            "null_tokens": recipe["null_tokens"],
+            "columns": columns,
+            "excluded_columns": recipe.get("excluded_columns", {}),
+            "output": recipe["output"],
+        },
+    )
     policy["policy_sha256"] = hashlib.sha256(
         json.dumps(policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     ).hexdigest()
@@ -827,21 +941,24 @@ def _effective_multiset_policy(recipe: dict[str, Any]) -> dict[str, Any]:
             "comparison": "exact",
             "normalize": configured.get("normalize", []),
         }
-    policy = _with_input_projection(recipe, {
-        "schema_version": 3,
-        "recipe_version": 3,
-        "comparison_mode": "multiset",
-        "multiset_contract": "multiset-v1",
-        "canonical_encoding": "typed-length-prefixed-v1",
-        "column_order": sorted(columns),
-        "nulls_equal": True,
-        "scope": recipe["scope"],
-        "delimiters": recipe["delimiters"],
-        "null_tokens": recipe["null_tokens"],
-        "columns": columns,
-        "excluded_columns": recipe.get("excluded_columns", {}),
-        "output": recipe["output"],
-    })
+    policy = _with_input_projection(
+        recipe,
+        {
+            "schema_version": 3,
+            "recipe_version": 3,
+            "comparison_mode": "multiset",
+            "multiset_contract": "multiset-v1",
+            "canonical_encoding": "typed-length-prefixed-v1",
+            "column_order": sorted(columns),
+            "nulls_equal": True,
+            "scope": recipe["scope"],
+            "delimiters": recipe["delimiters"],
+            "null_tokens": recipe["null_tokens"],
+            "columns": columns,
+            "excluded_columns": recipe.get("excluded_columns", {}),
+            "output": recipe["output"],
+        },
+    )
     policy["policy_sha256"] = hashlib.sha256(
         json.dumps(policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     ).hexdigest()
@@ -942,7 +1059,9 @@ def _source_paths(source: str | Path) -> tuple[Path, ...]:
     if path.is_symlink():
         raise ParisonError(f"partitioned input must not be a symlink: {path}")
     try:
-        paths = tuple(sorted((item for item in path.iterdir() if not item.name.startswith(".")), key=lambda item: item.name))
+        paths = tuple(
+            sorted((item for item in path.iterdir() if not item.name.startswith(".")), key=lambda item: item.name)
+        )
     except OSError as exc:
         raise ParisonError(f"cannot inspect partitioned input {path}: {exc}") from exc
     if not paths:
@@ -1074,7 +1193,10 @@ def _jsonl_record(line: str, path: Path, line_number: int) -> dict[str, Any]:
 
     try:
         value = json.loads(
-            line, object_pairs_hook=object_pairs, parse_int=str, parse_float=str,
+            line,
+            object_pairs_hook=object_pairs,
+            parse_int=str,
+            parse_float=str,
             parse_constant=lambda token: (_ for _ in ()).throw(ValueError(token)),
         )
     except (json.JSONDecodeError, ValueError) as exc:
@@ -1115,10 +1237,7 @@ def _read(
     path: str | Path, recipe: dict[str, Any], max_rows: int, side: str, decoded_sizes: dict[Path, int] | None = None
 ) -> tuple[list[dict[str, Any]], list[str]]:
     raw_rows = list(_iter_input_rows(path, recipe, max_rows, side, decoded_sizes or {}))
-    rows = [
-        _parse_row(row, recipe, side, recipe.get("output", {}).get("sensitivity") == "raw")
-        for row in raw_rows
-    ]
+    rows = [_parse_row(row, recipe, side, recipe.get("output", {}).get("sensitivity") == "raw") for row in raw_rows]
     return rows, []
 
 
@@ -1136,12 +1255,41 @@ def _digest(path: Path) -> str:
 def _validate_parquet_projection(schema: Any, recipe: dict[str, Any], side: str) -> None:
     if recipe.get("input_projection") != "semantic-scalar-v1":
         return
-    scalar = {"Null", "String", "Boolean", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "Float32", "Float64", "Decimal", "Date", "Datetime"}
+    scalar = {
+        "Null",
+        "String",
+        "Boolean",
+        "Int8",
+        "Int16",
+        "Int32",
+        "Int64",
+        "UInt8",
+        "UInt16",
+        "UInt32",
+        "UInt64",
+        "Float32",
+        "Float64",
+        "Decimal",
+        "Date",
+        "Datetime",
+    }
     admitted = {
         "string": {"String"},
         "integer": {"Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "String"},
         "decimal": {"Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "Decimal", "String"},
-        "float": {"Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "Float32", "Float64", "String"},
+        "float": {
+            "Int8",
+            "Int16",
+            "Int32",
+            "Int64",
+            "UInt8",
+            "UInt16",
+            "UInt32",
+            "UInt64",
+            "Float32",
+            "Float64",
+            "String",
+        },
         "boolean": {"Boolean", "String"},
         "date": {"Date", "String"},
         "timestamp": {"Datetime", "String"},
@@ -1157,8 +1305,12 @@ def _validate_parquet_projection(schema: Any, recipe: dict[str, Any], side: str)
         base = str(dtype.base_type())
         if base != "Null" and base not in admitted[policy["type"]]:
             raise ParisonError(f"Parquet column {source} cannot project to {policy['type']} under semantic-scalar-v1")
-        if base == "Datetime" and (getattr(dtype, "time_unit", None) == "ns" or getattr(dtype, "time_zone", None) is None):
-            raise ParisonError(f"Parquet column {source} has lossy or timezone-naive timestamp type under semantic-scalar-v1")
+        if base == "Datetime" and (
+            getattr(dtype, "time_unit", None) == "ns" or getattr(dtype, "time_zone", None) is None
+        ):
+            raise ParisonError(
+                f"Parquet column {source} has lossy or timezone-naive timestamp type under semantic-scalar-v1"
+            )
 
 
 def _input_columns(
@@ -1171,7 +1323,9 @@ def _input_columns(
     decoded_sizes = decoded_sizes or {}
     source_path = _source_path(path)
     if source_path.is_dir():
-        schemas = [_input_columns(partition, decoded_sizes, delimiter, recipe, side) for partition in _source_paths(path)]
+        schemas = [
+            _input_columns(partition, decoded_sizes, delimiter, recipe, side) for partition in _source_paths(path)
+        ]
         if any(set(schema) != set(schemas[0]) for schema in schemas[1:]):
             raise ParisonError(f"partitioned input has inconsistent schemas: {source_path}")
         return schemas[0]
@@ -1214,7 +1368,9 @@ def _input_columns(
         except Exception as exc:
             raise ParisonError(f"cannot read schema from {path}: {exc}") from exc
     else:
-        raise ParisonError(f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet or gzip-compressed text")
+        raise ParisonError(
+            f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet or gzip-compressed text"
+        )
     if not columns:
         raise ParisonError(f"input has no schema: {path}")
     if any(not isinstance(name, str) or not name for name in columns) or len(columns) != len(set(columns)):
@@ -1274,14 +1430,20 @@ def _aggregate_record_diagnostics(
     invalid_fields: Counter[str] = Counter()
     invalid_rows = null_group_rows = rejected_null_values = rows = 0
     group_limit_exceeded = False
-    rejected_columns = {policy["column"] for policy in recipe["measures"].values() if policy["operator"] != "count" and policy["nulls"] == "reject"}
+    rejected_columns = {
+        policy["column"]
+        for policy in recipe["measures"].values()
+        if policy["operator"] != "count" and policy["nulls"] == "reject"
+    }
     for raw in _iter_input_rows(source, recipe, max_rows, side, decoded_sizes):
         rows += 1
         parsed = {}
         row_is_invalid = False
         for name, policy in recipe["columns"].items():
             try:
-                parsed[name] = _normalize(_parse_input(raw.get(_source_name(recipe, name, side)), policy, name, recipe), policy)
+                parsed[name] = _normalize(
+                    _parse_input(raw.get(_source_name(recipe, name, side)), policy, name, recipe), policy
+                )
             except ParisonError:
                 invalid_fields[name] += 1
                 row_is_invalid = True
@@ -1318,7 +1480,9 @@ def _multiset_record_diagnostics(source, recipe, max_rows, max_distinct_rows, si
         row_invalid = False
         for name, policy in recipe["columns"].items():
             try:
-                parsed[name] = _normalize(_parse_input(raw.get(_source_name(recipe, name, side)), policy, name, recipe), policy)
+                parsed[name] = _normalize(
+                    _parse_input(raw.get(_source_name(recipe, name, side)), policy, name, recipe), policy
+                )
             except ParisonError:
                 invalid_fields[name] += 1
                 row_invalid = True
@@ -1326,7 +1490,14 @@ def _multiset_record_diagnostics(source, recipe, max_rows, max_distinct_rows, si
         if not row_invalid:
             seen.add(tuple(parsed[name] for name in sorted(recipe["columns"])))
     limit_exceeded = len(seen) > max_distinct_rows
-    return {"status": "invalid" if invalid_rows or limit_exceeded else "valid", "rows": rows, "invalid_rows": invalid_rows, "invalid_fields": dict(sorted(invalid_fields.items())), "distinct_rows": len(seen), "distinct_row_limit_exceeded": limit_exceeded}
+    return {
+        "status": "invalid" if invalid_rows or limit_exceeded else "valid",
+        "rows": rows,
+        "invalid_rows": invalid_rows,
+        "invalid_fields": dict(sorted(invalid_fields.items())),
+        "distinct_rows": len(seen),
+        "distinct_row_limit_exceeded": limit_exceeded,
+    }
 
 
 def validate_inputs(
@@ -1394,7 +1565,11 @@ def validate_inputs(
     if validate_records and any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being validated")
     result = {
-        "schema_version": 2 if recipe["comparison_mode"] == "aggregate" else 3 if recipe["comparison_mode"] == "multiset" else 1,
+        "schema_version": 2
+        if recipe["comparison_mode"] == "aggregate"
+        else 3
+        if recipe["comparison_mode"] == "multiset"
+        else 1,
         "status": status,
         "comparison_mode": recipe["comparison_mode"],
         "canonical_columns": len(recipe["columns"]),
@@ -1417,7 +1592,10 @@ def _suggest_type(values: list[Any]) -> dict[str, Any]:
     lowered = {value.lower() for value in present}
     if lowered <= {"true", "false"}:
         return {"type": "boolean", "comparison": "exact"}
-    if all(value.lstrip("-").isdigit() and not (value.lstrip("-").startswith("0") and len(value.lstrip("-")) > 1) for value in present):
+    if all(
+        value.lstrip("-").isdigit() and not (value.lstrip("-").startswith("0") and len(value.lstrip("-")) > 1)
+        for value in present
+    ):
         return {"type": "integer", "comparison": "exact"}
     try:
         decimals = [Decimal(value) for value in present]
@@ -1453,7 +1631,11 @@ def _suggest_keys(columns: list[str], baseline: list[dict[str, Any]], candidate:
             counts.append(len(set(values)))
         return counts
 
-    identifiers = [name for name in columns if any(token in name.lower().replace("_", " ").split() for token in ("id", "key", "code"))]
+    identifiers = [
+        name
+        for name in columns
+        if any(token in name.lower().replace("_", " ").split() for token in ("id", "key", "code"))
+    ]
     chosen: list[str] = []
     for pool in (identifiers, [name for name in columns if name not in identifiers]):
         remaining = list(pool)
@@ -1514,9 +1696,13 @@ def draft_recipe(
     candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000, "candidate", decoded_sizes)
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being inspected")
-    cutoff = datetime.fromtimestamp(
-        max(path.stat().st_mtime for source in (baseline, candidate) for path in _source_paths(source)), UTC
-    ).isoformat().replace("+00:00", "Z")
+    cutoff = (
+        datetime.fromtimestamp(
+            max(path.stat().st_mtime for source in (baseline, candidate) for path in _source_paths(source)), UTC
+        )
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
     columns = {name: _suggest_type([row[name] for row in baseline_rows + candidate_rows]) for name in shared}
     common = {
         "scope": {
@@ -1549,7 +1735,13 @@ def draft_recipe(
             identifier = any(token in name.lower().replace("_", " ").split() for token in ("id", "key", "code"))
             if policy["type"] in {"integer", "decimal"} and name not in group_by and not identifier:
                 measures[f"sum_{name}"] = {"operator": "sum", "column": name, "nulls": "reject"}
-        return {"recipe_version": 2, "comparison_mode": "aggregate", "group_by": group_by, "measures": measures, **common}
+        return {
+            "recipe_version": 2,
+            "comparison_mode": "aggregate",
+            "group_by": group_by,
+            "measures": measures,
+            **common,
+        }
     if multiset:
         return {"recipe_version": 3, "comparison_mode": "multiset", **common}
     return {
@@ -1568,7 +1760,16 @@ def _json_value(value: Any) -> Any:
     return value
 
 
-_MULTISET_TAGS = {"null": b"\x00", "boolean": b"\x01", "integer": b"\x02", "decimal": b"\x03", "string": b"\x04", "date": b"\x05", "timestamp": b"\x06", "float": b"\x07"}
+_MULTISET_TAGS = {
+    "null": b"\x00",
+    "boolean": b"\x01",
+    "integer": b"\x02",
+    "decimal": b"\x03",
+    "string": b"\x04",
+    "date": b"\x05",
+    "timestamp": b"\x06",
+    "float": b"\x07",
+}
 
 
 def _multiset_encoding(row: tuple[Any, ...], names: list[str], recipe: dict[str, Any]) -> bytes:
@@ -1610,7 +1811,9 @@ def _key_text(key: tuple[Any, ...]) -> list[Any]:
     return [_json_value(value) for value in key]
 
 
-def _index(rows: list[dict[str, Any]], keys: list[str], side: str) -> tuple[dict[tuple[Any, ...], dict[str, Any]], list[str]]:
+def _index(
+    rows: list[dict[str, Any]], keys: list[str], side: str
+) -> tuple[dict[tuple[Any, ...], dict[str, Any]], list[str]]:
     problems: list[str] = []
     values = [tuple(row[k] for k in keys) for row in rows]
     null_count = sum(any(v is None for v in key) for key in values)
@@ -1695,7 +1898,9 @@ def _iter_input_rows(
         yield first
         yield from rows
     else:
-        raise ParisonError(f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet or gzip-compressed text")
+        raise ParisonError(
+            f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet or gzip-compressed text"
+        )
 
 
 def _read_stream_index(
@@ -1815,8 +2020,12 @@ def _restore_row(rendered: str, recipe: dict[str, Any]) -> dict[str, Any]:
 
 
 def _sqlite_keyed_summary(
-    sources: tuple[str | Path, str | Path], recipe: dict[str, Any], max_rows: int,
-    sample_limit: int, max_temp_bytes: int, temp_directory: str | Path | None,
+    sources: tuple[str | Path, str | Path],
+    recipe: dict[str, Any],
+    max_rows: int,
+    sample_limit: int,
+    max_temp_bytes: int,
+    temp_directory: str | Path | None,
     decoded_sizes: dict[Path, int],
 ) -> dict[str, Any]:
     parent = Path(temp_directory) if temp_directory is not None else None
@@ -1855,7 +2064,9 @@ def _sqlite_keyed_summary(
                             payload["raw"] = {name: _raw_value(row, name) for name in recipe["columns"]}
                         rendered = json.dumps(
                             payload,
-                            sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                            ensure_ascii=False,
                         )
                         connection.execute(
                             "INSERT INTO records VALUES (?, ?, ?, ?, 1) "
@@ -1867,9 +2078,11 @@ def _sqlite_keyed_summary(
                     null_totals.append(nulls)
                 connection.commit()
                 duplicates = [
-                    int(connection.execute(
-                        "SELECT COUNT(*) FROM records WHERE side = ? AND occurrences > 1", (side_id,)
-                    ).fetchone()[0])
+                    int(
+                        connection.execute(
+                            "SELECT COUNT(*) FROM records WHERE side = ? AND occurrences > 1", (side_id,)
+                        ).fetchone()[0]
+                    )
                     for side_id in (0, 1)
                 ]
                 problems = []
@@ -1878,17 +2091,23 @@ def _sqlite_keyed_summary(
                         problems.append(f"{side} has {nulls} row(s) with null key components")
                     if repeated:
                         problems.append(f"{side} has {repeated} duplicate key(s)")
-                common = int(connection.execute(
-                    "SELECT COUNT(*) FROM records AS baseline JOIN records AS candidate ON candidate.side = 1 AND candidate.key = baseline.key WHERE baseline.side = 0"
-                ).fetchone()[0])
-                baseline_only = int(connection.execute(
-                    "SELECT COUNT(*) FROM records AS baseline WHERE baseline.side = 0 AND NOT EXISTS "
-                    "(SELECT 1 FROM records AS candidate WHERE candidate.side = 1 AND candidate.key = baseline.key)"
-                ).fetchone()[0])
-                candidate_only = int(connection.execute(
-                    "SELECT COUNT(*) FROM records AS candidate WHERE candidate.side = 1 AND NOT EXISTS "
-                    "(SELECT 1 FROM records AS baseline WHERE baseline.side = 0 AND baseline.key = candidate.key)"
-                ).fetchone()[0])
+                common = int(
+                    connection.execute(
+                        "SELECT COUNT(*) FROM records AS baseline JOIN records AS candidate ON candidate.side = 1 AND candidate.key = baseline.key WHERE baseline.side = 0"
+                    ).fetchone()[0]
+                )
+                baseline_only = int(
+                    connection.execute(
+                        "SELECT COUNT(*) FROM records AS baseline WHERE baseline.side = 0 AND NOT EXISTS "
+                        "(SELECT 1 FROM records AS candidate WHERE candidate.side = 1 AND candidate.key = baseline.key)"
+                    ).fetchone()[0]
+                )
+                candidate_only = int(
+                    connection.execute(
+                        "SELECT COUNT(*) FROM records AS candidate WHERE candidate.side = 1 AND NOT EXISTS "
+                        "(SELECT 1 FROM records AS baseline WHERE baseline.side = 0 AND baseline.key = candidate.key)"
+                    ).fetchone()[0]
+                )
                 discrepancies: list[dict[str, Any]] = []
                 if raw_output:
                     for side_id, classification in ((0, "baseline_only"), (1, "candidate_only")):
@@ -1899,14 +2118,18 @@ def _sqlite_keyed_summary(
                         records = connection.execute(
                             "SELECT row_json FROM records AS current WHERE side = ? AND NOT EXISTS "
                             "(SELECT 1 FROM records AS other WHERE other.side = ? AND other.key = current.key) "
-                            "ORDER BY key_order LIMIT ?", (side_id, other, remaining),
+                            "ORDER BY key_order LIMIT ?",
+                            (side_id, other, remaining),
                         )
                         for (row_json,) in records:
                             row = _restore_row(row_json, recipe)
-                            discrepancies.append({
-                                "kind": "record", "key": [_raw_value(row, name) for name in keys],
-                                "classification": classification,
-                            })
+                            discrepancies.append(
+                                {
+                                    "kind": "record",
+                                    "key": [_raw_value(row, name) for name in keys],
+                                    "classification": classification,
+                                }
+                            )
                 field_counts = {name: {"exact": 0, "within_tolerance": 0, "different": 0} for name in compared}
                 row_counts = {"exact": 0, "within_tolerance": 0, "different": 0}
                 field_discrepancy_count = 0
@@ -1932,18 +2155,31 @@ def _sqlite_keyed_summary(
                             if classification != "exact":
                                 field_discrepancy_count += 1
                                 if raw_output and len(discrepancies) < sample_limit:
-                                    discrepancies.append({
-                                        "kind": "field", "key": _key_text(key), "field": name,
-                                        "baseline": _raw_value(left, name), "candidate": _raw_value(right, name),
-                                        "classification": classification, "delta": delta, "allowance": allowance,
-                                    })
+                                    discrepancies.append(
+                                        {
+                                            "kind": "field",
+                                            "key": _key_text(key),
+                                            "field": name,
+                                            "baseline": _raw_value(left, name),
+                                            "candidate": _raw_value(right, name),
+                                            "classification": classification,
+                                            "delta": delta,
+                                            "allowance": allowance,
+                                        }
+                                    )
                         row_counts[row_class] += 1
                 return {
-                    "baseline": row_totals[0], "candidate": row_totals[1], "common_keys": common,
-                    "baseline_only": baseline_only, "candidate_only": candidate_only,
-                    "field_counts": field_counts, "row_counts": row_counts,
-                    "field_discrepancy_count": field_discrepancy_count, "problems": problems,
-                    "discrepancies": discrepancies, "temporary_bytes": database.stat().st_size,
+                    "baseline": row_totals[0],
+                    "candidate": row_totals[1],
+                    "common_keys": common,
+                    "baseline_only": baseline_only,
+                    "candidate_only": candidate_only,
+                    "field_counts": field_counts,
+                    "row_counts": row_counts,
+                    "field_discrepancy_count": field_discrepancy_count,
+                    "problems": problems,
+                    "discrepancies": discrepancies,
+                    "temporary_bytes": database.stat().st_size,
                 }
             finally:
                 connection.close()
@@ -1995,14 +2231,32 @@ def compare(
     policy_sha256 = _checked_policy_sha256(recipe, expected_policy_sha256)
     if recipe["comparison_mode"] == "aggregate":
         return _compare_aggregate(
-            recipe_path, recipe, baseline_path, candidate_path, sample_limit, max_input_bytes,
-            max_rows, max_decoded_bytes, max_groups, policy_sha256,
+            recipe_path,
+            recipe,
+            baseline_path,
+            candidate_path,
+            sample_limit,
+            max_input_bytes,
+            max_rows,
+            max_decoded_bytes,
+            max_groups,
+            policy_sha256,
         )
     if recipe["comparison_mode"] == "multiset":
         return _compare_multiset(
-            recipe_path, recipe, baseline_path, candidate_path, sample_limit, max_input_bytes,
-            max_rows, max_decoded_bytes, max_distinct_rows, policy_sha256,
-            engine, max_temp_bytes, temp_directory,
+            recipe_path,
+            recipe,
+            baseline_path,
+            candidate_path,
+            sample_limit,
+            max_input_bytes,
+            max_rows,
+            max_decoded_bytes,
+            max_distinct_rows,
+            policy_sha256,
+            engine,
+            max_temp_bytes,
+            temp_directory,
         )
     input_bytes = _source_bytes(baseline_path) + _source_bytes(candidate_path)
     if input_bytes > max_input_bytes:
@@ -2014,8 +2268,13 @@ def compare(
     streaming = not raw_output
     if engine == "sqlite":
         summary = _sqlite_keyed_summary(
-            (baseline_path, candidate_path), recipe, max_rows, sample_limit,
-            max_temp_bytes, temp_directory, decoded_sizes,
+            (baseline_path, candidate_path),
+            recipe,
+            max_rows,
+            sample_limit,
+            max_temp_bytes,
+            temp_directory,
+            decoded_sizes,
         )
         baseline_count = summary["baseline"]
         candidate_count = summary["candidate"]
@@ -2029,7 +2288,9 @@ def compare(
         discrepancies = summary["discrepancies"]
         temporary_bytes = summary["temporary_bytes"]
     elif streaming:
-        left, baseline_count, left_problems = _read_stream_index(baseline_path, recipe, max_rows, "baseline", decoded_sizes)
+        left, baseline_count, left_problems = _read_stream_index(
+            baseline_path, recipe, max_rows, "baseline", decoded_sizes
+        )
     else:
         baseline, _ = _read(baseline_path, recipe, max_rows, "baseline", decoded_sizes)
         baseline_count = len(baseline)
@@ -2060,7 +2321,9 @@ def compare(
         common_count = len(common)
         baseline_only_count = len(baseline_only)
         candidate_only_count = len(candidate_only)
-        field_counts = {name: {"exact": 0, "within_tolerance": 0, "different": 0} for name in recipe["columns"] if name not in keys}
+        field_counts = {
+            name: {"exact": 0, "within_tolerance": 0, "different": 0} for name in recipe["columns"] if name not in keys
+        }
         row_counts = {"exact": 0, "within_tolerance": 0, "different": 0}
         discrepancy_count = 0
         if raw_output:
@@ -2069,14 +2332,22 @@ def compare(
                     if len(discrepancies) >= sample_limit:
                         break
                     source = left if classification == "baseline_only" else right
-                    discrepancies.append({"kind": "record", "key": [_raw_value(source[key], name) for name in keys], "classification": classification})
+                    discrepancies.append(
+                        {
+                            "kind": "record",
+                            "key": [_raw_value(source[key], name) for name in keys],
+                            "classification": classification,
+                        }
+                    )
     if engine != "sqlite" and not streaming and not problems:
         for key in sorted(common, key=lambda item: tuple(str(v) for v in item)):
             row_class = "exact"
             for name, policy in recipe["columns"].items():
                 if name in keys:
                     continue
-                classification, delta, allowance = _classify(left[key][name], right[key][name], policy, recipe["nulls_equal"])
+                classification, delta, allowance = _classify(
+                    left[key][name], right[key][name], policy, recipe["nulls_equal"]
+                )
                 field_counts[name][classification] += 1
                 if classification == "different":
                     row_class = "different"
@@ -2085,23 +2356,29 @@ def compare(
                 if classification != "exact":
                     discrepancy_count += 1
                     if raw_output and len(discrepancies) < sample_limit:
-                        discrepancies.append({
-                            "kind": "field",
-                            "key": _key_text(key),
-                            "field": name,
-                            "baseline": _raw_value(left[key], name),
-                            "candidate": _raw_value(right[key], name),
-                            "classification": classification,
-                            "delta": delta,
-                            "allowance": allowance,
-                        })
+                        discrepancies.append(
+                            {
+                                "kind": "field",
+                                "key": _key_text(key),
+                                "field": name,
+                                "baseline": _raw_value(left[key], name),
+                                "candidate": _raw_value(right[key], name),
+                                "classification": classification,
+                                "delta": delta,
+                                "allowance": allowance,
+                            }
+                        )
             row_counts[row_class] += 1
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being read")
     empty = not baseline_count or not candidate_count
     if empty and not recipe["scope"]["expected_empty"]:
         problems.append("nonempty comparable inputs are required")
-    outcome = "INCONCLUSIVE" if problems else ("FAIL" if baseline_only_count or candidate_only_count or row_counts["different"] else "PASS")
+    outcome = (
+        "INCONCLUSIVE"
+        if problems
+        else ("FAIL" if baseline_only_count or candidate_only_count or row_counts["different"] else "PASS")
+    )
     runtime = _runtime_info((baseline_path, candidate_path))
     resource_limits = {
         "max_input_bytes": max_input_bytes,
@@ -2121,20 +2398,27 @@ def compare(
         "resource_limits": resource_limits,
         "scope": recipe["scope"],
         "keys": keys,
-        "policy": _with_input_projection(recipe, {
-            "keys": keys,
-            "nulls_equal": recipe["nulls_equal"],
-            "delimiters": recipe["delimiters"],
-            "null_tokens": recipe["null_tokens"],
-            "sensitivity": recipe["output"]["sensitivity"],
-        }),
+        "policy": _with_input_projection(
+            recipe,
+            {
+                "keys": keys,
+                "nulls_equal": recipe["nulls_equal"],
+                "delimiters": recipe["delimiters"],
+                "null_tokens": recipe["null_tokens"],
+                "sensitivity": recipe["output"]["sensitivity"],
+            },
+        ),
         "column_policies": recipe["columns"],
         "column_mappings": recipe.get("column_mappings", {}),
         "problems": problems,
         "counts": {
-            "baseline": baseline_count, "candidate": candidate_count, "common_keys": common_count,
-            "baseline_only": baseline_only_count, "candidate_only": candidate_only_count,
-            "matched_exact": row_counts["exact"], "matched_within_tolerance": row_counts["within_tolerance"],
+            "baseline": baseline_count,
+            "candidate": candidate_count,
+            "common_keys": common_count,
+            "baseline_only": baseline_only_count,
+            "candidate_only": candidate_only_count,
+            "matched_exact": row_counts["exact"],
+            "matched_within_tolerance": row_counts["within_tolerance"],
             "matched_with_required_difference": row_counts["different"],
         },
         "field_counts": field_counts,
@@ -2226,7 +2510,11 @@ def _aggregate_input(
             state["contributing"] += 1
             if operator == "sum":
                 state["value"] = (state["value"] or 0) + value
-            elif state["value"] is None or (operator == "min" and value < state["value"]) or (operator == "max" and value > state["value"]):
+            elif (
+                state["value"] is None
+                or (operator == "min" and value < state["value"])
+                or (operator == "max" and value > state["value"])
+            ):
                 state["value"] = value
     if not recipe["group_by"] and not groups:
         groups[()] = {
@@ -2260,8 +2548,12 @@ def _compare_aggregate(
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
     decoded_sizes = _decoded_sizes((baseline_path, candidate_path), max_decoded_bytes)
     before = {str(source): _source_digest(source) for source in (baseline_path, candidate_path)}
-    left, baseline_rows, problems = _aggregate_input(baseline_path, recipe, "baseline", max_rows, max_groups, decoded_sizes)
-    right, candidate_rows, right_problems = _aggregate_input(candidate_path, recipe, "candidate", max_rows, max_groups, decoded_sizes)
+    left, baseline_rows, problems = _aggregate_input(
+        baseline_path, recipe, "baseline", max_rows, max_groups, decoded_sizes
+    )
+    right, candidate_rows, right_problems = _aggregate_input(
+        candidate_path, recipe, "candidate", max_rows, max_groups, decoded_sizes
+    )
     problems += right_problems
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being read")
@@ -2288,14 +2580,26 @@ def _compare_aggregate(
                 if classification != "exact":
                     measure_discrepancies += 1
                     if raw_output and len(discrepancies) < sample_limit:
-                        discrepancies.append({
-                            "kind": "measure", "group": _key_text(key), "measure": name,
-                            "baseline": lvalue, "candidate": rvalue, "classification": classification,
-                            "delta": delta, "allowance": allowance,
-                            "baseline_count": lstate["contributing"], "candidate_count": rstate["contributing"],
-                            "baseline_ignored_nulls": lstate["ignored_nulls"], "candidate_ignored_nulls": rstate["ignored_nulls"],
-                        })
-    totals = {kind: sum(values[kind] for values in measure_counts.values()) for kind in ("exact", "within_tolerance", "different")}
+                        discrepancies.append(
+                            {
+                                "kind": "measure",
+                                "group": _key_text(key),
+                                "measure": name,
+                                "baseline": lvalue,
+                                "candidate": rvalue,
+                                "classification": classification,
+                                "delta": delta,
+                                "allowance": allowance,
+                                "baseline_count": lstate["contributing"],
+                                "candidate_count": rstate["contributing"],
+                                "baseline_ignored_nulls": lstate["ignored_nulls"],
+                                "candidate_ignored_nulls": rstate["ignored_nulls"],
+                            }
+                        )
+    totals = {
+        kind: sum(values[kind] for values in measure_counts.values())
+        for kind in ("exact", "within_tolerance", "different")
+    }
     measure_conservation = {}
     for name in recipe["measures"]:
         measure_conservation[name] = {
@@ -2305,26 +2609,47 @@ def _compare_aggregate(
             }
             for side, groups in (("baseline", left), ("candidate", right))
         }
-    outcome = "INCONCLUSIVE" if problems else ("FAIL" if baseline_only or candidate_only or totals["different"] else "PASS")
+    outcome = (
+        "INCONCLUSIVE" if problems else ("FAIL" if baseline_only or candidate_only or totals["different"] else "PASS")
+    )
     return {
         "schema_version": 2,
         "outcome": outcome,
         "complete": not problems,
         "sensitivity": recipe["output"]["sensitivity"],
         "runtime": _runtime_info((baseline_path, candidate_path), "aggregate-v1"),
-        "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows, "max_groups_per_input": max_groups},
+        "resource_limits": {
+            "max_input_bytes": max_input_bytes,
+            "max_decoded_bytes": max_decoded_bytes,
+            "max_rows_per_input": max_rows,
+            "max_groups_per_input": max_groups,
+        },
         "scope": recipe["scope"],
         "group_by": recipe["group_by"],
         "measures": recipe["measures"],
-        "policy": _with_input_projection(recipe, {"group_nulls": "reject", "delimiters": recipe["delimiters"], "null_tokens": recipe["null_tokens"], "sensitivity": recipe["output"]["sensitivity"]}),
+        "policy": _with_input_projection(
+            recipe,
+            {
+                "group_nulls": "reject",
+                "delimiters": recipe["delimiters"],
+                "null_tokens": recipe["null_tokens"],
+                "sensitivity": recipe["output"]["sensitivity"],
+            },
+        ),
         "column_policies": recipe["columns"],
         "column_mappings": recipe.get("column_mappings", {}),
         "problems": problems,
         "counts": {
-            "baseline_rows": baseline_rows, "candidate_rows": candidate_rows,
-            "baseline_groups": len(left), "candidate_groups": len(right), "common_groups": len(common),
-            "baseline_only_groups": len(baseline_only), "candidate_only_groups": len(candidate_only),
-            "exact_measures": totals["exact"], "within_tolerance_measures": totals["within_tolerance"], "different_measures": totals["different"],
+            "baseline_rows": baseline_rows,
+            "candidate_rows": candidate_rows,
+            "baseline_groups": len(left),
+            "candidate_groups": len(right),
+            "common_groups": len(common),
+            "baseline_only_groups": len(baseline_only),
+            "candidate_only_groups": len(candidate_only),
+            "exact_measures": totals["exact"],
+            "within_tolerance_measures": totals["within_tolerance"],
+            "different_measures": totals["different"],
         },
         "measure_counts": measure_counts,
         "measure_conservation": measure_conservation,
@@ -2333,8 +2658,20 @@ def _compare_aggregate(
         "discrepancy_sample_limit": sample_limit if raw_output else 0,
         "excluded_columns": recipe.get("excluded_columns", {}),
         "inputs": {
-            "baseline": _source_metadata(baseline_path, before[str(baseline_path)], decoded_sizes, recipe["delimiters"]["baseline"], recipe["null_tokens"]["baseline"]),
-            "candidate": _source_metadata(candidate_path, before[str(candidate_path)], decoded_sizes, recipe["delimiters"]["candidate"], recipe["null_tokens"]["candidate"]),
+            "baseline": _source_metadata(
+                baseline_path,
+                before[str(baseline_path)],
+                decoded_sizes,
+                recipe["delimiters"]["baseline"],
+                recipe["null_tokens"]["baseline"],
+            ),
+            "candidate": _source_metadata(
+                candidate_path,
+                before[str(candidate_path)],
+                decoded_sizes,
+                recipe["delimiters"]["candidate"],
+                recipe["null_tokens"]["candidate"],
+            ),
         },
         "recipe_sha256": _digest(recipe_path),
         "policy_sha256": policy_sha256,
@@ -2377,7 +2714,12 @@ def _sqlite_multiset_counts(
                         row = _parse_row(raw, recipe, side)
                         values = tuple(row[name] for name in names)
                         encoded = _multiset_encoding(values, names, recipe)
-                        rendered = json.dumps({name: _json_value(value) for name, value in zip(names, values)}, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+                        rendered = json.dumps(
+                            {name: _json_value(value) for name, value in zip(names, values)},
+                            sort_keys=True,
+                            separators=(",", ":"),
+                            ensure_ascii=False,
+                        )
                         cursor = connection.execute(
                             "INSERT OR IGNORE INTO counts VALUES (?, ?, ?, 0)",
                             (side_id, encoded, rendered),
@@ -2404,7 +2746,10 @@ def _sqlite_multiset_counts(
                 )
                 summary, differing, differing_count = _summarize_multiset(
                     ((json.loads(row_json), left, right) for _, row_json, left, right in records),
-                    row_totals[0], row_totals[1], recipe["output"]["sensitivity"] == "raw", sample_limit,
+                    row_totals[0],
+                    row_totals[1],
+                    recipe["output"]["sensitivity"] == "raw",
+                    sample_limit,
                 )
                 return summary, differing, differing_count, database.stat().st_size
             finally:
@@ -2419,12 +2764,19 @@ def _sqlite_multiset_counts(
         raise ParisonError(f"cannot use spill directory: {exc}") from exc
 
 
-def _summarize_multiset(records, baseline_rows: int, candidate_rows: int, raw: bool, sample_limit: int) -> tuple[dict[str, int], list[dict[str, Any]], int]:
+def _summarize_multiset(
+    records, baseline_rows: int, candidate_rows: int, raw: bool, sample_limit: int
+) -> tuple[dict[str, int], list[dict[str, Any]], int]:
     summary = {
-        "baseline_rows": baseline_rows, "candidate_rows": candidate_rows,
-        "common_occurrences": 0, "baseline_only_occurrences": 0, "candidate_only_occurrences": 0,
-        "baseline_distinct_rows": 0, "candidate_distinct_rows": 0,
-        "baseline_surplus_shapes": 0, "candidate_surplus_shapes": 0,
+        "baseline_rows": baseline_rows,
+        "candidate_rows": candidate_rows,
+        "common_occurrences": 0,
+        "baseline_only_occurrences": 0,
+        "candidate_only_occurrences": 0,
+        "baseline_distinct_rows": 0,
+        "candidate_distinct_rows": 0,
+        "baseline_surplus_shapes": 0,
+        "candidate_surplus_shapes": 0,
     }
     sample: list[dict[str, Any]] = []
     differing = 0
@@ -2439,11 +2791,32 @@ def _summarize_multiset(records, baseline_rows: int, candidate_rows: int, raw: b
         if left != right:
             differing += 1
             if raw and len(sample) < sample_limit:
-                sample.append({"row": row, "baseline_count": left, "candidate_count": right, "classification": "baseline_surplus" if left > right else "candidate_surplus"})
+                sample.append(
+                    {
+                        "row": row,
+                        "baseline_count": left,
+                        "candidate_count": right,
+                        "classification": "baseline_surplus" if left > right else "candidate_surplus",
+                    }
+                )
     return summary, sample, differing
 
 
-def _compare_multiset(recipe_path: Path, recipe: dict[str, Any], baseline_path: str | Path, candidate_path: str | Path, sample_limit: int, max_input_bytes: int, max_rows: int, max_decoded_bytes: int, max_distinct_rows: int, policy_sha256: str, engine: str = "memory", max_temp_bytes: int = DEFAULT_MAX_TEMP_BYTES, temp_directory: str | Path | None = None) -> dict[str, Any]:
+def _compare_multiset(
+    recipe_path: Path,
+    recipe: dict[str, Any],
+    baseline_path: str | Path,
+    candidate_path: str | Path,
+    sample_limit: int,
+    max_input_bytes: int,
+    max_rows: int,
+    max_decoded_bytes: int,
+    max_distinct_rows: int,
+    policy_sha256: str,
+    engine: str = "memory",
+    max_temp_bytes: int = DEFAULT_MAX_TEMP_BYTES,
+    temp_directory: str | Path | None = None,
+) -> dict[str, Any]:
     if _source_bytes(baseline_path) + _source_bytes(candidate_path) > max_input_bytes:
         raise ParisonError(f"combined input size exceeds limit {max_input_bytes} bytes")
     decoded_sizes = _decoded_sizes((baseline_path, candidate_path), max_decoded_bytes)
@@ -2451,38 +2824,89 @@ def _compare_multiset(recipe_path: Path, recipe: dict[str, Any], baseline_path: 
     names = sorted(recipe["columns"])
     if engine == "sqlite":
         counts, differing_rows, differing_count, temporary_bytes = _sqlite_multiset_counts(
-            (baseline_path, candidate_path), recipe, names, max_rows, max_distinct_rows, sample_limit,
-            max_temp_bytes, temp_directory, decoded_sizes,
+            (baseline_path, candidate_path),
+            recipe,
+            names,
+            max_rows,
+            max_distinct_rows,
+            sample_limit,
+            max_temp_bytes,
+            temp_directory,
+            decoded_sizes,
         )
         baseline_rows, candidate_rows = counts["baseline_rows"], counts["candidate_rows"]
     else:
+
         def counted(source, side):
             rows, _ = _read(source, recipe, max_rows, side, decoded_sizes)
             values = Counter(tuple(row[name] for name in names) for row in rows)
             if len(values) > max_distinct_rows:
                 raise ParisonError(f"distinct row count in {side} exceeds limit {max_distinct_rows}")
             return values, len(rows)
+
         left, baseline_rows = counted(baseline_path, "baseline")
         right, candidate_rows = counted(candidate_path, "candidate")
         sort_key = lambda row: _multiset_encoding(row, names, recipe)
         all_rows = sorted(set(left) | set(right), key=sort_key)
         counts, differing_rows, differing_count = _summarize_multiset(
-            (({name: _json_value(value) for name, value in zip(names, row)}, left[row], right[row]) for row in all_rows),
-            baseline_rows, candidate_rows, recipe["output"]["sensitivity"] == "raw", sample_limit,
+            (
+                ({name: _json_value(value) for name, value in zip(names, row)}, left[row], right[row])
+                for row in all_rows
+            ),
+            baseline_rows,
+            candidate_rows,
+            recipe["output"]["sensitivity"] == "raw",
+            sample_limit,
         )
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being read")
-    problems = ["nonempty multiset inputs are required"] if not baseline_rows and not candidate_rows and not recipe["scope"]["expected_empty"] else []
+    problems = (
+        ["nonempty multiset inputs are required"]
+        if not baseline_rows and not candidate_rows and not recipe["scope"]["expected_empty"]
+        else []
+    )
     raw = recipe["output"]["sensitivity"] == "raw"
     sample = differing_rows if raw else []
     runtime = _runtime_info((baseline_path, candidate_path), "multiset-v1")
     runtime["execution_engine"] = engine
     if engine == "sqlite":
         runtime["temporary_bytes"] = temporary_bytes
-    limits = {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows, "max_distinct_rows_per_input": max_distinct_rows}
+    limits = {
+        "max_input_bytes": max_input_bytes,
+        "max_decoded_bytes": max_decoded_bytes,
+        "max_rows_per_input": max_rows,
+        "max_distinct_rows_per_input": max_distinct_rows,
+    }
     if engine == "sqlite":
         limits["max_temp_bytes"] = max_temp_bytes
-    return {"schema_version": 3, "outcome": "INCONCLUSIVE" if problems else "FAIL" if differing_count else "PASS", "complete": not problems, "sensitivity": recipe["output"]["sensitivity"], "runtime": runtime, "resource_limits": limits, "scope": recipe["scope"], "policy": _with_input_projection(recipe, {"canonical_encoding": "typed-length-prefixed-v1", "column_order": names, "nulls_equal": True}), "column_policies": recipe["columns"], "column_mappings": recipe.get("column_mappings", {}), "problems": problems, "counts": counts, "discrepancy_count": differing_count, "discrepancy_sample": sample, "discrepancy_sample_limit": sample_limit if raw else 0, "excluded_columns": recipe.get("excluded_columns", {}), "inputs": {side: _source_metadata(path, before[str(path)], decoded_sizes, recipe["delimiters"][side], recipe["null_tokens"][side]) for side, path in (("baseline", baseline_path), ("candidate", candidate_path))}, "recipe_sha256": _digest(recipe_path), "policy_sha256": policy_sha256}
+    return {
+        "schema_version": 3,
+        "outcome": "INCONCLUSIVE" if problems else "FAIL" if differing_count else "PASS",
+        "complete": not problems,
+        "sensitivity": recipe["output"]["sensitivity"],
+        "runtime": runtime,
+        "resource_limits": limits,
+        "scope": recipe["scope"],
+        "policy": _with_input_projection(
+            recipe, {"canonical_encoding": "typed-length-prefixed-v1", "column_order": names, "nulls_equal": True}
+        ),
+        "column_policies": recipe["columns"],
+        "column_mappings": recipe.get("column_mappings", {}),
+        "problems": problems,
+        "counts": counts,
+        "discrepancy_count": differing_count,
+        "discrepancy_sample": sample,
+        "discrepancy_sample_limit": sample_limit if raw else 0,
+        "excluded_columns": recipe.get("excluded_columns", {}),
+        "inputs": {
+            side: _source_metadata(
+                path, before[str(path)], decoded_sizes, recipe["delimiters"][side], recipe["null_tokens"][side]
+            )
+            for side, path in (("baseline", baseline_path), ("candidate", candidate_path))
+        },
+        "recipe_sha256": _digest(recipe_path),
+        "policy_sha256": policy_sha256,
+    }
 
 
 def _report(result: dict[str, Any]) -> str:
@@ -2490,59 +2914,96 @@ def _report(result: dict[str, Any]) -> str:
         return _aggregate_report(result)
     if result["schema_version"] == 3:
         return _multiset_report(result)
+
     def esc(value: Any) -> str:
         return html.escape(str(value))
+
     counts = "".join(f"<tr><th>{esc(k.replace('_', ' '))}</th><td>{v}</td></tr>" for k, v in result["counts"].items())
     problems = "".join(f"<li>{esc(item)}</li>" for item in result["problems"]) or "<li>None</li>"
     scope = result.get("scope") or {}
-    scope_rows = "".join(
-        f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(', '.join(value) if isinstance(value, list) else value)}</td></tr>"
-        for key, value in scope.items()
-    ) or '<tr><td colspan="2">Unavailable</td></tr>'
-    policy_rows = "".join(
-        f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(', '.join(value) if isinstance(value, list) else value)}</td></tr>"
-        for key, value in result.get("policy", {}).items()
-    ) or '<tr><td colspan="2">Unavailable</td></tr>'
-    column_policy_rows = "".join(
-        f"<tr><th>{esc(name)}</th><td>{esc(result.get('column_mappings', {}).get(name, {}).get('baseline', name))}</td><td>{esc(result.get('column_mappings', {}).get(name, {}).get('candidate', name))}</td><td>{esc(policy['type'])}</td><td>{esc(policy.get('comparison', 'exact'))}</td><td>{esc(json.dumps({key: value for key, value in policy.items() if key not in {'type', 'comparison'}}, sort_keys=True))}</td></tr>"
-        for name, policy in result.get("column_policies", {}).items()
-    ) or '<tr><td colspan="6">Unavailable</td></tr>'
-    field_rows = "".join(
-        f"<tr data-exact=\"{values['exact']}\" data-within_tolerance=\"{values['within_tolerance']}\" data-different=\"{values['different']}\"><th>{esc(name)}</th><td>{values['exact']}</td><td>{values['within_tolerance']}</td><td>{values['different']}</td></tr>"
-        for name, values in result["field_counts"].items()
-    ) or '<tr><td colspan="4">No comparable fields</td></tr>'
-    exclusion_rows = "".join(
-        f"<tr><th>{esc(name)}</th><td>{esc(reason)}</td></tr>"
-        for name, reason in result["excluded_columns"].items()
-    ) or '<tr><td colspan="2">None</td></tr>'
-    runtime_rows = "".join(f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(value)}</td></tr>" for key, value in result["runtime"].items())
-    limit_rows = "".join(f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(value)}</td></tr>" for key, value in result["resource_limits"].items()) or '<tr><td colspan="2">Unavailable</td></tr>'
-    input_rows = "".join(
-        f"<tr><th>{esc(side)}</th><td>{esc(values['bytes'])}</td><td><code>{esc(values['sha256'])}</code></td></tr>"
-        for side, values in result["inputs"].items()
-    ) or '<tr><td colspan="3">Unavailable</td></tr>'
+    scope_rows = (
+        "".join(
+            f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(', '.join(value) if isinstance(value, list) else value)}</td></tr>"
+            for key, value in scope.items()
+        )
+        or '<tr><td colspan="2">Unavailable</td></tr>'
+    )
+    policy_rows = (
+        "".join(
+            f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(', '.join(value) if isinstance(value, list) else value)}</td></tr>"
+            for key, value in result.get("policy", {}).items()
+        )
+        or '<tr><td colspan="2">Unavailable</td></tr>'
+    )
+    column_policy_rows = (
+        "".join(
+            f"<tr><th>{esc(name)}</th><td>{esc(result.get('column_mappings', {}).get(name, {}).get('baseline', name))}</td><td>{esc(result.get('column_mappings', {}).get(name, {}).get('candidate', name))}</td><td>{esc(policy['type'])}</td><td>{esc(policy.get('comparison', 'exact'))}</td><td>{esc(json.dumps({key: value for key, value in policy.items() if key not in {'type', 'comparison'}}, sort_keys=True))}</td></tr>"
+            for name, policy in result.get("column_policies", {}).items()
+        )
+        or '<tr><td colspan="6">Unavailable</td></tr>'
+    )
+    field_rows = (
+        "".join(
+            f'<tr data-exact="{values["exact"]}" data-within_tolerance="{values["within_tolerance"]}" data-different="{values["different"]}"><th>{esc(name)}</th><td>{values["exact"]}</td><td>{values["within_tolerance"]}</td><td>{values["different"]}</td></tr>'
+            for name, values in result["field_counts"].items()
+        )
+        or '<tr><td colspan="4">No comparable fields</td></tr>'
+    )
+    exclusion_rows = (
+        "".join(
+            f"<tr><th>{esc(name)}</th><td>{esc(reason)}</td></tr>"
+            for name, reason in result["excluded_columns"].items()
+        )
+        or '<tr><td colspan="2">None</td></tr>'
+    )
+    runtime_rows = "".join(
+        f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(value)}</td></tr>"
+        for key, value in result["runtime"].items()
+    )
+    limit_rows = (
+        "".join(
+            f"<tr><th>{esc(key.replace('_', ' '))}</th><td>{esc(value)}</td></tr>"
+            for key, value in result["resource_limits"].items()
+        )
+        or '<tr><td colspan="2">Unavailable</td></tr>'
+    )
+    input_rows = (
+        "".join(
+            f"<tr><th>{esc(side)}</th><td>{esc(values['bytes'])}</td><td><code>{esc(values['sha256'])}</code></td></tr>"
+            for side, values in result["inputs"].items()
+        )
+        or '<tr><td colspan="3">Unavailable</td></tr>'
+    )
     if result["sensitivity"] == "raw":
-        rows = "".join(
-            f'<tr data-key="{esc(row.get("key", ""))}" data-field="{esc(row.get("field", ""))}" data-class="{esc(row.get("classification", ""))}">' + "".join(f"<td>{esc(row.get(k, ''))}</td>" for k in ("kind", "key", "field", "baseline", "candidate", "classification", "delta", "allowance")) + "</tr>"
-            for row in result["discrepancy_sample"]
-        ) or '<tr><td colspan="8">No sampled discrepancies</td></tr>'
-        evidence = f"""<h2>Raw discrepancy evidence</h2><p><strong>Sensitive:</strong> this report contains source keys and values. Showing {len(result['discrepancy_sample'])} of {result['discrepancy_count']} discrepancy items.</p>
-<div class="filters"><label>Key contains <input id="raw-key" type="search"></label><label>Field <input id="raw-field" type="search"></label><label>Class <select id="raw-class"><option value="">All</option><option>baseline_only</option><option>candidate_only</option><option>within_tolerance</option><option>different</option></select></label></div><p id="raw-count" role="status" aria-live="polite">Showing {len(result['discrepancy_sample'])} of {len(result['discrepancy_sample'])} sampled items</p>
+        rows = (
+            "".join(
+                f'<tr data-key="{esc(row.get("key", ""))}" data-field="{esc(row.get("field", ""))}" data-class="{esc(row.get("classification", ""))}">'
+                + "".join(
+                    f"<td>{esc(row.get(k, ''))}</td>"
+                    for k in ("kind", "key", "field", "baseline", "candidate", "classification", "delta", "allowance")
+                )
+                + "</tr>"
+                for row in result["discrepancy_sample"]
+            )
+            or '<tr><td colspan="8">No sampled discrepancies</td></tr>'
+        )
+        evidence = f"""<h2>Raw discrepancy evidence</h2><p><strong>Sensitive:</strong> this report contains source keys and values. Showing {len(result["discrepancy_sample"])} of {result["discrepancy_count"]} discrepancy items.</p>
+<div class="filters"><label>Key contains <input id="raw-key" type="search"></label><label>Field <input id="raw-field" type="search"></label><label>Class <select id="raw-class"><option value="">All</option><option>baseline_only</option><option>candidate_only</option><option>within_tolerance</option><option>different</option></select></label></div><p id="raw-count" role="status" aria-live="polite">Showing {len(result["discrepancy_sample"])} of {len(result["discrepancy_sample"])} sampled items</p>
 <table id="raw-evidence"><thead><tr><th>Kind</th><th>Key</th><th>Field</th><th>Baseline</th><th>Candidate</th><th>Class</th><th>Delta</th><th>Allowance</th></tr></thead><tbody>{rows}</tbody></table>"""
     else:
         evidence = "<h2>Privacy</h2><p>Summary mode stores no keys or raw field values. Field and record counts are complete.</p>"
     return f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<title>Parison report: {esc(result['outcome'])}</title><style>body{{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#18202a}}h1{{color:{'#14733b' if result['outcome']=='PASS' else '#a22'}}}table{{border-collapse:collapse;width:100%;margin:1rem 0}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left;vertical-align:top}}th{{background:#f3f5f7}}code{{overflow-wrap:anywhere}}.filters{{display:flex;gap:1rem;flex-wrap:wrap}}label{{display:grid;gap:.25rem}}input,select{{font:inherit;padding:.35rem}}</style>
-<main><h1>{esc(result['outcome'])}</h1><p>Complete evaluation: <strong>{str(result['complete']).lower()}</strong></p>
+<title>Parison report: {esc(result["outcome"])}</title><style>body{{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#18202a}}h1{{color:{"#14733b" if result["outcome"] == "PASS" else "#a22"}}}table{{border-collapse:collapse;width:100%;margin:1rem 0}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left;vertical-align:top}}th{{background:#f3f5f7}}code{{overflow-wrap:anywhere}}.filters{{display:flex;gap:1rem;flex-wrap:wrap}}label{{display:grid;gap:.25rem}}input,select{{font:inherit;padding:.35rem}}</style>
+<main><h1>{esc(result["outcome"])}</h1><p>Complete evaluation: <strong>{str(result["complete"]).lower()}</strong></p>
 <h2>Scope</h2><table>{scope_rows}</table><h2>Comparison policy</h2><table>{policy_rows}</table>
 <h2>Column policies</h2><table><thead><tr><th>Field</th><th>Baseline column</th><th>Candidate column</th><th>Type</th><th>Comparison</th><th>Additional rules</th></tr></thead><tbody>{column_policy_rows}</tbody></table>
 <h2>Record counts</h2><table>{counts}</table>
-<h2>Field summary</h2><label>Show fields with <select id="field-class"><option value="">any result</option><option value="exact">exact matches</option><option value="within_tolerance">within-tolerance matches</option><option value="different">differences</option></select></label><p id="field-count" role="status" aria-live="polite">Showing {len(result['field_counts'])} of {len(result['field_counts'])} fields</p><table id="field-summary"><thead><tr><th>Field</th><th>Exact</th><th>Within tolerance</th><th>Different</th></tr></thead><tbody>{field_rows}</tbody></table>
+<h2>Field summary</h2><label>Show fields with <select id="field-class"><option value="">any result</option><option value="exact">exact matches</option><option value="within_tolerance">within-tolerance matches</option><option value="different">differences</option></select></label><p id="field-count" role="status" aria-live="polite">Showing {len(result["field_counts"])} of {len(result["field_counts"])} fields</p><table id="field-summary"><thead><tr><th>Field</th><th>Exact</th><th>Within tolerance</th><th>Different</th></tr></thead><tbody>{field_rows}</tbody></table>
 <h2>Excluded columns</h2><table><thead><tr><th>Column</th><th>Rationale</th></tr></thead><tbody>{exclusion_rows}</tbody></table>
 <h2>Preflight issues</h2><ul>{problems}</ul>{evidence}
 <h2>Inputs</h2><table><thead><tr><th>Side</th><th>Bytes</th><th>SHA-256</th></tr></thead><tbody>{input_rows}</tbody></table>
 <h2>Resource limits</h2><table>{limit_rows}</table><h2>Runtime</h2><table>{runtime_rows}</table>
-<h2>Provenance</h2><p>Recipe SHA-256: <code>{esc(result.get('recipe_sha256') or 'unavailable')}</code></p><p>Effective policy SHA-256: <code>{esc(result.get('policy_sha256') or 'unavailable')}</code></p></main><script>
+<h2>Provenance</h2><p>Recipe SHA-256: <code>{esc(result.get("recipe_sha256") or "unavailable")}</code></p><p>Effective policy SHA-256: <code>{esc(result.get("policy_sha256") or "unavailable")}</code></p></main><script>
 const fieldClass=document.querySelector('#field-class');
 const setCount=(id,rows,label)=>document.querySelector(id).textContent='Showing '+[...rows].filter(row=>!row.hidden).length+' of '+rows.length+' '+label;
 const fieldRows=document.querySelectorAll('#field-summary tbody tr[data-exact]');
@@ -2556,7 +3017,9 @@ if(rawTable){{const key=document.querySelector('#raw-key'),field=document.queryS
 
 def _aggregate_report(result: dict[str, Any]) -> str:
     esc = lambda value: html.escape(str(value))
-    counts = "".join(f"<tr><th>{esc(name.replace('_', ' '))}</th><td>{value}</td></tr>" for name, value in result["counts"].items())
+    counts = "".join(
+        f"<tr><th>{esc(name.replace('_', ' '))}</th><td>{value}</td></tr>" for name, value in result["counts"].items()
+    )
     measures = "".join(
         f"<tr><th>{esc(name)}</th><td>{values['exact']}</td><td>{values['within_tolerance']}</td><td>{values['different']}</td></tr>"
         for name, values in result["measure_counts"].items()
@@ -2564,29 +3027,45 @@ def _aggregate_report(result: dict[str, Any]) -> str:
     problems = "".join(f"<li>{esc(item)}</li>" for item in result["problems"]) or "<li>None</li>"
     evidence = "<p>Summary mode stores no group keys, per-group counts, aggregate values or source values.</p>"
     if result["sensitivity"] == "raw":
-        rows = "".join(
-            "<tr>" + "".join(f"<td>{esc(item.get(field, ''))}</td>" for field in ("kind", "group", "measure", "baseline", "candidate", "classification")) + "</tr>"
-            for item in result["discrepancy_sample"]
-        ) or '<tr><td colspan="6">No sampled discrepancies</td></tr>'
+        rows = (
+            "".join(
+                "<tr>"
+                + "".join(
+                    f"<td>{esc(item.get(field, ''))}</td>"
+                    for field in ("kind", "group", "measure", "baseline", "candidate", "classification")
+                )
+                + "</tr>"
+                for item in result["discrepancy_sample"]
+            )
+            or '<tr><td colspan="6">No sampled discrepancies</td></tr>'
+        )
         evidence = f"<p><strong>Sensitive:</strong> showing {len(result['discrepancy_sample'])} of {result['discrepancy_count']} discrepancy items.</p><table><thead><tr><th>Kind</th><th>Group</th><th>Measure</th><th>Baseline</th><th>Candidate</th><th>Class</th></tr></thead><tbody>{rows}</tbody></table>"
     return f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<title>Parison aggregate report: {esc(result['outcome'])}</title><style>body{{font:16px system-ui;max-width:1000px;margin:2rem auto;padding:0 1rem;color:#18202a}}h1{{color:{'#14733b' if result['outcome']=='PASS' else '#a22'}}}table{{border-collapse:collapse;width:100%;margin:1rem 0}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left}}th{{background:#f3f5f7}}code{{overflow-wrap:anywhere}}</style>
-<main><h1>{esc(result['outcome'])}</h1><p>Complete aggregate evaluation: <strong>{str(result['complete']).lower()}</strong>. Aggregate equality does not prove row equality.</p>
+<title>Parison aggregate report: {esc(result["outcome"])}</title><style>body{{font:16px system-ui;max-width:1000px;margin:2rem auto;padding:0 1rem;color:#18202a}}h1{{color:{"#14733b" if result["outcome"] == "PASS" else "#a22"}}}table{{border-collapse:collapse;width:100%;margin:1rem 0}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left}}th{{background:#f3f5f7}}code{{overflow-wrap:anywhere}}</style>
+<main><h1>{esc(result["outcome"])}</h1><p>Complete aggregate evaluation: <strong>{str(result["complete"]).lower()}</strong>. Aggregate equality does not prove row equality.</p>
 <h2>Group and row counts</h2><table>{counts}</table>
 <h2>Measure summary</h2><table><thead><tr><th>Measure</th><th>Exact</th><th>Within tolerance</th><th>Different</th></tr></thead><tbody>{measures}</tbody></table>
 <h2>Issues</h2><ul>{problems}</ul><h2>Evidence and privacy</h2>{evidence}
-<h2>Provenance</h2><p>Recipe SHA-256: <code>{esc(result['recipe_sha256'])}</code></p><p>Effective policy SHA-256: <code>{esc(result['policy_sha256'])}</code></p></main></html>"""
+<h2>Provenance</h2><p>Recipe SHA-256: <code>{esc(result["recipe_sha256"])}</code></p><p>Effective policy SHA-256: <code>{esc(result["policy_sha256"])}</code></p></main></html>"""
 
 
 def _multiset_report(result: dict[str, Any]) -> str:
     esc = lambda value: html.escape(str(value))
-    counts = "".join(f"<tr><th>{esc(name.replace('_', ' '))}</th><td>{value}</td></tr>" for name, value in result["counts"].items())
+    counts = "".join(
+        f"<tr><th>{esc(name.replace('_', ' '))}</th><td>{value}</td></tr>" for name, value in result["counts"].items()
+    )
     problems = "".join(f"<li>{esc(item)}</li>" for item in result["problems"]) or "<li>None</li>"
     evidence = "<p>Summary mode stores no row values.</p>"
     if result["sensitivity"] == "raw":
-        rows = "".join(f"<tr><td>{esc(item['classification'])}</td><td>{item['baseline_count']}</td><td>{item['candidate_count']}</td><td><code>{esc(json.dumps(item['row'], sort_keys=True))}</code></td></tr>" for item in result["discrepancy_sample"]) or '<tr><td colspan="4">No sampled discrepancies</td></tr>'
+        rows = (
+            "".join(
+                f"<tr><td>{esc(item['classification'])}</td><td>{item['baseline_count']}</td><td>{item['candidate_count']}</td><td><code>{esc(json.dumps(item['row'], sort_keys=True))}</code></td></tr>"
+                for item in result["discrepancy_sample"]
+            )
+            or '<tr><td colspan="4">No sampled discrepancies</td></tr>'
+        )
         evidence = f"<p><strong>Sensitive:</strong> showing {len(result['discrepancy_sample'])} row shapes.</p><table><tr><th>Class</th><th>Baseline</th><th>Candidate</th><th>Row</th></tr>{rows}</table>"
-    return f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Parison multiset report: {esc(result['outcome'])}</title><style>body{{font:16px system-ui;max-width:1000px;margin:2rem auto;padding:0 1rem}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left}}</style><main><h1>{esc(result['outcome'])}</h1><p>Complete multiset evaluation: <strong>{str(result['complete']).lower()}</strong>.</p><table>{counts}</table><h2>Issues</h2><ul>{problems}</ul><h2>Evidence and privacy</h2>{evidence}</main></html>"""
+    return f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Parison multiset report: {esc(result["outcome"])}</title><style>body{{font:16px system-ui;max-width:1000px;margin:2rem auto;padding:0 1rem}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #ccd3da;padding:.5rem;text-align:left}}</style><main><h1>{esc(result["outcome"])}</h1><p>Complete multiset evaluation: <strong>{str(result["complete"]).lower()}</strong>.</p><table>{counts}</table><h2>Issues</h2><ul>{problems}</ul><h2>Evidence and privacy</h2>{evidence}</main></html>"""
 
 
 def terminal_result(
@@ -2604,12 +3083,25 @@ def terminal_result(
         if execution_engine == "sqlite" and max_temp_bytes is not None:
             resource_limits["max_temp_bytes"] = max_temp_bytes
         return {
-            "schema_version": 3, "outcome": outcome, "complete": False, "sensitivity": "summary",
-            "runtime": runtime, "resource_limits": resource_limits, "scope": recipe.get("scope"),
-            "policy": {}, "column_policies": recipe.get("columns", {}), "column_mappings": recipe.get("column_mappings", {}),
-            "problems": [message], "counts": {}, "discrepancy_count": 0, "discrepancy_sample": [],
-            "discrepancy_sample_limit": 0, "excluded_columns": recipe.get("excluded_columns", {}), "inputs": {},
-            "recipe_sha256": None, "policy_sha256": None,
+            "schema_version": 3,
+            "outcome": outcome,
+            "complete": False,
+            "sensitivity": "summary",
+            "runtime": runtime,
+            "resource_limits": resource_limits,
+            "scope": recipe.get("scope"),
+            "policy": {},
+            "column_policies": recipe.get("columns", {}),
+            "column_mappings": recipe.get("column_mappings", {}),
+            "problems": [message],
+            "counts": {},
+            "discrepancy_count": 0,
+            "discrepancy_sample": [],
+            "discrepancy_sample_limit": 0,
+            "excluded_columns": recipe.get("excluded_columns", {}),
+            "inputs": {},
+            "recipe_sha256": None,
+            "policy_sha256": None,
         }
     if recipe and recipe.get("comparison_mode") == "aggregate":
         return {
@@ -2669,7 +3161,12 @@ def terminal_result(
     }
 
 
-def error_result(message: str, recipe: dict[str, Any] | None = None, execution_engine: str | None = None, max_temp_bytes: int | None = None) -> dict[str, Any]:
+def error_result(
+    message: str,
+    recipe: dict[str, Any] | None = None,
+    execution_engine: str | None = None,
+    max_temp_bytes: int | None = None,
+) -> dict[str, Any]:
     return terminal_result("ERROR", message, recipe, execution_engine, max_temp_bytes)
 
 
@@ -2691,7 +3188,9 @@ def publish(output: str | Path, result: dict[str, Any], recipe: dict[str, Any] |
         (stage / "report.html").write_text(_report(result), encoding="utf-8")
         names = ["result.json", "report.html"]
         if recipe is not None:
-            (stage / "effective-recipe.json").write_text(json.dumps(recipe, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            (stage / "effective-recipe.json").write_text(
+                json.dumps(recipe, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
             names.append("effective-recipe.json")
         files = {}
         for name in names:
@@ -2724,7 +3223,9 @@ def _read_bundle_result(directory: Path) -> dict[str, Any]:
     sample = result.get("discrepancy_sample")
     if not isinstance(sample, list) or not all(isinstance(item, dict) for item in sample):
         raise ParisonError("result has an invalid discrepancy sample")
-    if not isinstance(result.get("discrepancy_count"), int) or not isinstance(result.get("discrepancy_sample_limit"), int):
+    if not isinstance(result.get("discrepancy_count"), int) or not isinstance(
+        result.get("discrepancy_sample_limit"), int
+    ):
         raise ParisonError("result has invalid discrepancy counts")
     return result
 
@@ -2753,7 +3254,12 @@ def bundle_integrity_matches(directory: str | Path, expected_manifest_digest: st
     directory = Path(directory)
     manifest_path = directory / "manifest.json"
     try:
-        if directory.is_symlink() or not directory.is_dir() or manifest_path.is_symlink() or not manifest_path.is_file():
+        if (
+            directory.is_symlink()
+            or not directory.is_dir()
+            or manifest_path.is_symlink()
+            or not manifest_path.is_file()
+        ):
             return False
         if _digest(manifest_path) != expected_manifest_digest:
             return False
@@ -2782,7 +3288,9 @@ def _verify_suite_bundle(directory: Path, manifest: dict[str, Any]) -> dict[str,
         raise ParisonError("suite manifest is incomplete or unsupported")
     if manifest.get("outcome") not in OUTCOME_CODES or not isinstance(manifest.get("runtime"), dict):
         raise ParisonError("suite manifest has invalid metadata")
-    _verify_manifest_files(directory, manifest.get("files"), {"suite-result.json", "effective-suite.json", "report.html"})
+    _verify_manifest_files(
+        directory, manifest.get("files"), {"suite-result.json", "effective-suite.json", "report.html"}
+    )
     try:
         result = json.loads((directory / "suite-result.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -2796,10 +3304,21 @@ def _verify_suite_bundle(directory: Path, manifest: dict[str, Any]) -> dict[str,
     case_digests = manifest.get("cases")
     if not isinstance(cases, list) or not isinstance(case_digests, dict):
         raise ParisonError("suite has invalid case metadata")
-    if {case.get("id") for case in cases if isinstance(case, dict)} != set(case_digests) or len(cases) != len(case_digests):
+    if {case.get("id") for case in cases if isinstance(case, dict)} != set(case_digests) or len(cases) != len(
+        case_digests
+    ):
         raise ParisonError("suite manifest cases do not match result")
     for case in cases:
-        expected_fields = {"id", "outcome", "complete", "schema_version", "contract", "policy_sha256", "manifest_sha256", "bundle"}
+        expected_fields = {
+            "id",
+            "outcome",
+            "complete",
+            "schema_version",
+            "contract",
+            "policy_sha256",
+            "manifest_sha256",
+            "bundle",
+        }
         if not isinstance(case, dict) or set(case) != expected_fields:
             raise ParisonError("suite result contains invalid case fields")
         identifier = case.get("id")
@@ -2818,10 +3337,9 @@ def _verify_suite_bundle(directory: Path, manifest: dict[str, Any]) -> dict[str,
         digest = _digest(child / "manifest.json")
         if digest != case_digests[identifier] or digest != case.get("manifest_sha256"):
             raise ParisonError(f"suite child manifest digest does not match: {identifier}")
-        if (
-            child_manifest.get("outcome") != case.get("outcome")
-            or child_manifest.get("runtime", {}).get("contract") != case.get("contract")
-        ):
+        if child_manifest.get("outcome") != case.get("outcome") or child_manifest.get("runtime", {}).get(
+            "contract"
+        ) != case.get("contract"):
             raise ParisonError(f"suite child metadata does not match: {identifier}")
         child_result = _read_bundle_result(child)
         if (
@@ -2830,17 +3348,28 @@ def _verify_suite_bundle(directory: Path, manifest: dict[str, Any]) -> dict[str,
             or child_result.get("complete") != case.get("complete")
         ):
             raise ParisonError(f"suite child result metadata does not match: {identifier}")
-    if result.get("completed_cases") != len(cases) or not isinstance(result.get("total_cases"), int) or result["total_cases"] < len(cases):
+    if (
+        result.get("completed_cases") != len(cases)
+        or not isinstance(result.get("total_cases"), int)
+        or result["total_cases"] < len(cases)
+    ):
         raise ParisonError("suite result has invalid case counts")
     expected_counts = {name: sum(case["outcome"] == name for case in cases) for name in OUTCOME_CODES}
-    if result.get("outcome_counts") != expected_counts or result.get("suite_sha256") != _digest(directory / "effective-suite.json"):
+    if result.get("outcome_counts") != expected_counts or result.get("suite_sha256") != _digest(
+        directory / "effective-suite.json"
+    ):
         raise ParisonError("suite result has invalid counts or plan digest")
     try:
         effective = json.loads((directory / "effective-suite.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read effective suite: {exc}") from exc
     planned = effective.get("cases") if isinstance(effective, dict) and effective.get("suite_version") == 1 else None
-    if not isinstance(planned, list) or result["total_cases"] != len(planned) or [case["id"] for case in cases] != [case.get("id") for case in planned[:len(cases)] if isinstance(case, dict)]:
+    if (
+        not isinstance(planned, list)
+        or result["total_cases"] != len(planned)
+        or [case["id"] for case in cases]
+        != [case.get("id") for case in planned[: len(cases)] if isinstance(case, dict)]
+    ):
         raise ParisonError("suite result does not match effective plan")
     precedence = {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2, "ERROR": 3, "INTERRUPTED": 4}
     expected_outcome = max((case["outcome"] for case in cases), key=precedence.get)
@@ -2855,35 +3384,65 @@ def _verify_suite_bundle_v2(directory: Path, manifest: dict[str, Any]) -> dict[s
         raise ParisonError("suite v2 manifest is incomplete or unsupported")
     if manifest.get("outcome") not in OUTCOME_CODES or not isinstance(manifest.get("runtime"), dict):
         raise ParisonError("suite v2 manifest has invalid metadata")
-    _verify_manifest_files(directory, manifest.get("files"), {"suite-result.json", "effective-suite.json", "report.html"})
+    _verify_manifest_files(
+        directory, manifest.get("files"), {"suite-result.json", "effective-suite.json", "report.html"}
+    )
     try:
         result = json.loads((directory / "suite-result.json").read_text(encoding="utf-8"))
         effective = json.loads((directory / "effective-suite.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read suite v2 metadata: {exc}") from exc
     required = {
-        "schema_version", "suite_version", "kind", "outcome", "complete", "scope_complete", "execution_complete",
-        "runtime", "total_cases", "selected_cases", "completed_cases", "outcome_counts", "selection", "cases",
-        "suite_policy_sha256", "effective_suite_sha256",
+        "schema_version",
+        "suite_version",
+        "kind",
+        "outcome",
+        "complete",
+        "scope_complete",
+        "execution_complete",
+        "runtime",
+        "total_cases",
+        "selected_cases",
+        "completed_cases",
+        "outcome_counts",
+        "selection",
+        "cases",
+        "suite_policy_sha256",
+        "effective_suite_sha256",
     }
-    if not isinstance(result, dict) or set(result) != required or result.get("schema_version") != 2 or result.get("suite_version") != 2:
+    if (
+        not isinstance(result, dict)
+        or set(result) != required
+        or result.get("schema_version") != 2
+        or result.get("suite_version") != 2
+    ):
         raise ParisonError("suite v2 result is incomplete or unsupported")
     for name in ("kind", "outcome", "runtime"):
         if result.get(name) != manifest.get(name):
             raise ParisonError(f"suite manifest {name} does not match result")
-    if not isinstance(effective, dict) or effective.get("suite_version") != 2 or set(effective) != {"suite_version", "cases"}:
+    if (
+        not isinstance(effective, dict)
+        or effective.get("suite_version") != 2
+        or set(effective) != {"suite_version", "cases"}
+    ):
         raise ParisonError("effective suite v2 is invalid")
-    canonical_sha = hashlib.sha256(json.dumps(effective, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
-    if result["suite_policy_sha256"] != canonical_sha or result["effective_suite_sha256"] != _digest(directory / "effective-suite.json"):
+    canonical_sha = hashlib.sha256(
+        json.dumps(effective, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    if result["suite_policy_sha256"] != canonical_sha or result["effective_suite_sha256"] != _digest(
+        directory / "effective-suite.json"
+    ):
         raise ParisonError("suite v2 result has invalid plan digests")
     selection = result.get("selection")
     if not isinstance(selection, dict) or set(selection) != {"case_ids", "tags", "shard_index", "shard_count"}:
         raise ParisonError("suite v2 result has invalid selection")
-    selected = select_suite_cases(effective, selection["case_ids"], selection["tags"], selection["shard_index"], selection["shard_count"])
+    selected = select_suite_cases(
+        effective, selection["case_ids"], selection["tags"], selection["shard_index"], selection["shard_count"]
+    )
     cases, case_digests = result.get("cases"), manifest.get("cases")
     if not isinstance(cases, list) or not isinstance(case_digests, dict) or len(cases) != len(case_digests):
         raise ParisonError("suite v2 has invalid case metadata")
-    if [case.get("id") for case in cases if isinstance(case, dict)] != [case["id"] for case in selected[:len(cases)]]:
+    if [case.get("id") for case in cases if isinstance(case, dict)] != [case["id"] for case in selected[: len(cases)]]:
         raise ParisonError("suite v2 result does not match selected plan order")
     for case in cases:
         _verify_suite_child(directory, case, case_digests)
@@ -2909,11 +3468,22 @@ def _verify_suite_bundle_v2(directory: Path, manifest: dict[str, Any]) -> dict[s
 
 
 def _verify_suite_child(directory: Path, case: Any, case_digests: dict[str, Any]) -> None:
-    expected_fields = {"id", "outcome", "complete", "schema_version", "contract", "policy_sha256", "manifest_sha256", "bundle"}
+    expected_fields = {
+        "id",
+        "outcome",
+        "complete",
+        "schema_version",
+        "contract",
+        "policy_sha256",
+        "manifest_sha256",
+        "bundle",
+    }
     if not isinstance(case, dict) or set(case) != expected_fields or not _portable_identifier(case.get("id")):
         raise ParisonError("suite result contains invalid case fields")
     identifier = case["id"]
-    if case["bundle"] != f"cases/{identifier}" or set(case_digests) != {entry for entry in case_digests if _portable_identifier(entry)}:
+    if case["bundle"] != f"cases/{identifier}" or set(case_digests) != {
+        entry for entry in case_digests if _portable_identifier(entry)
+    }:
         raise ParisonError("suite result contains an invalid child location")
     child = directory / "cases" / identifier
     child_manifest = verify_bundle(child)
@@ -2945,14 +3515,20 @@ def _verified_bundle(directory: str | Path) -> tuple[dict[str, Any], bytes]:
         raise ParisonError(f"cannot read manifest: {exc}") from exc
     if isinstance(manifest, dict) and manifest.get("kind") == "reconciliation":
         from parison.reconciliation import verify_reconciliation_bundle
+
         manifest = verify_reconciliation_bundle(directory)
     elif isinstance(manifest, dict) and manifest.get("kind") == "dataset-evidence":
         from parison.manifesting import verify_dataset_evidence_bundle
+
         manifest = verify_dataset_evidence_bundle(directory)
     elif isinstance(manifest, dict) and manifest.get("kind") in {"suite", "suite-shard"}:
         manifest = _verify_suite_bundle(directory, manifest)
     else:
-        if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
+        if (
+            not isinstance(manifest, dict)
+            or manifest.get("schema_version") != 1
+            or manifest.get("complete") is not True
+        ):
             raise ParisonError("manifest is incomplete or unsupported")
         if manifest.get("outcome") not in OUTCOME_CODES or manifest.get("sensitivity") not in {"summary", "raw"}:
             raise ParisonError("manifest has invalid outcome or sensitivity metadata")
@@ -2980,9 +3556,11 @@ def inspect_bundle(directory: str | Path) -> dict[str, Any]:
     manifest = verify_bundle(directory)
     if manifest.get("kind") == "reconciliation":
         from parison.reconciliation import inspect_reconciliation_bundle
+
         return inspect_reconciliation_bundle(directory)
     if manifest.get("kind") == "dataset-evidence":
         from parison.manifesting import inspect_dataset_evidence_bundle
+
         return inspect_dataset_evidence_bundle(directory)
     if manifest.get("kind") in {"suite", "suite-shard"}:
         result = json.loads((Path(directory) / "suite-result.json").read_text(encoding="utf-8"))
@@ -2992,13 +3570,33 @@ def inspect_bundle(directory: str | Path) -> dict[str, Any]:
             "suite_version": result["suite_version"],
             "outcome": result["outcome"],
             "complete": result["complete"],
-            **({"scope_complete": result["scope_complete"], "execution_complete": result["execution_complete"], "selection": result["selection"]} if result["schema_version"] == 2 else {}),
+            **(
+                {
+                    "scope_complete": result["scope_complete"],
+                    "execution_complete": result["execution_complete"],
+                    "selection": result["selection"],
+                }
+                if result["schema_version"] == 2
+                else {}
+            ),
             "runtime": result["runtime"],
             "total_cases": result["total_cases"],
             "completed_cases": result["completed_cases"],
             "outcome_counts": result["outcome_counts"],
             "cases": [
-                {name: case[name] for name in ("id", "outcome", "complete", "schema_version", "contract", "policy_sha256", "manifest_sha256", "bundle")}
+                {
+                    name: case[name]
+                    for name in (
+                        "id",
+                        "outcome",
+                        "complete",
+                        "schema_version",
+                        "contract",
+                        "policy_sha256",
+                        "manifest_sha256",
+                        "bundle",
+                    )
+                }
                 for case in result["cases"]
             ],
             "bundle_sha256": _digest(Path(directory) / "manifest.json"),
@@ -3018,7 +3616,8 @@ def inspect_bundle(directory: str | Path) -> dict[str, Any]:
         "problems": result.get("problems", []),
         "resource_limits": result.get("resource_limits", {}),
         "input_sha256": {
-            side: metadata.get("sha256") for side, metadata in result.get("inputs", {}).items()
+            side: metadata.get("sha256")
+            for side, metadata in result.get("inputs", {}).items()
             if metadata.get("sha256") is not None
         },
         "policy_sha256": result.get("policy_sha256"),
@@ -3061,11 +3660,13 @@ def _evidence_snapshot(directory: str | Path) -> tuple[dict[str, Any], dict[str,
         "schemaVersion": result["schema_version"],
     }
     if is_suite:
-        predicate.update({
-            "scopeComplete": result.get("scope_complete", result["complete"]),
-            "suitePolicySha256": result.get("suite_policy_sha256"),
-            "suiteVersion": result["suite_version"],
-        })
+        predicate.update(
+            {
+                "scopeComplete": result.get("scope_complete", result["complete"]),
+                "suitePolicySha256": result.get("suite_policy_sha256"),
+                "suiteVersion": result["suite_version"],
+            }
+        )
     else:
         contract = result["runtime"].get("contract")
         policy_sha256 = result.get("policy_sha256")
@@ -3077,11 +3678,13 @@ def _evidence_snapshot(directory: str | Path) -> tuple[dict[str, Any], dict[str,
             or any(character not in "0123456789abcdef" for character in policy_sha256)
         ):
             raise ParisonError("bundle has an invalid effective-policy fingerprint")
-        predicate.update({
-            "contract": contract,
-            "policySha256": policy_sha256,
-            "sensitivity": result["sensitivity"],
-        })
+        predicate.update(
+            {
+                "contract": contract,
+                "policySha256": policy_sha256,
+                "sensitivity": result["sensitivity"],
+            }
+        )
     statement = {
         "_type": _STATEMENT_TYPE,
         "subject": [{"name": "manifest.json", "digest": {"sha256": manifest_digest}}],
@@ -3098,7 +3701,11 @@ def evidence_statement(directory: str | Path) -> dict[str, Any]:
 
 def _check_output_parent(parent: Path) -> None:
     parent = parent.absolute()
-    trusted = [root.absolute() for root in (Path.cwd(), Path(tempfile.gettempdir())) if parent == root.absolute() or parent.is_relative_to(root.absolute())]
+    trusted = [
+        root.absolute()
+        for root in (Path.cwd(), Path(tempfile.gettempdir()))
+        if parent == root.absolute() or parent.is_relative_to(root.absolute())
+    ]
     boundary = max(trusted, key=lambda root: len(root.parts), default=Path(parent.anchor))
     current = parent
     while current != boundary:
@@ -3139,7 +3746,11 @@ def export_statement(directory: str | Path, output: str | Path) -> dict[str, Any
     """Atomically export the canonical unsigned Statement for a verified bundle."""
     statement = evidence_statement(directory)
     target = Path(output)
-    _write_once(target, json.dumps(statement, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", "cannot export Statement")
+    _write_once(
+        target,
+        json.dumps(statement, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        "cannot export Statement",
+    )
     return {"output": str(target), "bundle_sha256": statement["subject"][0]["digest"]["sha256"]}
 
 
@@ -3148,6 +3759,7 @@ def verify_statement(directory: str | Path, statement_path: str | Path) -> dict[
     path = Path(statement_path)
     if path.is_symlink() or not path.is_file():
         raise ParisonError(f"Statement is not a regular file: {path}")
+
     def object_pairs(pairs):
         value = {}
         for name, item in pairs:
@@ -3155,6 +3767,7 @@ def verify_statement(directory: str | Path, statement_path: str | Path) -> dict[
                 raise ParisonError(f"Statement contains duplicate JSON field: {name}")
             value[name] = item
         return value
+
     try:
         actual = json.loads(
             path.read_text(encoding="utf-8"),
@@ -3185,44 +3798,59 @@ def report_cutover(directory: str | Path, output: str | Path) -> dict[str, Any]:
         ("Produced by Parison", predicate["parisonVersion"]),
     ]
     if predicate["bundleKind"] == "run":
-        rows.extend([
-            ("Comparison contract", predicate["contract"]),
-            ("Policy SHA-256", predicate["policySha256"] or "unavailable"),
-            ("Sensitivity", predicate["sensitivity"]),
-        ])
+        rows.extend(
+            [
+                ("Comparison contract", predicate["contract"]),
+                ("Policy SHA-256", predicate["policySha256"] or "unavailable"),
+                ("Sensitivity", predicate["sensitivity"]),
+            ]
+        )
         summary = [(name.replace("_", " "), value) for name, value in sorted(result["counts"].items())]
         summary.append(("discrepancy count", result["discrepancy_count"]))
     else:
-        rows.extend([
-            ("Suite version", predicate["suiteVersion"]),
-            ("Suite policy SHA-256", predicate["suitePolicySha256"] or "unavailable"),
-            ("Scope complete", str(predicate["scopeComplete"]).lower()),
-        ])
+        rows.extend(
+            [
+                ("Suite version", predicate["suiteVersion"]),
+                ("Suite policy SHA-256", predicate["suitePolicySha256"] or "unavailable"),
+                ("Scope complete", str(predicate["scopeComplete"]).lower()),
+            ]
+        )
         summary = [
             ("completed cases", result["completed_cases"]),
             ("total cases", result["total_cases"]),
             *[(f"{name} cases", value) for name, value in result["outcome_counts"].items()],
         ]
     lines = [
-        "# Parison cutover evidence", "",
-        "> Verified metadata cover sheet. This report is evidence, not cutover approval.", "",
-        "| Field | Value |", "| --- | --- |",
-        *[f"| {name} | {value} |" for name, value in rows], "",
-        "## Result summary", "", "| Measure | Value |", "| --- | ---: |",
+        "# Parison cutover evidence",
+        "",
+        "> Verified metadata cover sheet. This report is evidence, not cutover approval.",
+        "",
+        "| Field | Value |",
+        "| --- | --- |",
+        *[f"| {name} | {value} |" for name, value in rows],
+        "",
+        "## Result summary",
+        "",
+        "| Measure | Value |",
+        "| --- | ---: |",
         *[f"| {name} | {value} |" for name, value in summary],
     ]
     if predicate["bundleKind"] != "run":
         lines.extend(["", "## Cases", "", "| Case | Outcome | Complete |", "| --- | --- | --- |"])
         lines.extend(
-            f"| {case['id']} | {case['outcome']} | {str(case['complete']).lower()} |"
-            for case in result["cases"]
+            f"| {case['id']} | {case['outcome']} | {str(case['complete']).lower()} |" for case in result["cases"]
         )
-    lines.extend([
-        "", "## Independent checks still required", "",
-        "- Authenticate the canonical Statement and authorize its signer identity and issuer.",
-        "- Require the reviewed policy fingerprint, outcome, completeness and suite scope.",
-        "- Validate source-owned extraction snapshot, watermark and completeness guarantees.", "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Independent checks still required",
+            "",
+            "- Authenticate the canonical Statement and authorize its signer identity and issuer.",
+            "- Require the reviewed policy fingerprint, outcome, completeness and suite scope.",
+            "- Validate source-owned extraction snapshot, watermark and completeness guarantees.",
+            "",
+        ]
+    )
     target = Path(output)
     _write_once(target, "\n".join(lines), "cannot write cutover report")
     return {"output": str(target), "bundle_sha256": statement["subject"][0]["digest"]["sha256"]}
@@ -3247,13 +3875,21 @@ def export_evidence(
     result = _read_bundle_result(Path(directory))
     if result.get("sensitivity") != "raw":
         raise ParisonError("evidence export requires a raw-sensitivity bundle")
-    allowed = {"baseline_only", "candidate_only", "within_tolerance", "different", "baseline_surplus", "candidate_surplus"}
+    allowed = {
+        "baseline_only",
+        "candidate_only",
+        "within_tolerance",
+        "different",
+        "baseline_surplus",
+        "candidate_surplus",
+    }
     if classification is not None and classification not in allowed:
         raise ParisonError(f"unsupported evidence classification: {classification}")
     if kind is not None and kind not in {"record", "field", "group", "measure", "row"}:
         raise ParisonError(f"unsupported evidence kind: {kind}")
     if name is not None and not name:
         raise ParisonError("evidence name filter must be nonempty")
+
     def matches(item: dict[str, Any]) -> bool:
         item_kind = item.get("kind", "row" if result.get("schema_version") == 3 else None)
         item_name = item.get("field", item.get("measure"))
@@ -3262,6 +3898,7 @@ def export_evidence(
             and (kind is None or item_kind == kind)
             and (name is None or item_name == name)
         )
+
     items = [item for item in result.get("discrepancy_sample", []) if matches(item)][:limit]
     target = Path(output)
     if target.exists():
@@ -3271,7 +3908,23 @@ def export_evidence(
         descriptor, stage_name = tempfile.mkstemp(prefix=f".{target.name}-", dir=target.parent, text=True)
         stage = Path(stage_name)
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(json.dumps({"_parison_export": {"bundle_sha256": _digest(manifest_path), "schema_version": result.get("schema_version"), "policy_sha256": result.get("policy_sha256"), "classification": classification, "kind": kind, "name": name, "limit": limit}}, sort_keys=True) + "\n")
+            handle.write(
+                json.dumps(
+                    {
+                        "_parison_export": {
+                            "bundle_sha256": _digest(manifest_path),
+                            "schema_version": result.get("schema_version"),
+                            "policy_sha256": result.get("policy_sha256"),
+                            "classification": classification,
+                            "kind": kind,
+                            "name": name,
+                            "limit": limit,
+                        }
+                    },
+                    sort_keys=True,
+                )
+                + "\n"
+            )
             for item in items:
                 handle.write(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n")
         os.link(stage, target)
@@ -3286,7 +3939,15 @@ def export_evidence(
                 stage.unlink()
             except OSError:
                 pass
-    return {"output": str(target), "items": len(items), "limit": limit, "classification": classification, "kind": kind, "name": name, "bundle_files": sorted(manifest.get("files", {}))}
+    return {
+        "output": str(target),
+        "items": len(items),
+        "limit": limit,
+        "classification": classification,
+        "kind": kind,
+        "name": name,
+        "bundle_files": sorted(manifest.get("files", {})),
+    }
 
 
 def report_ci(directory: str | Path, output: str | Path, format_name: str) -> dict[str, Any]:
@@ -3298,19 +3959,30 @@ def report_ci(directory: str | Path, output: str | Path, format_name: str) -> di
     if format_name == "markdown":
         scope = _suite_scope_label(result)
         lines = [
-            f"# Parison {scope}", "", f"**{result['outcome']}** — {result['completed_cases']} of {result.get('selected_cases', result['total_cases'])} selected cases completed.", "",
-            "| Case | Outcome | Complete |", "|---|---:|:---:|",
+            f"# Parison {scope}",
+            "",
+            f"**{result['outcome']}** — {result['completed_cases']} of {result.get('selected_cases', result['total_cases'])} selected cases completed.",
+            "",
+            "| Case | Outcome | Complete |",
+            "|---|---:|:---:|",
         ]
-        lines.extend(f"| `{case['id']}` | {case['outcome']} | {'yes' if case['complete'] else 'no'} |" for case in result["cases"])
+        lines.extend(
+            f"| `{case['id']}` | {case['outcome']} | {'yes' if case['complete'] else 'no'} |"
+            for case in result["cases"]
+        )
         content = "\n".join(lines) + "\n"
     elif format_name == "junit":
         cases = result["cases"]
-        root = ET.Element("testsuite", {
-            "name": f"parison-{result['kind']}", "tests": str(len(cases)),
-            "failures": str(sum(case["outcome"] == "FAIL" for case in cases)),
-            "errors": str(sum(case["outcome"] in {"ERROR", "INTERRUPTED"} for case in cases)),
-            "skipped": str(sum(case["outcome"] == "INCONCLUSIVE" for case in cases)),
-        })
+        root = ET.Element(
+            "testsuite",
+            {
+                "name": f"parison-{result['kind']}",
+                "tests": str(len(cases)),
+                "failures": str(sum(case["outcome"] == "FAIL" for case in cases)),
+                "errors": str(sum(case["outcome"] in {"ERROR", "INTERRUPTED"} for case in cases)),
+                "skipped": str(sum(case["outcome"] == "INCONCLUSIVE" for case in cases)),
+            },
+        )
         properties = ET.SubElement(root, "properties")
         ET.SubElement(properties, "property", {"name": "parison.outcome", "value": result["outcome"]})
         ET.SubElement(properties, "property", {"name": "parison.scope", "value": _suite_scope_label(result)})
@@ -3352,7 +4024,13 @@ def report_ci(directory: str | Path, output: str | Path, format_name: str) -> di
                 stage.unlink()
             except OSError:
                 pass
-    return {"output": str(target), "format": format_name, "bytes": len(encoded), "cases": len(result["cases"]), "outcome": result["outcome"]}
+    return {
+        "output": str(target),
+        "format": format_name,
+        "bytes": len(encoded),
+        "cases": len(result["cases"]),
+        "outcome": result["outcome"],
+    }
 
 
 def _suite_scope_label(result: dict[str, Any]) -> str:
@@ -3366,12 +4044,16 @@ def _suite_scope_label(result: dict[str, Any]) -> str:
 
 def _suite_report(result: dict[str, Any]) -> str:
     rows = "".join(
-        "<tr>" + "".join(f"<td>{html.escape(str(case[field]))}</td>" for field in ("id", "outcome", "complete", "contract", "bundle")) + "</tr>"
+        "<tr>"
+        + "".join(
+            f"<td>{html.escape(str(case[field]))}</td>" for field in ("id", "outcome", "complete", "contract", "bundle")
+        )
+        + "</tr>"
         for case in result["cases"]
     )
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Parison suite report</title>
 <style>body{{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:0 1rem}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #bbb;padding:.5rem;text-align:left}}</style></head>
-<body><h1>Parison suite report</h1><p><strong>{html.escape(result['outcome'])}</strong> — {result['completed_cases']} of {result['total_cases']} cases published.</p>
+<body><h1>Parison suite report</h1><p><strong>{html.escape(result["outcome"])}</strong> — {result["completed_cases"]} of {result["total_cases"]} cases published.</p>
 <table><thead><tr><th>Case</th><th>Outcome</th><th>Complete</th><th>Contract</th><th>Bundle</th></tr></thead><tbody>{rows}</tbody></table></body></html>"""
 
 
@@ -3389,7 +4071,11 @@ def assemble_suite(plan: str | Path, inputs: list[str | Path], output: str | Pat
             raise ParisonError(f"assembly input is not a suite shard: {source}")
         result = json.loads((source / "suite-result.json").read_text(encoding="utf-8"))
         selection = result["selection"]
-        identity = {"case_ids": selection["case_ids"], "tags": selection["tags"], "shard_count": selection["shard_count"]}
+        identity = {
+            "case_ids": selection["case_ids"],
+            "tags": selection["tags"],
+            "shard_count": selection["shard_count"],
+        }
         if common is None:
             common = identity
         elif identity != common:
@@ -3435,7 +4121,9 @@ def assemble_suite(plan: str | Path, inputs: list[str | Path], output: str | Pat
             copied["manifest_sha256"] = _digest(child_target / "manifest.json")
             cases.append(copied)
         effective = {"suite_version": 2, "cases": [case["portable"] for case in suite["cases"]]}
-        (stage / "effective-suite.json").write_text(json.dumps(effective, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        (stage / "effective-suite.json").write_text(
+            json.dumps(effective, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
         precedence = {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2, "ERROR": 3, "INTERRUPTED": 4}
         outcome = max((case["outcome"] for case in cases), key=precedence.get)
         selection = {"case_ids": common["case_ids"], "tags": common["tags"], "shard_index": None, "shard_count": None}
@@ -3465,7 +4153,9 @@ def assemble_suite(plan: str | Path, inputs: list[str | Path], output: str | Pat
             "complete": True,
             "outcome": outcome,
             "runtime": result["runtime"],
-            "files": {name: _digest(stage / name) for name in ("suite-result.json", "effective-suite.json", "report.html")},
+            "files": {
+                name: _digest(stage / name) for name in ("suite-result.json", "effective-suite.json", "report.html")
+            },
             "cases": {case["id"]: case["manifest_sha256"] for case in cases},
         }
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -3490,7 +4180,9 @@ def _copy_verified_child(source: Path, target: Path) -> None:
     verify_bundle(target)
 
 
-def _checkpoint_data(case: dict[str, Any], child: Path, suite_sha256: str, limits: dict[str, int], sample_limit: int) -> dict[str, Any]:
+def _checkpoint_data(
+    case: dict[str, Any], child: Path, suite_sha256: str, limits: dict[str, int], sample_limit: int
+) -> dict[str, Any]:
     result = _read_bundle_result(child)
     return {
         "case_id": case["id"],
@@ -3519,7 +4211,12 @@ def _write_checkpoint(path: Path, data: dict[str, Any]) -> None:
 
 
 def _reusable_workspace_child(
-    case: dict[str, Any], child: Path, checkpoint_path: Path, suite_sha256: str, limits: dict[str, int], sample_limit: int
+    case: dict[str, Any],
+    child: Path,
+    checkpoint_path: Path,
+    suite_sha256: str,
+    limits: dict[str, int],
+    sample_limit: int,
 ) -> bool:
     try:
         checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
@@ -3552,14 +4249,23 @@ def _reusable_workspace_child(
     return resource_limits == expected_resources
 
 
-def _execute_suite_case(case: dict[str, Any], destination: Path, sample_limit: int, limits: dict[str, int]) -> dict[str, Any]:
+def _execute_suite_case(
+    case: dict[str, Any], destination: Path, sample_limit: int, limits: dict[str, int]
+) -> dict[str, Any]:
     """Execute and publish one isolated suite case."""
     recipe = load_recipe(case["recipe"])
     try:
         result = compare(
-            case["recipe"], case["baseline"], case["candidate"], sample_limit,
-            limits["max_input_bytes"], limits["max_rows"], case.get("expected_policy_sha256"),
-            limits["max_decoded_bytes"], limits["max_groups"], limits["max_distinct_rows"],
+            case["recipe"],
+            case["baseline"],
+            case["candidate"],
+            sample_limit,
+            limits["max_input_bytes"],
+            limits["max_rows"],
+            case.get("expected_policy_sha256"),
+            limits["max_decoded_bytes"],
+            limits["max_groups"],
+            limits["max_distinct_rows"],
             case.get("execution", {}).get("engine", "memory"),
             case.get("execution", {}).get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES),
             destination.parent if case.get("execution") else None,
@@ -3567,7 +4273,9 @@ def _execute_suite_case(case: dict[str, Any], destination: Path, sample_limit: i
     except ParisonError as exc:
         execution = case.get("execution", {})
         result = error_result(
-            str(exc), recipe, execution.get("engine", "memory"),
+            str(exc),
+            recipe,
+            execution.get("engine", "memory"),
             execution.get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES),
         )
     publish(destination, result, recipe)
@@ -3658,7 +4366,10 @@ def run_suite(
         if resume:
             if workspace_path.is_symlink() or not workspace_path.is_dir():
                 raise ParisonError("resume workspace is not a regular directory")
-            if any(path.is_symlink() or not path.is_dir() for path in (workspace_path / "cases", workspace_path / "checkpoints")):
+            if any(
+                path.is_symlink() or not path.is_dir()
+                for path in (workspace_path / "cases", workspace_path / "checkpoints")
+            ):
                 raise ParisonError("resume workspace is incomplete or unsafe")
         elif workspace_path.exists():
             raise ParisonError(f"workspace already exists: {workspace_path}")
@@ -3678,19 +4389,26 @@ def run_suite(
         cases_by_id: dict[str, dict[str, Any]] = {}
         pending = []
         for case in selected:
-            limits = case.get("limits", {
-                "max_input_bytes": max_input_bytes,
-                "max_decoded_bytes": max_decoded_bytes,
-                "max_rows": max_rows,
-                "max_groups": max_groups,
-                "max_distinct_rows": max_distinct_rows,
-            })
+            limits = case.get(
+                "limits",
+                {
+                    "max_input_bytes": max_input_bytes,
+                    "max_decoded_bytes": max_decoded_bytes,
+                    "max_rows": max_rows,
+                    "max_groups": max_groups,
+                    "max_distinct_rows": max_distinct_rows,
+                },
+            )
             child = stage / "cases" / case["id"]
             workspace_child = workspace_path / "cases" / case["id"] if workspace_path is not None else None
             checkpoint = workspace_path / "checkpoints" / f"{case['id']}.json" if workspace_path is not None else None
             reused = bool(
-                resume and workspace_child is not None and checkpoint is not None
-                and _reusable_workspace_child(case, workspace_child, checkpoint, suite["suite_policy_sha256"], limits, sample_limit)
+                resume
+                and workspace_child is not None
+                and checkpoint is not None
+                and _reusable_workspace_child(
+                    case, workspace_child, checkpoint, suite["suite_policy_sha256"], limits, sample_limit
+                )
             )
             if reused:
                 _copy_verified_child(workspace_child, child)
@@ -3701,20 +4419,31 @@ def run_suite(
                 pending.append((case, child, workspace_child, checkpoint, limits))
                 continue
             cases_by_id[case["id"]] = {
-                "id": case["id"], "outcome": result["outcome"], "complete": result["complete"],
-                "schema_version": result["schema_version"], "contract": result["runtime"]["contract"],
-                "policy_sha256": result.get("policy_sha256"), "manifest_sha256": _digest(child / "manifest.json"),
+                "id": case["id"],
+                "outcome": result["outcome"],
+                "complete": result["complete"],
+                "schema_version": result["schema_version"],
+                "contract": result["runtime"]["contract"],
+                "policy_sha256": result.get("policy_sha256"),
+                "manifest_sha256": _digest(child / "manifest.json"),
                 "bundle": f"cases/{case['id']}",
             }
 
         def finish(case, child, workspace_child, checkpoint, limits, result):
             if workspace_child is not None and checkpoint is not None:
-                _write_checkpoint(checkpoint, _checkpoint_data(case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit))
+                _write_checkpoint(
+                    checkpoint,
+                    _checkpoint_data(case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit),
+                )
                 _copy_verified_child(workspace_child, child)
             cases_by_id[case["id"]] = {
-                "id": case["id"], "outcome": result["outcome"], "complete": result["complete"],
-                "schema_version": result["schema_version"], "contract": result["runtime"]["contract"],
-                "policy_sha256": result.get("policy_sha256"), "manifest_sha256": _digest(child / "manifest.json"),
+                "id": case["id"],
+                "outcome": result["outcome"],
+                "complete": result["complete"],
+                "schema_version": result["schema_version"],
+                "contract": result["runtime"]["contract"],
+                "policy_sha256": result.get("policy_sha256"),
+                "manifest_sha256": _digest(child / "manifest.json"),
                 "bundle": f"cases/{case['id']}",
             }
 
@@ -3727,8 +4456,11 @@ def run_suite(
                     recipe = load_recipe(case["recipe"])
                     execution = case.get("execution", {})
                     result = terminal_result(
-                        "INTERRUPTED", "comparison interrupted by user", recipe,
-                        execution.get("engine", "memory"), execution.get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES),
+                        "INTERRUPTED",
+                        "comparison interrupted by user",
+                        recipe,
+                        execution.get("engine", "memory"),
+                        execution.get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES),
                     )
                     publish(workspace_child or child, result, recipe)
                     interrupted = True
@@ -3769,8 +4501,10 @@ def run_suite(
                         recipe = load_recipe(case["recipe"])
                         execution = case.get("execution", {})
                         result = error_result(
-                            "suite worker failed unexpectedly", recipe,
-                            execution.get("engine", "memory"), execution.get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES),
+                            "suite worker failed unexpectedly",
+                            recipe,
+                            execution.get("engine", "memory"),
+                            execution.get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES),
                         )
                         publish(destination, result, recipe)
                 finish(case, child, workspace_child, checkpoint, limits, result)
@@ -3803,7 +4537,10 @@ def run_suite(
                         verify_bundle(workspace_child)
                     except ParisonError:
                         continue
-                    _write_checkpoint(checkpoint, _checkpoint_data(case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit))
+                    _write_checkpoint(
+                        checkpoint,
+                        _checkpoint_data(case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit),
+                    )
                 raise
             except BaseException:
                 _stop_suite_workers(active)
@@ -3820,7 +4557,9 @@ def run_suite(
             if suite["suite_version"] == 2
             else json.loads(Path(plan).read_text(encoding="utf-8"))
         )
-        (stage / "effective-suite.json").write_text(json.dumps(effective, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        (stage / "effective-suite.json").write_text(
+            json.dumps(effective, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
         result = {
             "schema_version": 1,
             "suite_version": 1,
@@ -3835,7 +4574,12 @@ def run_suite(
         }
         kind = "suite"
         if suite["suite_version"] == 2:
-            selection = {"case_ids": case_ids or [], "tags": tags or [], "shard_index": shard_index, "shard_count": shard_count}
+            selection = {
+                "case_ids": case_ids or [],
+                "tags": tags or [],
+                "shard_index": shard_index,
+                "shard_count": shard_count,
+            }
             scope_complete = not selection["case_ids"] and not selection["tags"] and shard_count is None
             execution_complete = len(cases) == len(selected) and all(case["complete"] for case in cases)
             kind = "suite-shard" if shard_count is not None else "suite"

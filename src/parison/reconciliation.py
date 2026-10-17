@@ -129,10 +129,12 @@ def normalize_time_alignment(value: Any) -> dict[str, Any]:
             raise ParisonError("coordination.watermark_kind must be 'closed-world' or 'heuristic'")
         if coordination["idle_partition_policy"] not in {"not-applicable", "documented"}:
             raise ParisonError("coordination.idle_partition_policy must be 'not-applicable' or 'documented'")
-        normalized_coordination.update({
-            "watermark_kind": coordination["watermark_kind"],
-            "idle_partition_policy": coordination["idle_partition_policy"],
-        })
+        normalized_coordination.update(
+            {
+                "watermark_kind": coordination["watermark_kind"],
+                "idle_partition_policy": coordination["idle_partition_policy"],
+            }
+        )
 
     if not isinstance(value["datasets"], list) or not value["datasets"]:
         raise ParisonError("datasets must be a nonempty array")
@@ -220,7 +222,13 @@ def normalize_reconciliation(value: Any) -> dict[str, Any]:
             raise ParisonError(f"duplicate dataset id {dataset_id!r}")
         columns = _columns(item["columns"], f"{where}.columns")
         dataset_columns[dataset_id] = {column["name"]: column["type"] for column in columns}
-        datasets.append({"id": dataset_id, "policy_sha256": _digest(item["policy_sha256"], f"{where}.policy_sha256"), "columns": columns})
+        datasets.append(
+            {
+                "id": dataset_id,
+                "policy_sha256": _digest(item["policy_sha256"], f"{where}.policy_sha256"),
+                "columns": columns,
+            }
+        )
 
     if not isinstance(value["checks"], list) or not value["checks"]:
         raise ParisonError("checks must be a nonempty array")
@@ -233,7 +241,21 @@ def normalize_reconciliation(value: Any) -> dict[str, Any]:
         fields = {
             "identity": {"id", "kind", "dataset", "columns", "nulls"},
             "reference": {"id", "kind", "child_dataset", "child_columns", "parent_identity", "nulls"},
-            "conservation": {"id", "kind", "parent_dataset", "parent_identity", "parent_group_columns", "child_dataset", "child_group_columns", "parent_measure", "child_measure", "operator", "nulls", "comparison", "tolerance"},
+            "conservation": {
+                "id",
+                "kind",
+                "parent_dataset",
+                "parent_identity",
+                "parent_group_columns",
+                "child_dataset",
+                "child_group_columns",
+                "parent_measure",
+                "child_measure",
+                "operator",
+                "nulls",
+                "comparison",
+                "tolerance",
+            },
         }
         if not isinstance(kind, str) or kind not in fields:
             raise ParisonError(f"{where}.kind is unsupported")
@@ -297,9 +319,18 @@ def normalize_reconciliation(value: Any) -> dict[str, Any]:
                 column = _identifier(check[field], f"{where}.{field}")
                 if dataset_columns[dataset_id].get(column) not in {"integer", "decimal"}:
                     raise ParisonError(f"{where}.{field} must name a numeric column")
-            if dataset_columns[check["parent_dataset"]][check["parent_measure"]] != dataset_columns[check["child_dataset"]][check["child_measure"]]:
+            if (
+                dataset_columns[check["parent_dataset"]][check["parent_measure"]]
+                != dataset_columns[check["child_dataset"]][check["child_measure"]]
+            ):
                 raise ParisonError(f"{where} parent and child measure types must match")
-            if check["operator"] != "sum" or not isinstance(check["nulls"], str) or check["nulls"] not in {"forbid", "zero"} or not isinstance(check["comparison"], str) or check["comparison"] not in {"exact", "tolerance"}:
+            if (
+                check["operator"] != "sum"
+                or not isinstance(check["nulls"], str)
+                or check["nulls"] not in {"forbid", "zero"}
+                or not isinstance(check["comparison"], str)
+                or check["comparison"] not in {"exact", "tolerance"}
+            ):
                 raise ParisonError(f"{where} has unsupported conservation semantics")
             tolerance = check["tolerance"]
             if check["comparison"] == "exact":
@@ -307,7 +338,10 @@ def normalize_reconciliation(value: Any) -> dict[str, Any]:
                     raise ParisonError(f"{where}.tolerance must be null for exact comparison")
             else:
                 _exact(tolerance, {"formula", "absolute", "relative"}, f"{where}.tolerance")
-                if tolerance["formula"] != "symmetric-v1" or any(type(tolerance[key]) not in {int, float} or not math.isfinite(tolerance[key]) or tolerance[key] < 0 for key in ("absolute", "relative")):
+                if tolerance["formula"] != "symmetric-v1" or any(
+                    type(tolerance[key]) not in {int, float} or not math.isfinite(tolerance[key]) or tolerance[key] < 0
+                    for key in ("absolute", "relative")
+                ):
                     raise ParisonError(f"{where}.tolerance must be a nonnegative symmetric-v1 tolerance")
             dependency_edges.append((check["child_dataset"], check["parent_dataset"]))
 
@@ -315,6 +349,7 @@ def normalize_reconciliation(value: Any) -> dict[str, Any]:
     for child, parent in dependency_edges:
         graph[child].add(parent)
     visiting, visited = set(), set()
+
     def visit(node: str) -> None:
         if node in visiting:
             raise ParisonError("dataset relationship graph must be acyclic")
@@ -325,13 +360,19 @@ def normalize_reconciliation(value: Any) -> dict[str, Any]:
             visit(parent)
         visiting.remove(node)
         visited.add(node)
+
     for node in sorted(graph):
         visit(node)
 
     datasets.sort(key=lambda item: item["id"])
     order = {"identity": 0, "reference": 1, "conservation": 2}
     checks.sort(key=lambda item: (order[item["kind"]], item["id"]))
-    return {"reconciliation_version": 1, "alignment_sha256": _digest(value["alignment_sha256"], "alignment_sha256"), "datasets": datasets, "checks": checks}
+    return {
+        "reconciliation_version": 1,
+        "alignment_sha256": _digest(value["alignment_sha256"], "alignment_sha256"),
+        "datasets": datasets,
+        "checks": checks,
+    }
 
 
 def canonical_reconciliation_bytes(value: Any) -> bytes:
@@ -401,14 +442,24 @@ def preflight_alignment(
             raise ParisonError(f"dataset {dataset_id!r} semantic columns do not match its effective recipe")
         sides = {}
         for side in ("baseline", "candidate"):
-            counts = {"rows": 0, "in_window": 0, "before_window": 0, "at_or_after_end": 0, "null_event_time": 0, "invalid_event_time": 0}
+            counts = {
+                "rows": 0,
+                "in_window": 0,
+                "before_window": 0,
+                "at_or_after_end": 0,
+                "null_event_time": 0,
+                "invalid_event_time": 0,
+            }
             for raw in _iter_input_rows(runtime[side], recipe, max_rows, side, decoded_sizes):
                 counts["rows"] += 1
                 raw_value = raw.get(_source_name(recipe, event_column, side))
                 if raw_value is None:
                     counts["null_event_time"] += 1
                     continue
-                timestamp = _normalize(_parse_input(raw_value, recipe["columns"][event_column], event_column, recipe), recipe["columns"][event_column])
+                timestamp = _normalize(
+                    _parse_input(raw_value, recipe["columns"][event_column], event_column, recipe),
+                    recipe["columns"][event_column],
+                )
                 if timestamp is None:
                     counts["null_event_time"] += 1
                     continue
@@ -425,21 +476,32 @@ def preflight_alignment(
 
     data_failure = any(
         counts[field]
-        for dataset in results for counts in dataset["sides"].values()
+        for dataset in results
+        for counts in dataset["sides"].values()
         for field in ("before_window", "at_or_after_end", "null_event_time", "invalid_event_time")
     )
     coordination = alignment["coordination"]
     reasons = []
     coordination_status = "PASS"
     if coordination["mode"] == "watermark":
-        insufficient = [item["id"] for item in alignment["datasets"] if datetime.fromisoformat(item["watermark"][:-1] + "+00:00") < end]
+        insufficient = [
+            item["id"]
+            for item in alignment["datasets"]
+            if datetime.fromisoformat(item["watermark"][:-1] + "+00:00") < end
+        ]
         if insufficient:
             coordination_status, reasons = "FAIL", ["watermark-before-window-end"]
         elif coordination["watermark_kind"] == "heuristic":
             coordination_status, reasons = "INCONCLUSIVE", ["heuristic-watermark"]
     elif coordination["mode"] == "declared-cutoff":
         coordination_status, reasons = "INCONCLUSIVE", ["coordination-not-machine-established"]
-    outcome = "FAIL" if data_failure or coordination_status == "FAIL" else "INCONCLUSIVE" if coordination_status == "INCONCLUSIVE" else "PASS"
+    outcome = (
+        "FAIL"
+        if data_failure or coordination_status == "FAIL"
+        else "INCONCLUSIVE"
+        if coordination_status == "INCONCLUSIVE"
+        else "PASS"
+    )
     if data_failure:
         reasons.append("event-time-scope-failed")
     return {
@@ -453,7 +515,11 @@ def preflight_alignment(
         "coordination_mode": coordination["mode"],
         "event_window": alignment["event_window"],
         "datasets": results,
-        "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows},
+        "resource_limits": {
+            "max_input_bytes": max_input_bytes,
+            "max_decoded_bytes": max_decoded_bytes,
+            "max_rows_per_input": max_rows,
+        },
     }
 
 
@@ -514,7 +580,9 @@ def check_identity_references(
             yield _parse_row(raw, recipe, side)
 
     parent = Path(temp_directory) if temp_directory is not None else None
-    workspace = tempfile.TemporaryDirectory(prefix="parison-reconciliation-", dir=parent) if engine == "sqlite" else None
+    workspace = (
+        tempfile.TemporaryDirectory(prefix="parison-reconciliation-", dir=parent) if engine == "sqlite" else None
+    )
     connection = None
     try:
         if workspace is not None:
@@ -527,7 +595,9 @@ def check_identity_references(
             connection.execute("PRAGMA journal_mode=OFF")
             connection.execute("PRAGMA synchronous=OFF")
             connection.execute(f"PRAGMA max_page_count={page_limit}")
-            connection.execute("CREATE TABLE identities (side TEXT NOT NULL, check_id TEXT NOT NULL, key BLOB NOT NULL, occurrences INTEGER NOT NULL, PRIMARY KEY(side, check_id, key)) WITHOUT ROWID")
+            connection.execute(
+                "CREATE TABLE identities (side TEXT NOT NULL, check_id TEXT NOT NULL, key BLOB NOT NULL, occurrences INTEGER NOT NULL, PRIMARY KEY(side, check_id, key)) WITHOUT ROWID"
+            )
 
         for side in ("baseline", "candidate"):
             for check_id, check in identities.items():
@@ -541,21 +611,46 @@ def check_identity_references(
                         if len(counts) > max_keys:
                             raise ParisonError(f"identity {check_id!r} exceeds distinct key limit {max_keys}")
                     else:
-                        connection.execute("INSERT INTO identities VALUES (?, ?, ?, 1) ON CONFLICT(side, check_id, key) DO UPDATE SET occurrences = occurrences + 1", (side, check_id, key))
+                        connection.execute(
+                            "INSERT INTO identities VALUES (?, ?, ?, 1) ON CONFLICT(side, check_id, key) DO UPDATE SET occurrences = occurrences + 1",
+                            (side, check_id, key),
+                        )
                 if connection is not None:
                     connection.commit()
-                    distinct, duplicates = connection.execute("SELECT COUNT(*), COALESCE(SUM(occurrences > 1), 0) FROM identities WHERE side=? AND check_id=?", (side, check_id)).fetchone()
+                    distinct, duplicates = connection.execute(
+                        "SELECT COUNT(*), COALESCE(SUM(occurrences > 1), 0) FROM identities WHERE side=? AND check_id=?",
+                        (side, check_id),
+                    ).fetchone()
                     if distinct > max_keys:
                         raise ParisonError(f"identity {check_id!r} exceeds distinct key limit {max_keys}")
                 else:
                     distinct, duplicates = len(counts), sum(value > 1 for value in counts.values())
                     memory_keys[(side, check_id)] = counts
                 failed = duplicates > 0 or (check["nulls"] == "forbid" and null_rows > 0)
-                results[side].append({"id": check_id, "kind": "identity", "outcome": "FAIL" if failed else "PASS", "counts": {"rows": total, "distinct_keys": distinct, "null_key_rows": null_rows, "duplicate_keys": duplicates}})
+                results[side].append(
+                    {
+                        "id": check_id,
+                        "kind": "identity",
+                        "outcome": "FAIL" if failed else "PASS",
+                        "counts": {
+                            "rows": total,
+                            "distinct_keys": distinct,
+                            "null_key_rows": null_rows,
+                            "duplicate_keys": duplicates,
+                        },
+                    }
+                )
 
             for check in references:
                 parent_check = identities[check["parent_identity"]]
-                counts = {"child_rows": 0, "exempt_rows": 0, "matched_rows": 0, "orphan_rows": 0, "ambiguous_parent_rows": 0, "null_failure_rows": 0}
+                counts = {
+                    "child_rows": 0,
+                    "exempt_rows": 0,
+                    "matched_rows": 0,
+                    "orphan_rows": 0,
+                    "ambiguous_parent_rows": 0,
+                    "null_failure_rows": 0,
+                }
                 for row in rows(check["child_dataset"], side):
                     counts["child_rows"] += 1
                     key, values = encoded(row, check["child_dataset"], check["child_columns"])
@@ -569,7 +664,10 @@ def check_identity_references(
                     if connection is None:
                         occurrences = memory_keys[(side, parent_check["id"])].get(key, 0)
                     else:
-                        found = connection.execute("SELECT occurrences FROM identities WHERE side=? AND check_id=? AND key=?", (side, parent_check["id"], key)).fetchone()
+                        found = connection.execute(
+                            "SELECT occurrences FROM identities WHERE side=? AND check_id=? AND key=?",
+                            (side, parent_check["id"], key),
+                        ).fetchone()
                         occurrences = found[0] if found else 0
                     if occurrences == 1:
                         counts["matched_rows"] += 1
@@ -578,7 +676,9 @@ def check_identity_references(
                     else:
                         counts["ambiguous_parent_rows"] += 1
                 failed = any(counts[field] for field in ("orphan_rows", "ambiguous_parent_rows", "null_failure_rows"))
-                results[side].append({"id": check["id"], "kind": "reference", "outcome": "FAIL" if failed else "PASS", "counts": counts})
+                results[side].append(
+                    {"id": check["id"], "kind": "reference", "outcome": "FAIL" if failed else "PASS", "counts": counts}
+                )
         if connection is not None:
             connection.commit()
     except sqlite3.Error as exc:
@@ -599,7 +699,12 @@ def check_identity_references(
         "outcome": outcome,
         "reconciliation_sha256": reconciliation["reconciliation_sha256"],
         "sides": results,
-        "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows, "max_keys_per_identity": max_keys},
+        "resource_limits": {
+            "max_input_bytes": max_input_bytes,
+            "max_decoded_bytes": max_decoded_bytes,
+            "max_rows_per_input": max_rows,
+            "max_keys_per_identity": max_keys,
+        },
     }
     return output
 
@@ -671,12 +776,26 @@ def check_conservation(
             connection.execute("PRAGMA journal_mode=OFF")
             connection.execute("PRAGMA synchronous=OFF")
             connection.execute(f"PRAGMA max_page_count={page_limit}")
-            connection.execute("CREATE TABLE groups (side TEXT NOT NULL, check_id TEXT NOT NULL, key BLOB NOT NULL, parent_count INTEGER NOT NULL DEFAULT 0, parent_value TEXT, child_count INTEGER NOT NULL DEFAULT 0, child_sum TEXT NOT NULL DEFAULT '0', PRIMARY KEY(side, check_id, key)) WITHOUT ROWID")
+            connection.execute(
+                "CREATE TABLE groups (side TEXT NOT NULL, check_id TEXT NOT NULL, key BLOB NOT NULL, parent_count INTEGER NOT NULL DEFAULT 0, parent_value TEXT, child_count INTEGER NOT NULL DEFAULT 0, child_sum TEXT NOT NULL DEFAULT '0', PRIMARY KEY(side, check_id, key)) WITHOUT ROWID"
+            )
 
         for side in ("baseline", "candidate"):
             for check in checks:
                 groups: dict[bytes, dict[str, Any]] = {}
-                counts = {"parent_rows": 0, "child_rows": 0, "groups": 0, "compared_groups": 0, "exact_groups": 0, "within_tolerance_groups": 0, "different_groups": 0, "child_only_groups": 0, "parent_without_children_groups": 0, "duplicate_parent_groups": 0, "null_measure_rows": 0}
+                counts = {
+                    "parent_rows": 0,
+                    "child_rows": 0,
+                    "groups": 0,
+                    "compared_groups": 0,
+                    "exact_groups": 0,
+                    "within_tolerance_groups": 0,
+                    "different_groups": 0,
+                    "child_only_groups": 0,
+                    "parent_without_children_groups": 0,
+                    "duplicate_parent_groups": 0,
+                    "null_measure_rows": 0,
+                }
                 for role in ("parent", "child"):
                     dataset_id = check[f"{role}_dataset"]
                     columns = check[f"{role}_group_columns"]
@@ -689,7 +808,9 @@ def check_conservation(
                                 counts["null_measure_rows"] += 1
                             value = 0
                         if connection is None:
-                            state = groups.setdefault(encoded_key, {"parent_count": 0, "parent_value": None, "child_count": 0, "child_sum": 0})
+                            state = groups.setdefault(
+                                encoded_key, {"parent_count": 0, "parent_value": None, "child_count": 0, "child_sum": 0}
+                            )
                             if len(groups) > max_groups:
                                 raise ParisonError(f"conservation {check['id']!r} exceeds group limit {max_groups}")
                             if role == "parent":
@@ -699,22 +820,45 @@ def check_conservation(
                                 state["child_count"] += 1
                                 state["child_sum"] += value
                         else:
-                            connection.execute("INSERT OR IGNORE INTO groups (side, check_id, key) VALUES (?, ?, ?)", (side, check["id"], encoded_key))
+                            connection.execute(
+                                "INSERT OR IGNORE INTO groups (side, check_id, key) VALUES (?, ?, ?)",
+                                (side, check["id"], encoded_key),
+                            )
                             if role == "parent":
-                                connection.execute("UPDATE groups SET parent_count=parent_count+1, parent_value=? WHERE side=? AND check_id=? AND key=?", (str(value), side, check["id"], encoded_key))
+                                connection.execute(
+                                    "UPDATE groups SET parent_count=parent_count+1, parent_value=? WHERE side=? AND check_id=? AND key=?",
+                                    (str(value), side, check["id"], encoded_key),
+                                )
                             else:
-                                found = connection.execute("SELECT child_sum FROM groups WHERE side=? AND check_id=? AND key=?", (side, check["id"], encoded_key)).fetchone()
+                                found = connection.execute(
+                                    "SELECT child_sum FROM groups WHERE side=? AND check_id=? AND key=?",
+                                    (side, check["id"], encoded_key),
+                                ).fetchone()
                                 total = Decimal(found[0]) + Decimal(str(value))
-                                connection.execute("UPDATE groups SET child_count=child_count+1, child_sum=? WHERE side=? AND check_id=? AND key=?", (str(total), side, check["id"], encoded_key))
+                                connection.execute(
+                                    "UPDATE groups SET child_count=child_count+1, child_sum=? WHERE side=? AND check_id=? AND key=?",
+                                    (str(total), side, check["id"], encoded_key),
+                                )
                 if connection is not None:
                     connection.commit()
-                    size = connection.execute("SELECT COUNT(*) FROM groups WHERE side=? AND check_id=?", (side, check["id"])).fetchone()[0]
+                    size = connection.execute(
+                        "SELECT COUNT(*) FROM groups WHERE side=? AND check_id=?", (side, check["id"])
+                    ).fetchone()[0]
                     if size > max_groups:
                         raise ParisonError(f"conservation {check['id']!r} exceeds group limit {max_groups}")
-                    records = connection.execute("SELECT parent_count, parent_value, child_count, child_sum FROM groups WHERE side=? AND check_id=? ORDER BY key", (side, check["id"]))
+                    records = connection.execute(
+                        "SELECT parent_count, parent_value, child_count, child_sum FROM groups WHERE side=? AND check_id=? ORDER BY key",
+                        (side, check["id"]),
+                    )
                 else:
-                    records = ((state["parent_count"], state["parent_value"], state["child_count"], state["child_sum"]) for _, state in sorted(groups.items()))
-                policy = {"comparison": "exact" if check["comparison"] == "exact" else "numeric", "tolerance": check["tolerance"]}
+                    records = (
+                        (state["parent_count"], state["parent_value"], state["child_count"], state["child_sum"])
+                        for _, state in sorted(groups.items())
+                    )
+                policy = {
+                    "comparison": "exact" if check["comparison"] == "exact" else "numeric",
+                    "tolerance": check["tolerance"],
+                }
                 for parent_count, parent_value, child_count, child_sum in records:
                     counts["groups"] += 1
                     if not parent_count:
@@ -730,8 +874,23 @@ def check_conservation(
                     child_numeric = Decimal(child_sum) if connection is not None else child_sum
                     classification, _, _ = _classify(parent_numeric, child_numeric, policy, True)
                     counts[f"{classification}_groups"] += 1
-                failed = any(counts[field] for field in ("different_groups", "child_only_groups", "duplicate_parent_groups", "null_measure_rows"))
-                results[side].append({"id": check["id"], "kind": "conservation", "outcome": "FAIL" if failed else "PASS", "counts": counts})
+                failed = any(
+                    counts[field]
+                    for field in (
+                        "different_groups",
+                        "child_only_groups",
+                        "duplicate_parent_groups",
+                        "null_measure_rows",
+                    )
+                )
+                results[side].append(
+                    {
+                        "id": check["id"],
+                        "kind": "conservation",
+                        "outcome": "FAIL" if failed else "PASS",
+                        "counts": counts,
+                    }
+                )
         if connection is not None:
             connection.commit()
     except sqlite3.Error as exc:
@@ -746,7 +905,18 @@ def check_conservation(
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while conservation was being checked")
     outcome = "FAIL" if any(check["outcome"] == "FAIL" for side in results.values() for check in side) else "PASS"
-    return {"conservation_result_version": 1, "outcome": outcome, "reconciliation_sha256": reconciliation["reconciliation_sha256"], "sides": results, "resource_limits": {"max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes, "max_rows_per_input": max_rows, "max_groups_per_check": max_groups}}
+    return {
+        "conservation_result_version": 1,
+        "outcome": outcome,
+        "reconciliation_sha256": reconciliation["reconciliation_sha256"],
+        "sides": results,
+        "resource_limits": {
+            "max_input_bytes": max_input_bytes,
+            "max_decoded_bytes": max_decoded_bytes,
+            "max_rows_per_input": max_rows,
+            "max_groups_per_check": max_groups,
+        },
+    }
 
 
 def run_reconciliation(
@@ -768,8 +938,13 @@ def run_reconciliation(
     sources = tuple(inputs[dataset_id][side] for dataset_id in sorted(inputs) for side in ("baseline", "candidate"))
     before = {str(source): _source_digest(source) for source in sources}
     alignment = preflight_alignment(
-        alignment_path, reconciliation_path, receipt_path, inputs,
-        max_input_bytes, max_decoded_bytes, max_rows,
+        alignment_path,
+        reconciliation_path,
+        receipt_path,
+        inputs,
+        max_input_bytes,
+        max_decoded_bytes,
+        max_rows,
     )
     declaration = explain_reconciliation(reconciliation_path)
     parity = []
@@ -778,40 +953,69 @@ def run_reconciliation(
         recipe = load_recipe(inputs[dataset_id]["recipe"])
         mode = recipe["comparison_mode"]
         result = compare(
-            inputs[dataset_id]["recipe"], inputs[dataset_id]["baseline"], inputs[dataset_id]["candidate"],
-            sample_limit=0, max_input_bytes=max_input_bytes, max_rows=max_rows,
-            expected_policy_sha256=dataset["policy_sha256"], max_decoded_bytes=max_decoded_bytes,
-            max_groups=max_groups, max_distinct_rows=max_distinct_rows,
+            inputs[dataset_id]["recipe"],
+            inputs[dataset_id]["baseline"],
+            inputs[dataset_id]["candidate"],
+            sample_limit=0,
+            max_input_bytes=max_input_bytes,
+            max_rows=max_rows,
+            expected_policy_sha256=dataset["policy_sha256"],
+            max_decoded_bytes=max_decoded_bytes,
+            max_groups=max_groups,
+            max_distinct_rows=max_distinct_rows,
             engine="memory" if mode == "aggregate" else engine,
             max_temp_bytes=max_temp_bytes,
             temp_directory=None if engine == "memory" or mode == "aggregate" else temp_directory,
         )
-        parity.append({
-            "id": dataset_id,
-            "outcome": result["outcome"],
-            "complete": result["complete"],
-            "schema_version": result["schema_version"],
-            "contract": result["runtime"]["contract"],
-            "policy_sha256": result["policy_sha256"],
-            "baseline_sha256": result["inputs"].get("baseline", {}).get("sha256"),
-            "candidate_sha256": result["inputs"].get("candidate", {}).get("sha256"),
-            "discrepancy_count": result["discrepancy_count"],
-        })
+        parity.append(
+            {
+                "id": dataset_id,
+                "outcome": result["outcome"],
+                "complete": result["complete"],
+                "schema_version": result["schema_version"],
+                "contract": result["runtime"]["contract"],
+                "policy_sha256": result["policy_sha256"],
+                "baseline_sha256": result["inputs"].get("baseline", {}).get("sha256"),
+                "candidate_sha256": result["inputs"].get("candidate", {}).get("sha256"),
+                "discrepancy_count": result["discrepancy_count"],
+            }
+        )
     relationships = check_identity_references(
-        reconciliation_path, inputs, engine, max_input_bytes, max_decoded_bytes,
-        max_rows, max_keys, max_temp_bytes, temp_directory,
+        reconciliation_path,
+        inputs,
+        engine,
+        max_input_bytes,
+        max_decoded_bytes,
+        max_rows,
+        max_keys,
+        max_temp_bytes,
+        temp_directory,
     )
     if any(check["kind"] == "conservation" for check in declaration["checks"]):
         conservation = check_conservation(
-            reconciliation_path, inputs, engine, max_input_bytes, max_decoded_bytes,
-            max_rows, max_groups, max_temp_bytes, temp_directory,
+            reconciliation_path,
+            inputs,
+            engine,
+            max_input_bytes,
+            max_decoded_bytes,
+            max_rows,
+            max_groups,
+            max_temp_bytes,
+            temp_directory,
         )
     else:
         conservation = {"outcome": "PASS", "sides": {"baseline": [], "candidate": []}}
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while reconciliation was running")
-    component_outcomes = [alignment["outcome"], relationships["outcome"], conservation["outcome"], *(item["outcome"] for item in parity)]
-    outcome = "FAIL" if "FAIL" in component_outcomes else "INCONCLUSIVE" if "INCONCLUSIVE" in component_outcomes else "PASS"
+    component_outcomes = [
+        alignment["outcome"],
+        relationships["outcome"],
+        conservation["outcome"],
+        *(item["outcome"] for item in parity),
+    ]
+    outcome = (
+        "FAIL" if "FAIL" in component_outcomes else "INCONCLUSIVE" if "INCONCLUSIVE" in component_outcomes else "PASS"
+    )
     return {
         "reconciliation_result_version": 1,
         "outcome": outcome,
@@ -819,15 +1023,23 @@ def run_reconciliation(
         "alignment_sha256": alignment["alignment_sha256"],
         "reconciliation_sha256": declaration["reconciliation_sha256"],
         "receipt_sha256": alignment["receipt_sha256"],
-        "alignment": {"outcome": alignment["outcome"], "status": alignment["alignment_status"], "reason_codes": alignment["reason_codes"], "datasets": alignment["datasets"]},
+        "alignment": {
+            "outcome": alignment["outcome"],
+            "status": alignment["alignment_status"],
+            "reason_codes": alignment["reason_codes"],
+            "datasets": alignment["datasets"],
+        },
         "datasets": parity,
         "relationships": relationships["sides"],
         "conservation": conservation["sides"],
         "runtime": {"contract": "reconciliation-v1", "parison_version": __version__},
         "resource_limits": {
-            "max_input_bytes": max_input_bytes, "max_decoded_bytes": max_decoded_bytes,
-            "max_rows_per_input": max_rows, "max_keys_per_identity": max_keys,
-            "max_groups_per_check": max_groups, "max_distinct_rows_per_input": max_distinct_rows,
+            "max_input_bytes": max_input_bytes,
+            "max_decoded_bytes": max_decoded_bytes,
+            "max_rows_per_input": max_rows,
+            "max_keys_per_identity": max_keys,
+            "max_groups_per_check": max_groups,
+            "max_distinct_rows_per_input": max_distinct_rows,
         },
     }
 
@@ -836,7 +1048,9 @@ def summarize_reconciliation_result(result: dict[str, Any]) -> dict[str, Any]:
     component_counts = {label: 0 for label in ("PASS", "FAIL", "INCONCLUSIVE")}
     for item in result["datasets"]:
         component_counts[item["outcome"]] += 1
-    relationship_counts = {kind: {label: 0 for label in ("PASS", "FAIL")} for kind in ("identity", "reference", "conservation")}
+    relationship_counts = {
+        kind: {label: 0 for label in ("PASS", "FAIL")} for kind in ("identity", "reference", "conservation")
+    }
     for field in ("relationships", "conservation"):
         for side in ("baseline", "candidate"):
             for item in result[field][side]:
@@ -848,7 +1062,11 @@ def summarize_reconciliation_result(result: dict[str, Any]) -> dict[str, Any]:
         "alignment_sha256": result["alignment_sha256"],
         "reconciliation_sha256": result["reconciliation_sha256"],
         "receipt_sha256": result["receipt_sha256"],
-        "alignment": {"outcome": result["alignment"]["outcome"], "status": result["alignment"]["status"], "reason_codes": result["alignment"]["reason_codes"]},
+        "alignment": {
+            "outcome": result["alignment"]["outcome"],
+            "status": result["alignment"]["status"],
+            "reason_codes": result["alignment"]["reason_codes"],
+        },
         "dataset_outcome_counts": component_counts,
         "relationship_outcome_counts": relationship_counts,
     }
@@ -887,7 +1105,10 @@ def publish_reconciliation_bundle(
     if target.exists():
         raise ParisonError(f"output already exists: {target}")
     alignment, declaration = explain_time_alignment(alignment_path), explain_reconciliation(reconciliation_path)
-    if result.get("alignment_sha256") != alignment["alignment_sha256"] or result.get("reconciliation_sha256") != declaration["reconciliation_sha256"]:
+    if (
+        result.get("alignment_sha256") != alignment["alignment_sha256"]
+        or result.get("reconciliation_sha256") != declaration["reconciliation_sha256"]
+    ):
         raise ParisonError("result fingerprints do not match declarations")
     stage = None
     try:
@@ -899,7 +1120,9 @@ def publish_reconciliation_bundle(
             "reconciliation-result.json": result,
             "summary.json": summarize_reconciliation_result(result),
             "effective-alignment.json": {key: value for key, value in alignment.items() if key != "alignment_sha256"},
-            "effective-reconciliation.json": {key: value for key, value in declaration.items() if key != "reconciliation_sha256"},
+            "effective-reconciliation.json": {
+                key: value for key, value in declaration.items() if key != "reconciliation_sha256"
+            },
         }
         for name, value in payloads.items():
             (stage / name).write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -936,30 +1159,77 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read reconciliation manifest: {exc}") from exc
     expected = {"schema_version", "kind", "complete", "outcome", "sensitivity", "runtime", "files"}
-    if not isinstance(manifest, dict) or set(manifest) != expected or manifest.get("schema_version") != 1 or manifest.get("kind") != "reconciliation" or manifest.get("complete") is not True:
+    if (
+        not isinstance(manifest, dict)
+        or set(manifest) != expected
+        or manifest.get("schema_version") != 1
+        or manifest.get("kind") != "reconciliation"
+        or manifest.get("complete") is not True
+    ):
         raise ParisonError("reconciliation manifest is incomplete or unsupported")
     if manifest.get("outcome") not in {"PASS", "FAIL", "INCONCLUSIVE"} or manifest.get("sensitivity") != "raw":
         raise ParisonError("reconciliation manifest has invalid metadata")
-    _verify_manifest_files(root, manifest["files"], {"reconciliation-result.json", "summary.json", "effective-alignment.json", "effective-reconciliation.json"})
+    _verify_manifest_files(
+        root,
+        manifest["files"],
+        {"reconciliation-result.json", "summary.json", "effective-alignment.json", "effective-reconciliation.json"},
+    )
     try:
-        result = json.loads((root / "reconciliation-result.json").read_text(encoding="utf-8"), object_pairs_hook=_object)
+        result = json.loads(
+            (root / "reconciliation-result.json").read_text(encoding="utf-8"), object_pairs_hook=_object
+        )
         summary = json.loads((root / "summary.json").read_text(encoding="utf-8"), object_pairs_hook=_object)
-        alignment = json.loads((root / "effective-alignment.json").read_text(encoding="utf-8"), object_pairs_hook=_object)
-        declaration = json.loads((root / "effective-reconciliation.json").read_text(encoding="utf-8"), object_pairs_hook=_object)
+        alignment = json.loads(
+            (root / "effective-alignment.json").read_text(encoding="utf-8"), object_pairs_hook=_object
+        )
+        declaration = json.loads(
+            (root / "effective-reconciliation.json").read_text(encoding="utf-8"), object_pairs_hook=_object
+        )
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read reconciliation bundle: {exc}") from exc
-    normalized_alignment, normalized_declaration = normalize_time_alignment(alignment), normalize_reconciliation(declaration)
+    normalized_alignment, normalized_declaration = (
+        normalize_time_alignment(alignment),
+        normalize_reconciliation(declaration),
+    )
     alignment_sha256 = hashlib.sha256(_canonical(normalized_alignment)).hexdigest()
     reconciliation_sha256 = hashlib.sha256(_canonical(normalized_declaration)).hexdigest()
-    required_result = {"reconciliation_result_version", "outcome", "complete", "alignment_sha256", "reconciliation_sha256", "receipt_sha256", "alignment", "datasets", "relationships", "conservation", "runtime", "resource_limits"}
+    required_result = {
+        "reconciliation_result_version",
+        "outcome",
+        "complete",
+        "alignment_sha256",
+        "reconciliation_sha256",
+        "receipt_sha256",
+        "alignment",
+        "datasets",
+        "relationships",
+        "conservation",
+        "runtime",
+        "resource_limits",
+    }
     dataset_ids = [item["id"] for item in normalized_declaration["datasets"]]
-    relationship_checks = [(item["id"], item["kind"]) for item in normalized_declaration["checks"] if item["kind"] in {"identity", "reference"}]
-    conservation_checks = [(item["id"], item["kind"]) for item in normalized_declaration["checks"] if item["kind"] == "conservation"]
-    if not isinstance(result, dict) or set(result) != required_result or result.get("reconciliation_result_version") != 1 or result.get("complete") is not True:
+    relationship_checks = [
+        (item["id"], item["kind"])
+        for item in normalized_declaration["checks"]
+        if item["kind"] in {"identity", "reference"}
+    ]
+    conservation_checks = [
+        (item["id"], item["kind"]) for item in normalized_declaration["checks"] if item["kind"] == "conservation"
+    ]
+    if (
+        not isinstance(result, dict)
+        or set(result) != required_result
+        or result.get("reconciliation_result_version") != 1
+        or result.get("complete") is not True
+    ):
         raise ParisonError("reconciliation result is incomplete or unsupported")
-    if [item.get("id") for item in result.get("datasets", []) if isinstance(item, dict)] != dataset_ids or len(result.get("datasets", [])) != len(dataset_ids):
+    if [item.get("id") for item in result.get("datasets", []) if isinstance(item, dict)] != dataset_ids or len(
+        result.get("datasets", [])
+    ) != len(dataset_ids):
         raise ParisonError("reconciliation result datasets do not match declaration")
-    if [item.get("id") for item in result.get("alignment", {}).get("datasets", []) if isinstance(item, dict)] != dataset_ids:
+    if [
+        item.get("id") for item in result.get("alignment", {}).get("datasets", []) if isinstance(item, dict)
+    ] != dataset_ids:
         raise ParisonError("alignment result datasets do not match declaration")
     component_outcomes = [result.get("alignment", {}).get("outcome")]
     for field, expected_checks in (("relationships", relationship_checks), ("conservation", conservation_checks)):
@@ -968,18 +1238,39 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
             raise ParisonError(f"reconciliation result has invalid {field}")
         for side in ("baseline", "candidate"):
             observed = sides[side]
-            if not isinstance(observed, list) or [(item.get("id"), item.get("kind")) for item in observed if isinstance(item, dict)] != expected_checks:
+            if (
+                not isinstance(observed, list)
+                or [(item.get("id"), item.get("kind")) for item in observed if isinstance(item, dict)]
+                != expected_checks
+            ):
                 raise ParisonError(f"reconciliation result {field} do not match declaration")
             for item in observed:
-                if set(item) != {"id", "kind", "outcome", "counts"} or item["outcome"] not in {"PASS", "FAIL"} or not isinstance(item["counts"], dict) or any(type(value) is not int or value < 0 for value in item["counts"].values()):
+                if (
+                    set(item) != {"id", "kind", "outcome", "counts"}
+                    or item["outcome"] not in {"PASS", "FAIL"}
+                    or not isinstance(item["counts"], dict)
+                    or any(type(value) is not int or value < 0 for value in item["counts"].values())
+                ):
                     raise ParisonError(f"reconciliation result has invalid {field} counts")
                 component_outcomes.append(item["outcome"])
     for item in result["datasets"]:
-        if set(item) != {"id", "outcome", "complete", "schema_version", "contract", "policy_sha256", "baseline_sha256", "candidate_sha256", "discrepancy_count"} or item["outcome"] not in {"PASS", "FAIL", "INCONCLUSIVE"}:
+        if set(item) != {
+            "id",
+            "outcome",
+            "complete",
+            "schema_version",
+            "contract",
+            "policy_sha256",
+            "baseline_sha256",
+            "candidate_sha256",
+            "discrepancy_count",
+        } or item["outcome"] not in {"PASS", "FAIL", "INCONCLUSIVE"}:
             raise ParisonError("reconciliation result has invalid dataset parity")
         component_outcomes.append(item["outcome"])
     declared_policies = [item["policy_sha256"] for item in normalized_declaration["datasets"]]
-    expected_outcome = "FAIL" if "FAIL" in component_outcomes else "INCONCLUSIVE" if "INCONCLUSIVE" in component_outcomes else "PASS"
+    expected_outcome = (
+        "FAIL" if "FAIL" in component_outcomes else "INCONCLUSIVE" if "INCONCLUSIVE" in component_outcomes else "PASS"
+    )
     if (
         result.get("alignment_sha256") != alignment_sha256
         or result.get("reconciliation_sha256") != reconciliation_sha256
@@ -1000,4 +1291,10 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
 def inspect_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
     manifest = verify_reconciliation_bundle(directory)
     summary = json.loads((Path(directory) / "summary.json").read_text(encoding="utf-8"))
-    return {"kind": "reconciliation", **summary, "runtime": manifest["runtime"], "bundle_sha256": file_digest(Path(directory) / "manifest.json"), "manifest_files": sorted(manifest["files"])}
+    return {
+        "kind": "reconciliation",
+        **summary,
+        "runtime": manifest["runtime"],
+        "bundle_sha256": file_digest(Path(directory) / "manifest.json"),
+        "manifest_files": sorted(manifest["files"]),
+    }

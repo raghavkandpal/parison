@@ -78,7 +78,11 @@ def add(database: str | Path, bundle: str | Path) -> dict[str, Any]:
         with closing(_open(database)) as connection, connection:
             connection.execute("BEGIN IMMEDIATE")
             existing = connection.execute("SELECT bundle_sha256 FROM runs WHERE path = ?", (path,)).fetchone()
-            status = "added" if existing is None else ("unchanged" if existing[0] == metadata["bundle_sha256"] else "updated")
+            status = (
+                "added"
+                if existing is None
+                else ("unchanged" if existing[0] == metadata["bundle_sha256"] else "updated")
+            )
             catalog_order = connection.execute("SELECT COALESCE(MAX(catalog_order), 0) + 1 FROM runs").fetchone()[0]
             connection.execute(
                 "INSERT INTO runs(path, catalog_order, bundle_sha256, kind, outcome, metadata) VALUES (?, ?, ?, ?, ?, ?) "
@@ -88,7 +92,13 @@ def add(database: str | Path, bundle: str | Path) -> dict[str, Any]:
             )
     except sqlite3.Error as exc:
         raise ParisonError(f"cannot update catalog: {exc}") from exc
-    return {"status": status, "path": path, "bundle_sha256": metadata["bundle_sha256"], "kind": _kind(metadata), "outcome": metadata["outcome"]}
+    return {
+        "status": status,
+        "path": path,
+        "bundle_sha256": metadata["bundle_sha256"],
+        "kind": _kind(metadata),
+        "outcome": metadata["outcome"],
+    }
 
 
 def _state(path: str, expected_digest: str) -> str:
@@ -111,8 +121,14 @@ def _decoded_entry(row: tuple[Any, ...], duplicate_paths: int) -> dict[str, Any]
     except (json.JSONDecodeError, TypeError) as exc:
         raise ParisonError(f"catalog contains invalid metadata: {exc}") from exc
     return {
-        "catalog_order": catalog_order, "path": path, "bundle_sha256": digest, "kind": kind,
-        "outcome": outcome, "state": _state(path, digest), "duplicate_paths": duplicate_paths, "metadata": decoded,
+        "catalog_order": catalog_order,
+        "path": path,
+        "bundle_sha256": digest,
+        "kind": kind,
+        "outcome": outcome,
+        "state": _state(path, digest),
+        "duplicate_paths": duplicate_paths,
+        "metadata": decoded,
     }
 
 
@@ -148,11 +164,17 @@ def _entry(database: str | Path, bundle: str | Path) -> dict[str, Any]:
     try:
         with closing(_open(database)) as connection:
             row = connection.execute(
-                "SELECT catalog_order, path, bundle_sha256, kind, outcome, metadata FROM runs WHERE path = ?", (path,),
+                "SELECT catalog_order, path, bundle_sha256, kind, outcome, metadata FROM runs WHERE path = ?",
+                (path,),
             ).fetchone()
-            duplicates = 0 if row is None else connection.execute(
-                "SELECT COUNT(*) FROM runs WHERE bundle_sha256 = ?", (row[2],),
-            ).fetchone()[0]
+            duplicates = (
+                0
+                if row is None
+                else connection.execute(
+                    "SELECT COUNT(*) FROM runs WHERE bundle_sha256 = ?",
+                    (row[2],),
+                ).fetchone()[0]
+            )
     except sqlite3.Error as exc:
         raise ParisonError(f"cannot read catalog: {exc}") from exc
     if row is None:
@@ -173,7 +195,9 @@ def _validate_policy_sha256(policy_sha256: str) -> None:
 
 def _run_projection(entry: dict[str, Any], *, include_order: bool = False) -> dict[str, Any]:
     projection = {
-        "path": entry["path"], "bundle_sha256": entry["bundle_sha256"], "state": entry["state"],
+        "path": entry["path"],
+        "bundle_sha256": entry["bundle_sha256"],
+        "state": entry["state"],
         **{name: entry["metadata"].get(name) for name in _SAFE_RUN_FIELDS},
     }
     if include_order:
@@ -199,14 +223,17 @@ def list_runs(
         entries = [entry for entry in entries if _policy_matches(entry["metadata"], policy_sha256)]
     if state is not None:
         entries = [entry for entry in entries if entry["state"] == state]
-    return [{name: value for name, value in entry.items() if name not in {"metadata", "catalog_order"}} for entry in entries]
+    return [
+        {name: value for name, value in entry.items() if name not in {"metadata", "catalog_order"}} for entry in entries
+    ]
 
 
 def history(database: str | Path, policy_sha256: str) -> dict[str, Any]:
     """Return insertion-ordered safe run summaries and outcome transitions for one policy."""
     _validate_policy_sha256(policy_sha256)
     entries = [
-        entry for entry in _entries(database, kind="run", insertion_order=True)
+        entry
+        for entry in _entries(database, kind="run", insertion_order=True)
         if entry["metadata"].get("policy_sha256") == policy_sha256
     ]
     runs = [_run_projection(entry, include_order=True) for entry in entries]
@@ -216,7 +243,8 @@ def history(database: str | Path, policy_sha256: str) -> dict[str, Any]:
             "to_catalog_order": after["catalog_order"],
             "outcome": {"before": before["outcome"], "after": after["outcome"]},
             "discrepancy_count": {
-                "before": before["discrepancy_count"], "after": after["discrepancy_count"],
+                "before": before["discrepancy_count"],
+                "after": after["discrepancy_count"],
                 "delta": after["discrepancy_count"] - before["discrepancy_count"],
             },
         }
@@ -237,11 +265,15 @@ def diff(database: str | Path, left_bundle: str | Path, right_bundle: str | Path
     left_projection, right_projection = _run_projection(left), _run_projection(right)
     changes = {
         name: {"before": left_projection[name], "after": right_projection[name]}
-        for name in _SAFE_RUN_FIELDS if left_projection[name] != right_projection[name]
+        for name in _SAFE_RUN_FIELDS
+        if left_projection[name] != right_projection[name]
     }
     return {
-        "policy_sha256": left_policy, "changed": bool(changes), "changes": changes,
-        "left": left_projection, "right": right_projection,
+        "policy_sha256": left_policy,
+        "changed": bool(changes),
+        "changes": changes,
+        "left": left_projection,
+        "right": right_projection,
     }
 
 
