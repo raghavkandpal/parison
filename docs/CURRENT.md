@@ -5,13 +5,13 @@
 - Theme: deterministic, policy-bound discrepancy analysis across rehearsal runs
 - Released: opt-in `semantic-scalar-v1`, strict schema/policy evolution, and coordinated `time-alignment-v1` plus `reconciliation-v1`
 - Verified: exact 1.5 implementation checkpoint `957fe2a47cec26e46c7de7da4317a317c69b23a7` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39016303344) on Python 3.11–3.14, Linux, macOS and Windows
-- Next gate: qualify the exact versioned candidate, review and merge it to `main`, then publish and re-verify 1.5.0 assets
+- Next gate: commit and qualify the corrected exact candidate in CI, then merge to `main` and publish and re-verify 1.5.0 assets
 
 ## Recorded next steps
 
 - The [pre-1.5 repository quality and layout plan](157-repository-quality-and-layout-plan.md) is complete at exact commit `35fe2d0`; see the [maintenance checkpoint](158-repository-maintenance-checkpoint.md). Ruff is mandatory, contributor standards are documented, `core.py` is a compatibility facade and atomic no-replace publication is consolidated in `_safe_fs.py`.
 - Exact maintenance commit `35fe2d0578ac54956c58bd4501aba8ae03fb8de2` passed the full built-wheel matrix on Python 3.11–3.14 across Linux, macOS and Windows in [CI run 39015498650](https://github.com/raghavkandpal/parison/actions/runs/39015498650). No product release was created for internal maintenance.
-- Per-run reason groups, exact-policy ordered series, bounded raw-sample drill-down, strict installed schema, canonical atomic bundles and CLI workflows are implemented. Complete the realistic three-run rehearsal and cross-platform built-wheel gate before release.
+- Per-run reason groups, exact-policy direct/catalog series, bounded raw-sample drill-down, strict installed summary/raw schemas, canonical atomic artifacts and CLI workflows are implemented. Review corrections pass 342 local tests and independent Standards/Spec re-review; exact corrected cross-platform CI remains before release.
 
 - Follow the active [1.4 roadmap](1.4/153-roadmap.md) and frozen [manifest/reproducibility contract](1.4/154-dataset-manifest-and-reproducibility-contract.md). Keep exact byte identity, semantic agreement and runtime explanation as separate claims.
 - Strict schemas, canonical identities, descriptor-relative named-file verification, reviewed closed scopes, summary-safe results and informational diagnostic comparison are implemented. The opt-in `dataset-evidence` bundle carries the canonical manifest, full verification result, effective policy, diagnostic and recursively verified semantic result as semantically bound members without changing released bundle readers.

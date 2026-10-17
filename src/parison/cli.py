@@ -12,11 +12,13 @@ from pathlib import Path
 from . import __version__
 from .analysis import (
     analyze_bundle,
+    analyze_catalog,
     analyze_series,
     drill_down,
     export_drilldown,
     publish_analysis,
     verify_analysis_bundle,
+    verify_drilldown,
 )
 from .catalog import add as catalog_add
 from .catalog import diff as catalog_diff
@@ -337,6 +339,7 @@ def parser() -> argparse.ArgumentParser:
             "dataset-manifest",
             "reproducibility-diagnostic",
             "discrepancy-analysis",
+            "discrepancy-drilldown",
         ),
     )
     schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
@@ -445,7 +448,9 @@ operator and null policy. Suggestions are starting points, not approved policy."
     inspect = commands.add_parser("inspect", help="inspect safe metadata from a verified run bundle")
     inspect.add_argument("run_directory")
     analysis = commands.add_parser("analyze", help="publish summary-safe discrepancy groups from verified runs")
-    analysis.add_argument("bundle", nargs="+")
+    analysis.add_argument("bundle", nargs="*")
+    analysis.add_argument("--catalog")
+    analysis.add_argument("--policy-sha256")
     analysis.add_argument("--output", required=True)
     analysis_verify = commands.add_parser("verify-analysis", help="verify a discrepancy analysis bundle")
     analysis_verify.add_argument("bundle")
@@ -455,6 +460,8 @@ operator and null policy. Suggestions are starting points, not approved policy."
     drilldown.add_argument("--limit", type=int, default=100)
     drilldown.add_argument("--per-run-limit", type=int, default=25)
     drilldown.add_argument("--output", required=True)
+    drilldown_verify = commands.add_parser("verify-drilldown", help="verify a canonical raw drill-down artifact")
+    drilldown_verify.add_argument("artifact")
     statement = commands.add_parser("statement", help="export an unsigned in-toto Statement for a verified bundle")
     statement.add_argument("bundle")
     statement.add_argument("--output", required=True)
@@ -573,7 +580,14 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(inspect_bundle(args.run_directory), indent=2, sort_keys=True))
             return 0
         if args.command == "analyze":
-            result = analyze_bundle(args.bundle[0]) if len(args.bundle) == 1 else analyze_series(args.bundle)
+            if args.catalog:
+                if args.bundle or not args.policy_sha256:
+                    raise ParisonError("catalog analysis requires --catalog and --policy-sha256 without bundle paths")
+                result = analyze_catalog(args.catalog, args.policy_sha256)
+            else:
+                if not args.bundle or args.policy_sha256:
+                    raise ParisonError("direct analysis requires bundle paths without --policy-sha256")
+                result = analyze_bundle(args.bundle[0]) if len(args.bundle) == 1 else analyze_series(args.bundle)
             print(json.dumps(publish_analysis(args.output, result), sort_keys=True))
             print(
                 "Analysis summarizes verified evidence; it does not establish cause, repair, approval or cutover readiness.",
@@ -589,6 +603,9 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 "Drill-down contains raw evidence from published samples; handle it as sensitive data.", file=sys.stderr
             )
+            return 0
+        if args.command == "verify-drilldown":
+            print(json.dumps(verify_drilldown(args.artifact), sort_keys=True))
             return 0
         if args.command == "statement":
             print(json.dumps(export_statement(args.bundle, args.output), sort_keys=True))

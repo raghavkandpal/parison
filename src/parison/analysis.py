@@ -5,10 +5,12 @@ from __future__ import annotations
 import hashlib
 import itertools
 import json
+import math
 import os
 import shutil
 import tempfile
 from collections.abc import Iterable
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +19,7 @@ from .core import ParisonError
 from .evidence import _verified_bundle, _write_once
 
 _DOMAIN = b"parison:discrepancy-group:v1\0"
-_KINDS = {"missing": 0, "field": 1, "measure": 2, "shape": 3}
+_KINDS = {"record": 0, "field": 1, "group": 2, "measure": 3, "row": 4}
 _CLASSIFICATIONS = {
     "baseline_only": 0,
     "candidate_only": 1,
@@ -29,14 +31,18 @@ _CLASSIFICATIONS = {
 
 
 def _canonical(value: Any) -> bytes:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return json.dumps(value, allow_nan=False, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
 def _pointer_token(value: str) -> str:
     return value.replace("~", "~0").replace("/", "~1")
 
 
-def _group(descriptor: dict[str, str], count: int, source: str, references: list[str]) -> dict[str, Any]:
+def _ref(path: str, value: Any) -> dict[str, Any]:
+    return {"path": path, "value": value}
+
+
+def _group(descriptor: dict[str, Any], count: int, source: str, references: list[dict[str, Any]]) -> dict[str, Any]:
     identifier = hashlib.sha256(_DOMAIN + _canonical(descriptor)).hexdigest()
     return {
         "group_id": identifier,
@@ -53,7 +59,7 @@ def _group_sort_key(group: dict[str, Any]) -> tuple[Any, ...]:
     return (
         _KINDS[descriptor["kind"]],
         _CLASSIFICATIONS[descriptor["classification"]],
-        descriptor.get("name", "").encode("utf-8"),
+        descriptor.get("logical_name", "").encode("utf-8"),
         group["group_id"],
     )
 
@@ -64,8 +70,10 @@ def _read_verified_run(directory: str | Path) -> tuple[dict[str, Any], dict[str,
     if manifest.get("kind") is not None:
         raise ParisonError("discrepancy analysis requires an ordinary run bundle")
     try:
-        result = json.loads((path / "result.json").read_text(encoding="utf-8"))
-        recipe = json.loads((path / "effective-recipe.json").read_text(encoding="utf-8"))
+        result = json.loads((path / "result.json").read_text(encoding="utf-8"), object_pairs_hook=_strict_object)
+        recipe = json.loads(
+            (path / "effective-recipe.json").read_text(encoding="utf-8"), object_pairs_hook=_strict_object
+        )
     except (OSError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read analysis inputs: {exc}") from exc
     _, after = _verified_bundle(path)
@@ -77,6 +85,41 @@ def _read_verified_run(directory: str | Path) -> tuple[dict[str, Any], dict[str,
     return result, recipe, hashlib.sha256(before).hexdigest()
 
 
+def _column_refs(result: dict[str, Any], name: str) -> list[dict[str, Any]]:
+    token = _pointer_token(name)
+    policy = result["column_policies"][name]
+    refs = [_ref(f"/column_policies/{token}/type", policy["type"])]
+    for key in ("scale", "timezone", "normalize", "comparison", "tolerance"):
+        if key in policy:
+            refs.append(_ref(f"/column_policies/{token}/{key}", policy[key]))
+    mapping = result.get("column_mappings", {}).get(name)
+    if mapping is not None:
+        refs.append(_ref(f"/column_mappings/{token}", mapping))
+    return refs
+
+
+def _scope_refs(result: dict[str, Any]) -> list[dict[str, Any]]:
+    scope = result.get("scope")
+    if not isinstance(scope, dict) or set(scope) != {"snapshot", "cutoff", "filters", "completeness", "expected_empty"}:
+        raise ParisonError("run has an unsupported scope policy")
+    return [
+        _ref(f"/scope/{name}", scope[name])
+        for name in ("snapshot", "cutoff", "filters", "completeness", "expected_empty")
+    ]
+
+
+def _descriptor(mode: str, kind: str, classification: str, logical_name: str | None = None) -> dict[str, Any]:
+    value: dict[str, Any] = {
+        "analysis_version": 1,
+        "comparison_mode": mode,
+        "kind": kind,
+        "classification": classification,
+    }
+    if logical_name is not None:
+        value["logical_name"] = logical_name
+    return value
+
+
 def _groups(result: dict[str, Any], recipe: dict[str, Any]) -> list[dict[str, Any]]:
     mode = recipe.get("comparison_mode")
     groups: list[dict[str, Any]] = []
@@ -84,10 +127,14 @@ def _groups(result: dict[str, Any], recipe: dict[str, Any]) -> list[dict[str, An
         counts = result.get("counts", {})
         groups.extend(
             _group(
-                {"comparison_mode": mode, "kind": "missing", "classification": side},
+                _descriptor(mode, "record", side),
                 counts.get(side, 0),
                 f"/counts/{side}",
-                ["/keys", "/identity"],
+                [
+                    _ref("/keys", result["keys"]),
+                    _ref("/identity/null_keys", recipe["identity"]["null_keys"]),
+                    _ref("/identity/duplicates", recipe["identity"]["duplicates"]),
+                ],
             )
             for side in ("baseline_only", "candidate_only")
         )
@@ -98,10 +145,10 @@ def _groups(result: dict[str, Any], recipe: dict[str, Any]) -> list[dict[str, An
             for classification in ("within_tolerance", "different"):
                 groups.append(
                     _group(
-                        {"comparison_mode": mode, "kind": "field", "classification": classification, "name": name},
+                        _descriptor(mode, "field", classification, name),
                         result.get("field_counts", {}).get(name, {}).get(classification, 0),
                         f"/field_counts/{token}/{classification}",
-                        [f"/columns/{token}"],
+                        [_ref("/policy/nulls_equal", result["policy"]["nulls_equal"]), *_column_refs(result, name)],
                     )
                 )
     elif result.get("schema_version") == 2 and mode == "aggregate":
@@ -111,10 +158,14 @@ def _groups(result: dict[str, Any], recipe: dict[str, Any]) -> list[dict[str, An
         ):
             groups.append(
                 _group(
-                    {"comparison_mode": mode, "kind": "missing", "classification": classification},
+                    _descriptor(mode, "group", classification),
                     result.get("counts", {}).get(source, 0),
                     f"/counts/{source}",
-                    ["/group_by"],
+                    [
+                        _ref("/group_by", result["group_by"]),
+                        _ref("/policy/group_nulls", result["policy"]["group_nulls"]),
+                        *[reference for name in result["group_by"] for reference in _column_refs(result, name)],
+                    ],
                 )
             )
         for name in sorted(recipe.get("measures", {}), key=lambda value: value.encode("utf-8")):
@@ -122,10 +173,20 @@ def _groups(result: dict[str, Any], recipe: dict[str, Any]) -> list[dict[str, An
             for classification in ("within_tolerance", "different"):
                 groups.append(
                     _group(
-                        {"comparison_mode": mode, "kind": "measure", "classification": classification, "name": name},
+                        _descriptor(mode, "measure", classification, name),
                         result.get("measure_counts", {}).get(name, {}).get(classification, 0),
                         f"/measure_counts/{token}/{classification}",
-                        [f"/measures/{token}"],
+                        [
+                            *[
+                                _ref(f"/measures/{token}/{key}", value)
+                                for key, value in result["measures"][name].items()
+                            ],
+                            *(
+                                _column_refs(result, result["measures"][name]["column"])
+                                if "column" in result["measures"][name]
+                                else []
+                            ),
+                        ],
                     )
                 )
     elif result.get("schema_version") == 3 and mode == "multiset":
@@ -135,16 +196,27 @@ def _groups(result: dict[str, Any], recipe: dict[str, Any]) -> list[dict[str, An
         ):
             groups.append(
                 _group(
-                    {"comparison_mode": mode, "kind": "shape", "classification": classification},
+                    _descriptor(mode, "row", classification),
                     result.get("counts", {}).get(source, 0),
                     f"/counts/{source}",
-                    ["/columns"],
+                    [
+                        _ref("/policy/canonical_encoding", result["policy"]["canonical_encoding"]),
+                        _ref("/policy/column_order", result["policy"]["column_order"]),
+                        _ref("/policy/nulls_equal", result["policy"]["nulls_equal"]),
+                        *[
+                            reference
+                            for name in result["policy"]["column_order"]
+                            for reference in _column_refs(result, name)
+                        ],
+                    ],
                 )
             )
     else:
         raise ParisonError("run result and comparison mode are unsupported for analysis")
     if any(type(group["count"]) is not int or group["count"] < 0 for group in groups):
         raise ParisonError("run contains invalid discrepancy counts")
+    if sum(group["count"] for group in groups) != result.get("discrepancy_count"):
+        raise ParisonError("run discrepancy groups do not reconcile with discrepancy_count")
     return sorted(groups, key=_group_sort_key)
 
 
@@ -158,7 +230,7 @@ def analyze_bundle(directory: str | Path) -> dict[str, Any]:
         "policy_sha256": result["policy_sha256"],
         "comparison_mode": recipe["comparison_mode"],
         "sensitivity": "summary",
-        "scope_references": ["/scope"],
+        "scope_references": _scope_refs(result),
         "groups": _groups(result, recipe),
     }
 
@@ -197,6 +269,13 @@ def analyze_series(directories: Iterable[str | Path]) -> dict[str, Any]:
     }
 
 
+def analyze_catalog(database: str | Path, policy_sha256: str) -> dict[str, Any]:
+    """Analyze one exact policy's current, unaliased catalog runs in insertion order."""
+    from .catalog import analysis_runs
+
+    return analyze_series(analysis_runs(database, policy_sha256))
+
+
 def drill_down(directories: Iterable[str | Path], group_id: str, limit: int, per_run_limit: int) -> dict[str, Any]:
     """Select bounded raw items for one exact group from already-published samples."""
     paths = list(directories)
@@ -232,11 +311,12 @@ def drill_down(directories: Iterable[str | Path], group_id: str, limit: int, per
         runs.append(
             {
                 "bundle_sha256": bundle_sha256,
+                "policy_sha256": result["policy_sha256"],
                 "population_count": groups[group_id]["count"],
                 "published_sample_size": len(sample),
-                "matched_size": len(matches),
+                "matched_sample_size": len(matches),
                 "returned_size": len(selected),
-                "published_sample_complete": len(sample) == result["discrepancy_count"],
+                "sample_complete": len(sample) == result["discrepancy_count"],
             }
         )
     return {
@@ -254,22 +334,141 @@ def drill_down(directories: Iterable[str | Path], group_id: str, limit: int, per
 
 def export_drilldown(output: str | Path, drilldown: dict[str, Any]) -> dict[str, Any]:
     """Write a canonical raw drill-down artifact once."""
+    _validate_drilldown(drilldown)
     content = (_canonical(drilldown) + b"\n").decode("utf-8")
     _write_once(Path(output), content, "cannot export discrepancy drill-down")
     return {"output": str(output), "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest()}
 
 
-def _sample_matches(item: Any, descriptor: dict[str, str]) -> bool:
+def verify_drilldown(path: str | Path) -> dict[str, Any]:
+    """Verify one canonical, strict discrepancy drill-down artifact."""
+    path = Path(path)
+    if path.is_symlink() or not path.is_file():
+        raise ParisonError(f"drill-down is not a regular file: {path}")
+    try:
+        before = path.read_bytes()
+        value = json.loads(before, object_pairs_hook=_strict_object)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read discrepancy drill-down: {exc}") from exc
+    _validate_drilldown(value)
+    if before != _canonical(value) + b"\n":
+        raise ParisonError("drill-down failed canonical integrity verification")
+    try:
+        if path.read_bytes() != before:
+            raise ParisonError("drill-down changed during verification")
+    except OSError as exc:
+        raise ParisonError(f"cannot read discrepancy drill-down: {exc}") from exc
+    return {
+        "kind": value["kind"],
+        "sensitivity": value["sensitivity"],
+        "group_id": value["group_id"],
+        "returned_size": value["returned_size"],
+        "sha256": hashlib.sha256(before).hexdigest(),
+    }
+
+
+def _strict_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ParisonError(f"duplicate JSON member: {key}")
+        value[key] = item
+    return value
+
+
+def _validate_drilldown(value: Any) -> None:
+    keys = {
+        "drilldown_version",
+        "kind",
+        "sensitivity",
+        "group_id",
+        "limit",
+        "per_run_limit",
+        "runs",
+        "returned_size",
+        "items",
+    }
+    if (
+        not isinstance(value, dict)
+        or set(value) != keys
+        or value.get("drilldown_version") != 1
+        or value.get("kind") != "discrepancy-drilldown"
+        or value.get("sensitivity") != "raw"
+        or not _is_sha(value.get("group_id"))
+        or type(value.get("limit")) is not int
+        or value["limit"] <= 0
+        or type(value.get("per_run_limit")) is not int
+        or value["per_run_limit"] <= 0
+        or not isinstance(value.get("runs"), list)
+        or not value["runs"]
+        or not isinstance(value.get("items"), list)
+        or type(value.get("returned_size")) is not int
+        or value["returned_size"] != len(value["items"])
+        or value["returned_size"] > value["limit"]
+    ):
+        raise ParisonError("drill-down content is incomplete or unsupported")
+    run_keys = {
+        "bundle_sha256",
+        "policy_sha256",
+        "population_count",
+        "published_sample_size",
+        "matched_sample_size",
+        "returned_size",
+        "sample_complete",
+    }
+    for run in value["runs"]:
+        if (
+            not isinstance(run, dict)
+            or set(run) != run_keys
+            or not _is_sha(run["bundle_sha256"])
+            or not _is_sha(run["policy_sha256"])
+            or any(
+                type(run[name]) is not int or run[name] < 0
+                for name in ("population_count", "published_sample_size", "matched_sample_size", "returned_size")
+            )
+            or type(run["sample_complete"]) is not bool
+            or run["matched_sample_size"] > run["published_sample_size"]
+            or run["returned_size"] > min(run["matched_sample_size"], value["per_run_limit"])
+        ):
+            raise ParisonError("drill-down contains invalid run provenance")
+    item_counts = [0] * len(value["runs"])
+    for index, item in enumerate(value["items"]):
+        if (
+            not isinstance(item, dict)
+            or set(item) != {"run_index", "sample_index", "item"}
+            or type(item["run_index"]) is not int
+            or not 0 <= item["run_index"] < len(value["runs"])
+            or type(item["sample_index"]) is not int
+            or item["sample_index"] < 0
+            or item["sample_index"] >= value["runs"][item["run_index"]]["published_sample_size"]
+            or not isinstance(item["item"], dict)
+            or (
+                index
+                and (item["run_index"], item["sample_index"])
+                <= (value["items"][index - 1]["run_index"], value["items"][index - 1]["sample_index"])
+            )
+        ):
+            raise ParisonError("drill-down contains invalid sample items")
+        item_counts[item["run_index"]] += 1
+    if item_counts != [run["returned_size"] for run in value["runs"]]:
+        raise ParisonError("drill-down counts do not reconcile")
+
+
+def _sample_matches(item: Any, descriptor: dict[str, Any]) -> bool:
     if not isinstance(item, dict) or item.get("classification") != descriptor["classification"]:
         return False
-    expected_kind = {"missing": {"record", "group"}, "field": {"field"}, "measure": {"measure"}, "shape": {None}}[
-        descriptor["kind"]
-    ]
+    expected_kind = {
+        "record": {"record"},
+        "field": {"field"},
+        "group": {"group"},
+        "measure": {"measure"},
+        "row": {None},
+    }[descriptor["kind"]]
     if item.get("kind") not in expected_kind:
         return False
-    if "name" not in descriptor:
+    if "logical_name" not in descriptor:
         return True
-    return item.get("field", item.get("measure")) == descriptor["name"]
+    return item.get("field", item.get("measure")) == descriptor["logical_name"]
 
 
 def publish_analysis(output: str | Path, analysis: dict[str, Any]) -> dict[str, Any]:
@@ -323,8 +522,8 @@ def verify_analysis_bundle(directory: str | Path) -> dict[str, Any]:
             raise ParisonError("analysis bundle contains an unsafe file")
         manifest_bytes = manifest_path.read_bytes()
         payload = analysis_path.read_bytes()
-        manifest = json.loads(manifest_bytes)
-        analysis = json.loads(payload)
+        manifest = json.loads(manifest_bytes, object_pairs_hook=_strict_object)
+        analysis = json.loads(payload, object_pairs_hook=_strict_object)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read analysis bundle: {exc}") from exc
     digest = hashlib.sha256(payload).hexdigest()
@@ -378,17 +577,21 @@ def _validate_analysis(analysis: Any) -> None:
             not isinstance(descriptor, dict)
             or set(descriptor)
             not in (
-                {"comparison_mode", "kind", "classification"},
-                {"comparison_mode", "kind", "classification", "name"},
+                {"analysis_version", "comparison_mode", "kind", "classification"},
+                {"analysis_version", "comparison_mode", "kind", "classification", "logical_name"},
             )
+            or descriptor.get("analysis_version") != 1
             or descriptor.get("comparison_mode") != analysis["comparison_mode"]
             or descriptor.get("kind") not in _KINDS
             or descriptor.get("classification") not in _CLASSIFICATIONS
-            or ("name" in descriptor and (not isinstance(descriptor["name"], str) or not descriptor["name"]))
+            or (
+                "logical_name" in descriptor
+                and (not isinstance(descriptor["logical_name"], str) or not descriptor["logical_name"])
+            )
         ):
             raise ParisonError("analysis contains an invalid group descriptor")
         expected_id = hashlib.sha256(_DOMAIN + _canonical(descriptor)).hexdigest()
-        expected_source, expected_references = _expected_group_metadata(descriptor)
+        expected_source = _expected_count_source(descriptor)
         values = [group[value_key]] if value_key == "count" else group[value_key]
         if (
             group["group_id"] != expected_id
@@ -398,14 +601,14 @@ def _validate_analysis(analysis: Any) -> None:
             or group["count_source"] != expected_source
             or not isinstance(group["reason_codes"], list)
             or group["reason_codes"] != [f"{descriptor['kind']}.{descriptor['classification']}"]
-            or group["policy_references"] != expected_references
+            or not _valid_policy_refs(group["policy_references"], descriptor)
         ):
             raise ParisonError("analysis contains invalid group evidence")
         identifiers.append(expected_id)
     if groups != sorted(groups, key=_group_sort_key) or len(set(identifiers)) != len(identifiers):
         raise ParisonError("analysis groups are not canonical")
     if analysis["kind"] == "run":
-        if not _is_sha(analysis["bundle_sha256"]) or analysis["scope_references"] != ["/scope"]:
+        if not _is_sha(analysis["bundle_sha256"]) or not _valid_scope_refs(analysis["scope_references"]):
             raise ParisonError("run analysis has invalid provenance")
         return
     runs, transitions = analysis["runs"], analysis["transitions"]
@@ -459,33 +662,191 @@ def _transition(group_id: str, index: int, before: int, after: int) -> dict[str,
     }
 
 
-def _expected_group_metadata(descriptor: dict[str, str]) -> tuple[str, list[str]]:
+def _expected_count_source(descriptor: dict[str, Any]) -> str:
     mode, kind, classification = (
         descriptor["comparison_mode"],
         descriptor["kind"],
         descriptor["classification"],
     )
-    name = descriptor.get("name")
-    if mode == "keyed" and kind == "missing" and name is None and classification in {"baseline_only", "candidate_only"}:
-        return f"/counts/{classification}", ["/keys", "/identity"]
+    name = descriptor.get("logical_name")
+    if mode == "keyed" and kind == "record" and name is None and classification in {"baseline_only", "candidate_only"}:
+        return f"/counts/{classification}"
     if mode == "keyed" and kind == "field" and name and classification in {"within_tolerance", "different"}:
-        token = _pointer_token(name)
-        return f"/field_counts/{token}/{classification}", [f"/columns/{token}"]
+        return f"/field_counts/{_pointer_token(name)}/{classification}"
     if (
         mode == "aggregate"
-        and kind == "missing"
+        and kind == "group"
         and name is None
         and classification in {"baseline_only", "candidate_only"}
     ):
-        return f"/counts/{classification}_groups", ["/group_by"]
+        return f"/counts/{classification}_groups"
     if mode == "aggregate" and kind == "measure" and name and classification in {"within_tolerance", "different"}:
-        token = _pointer_token(name)
-        return f"/measure_counts/{token}/{classification}", [f"/measures/{token}"]
+        return f"/measure_counts/{_pointer_token(name)}/{classification}"
     if (
         mode == "multiset"
-        and kind == "shape"
+        and kind == "row"
         and name is None
         and classification in {"baseline_surplus", "candidate_surplus"}
     ):
-        return f"/counts/{classification}_shapes", ["/columns"]
+        return f"/counts/{classification}_shapes"
     raise ParisonError("analysis contains an unsupported group descriptor")
+
+
+def _valid_scope_refs(references: Any) -> bool:
+    paths = [f"/scope/{name}" for name in ("snapshot", "cutoff", "filters", "completeness", "expected_empty")]
+    return _reference_paths(references) == paths and all(
+        _valid_reference_value(reference["path"], reference["value"]) for reference in references
+    )
+
+
+def _reference_paths(references: Any) -> list[str] | None:
+    if not isinstance(references, list) or not references:
+        return None
+    if any(
+        not isinstance(ref, dict) or set(ref) != {"path", "value"} or not isinstance(ref["path"], str)
+        for ref in references
+    ):
+        return None
+    return [ref["path"] for ref in references]
+
+
+def _valid_policy_refs(references: Any, descriptor: dict[str, Any]) -> bool:
+    paths = _reference_paths(references)
+    if (
+        paths is None
+        or len(paths) != len(set(paths))
+        or not all(_valid_reference_value(reference["path"], reference["value"]) for reference in references)
+    ):
+        return False
+    mode, kind = descriptor["comparison_mode"], descriptor["kind"]
+    if (mode, kind) == ("keyed", "record"):
+        return paths == ["/keys", "/identity/null_keys", "/identity/duplicates"]
+    if (mode, kind) == ("keyed", "field"):
+        token = _pointer_token(descriptor["logical_name"])
+        return (
+            paths[0] == "/policy/nulls_equal"
+            and all(_valid_column_path(path, token) for path in paths[1:])
+            and f"/column_policies/{token}/type" in paths
+            and f"/column_policies/{token}/comparison" in paths
+        )
+    if (mode, kind) == ("aggregate", "group"):
+        return paths[:2] == ["/group_by", "/policy/group_nulls"] and all(_valid_column_path(path) for path in paths[2:])
+    if (mode, kind) == ("aggregate", "measure"):
+        token = _pointer_token(descriptor["logical_name"])
+        measure_paths = [path for path in paths if path.startswith(f"/measures/{token}/")]
+        return (
+            f"/measures/{token}/operator" in measure_paths
+            and all(_valid_measure_path(path, token) for path in measure_paths)
+            and all(_valid_column_path(path) for path in paths[len(measure_paths) :])
+            and paths[: len(measure_paths)] == measure_paths
+        )
+    if (mode, kind) == ("multiset", "row"):
+        return paths[:3] == [
+            "/policy/canonical_encoding",
+            "/policy/column_order",
+            "/policy/nulls_equal",
+        ] and all(_valid_column_path(path) for path in paths[3:])
+    return False
+
+
+def _valid_column_path(path: str, token: str | None = None) -> bool:
+    if path.startswith("/column_mappings/"):
+        return token is None or path == f"/column_mappings/{token}"
+    prefix = "/column_policies/"
+    if not path.startswith(prefix):
+        return False
+    remainder = path[len(prefix) :]
+    try:
+        name, leaf = remainder.rsplit("/", 1)
+    except ValueError:
+        return False
+    return (
+        bool(name)
+        and (token is None or name == token)
+        and leaf
+        in {
+            "type",
+            "scale",
+            "timezone",
+            "normalize",
+            "comparison",
+            "tolerance",
+        }
+    )
+
+
+def _valid_measure_path(path: str, token: str) -> bool:
+    prefix = f"/measures/{token}/"
+    return path.startswith(prefix) and path[len(prefix) :] in {"column", "comparison", "nulls", "operator", "tolerance"}
+
+
+def _valid_reference_value(path: str, value: Any) -> bool:
+    if path in {"/keys", "/group_by", "/policy/column_order"}:
+        return isinstance(value, list) and bool(value) and all(isinstance(item, str) and item for item in value)
+    if path in {"/identity/null_keys", "/identity/duplicates", "/policy/group_nulls"}:
+        return value == "reject"
+    if path in {"/policy/nulls_equal", "/scope/expected_empty"}:
+        return type(value) is bool
+    if path == "/policy/canonical_encoding":
+        return value == "typed-length-prefixed-v1"
+    if path in {"/scope/snapshot", "/scope/cutoff"}:
+        return isinstance(value, str) and bool(value)
+    if path == "/scope/filters":
+        return isinstance(value, list) and all(isinstance(item, str) and item for item in value)
+    if path == "/scope/completeness":
+        return value == "full"
+    if path.startswith("/column_mappings/"):
+        return (
+            isinstance(value, dict)
+            and set(value) == {"baseline", "candidate"}
+            and all(isinstance(item, str) and item for item in value.values())
+        )
+    leaf = path.rsplit("/", 1)[-1]
+    if path.startswith("/column_policies/"):
+        if leaf == "type":
+            return value in {"string", "integer", "decimal", "float", "boolean", "date", "timestamp"}
+        if leaf == "scale":
+            return type(value) is int and value >= 0
+        if leaf == "timezone":
+            return value == "require-aware"
+        if leaf == "normalize":
+            return (
+                isinstance(value, list)
+                and len(value) == len(set(value))
+                and all(item in {"trim", "casefold", "unicode_nfc"} for item in value)
+            )
+        if leaf == "comparison":
+            return value in {"exact", "numeric"}
+        if leaf == "tolerance":
+            return _valid_tolerance(value)
+    if path.startswith("/measures/"):
+        if leaf == "column":
+            return isinstance(value, str) and bool(value)
+        if leaf == "comparison":
+            return value in {"exact", "numeric"}
+        if leaf == "nulls":
+            return value in {"reject", "ignore"}
+        if leaf == "operator":
+            return value in {"count", "sum", "min", "max"}
+        if leaf == "tolerance":
+            return _valid_tolerance(value)
+    return False
+
+
+def _valid_tolerance(value: Any) -> bool:
+    def scalar(item: Any) -> bool:
+        if type(item) not in {str, int, float} or (type(item) is float and not math.isfinite(item)):
+            return False
+        try:
+            decimal = Decimal(str(item))
+        except InvalidOperation:
+            return False
+        return decimal.is_finite() and decimal >= 0
+
+    return (
+        isinstance(value, dict)
+        and set(value) == {"formula", "absolute", "relative"}
+        and value["formula"] == "symmetric-v1"
+        and scalar(value["absolute"])
+        and scalar(value["relative"])
+    )

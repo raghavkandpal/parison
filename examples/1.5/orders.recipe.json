@@ -13,7 +13,7 @@
   "nulls_equal": true,
   "columns": {
     "order_id": {"type": "string", "comparison": "exact"},
-    "status": {"type": "string", "comparison": "exact"},
+    "status": {"type": "string", "comparison": "exact", "normalize": ["trim"]},
     "total": {
       "type": "decimal",
       "scale": 2,

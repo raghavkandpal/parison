@@ -42,7 +42,7 @@ For coordinated multi-dataset policy authoring and execution, follow the frozen 
 
 For a local 1.4 workflow, verify [`examples/1.4/payout-dataset-manifest.json`](examples/1.4/payout-dataset-manifest.json), produce its complete suite or reconciliation result bundle, then use `parison publish-dataset-evidence --manifest ... --root ... --policy-file ... --result-bundle ... --output ...`. Standard `parison verify` and `parison inspect` commands recursively validate and summarize the resulting bundle without exposing source paths or resource IDs.
 
-For the 1.5 rehearsal workflow, compare the three candidates under [`examples/1.5/orders.recipe.json`](examples/1.5/orders.recipe.json), then run `parison analyze RUN_1 RUN_2 RUN_3 --output SERIES`. Verify the canonical summary bundle with `parison verify-analysis SERIES`; use `parison drilldown` only for explicitly selected groups from raw-sensitivity bundles.
+For the 1.5 rehearsal workflow, compare the three candidates under [`examples/1.5/orders.recipe.json`](examples/1.5/orders.recipe.json), then run `parison analyze RUN_1 RUN_2 RUN_3 --output SERIES`. Verified catalog runs may instead be selected with `--catalog` and an exact `--policy-sha256`. Verify the canonical summary bundle with `parison verify-analysis SERIES`; use `parison drilldown` only for explicitly selected groups from raw-sensitivity bundles and check the raw artifact with `parison verify-drilldown`.
 
 Start a new local migration check with `parison init migration-check`. The command writes a minimal keyed recipe, matching smoke-test inputs and a short workflow guide into a missing or empty directory; it never overwrites an existing project.
 

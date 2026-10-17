@@ -10,14 +10,15 @@ Status: **candidate preparation**
 - [x] All released comparison modes produce exhaustive, deterministic and summary-safe groups.
 - [x] Series require distinct runs under one exact policy and preserve caller order.
 - [x] Raw drill-down is bounded to already-published samples and never reopens inputs.
-- [x] Strict schema, semantic verification, atomic publication, realistic rehearsal and user guide are present.
-- [ ] Independent Standards and Spec reviews report no release blockers.
+- [x] Strict summary/raw schemas, semantic verification, atomic publication, realistic rehearsal and user guide are present.
+- [x] Review findings for canonical fixtures, policy explanations, descriptor vocabulary, raw verification, catalog integrity and the completion matrix are corrected locally.
+- [x] Independent Standards and Spec re-review report no release blockers.
 
 ## Exact candidate
 
-- [x] `make check` passes (331 tests; 11 expected optional-Polars skips).
+- [x] The post-review local gate passes (342 tests; 11 expected optional-Polars skips).
 - [x] Exact implementation checkpoint `957fe2a47cec26e46c7de7da4317a317c69b23a7` passes [built-wheel CI run 39016303344](https://github.com/raghavkandpal/parison/actions/runs/39016303344) on Python 3.11–3.14, Linux, macOS and Windows.
-- [ ] Exact versioned candidate passes the same matrix.
+- [ ] The corrected exact versioned candidate passes the same matrix.
 - [ ] Clean-archive wheel and source hashes are recorded.
 - [ ] A fresh supported-Python environment installs the candidate wheel and passes the complete three-run analysis and drill-down workflow.
 

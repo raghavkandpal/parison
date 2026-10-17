@@ -21,6 +21,14 @@ parison analyze run-01 run-02 run-03 --output rehearsal-series
 
 The command treats the supplied order as authoritative. Every run must be distinct and use the exact same nonempty `policy_sha256` and comparison mode. Adjacent counts are classified as `introduced`, `resolved`, `increased`, `decreased` or `unchanged`. Parison does not infer timestamps or align runs across different policies.
 
+Runs already recorded in the local catalog can be selected in insertion order:
+
+```console
+parison analyze --catalog .parison/catalog.sqlite --policy-sha256 POLICY_SHA256 --output rehearsal-series
+```
+
+Catalog selection rejects stale, missing, symlinked or multiply indexed bundle identities instead of analyzing stored metadata.
+
 ## Drill into already-published raw evidence
 
 First obtain the exact `group_id` from an analysis, then select from raw-sensitivity bundles:
@@ -31,11 +39,12 @@ parison drilldown run-01 run-02 \
   --limit 100 \
   --per-run-limit 25 \
   --output drilldown.json
+parison verify-drilldown drilldown.json
 ```
 
 Drill-down never rereads comparison inputs. It selects only matching entries already present in each bundle's bounded `discrepancy_sample`, preserving run and sample order. Its per-run coverage distinguishes the full discrepancy population from the published sample, matched sample and returned subset. Summary-sensitivity bundles are rejected.
 
-The drill-down artifact contains raw keys or values and must be handled as sensitive data. It is intentionally separate from the summary-safe analysis bundle and is written atomically without overwrite.
+The strict canonical drill-down artifact contains raw keys or values and must be handled as sensitive data. It is intentionally separate from the summary-safe analysis bundle, is written atomically without overwrite, and can be checked independently with `verify-drilldown`.
 
 ## Interpretation boundary
 

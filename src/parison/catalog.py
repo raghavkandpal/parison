@@ -254,6 +254,23 @@ def history(database: str | Path, policy_sha256: str) -> dict[str, Any]:
     return {"policy_sha256": policy_sha256, "runs": runs, "transitions": transitions}
 
 
+def analysis_runs(database: str | Path, policy_sha256: str) -> list[str]:
+    """Select insertion-ordered, uniquely indexed, current runs for analysis."""
+    _validate_policy_sha256(policy_sha256)
+    entries = [
+        entry
+        for entry in _entries(database, kind="run", insertion_order=True)
+        if entry["metadata"].get("policy_sha256") == policy_sha256
+    ]
+    if len(entries) < 2:
+        raise ParisonError("catalog analysis requires at least two matching runs")
+    if any(entry["state"] != "current" for entry in entries):
+        raise ParisonError("catalog analysis requires current bundle integrity")
+    if any(entry["duplicate_paths"] != 1 for entry in entries):
+        raise ParisonError("catalog analysis rejects aliased bundle identities")
+    return [entry["path"] for entry in entries]
+
+
 def diff(database: str | Path, left_bundle: str | Path, right_bundle: str | Path) -> dict[str, Any]:
     """Compare safe stored projections for two run bundles with exactly the same policy."""
     left, right = _entry(database, left_bundle), _entry(database, right_bundle)

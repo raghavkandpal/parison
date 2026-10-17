@@ -8,14 +8,16 @@
   ],
   "$defs": {
     "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "reference": {"type": "object", "required": ["path", "value"], "properties": {"path": {"type": "string", "pattern": "^/"}, "value": true}, "additionalProperties": false},
     "descriptor": {
       "type": "object",
-      "required": ["comparison_mode", "kind", "classification"],
+      "required": ["analysis_version", "comparison_mode", "kind", "classification"],
       "properties": {
+        "analysis_version": {"const": 1},
         "comparison_mode": {"enum": ["keyed", "aggregate", "multiset"]},
-        "kind": {"enum": ["missing", "field", "measure", "shape"]},
+        "kind": {"enum": ["record", "field", "group", "measure", "row"]},
         "classification": {"enum": ["baseline_only", "candidate_only", "within_tolerance", "different", "baseline_surplus", "candidate_surplus"]},
-        "name": {"type": "string", "minLength": 1}
+        "logical_name": {"type": "string", "minLength": 1}
       },
       "additionalProperties": false
     },
@@ -27,7 +29,7 @@
         "descriptor": {"$ref": "#/$defs/descriptor"},
         "count_source": {"type": "string", "pattern": "^/"},
         "reason_codes": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-        "policy_references": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^/"}}
+        "policy_references": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/reference"}}
       }
     },
     "runGroup": {
@@ -44,7 +46,7 @@
       "properties": {
         "analysis_version": {"const": 1}, "kind": {"const": "run"}, "bundle_sha256": {"$ref": "#/$defs/sha"}, "policy_sha256": {"$ref": "#/$defs/sha"},
         "comparison_mode": {"enum": ["keyed", "aggregate", "multiset"]}, "sensitivity": {"const": "summary"},
-        "scope_references": {"type": "array", "items": {"type": "string", "pattern": "^/"}}, "groups": {"type": "array", "items": {"$ref": "#/$defs/runGroup"}}
+        "scope_references": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/reference"}}, "groups": {"type": "array", "items": {"$ref": "#/$defs/runGroup"}}
       },
       "additionalProperties": false
     },
