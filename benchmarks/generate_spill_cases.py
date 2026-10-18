@@ -15,8 +15,10 @@ def row(index: int) -> dict[str, str]:
     }
 
 
-def generate(root: Path, rows: int, mode: str = "multiset") -> Path:
-    case = root / f"{mode}-{rows}"
+def generate(root: Path, rows: int, mode: str = "multiset", profile: str = "high-cardinality") -> Path:
+    if profile not in {"low-cardinality", "high-cardinality"}:
+        raise ValueError(f"unknown spill profile: {profile}")
+    case = root / f"{mode}-{profile}-{rows}"
     case.mkdir(parents=True, exist_ok=True)
     for name, indices in (("baseline", range(rows)), ("candidate", range(rows - 1, -1, -1))):
         with (case / f"{name}.csv").open("w", encoding="utf-8", newline="") as handle:
@@ -42,8 +44,10 @@ def generate(root: Path, rows: int, mode: str = "multiset") -> Path:
         "output": {"sensitivity": "summary"},
     }
     if mode == "aggregate":
+        group_by = ["category"] if profile == "low-cardinality" else ["event_id"]
+        groups = min(rows, 17) if profile == "low-cardinality" else rows
         recipe.update(
-            group_by=["event_id"],
+            group_by=group_by,
             measures={
                 "rows": {"operator": "count"},
                 "amount": {"operator": "sum", "column": "amount", "nulls": "reject"},
@@ -54,12 +58,12 @@ def generate(root: Path, rows: int, mode: str = "multiset") -> Path:
             "counts": {
                 "baseline_rows": rows,
                 "candidate_rows": rows,
-                "baseline_groups": rows,
-                "candidate_groups": rows,
-                "common_groups": rows,
+                "baseline_groups": groups,
+                "candidate_groups": groups,
+                "common_groups": groups,
                 "baseline_only_groups": 0,
                 "candidate_only_groups": 0,
-                "exact_measures": rows * 2,
+                "exact_measures": groups * 2,
                 "within_tolerance_measures": 0,
                 "different_measures": 0,
             },
@@ -87,15 +91,16 @@ def generate(root: Path, rows: int, mode: str = "multiset") -> Path:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate deterministic high-cardinality spill-engine cases")
+    parser = argparse.ArgumentParser(description="Generate deterministic spill-engine cases")
     parser.add_argument("--output", type=Path, default=Path("benchmarks/generated"))
     parser.add_argument("--rows", type=int, nargs="+", default=[10_000, 100_000, 250_000])
     parser.add_argument("--mode", choices=("keyed", "aggregate", "multiset"), default="multiset")
+    parser.add_argument("--profile", choices=("low-cardinality", "high-cardinality"), default="high-cardinality")
     args = parser.parse_args()
     if any(rows <= 0 for rows in args.rows):
         parser.error("row counts must be positive")
     for rows in args.rows:
-        print(generate(args.output, rows, args.mode))
+        print(generate(args.output, rows, args.mode, args.profile))
 
 
 if __name__ == "__main__":

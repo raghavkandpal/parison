@@ -6,18 +6,23 @@ Status: **implementation in progress**
 
 ## Capability gate
 
-- [ ] Direct aggregate SQLite execution matches the memory semantic oracle.
-- [ ] Suite-v2 supports aggregate SQLite cases and verifiable child bundles.
-- [ ] Storage limits, cleanup and interruption fail closed.
-- [ ] Accuracy-checked machine-specific benchmarks cover aggregate spill.
-- [ ] Released recipes, result schemas, bundle readers and canonical semantics
+- [x] Direct aggregate SQLite execution matches the memory semantic oracle
+  across PASS, FAIL, INCONCLUSIVE, empty, raw and summary cases after removing
+  only the three documented operational fields.
+- [x] Suite-v2 supports aggregate SQLite cases and verifiable success and
+  controlled-error child bundles.
+- [x] Row, group and storage limits, invalid parents, cleanup and interruption
+  fail closed.
+- [x] Accuracy-checked machine-specific benchmarks cover 10,000-row low- and
+  high-cardinality aggregate workloads under both engines.
+- [x] Released recipes, result schemas, bundle readers and canonical semantics
   remain unchanged.
 
 ## Qualification
 
-- [ ] Focused aggregate, suite, benchmark and documentation tests pass.
-- [ ] `make check` passes.
-- [ ] Independent Standards and Spec reviews report no blockers.
+- [x] Focused aggregate, suite and benchmark tests pass.
+- [x] `make check` passes with 363 tests and 11 expected optional-Polars skips.
+- [x] Independent Standards and Spec re-reviews report no blockers.
 - [ ] Exact candidate built-wheel CI passes on Python 3.11--3.14, macOS and
   Windows.
 - [ ] Clean-archive artifacts and fresh-wheel aggregate smoke pass.

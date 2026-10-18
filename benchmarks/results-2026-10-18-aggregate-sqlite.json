@@ -1,0 +1,72 @@
+{
+  "cases": [
+    {
+      "case": "aggregate-low-cardinality-10000",
+      "counts": {
+        "baseline_groups": 17,
+        "baseline_only_groups": 0,
+        "baseline_rows": 10000,
+        "candidate_groups": 17,
+        "candidate_only_groups": 0,
+        "candidate_rows": 10000,
+        "common_groups": 17,
+        "different_measures": 0,
+        "exact_measures": 34,
+        "within_tolerance_measures": 0
+      },
+      "engines": {
+        "memory": {
+          "median_elapsed_seconds": 0.548295,
+          "median_peak_python_bytes": 1589040,
+          "median_peak_rss_bytes": 31293440,
+          "median_temporary_bytes": 0
+        },
+        "sqlite": {
+          "median_elapsed_seconds": 2.131836,
+          "median_peak_python_bytes": 1569674,
+          "median_peak_rss_bytes": 32145408,
+          "median_temporary_bytes": 16384
+        }
+      },
+      "outcome": "PASS"
+    },
+    {
+      "case": "aggregate-high-cardinality-10000",
+      "counts": {
+        "baseline_groups": 10000,
+        "baseline_only_groups": 0,
+        "baseline_rows": 10000,
+        "candidate_groups": 10000,
+        "candidate_only_groups": 0,
+        "candidate_rows": 10000,
+        "common_groups": 10000,
+        "different_measures": 0,
+        "exact_measures": 20000,
+        "within_tolerance_measures": 0
+      },
+      "engines": {
+        "memory": {
+          "median_elapsed_seconds": 0.756477,
+          "median_peak_python_bytes": 19854824,
+          "median_peak_rss_bytes": 68829184,
+          "median_temporary_bytes": 0
+        },
+        "sqlite": {
+          "median_elapsed_seconds": 3.972566,
+          "median_peak_python_bytes": 1569837,
+          "median_peak_rss_bytes": 36356096,
+          "median_temporary_bytes": 6361088
+        }
+      },
+      "outcome": "PASS"
+    }
+  ],
+  "environment": {
+    "date": "2026-10-18",
+    "machine": "arm64",
+    "measurement": "median of fresh subprocess runs after one warm-up; accuracy checked; machine-specific, not a supported scale claim",
+    "parison": "1.7.0",
+    "platform": "Darwin",
+    "python": "3.12.5"
+  }
+}

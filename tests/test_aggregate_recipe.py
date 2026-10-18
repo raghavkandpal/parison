@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
@@ -47,6 +48,14 @@ RECIPE = {
     },
     "output": {"sensitivity": "summary"},
 }
+
+
+def semantic_result(result):
+    value = json.loads(json.dumps(result))
+    value["runtime"].pop("execution_engine", None)
+    value["runtime"].pop("temporary_bytes", None)
+    value["resource_limits"].pop("max_temp_bytes", None)
+    return value
 
 
 class AggregateRecipeTests(unittest.TestCase):
@@ -130,27 +139,74 @@ class AggregateRecipeTests(unittest.TestCase):
         self.assertEqual(result["measure_conservation"]["revenue"]["baseline"], {"contributing": 3, "ignored_nulls": 0})
         self.assertNotIn("east", json.dumps(result).lower())
 
-    def test_sqlite_engine_matches_memory_and_cleans_spill(self):
+    def assert_sqlite_matches_memory(self, left_body, right_body, outcome, sensitivity="summary", expected_empty=False):
         value = json.loads(json.dumps(RECIPE))
-        value["output"]["sensitivity"] = "raw"
+        value["output"]["sensitivity"] = sensitivity
+        value["scope"]["expected_empty"] = expected_empty
+        value["null_tokens"] = {"baseline": ["NULL"], "candidate": ["NULL"]}
         self.write(value)
-        left = self.csv(
-            "left.csv",
-            "region,amount,ordered_at\neast,10.00,2026-01-01T00:00:00Z\nwest,4.00,2026-01-02T00:00:00Z\n",
-        )
-        right = self.csv(
-            "right.csv",
-            "region,amount,ordered_at\neast,10.02,2026-01-03T00:00:00Z\nnorth,1.00,2026-01-02T00:00:00Z\n",
-        )
-        memory = compare(self.path, left, right)
+        left = self.csv("left.csv", left_body)
+        right = self.csv("right.csv", right_body)
+        memory = compare(self.path, left, right, max_rows=20, max_groups=20)
         spill = Path(self.tmp.name) / "spill"
-        spill.mkdir()
-        sqlite = compare(self.path, left, right, engine="sqlite", temp_directory=spill, max_temp_bytes=1_000_000)
-        for result in (memory, sqlite):
-            result.pop("runtime")
-            result.pop("resource_limits")
-        self.assertEqual(sqlite, memory)
+        spill.mkdir(exist_ok=True)
+        sqlite = compare(
+            self.path,
+            left,
+            right,
+            engine="sqlite",
+            temp_directory=spill,
+            max_temp_bytes=1_000_000,
+            max_rows=20,
+            max_groups=20,
+        )
+        self.assertEqual(memory["outcome"], outcome)
+        self.assertEqual(sqlite["outcome"], outcome)
+        self.assertEqual(semantic_result(sqlite), semantic_result(memory))
         self.assertEqual(list(spill.iterdir()), [])
+
+    def test_sqlite_engine_matches_memory_for_all_outcomes_and_output_shapes(self):
+        header = "region,amount,ordered_at\n"
+        cases = (
+            (
+                "pass-summary",
+                header + "east,1.00,2026-01-01T00:00:00Z\n",
+                header + "EAST,1.00,2026-01-01T00:00:00Z\n",
+                "PASS",
+                "summary",
+                False,
+            ),
+            (
+                "fail-raw-order",
+                header
+                + "zulu,1.00,2026-01-01T00:00:00Z\neast,2.00,2026-01-01T00:00:00Z\nshared,3.00,2026-01-01T00:00:00Z\n",
+                header
+                + "north,1.00,2026-01-01T00:00:00Z\nwest,2.00,2026-01-01T00:00:00Z\nshared,4.00,2026-01-01T00:00:00Z\n",
+                "FAIL",
+                "raw",
+                False,
+            ),
+            (
+                "inconclusive-summary",
+                header + "NULL,1.00,2026-01-01T00:00:00Z\n",
+                header + "NULL,1.00,2026-01-01T00:00:00Z\n",
+                "INCONCLUSIVE",
+                "summary",
+                False,
+            ),
+            ("empty-summary", header, header, "PASS", "summary", True),
+            (
+                "pass-raw",
+                header + "east,1.00,2026-01-01T00:00:00Z\n",
+                header + "east,1.00,2026-01-01T00:00:00Z\n",
+                "PASS",
+                "raw",
+                False,
+            ),
+        )
+        for name, left, right, outcome, sensitivity, expected_empty in cases:
+            with self.subTest(name=name):
+                self.assert_sqlite_matches_memory(left, right, outcome, sensitivity, expected_empty)
 
     def test_sqlite_engine_records_limits_and_rejects_tiny_storage(self):
         rows = self.csv("rows.csv", "region,amount,ordered_at\neast,1.00,2026-01-01T00:00:00Z\n")
@@ -160,6 +216,38 @@ class AggregateRecipeTests(unittest.TestCase):
         self.assertEqual(result["resource_limits"]["max_temp_bytes"], 1_000_000)
         with self.assertRaisesRegex(ParisonError, "too small"):
             compare(self.path, rows, rows, engine="sqlite", max_temp_bytes=1)
+
+    def test_sqlite_engine_enforces_row_group_parent_and_database_limits(self):
+        rows = self.csv(
+            "rows.csv",
+            "region,amount,ordered_at\n"
+            + "".join(f"group-{index},1.00,2026-01-01T00:00:00Z\n" for index in range(200)),
+        )
+        with self.assertRaisesRegex(ParisonError, "row count .* exceeds limit 1"):
+            compare(self.path, rows, rows, engine="sqlite", max_rows=1)
+        with self.assertRaisesRegex(ParisonError, "group count exceeds limit 1"):
+            compare(self.path, rows, rows, engine="sqlite", max_groups=1)
+        invalid = Path(self.tmp.name) / "missing"
+        with self.assertRaisesRegex(ParisonError, "existing non-symlink"):
+            compare(self.path, rows, rows, engine="sqlite", temp_directory=invalid)
+        with self.assertRaisesRegex(ParisonError, "temporary storage exceeds limit"):
+            compare(self.path, rows, rows, engine="sqlite", max_temp_bytes=16_384)
+
+    def test_sqlite_engine_cleans_spill_after_failure_and_interruption(self):
+        rows = self.csv("rows.csv", "region,amount,ordered_at\neast,1.00,2026-01-01T00:00:00Z\n")
+        spill = Path(self.tmp.name) / "spill"
+        spill.mkdir()
+        with self.assertRaisesRegex(ParisonError, "too small"):
+            compare(self.path, rows, rows, engine="sqlite", max_temp_bytes=1, temp_directory=spill)
+        self.assertEqual(list(spill.iterdir()), [])
+
+        def interrupted(*args, **kwargs):
+            yield {"region": "east", "amount": "1.00", "ordered_at": "2026-01-01T00:00:00Z"}
+            raise KeyboardInterrupt
+
+        with patch("parison.comparison._iter_input_rows", interrupted), self.assertRaises(KeyboardInterrupt):
+            compare(self.path, rows, rows, engine="sqlite", temp_directory=spill)
+        self.assertEqual(list(spill.iterdir()), [])
 
     def test_offsetting_groups_and_measure_differences_fail(self):
         left = self.csv(

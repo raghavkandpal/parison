@@ -8,8 +8,14 @@ All notable changes will be documented in this file.
 
 - Explicit SQLite-backed aggregate-v1 execution for direct comparisons and
   suite-v2 cases, with bounded private storage and streamed group comparison.
-- Deterministic cross-engine accuracy benchmarks for high-cardinality
-  aggregate conservation.
+- Deterministic cross-engine accuracy benchmarks for low- and high-cardinality
+  aggregate conservation, including time, Python memory, process RSS and
+  temporary-storage measurements.
+
+### Fixed
+
+- Aggregate SQLite failures now retain engine and temporary-storage policy in
+  verifiable suite child evidence.
 
 ### Compatibility
 

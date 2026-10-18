@@ -60,13 +60,19 @@ def terminal_result(
             "policy_sha256": None,
         }
     if recipe and recipe.get("comparison_mode") == "aggregate":
+        runtime = _runtime_info(contract="aggregate-v1")
+        resource_limits = {}
+        if execution_engine is not None:
+            runtime["execution_engine"] = execution_engine
+        if execution_engine == "sqlite" and max_temp_bytes is not None:
+            resource_limits["max_temp_bytes"] = max_temp_bytes
         return {
             "schema_version": 2,
             "outcome": outcome,
             "complete": False,
             "sensitivity": "summary",
-            "runtime": _runtime_info(contract="aggregate-v1"),
-            "resource_limits": {},
+            "runtime": runtime,
+            "resource_limits": resource_limits,
             "scope": recipe.get("scope"),
             "group_by": recipe.get("group_by", []),
             "measures": recipe.get("measures", {}),

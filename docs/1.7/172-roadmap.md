@@ -9,13 +9,14 @@ Theme: bounded SQLite-backed aggregate conservation
 1. Freeze the operational boundary and cross-engine equivalence oracle.
    **Complete.**
 2. Stream aggregate group state through a private SQLite database under an
-   explicit hard storage ceiling. **In progress.**
+   explicit hard storage ceiling. **Complete.**
 3. Preserve released aggregate-v1 evidence and raw ordering across memory and
-   SQLite execution. **In progress.**
-4. Support suite-v2 execution, cleanup, controlled failures and interruption.
-   **In progress.**
+   SQLite execution. **Complete.**
+4. Support suite-v2 execution, cleanup, controlled failures and interruption,
+   including attributable verifiable error bundles. **Complete.**
 5. Add deterministic accuracy benchmarks and qualify installed wheels across
-   the supported Python and operating-system matrix. **Pending.**
+   the supported Python and operating-system matrix. **Local benchmark and
+   full gate complete; built-wheel qualification pending.**
 
 ## Compatibility
 

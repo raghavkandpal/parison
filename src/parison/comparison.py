@@ -667,6 +667,46 @@ def _aggregate_json_value(value: Any, operator: str, column: dict[str, Any] | No
     return _json_value(value)
 
 
+def _new_aggregate_group(recipe: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "rows": 0,
+        "measures": {
+            name: {"value": 0 if policy["operator"] == "count" else None, "contributing": 0, "ignored_nulls": 0}
+            for name, policy in recipe["measures"].items()
+        },
+    }
+
+
+def _update_aggregate_group(group: dict[str, Any], row: dict[str, Any], recipe: dict[str, Any]) -> int:
+    rejected_nulls = 0
+    group["rows"] += 1
+    for name, policy in recipe["measures"].items():
+        state = group["measures"][name]
+        operator = policy["operator"]
+        if operator == "count":
+            state["value"] += 1
+            state["contributing"] += 1
+            continue
+        value = row[policy["column"]]
+        if value is None:
+            if policy["nulls"] == "ignore":
+                state["ignored_nulls"] += 1
+            else:
+                rejected_nulls += 1
+            continue
+        value = _aggregate_value(value, recipe["columns"][policy["column"]])
+        state["contributing"] += 1
+        if operator == "sum":
+            state["value"] = (state["value"] or 0) + value
+        elif (
+            state["value"] is None
+            or (operator == "min" and value < state["value"])
+            or (operator == "max" and value > state["value"])
+        ):
+            state["value"] = value
+    return rejected_nulls
+
+
 def _aggregate_input(
     source: str | Path,
     recipe: dict[str, Any],
@@ -688,47 +728,10 @@ def _aggregate_input(
         if key not in groups:
             if len(groups) >= max_groups:
                 raise ParisonError(f"{side} group count exceeds limit {max_groups}")
-            groups[key] = {
-                "rows": 0,
-                "measures": {
-                    name: {"value": 0 if policy["operator"] == "count" else None, "contributing": 0, "ignored_nulls": 0}
-                    for name, policy in recipe["measures"].items()
-                },
-            }
-        group = groups[key]
-        group["rows"] += 1
-        for name, policy in recipe["measures"].items():
-            state = group["measures"][name]
-            operator = policy["operator"]
-            if operator == "count":
-                state["value"] += 1
-                state["contributing"] += 1
-                continue
-            value = row[policy["column"]]
-            if value is None:
-                if policy["nulls"] == "ignore":
-                    state["ignored_nulls"] += 1
-                else:
-                    rejected_nulls += 1
-                continue
-            value = _aggregate_value(value, recipe["columns"][policy["column"]])
-            state["contributing"] += 1
-            if operator == "sum":
-                state["value"] = (state["value"] or 0) + value
-            elif (
-                state["value"] is None
-                or (operator == "min" and value < state["value"])
-                or (operator == "max" and value > state["value"])
-            ):
-                state["value"] = value
+            groups[key] = _new_aggregate_group(recipe)
+        rejected_nulls += _update_aggregate_group(groups[key], row, recipe)
     if not recipe["group_by"] and not groups:
-        groups[()] = {
-            "rows": 0,
-            "measures": {
-                name: {"value": 0 if policy["operator"] == "count" else None, "contributing": 0, "ignored_nulls": 0}
-                for name, policy in recipe["measures"].items()
-            },
-        }
+        groups[()] = _new_aggregate_group(recipe)
     if null_groups:
         problems.append(f"{side} has {null_groups} row(s) with null group components")
     if rejected_nulls:
@@ -823,43 +826,10 @@ def _sqlite_aggregate_summary(
                             groups += 1
                             if groups > max_groups:
                                 raise ParisonError(f"{side} group count exceeds limit {max_groups}")
-                            group = {
-                                "rows": 0,
-                                "measures": {
-                                    name: {
-                                        "value": 0 if policy["operator"] == "count" else None,
-                                        "contributing": 0,
-                                        "ignored_nulls": 0,
-                                    }
-                                    for name, policy in recipe["measures"].items()
-                                },
-                            }
+                            group = _new_aggregate_group(recipe)
                         else:
                             group = _restore_aggregate_state(found[0], recipe)
-                        group["rows"] += 1
-                        for name, policy in recipe["measures"].items():
-                            state, operator = group["measures"][name], policy["operator"]
-                            if operator == "count":
-                                state["value"] += 1
-                                state["contributing"] += 1
-                                continue
-                            value = row[policy["column"]]
-                            if value is None:
-                                if policy["nulls"] == "ignore":
-                                    state["ignored_nulls"] += 1
-                                else:
-                                    rejected_nulls += 1
-                                continue
-                            value = _aggregate_value(value, recipe["columns"][policy["column"]])
-                            state["contributing"] += 1
-                            if operator == "sum":
-                                state["value"] = (state["value"] or 0) + value
-                            elif (
-                                state["value"] is None
-                                or (operator == "min" and value < state["value"])
-                                or (operator == "max" and value > state["value"])
-                            ):
-                                state["value"] = value
+                        rejected_nulls += _update_aggregate_group(group, row, recipe)
                         connection.execute(
                             "INSERT OR REPLACE INTO groups VALUES (?, ?, ?, ?)",
                             (
@@ -870,17 +840,7 @@ def _sqlite_aggregate_summary(
                             ),
                         )
                     if not recipe["group_by"] and not groups:
-                        empty = {
-                            "rows": 0,
-                            "measures": {
-                                name: {
-                                    "value": 0 if policy["operator"] == "count" else None,
-                                    "contributing": 0,
-                                    "ignored_nulls": 0,
-                                }
-                                for name, policy in recipe["measures"].items()
-                            },
-                        }
+                        empty = _new_aggregate_group(recipe)
                         connection.execute(
                             "INSERT INTO groups VALUES (?, ?, '[]', ?)", (side_id, b"", _aggregate_state_json(empty))
                         )

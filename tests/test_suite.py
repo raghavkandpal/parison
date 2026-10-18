@@ -240,6 +240,27 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(child["runtime"]["execution_engine"], "sqlite")
         verify_bundle(output)
 
+        self.write_plan_v2(
+            [
+                self.case()
+                | {
+                    "recipe": "aggregate.json",
+                    "execution": {"engine": "sqlite", "max_temp_bytes": 1},
+                }
+            ]
+        )
+        output = self.root / "sqlite-aggregate-limit-suite"
+        result = run_suite(self.plan, output)
+        self.assertEqual(result["outcome"], "ERROR")
+        child_root = output / "cases" / "orders"
+        child = json.loads((child_root / "result.json").read_text(encoding="utf-8"))
+        self.assertEqual(child["outcome"], "ERROR")
+        self.assertEqual(child["runtime"]["execution_engine"], "sqlite")
+        self.assertEqual(child["resource_limits"]["max_temp_bytes"], 1)
+        self.assertFalse(any(path.name.startswith("parison-spill-") for path in output.rglob("*")))
+        verify_bundle(child_root)
+        verify_bundle(output)
+
     def test_concurrent_suite_matches_sequential_semantics_and_plan_order(self):
         passing = self.case("first")
         failing = self.case("second") | {"candidate": "different.csv"}

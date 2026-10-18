@@ -29,6 +29,20 @@ semantic oracle and default.
 - Support direct comparison and suite-v2 cases with the same explicit
   `engine: sqlite` selection.
 
+SQLite documents `max_page_count` as a per-database page ceiling and returns
+`SQLITE_FULL` when growth crosses that ceiling ([SQLite limits][sqlite-limits],
+[PRAGMA reference][sqlite-pragma]). The same reference explains that
+`journal_mode=OFF` can leave a database corrupt and `synchronous=OFF` can lose
+durability across an operating-system crash or power loss. Those are acceptable
+only because this database is private, disposable derived state that Parison
+recreates from unchanged inputs; it is never evidence or a resumable artifact.
+
+Python's `sqlite3` module opens a local path-backed database without a server
+process ([Python `sqlite3`][python-sqlite3]). `TemporaryDirectory` removes its
+tree when its context exits ([Python `tempfile`][python-tempfile]); Parison
+still qualifies normal failure and interruption explicitly because cleanup can
+itself encounter platform-specific filesystem errors.
+
 ## Threats and non-goals
 
 The spill database contains normalized group values and is sensitive even for
@@ -48,3 +62,17 @@ semantics, new measures and universal capacity claims are out of scope.
 - Deterministic benchmark cases cover low and high cardinality with explicit
   accuracy oracles and machine-specific memory/time/storage measurements.
 - `make check` and built-wheel CI pass on Python 3.11--3.14, macOS and Windows.
+
+## Primary sources
+
+Accessed 18 October 2026.
+
+- [SQLite limits][sqlite-limits]
+- [SQLite PRAGMA reference][sqlite-pragma]
+- [Python `sqlite3`][python-sqlite3]
+- [Python `tempfile`][python-tempfile]
+
+[sqlite-limits]: https://www.sqlite.org/limits.html
+[sqlite-pragma]: https://www.sqlite.org/pragma.html
+[python-sqlite3]: https://docs.python.org/3/library/sqlite3.html
+[python-tempfile]: https://docs.python.org/3/library/tempfile.html
