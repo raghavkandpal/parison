@@ -74,7 +74,7 @@ def export_editor_schemas(output: str | Path) -> dict[str, Any]:
 
 
 def load_suite(path: str | Path) -> dict[str, Any]:
-    from .inputs import _source_path, _source_paths, _sqlite_source
+    from .inputs import _source_path, _source_paths, _sqlite_source, _xlsx_source
 
     suite_path = Path(path)
     try:
@@ -126,17 +126,22 @@ def load_suite(path: str | Path) -> dict[str, Any]:
             value = case[name]
             if not isinstance(value, str) or not value or "\0" in value:
                 raise ParisonError(f"suite case {identifier} has an invalid {name} reference")
-            if version == 2:
-                reference = value.split("#", 1)[0].removeprefix("sqlite:")
-                if Path(reference).is_absolute():
-                    raise ParisonError(f"suite case {identifier} {name} must be a portable plan-relative reference")
             sqlite_source = _sqlite_source(value) if name != "recipe" else None
-            source_path = sqlite_source[0] if sqlite_source else Path(value)
+            xlsx_source = _xlsx_source(value) if name != "recipe" else None
+            source_path = sqlite_source[0] if sqlite_source else xlsx_source[0] if xlsx_source else Path(value)
+            if version == 2 and source_path.is_absolute():
+                raise ParisonError(f"suite case {identifier} {name} must be a portable plan-relative reference")
             if not source_path.is_absolute():
                 source_path = Path(os.path.abspath(base / source_path))
             if source_path.is_symlink():
                 raise ParisonError(f"suite case {identifier} {name} must not be a symlink")
-            resolved[name] = f"sqlite:{source_path}#{sqlite_source[1]}" if sqlite_source else str(source_path)
+            resolved[name] = (
+                f"sqlite:{source_path}#{sqlite_source[1]}"
+                if sqlite_source
+                else f"xlsx:{source_path}#{xlsx_source[1]}!{xlsx_source[2]}"
+                if xlsx_source
+                else str(source_path)
+            )
             portable[name] = value
         recipe = load_recipe(resolved["recipe"])
         expected = case.get("expected_policy_sha256")

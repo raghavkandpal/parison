@@ -59,6 +59,7 @@ _FILE_FORMATS = {
     ".ndjson": "jsonl",
     ".parquet": "parquet",
     ".pq": "parquet",
+    ".xlsx": "xlsx",
 }
 _SCHEMAS = {
     "recipe-authoring": "recipe-authoring.schema.json",
@@ -72,6 +73,9 @@ _SCHEMAS = {
     "preflight": "preflight-v1.schema.json",
     "preflight-v2": "preflight-v2.schema.json",
     "preflight-v3": "preflight-v3.schema.json",
+    "preflight-v4": "preflight-v4.schema.json",
+    "preflight-v5": "preflight-v5.schema.json",
+    "preflight-v6": "preflight-v6.schema.json",
     "suite": "suite-v1.schema.json",
     "suite-authoring": "suite-authoring.schema.json",
     "suite-v2": "suite-v2.schema.json",

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/raghavkandpal/parison/main/src/parison/schemas/preflight-v5.schema.json",
+  "title": "Parison aggregate XLSX preflight result v5",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "status", "comparison_mode", "group_by", "measures", "max_groups", "canonical_columns", "policy_sha256", "inputs"],
+  "properties": {
+    "schema_version": {"const": 5}, "status": {"enum": ["valid", "invalid"]}, "comparison_mode": {"const": "aggregate"},
+    "group_by": {"type": "array", "items": {"type": "string"}}, "measures": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "max_groups": {"type": "integer", "minimum": 1}, "canonical_columns": {"type": "integer", "minimum": 1},
+    "policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "inputs": {"$ref": "#/$defs/inputs"}
+  },
+  "$defs": {
+    "inputs": {"type": "object", "additionalProperties": false, "required": ["baseline", "candidate"], "properties": {"baseline": {"$ref": "#/$defs/input"}, "candidate": {"$ref": "#/$defs/input"}}},
+    "input": {"type": "object", "additionalProperties": false, "required": ["format", "bytes", "columns", "partitions", "schema"], "properties": {"format": {"enum": ["csv", "tsv", "jsonl", "parquet", "sqlite", "xlsx"]}, "bytes": {"type": "integer", "minimum": 0}, "columns": {"type": "integer", "minimum": 1}, "partitions": {"type": "integer", "minimum": 1}, "table": {"type": "string", "minLength": 1}, "delimiter": {"type": "string", "minLength": 1, "maxLength": 1}, "null_tokens": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}, "worksheet": {"type": "string", "minLength": 1}, "range": {"type": "string", "minLength": 1}, "compression": {"enum": ["gzip", "zip"]}, "decoded_bytes": {"type": "integer", "minimum": 0}, "schema": {"type": "object"}, "records": {"type": "object"}}, "allOf": [{"if": {"properties": {"format": {"const": "xlsx"}}, "required": ["format"]}, "then": {"required": ["worksheet", "range", "compression", "decoded_bytes"], "properties": {"compression": {"const": "zip"}}}}]}
+  }
+}

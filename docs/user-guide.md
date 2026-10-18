@@ -44,8 +44,27 @@ receipts separately.
 
 ### 1. Review and lock policy
 
-Supported inputs are CSV/TSV, JSON Lines, Parquet and read-only SQLite tables.
-Partitioned directories and bounded gzip text inputs are also supported.
+Supported inputs are CSV/TSV, JSON Lines, Parquet, read-only SQLite tables and
+explicit XLSX value ranges. Partitioned directories and bounded gzip text
+inputs are also supported.
+
+Install the XLSX extra, then identify the workbook, worksheet and bounded
+rectangle explicitly. The first row is the header:
+
+```sh
+python -m pip install 'parison[xlsx]'
+parison draft-recipe \
+  --baseline 'xlsx:baseline.xlsx#Export!A1:F1000' \
+  --candidate 'xlsx:candidate.xlsx#Export!A1:F1000' \
+  --output recipe.json
+parison validate-inputs --records --recipe recipe.json \
+  --baseline 'xlsx:baseline.xlsx#Export!A1:F1000' \
+  --candidate 'xlsx:candidate.xlsx#Export!A1:F1000'
+```
+
+Review the generated `semantic-scalar-v1` policy. Formula and error cells are
+rejected; Parison never infers the active sheet or used range and does not
+evaluate formulas. See the [XLSX values contract](1.6/170-xlsx-values-projection-contract.md).
 
 ```sh
 parison draft-recipe --baseline baseline.csv --candidate candidate.csv \

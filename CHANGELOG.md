@@ -2,17 +2,19 @@
 
 All notable changes will be documented in this file.
 
-## 1.6.0 - 2026-10-18
+## Unreleased
 
 ### Added
 
 - A stable task-oriented 1.x guide covering direct comparison, suites, schema evolution, reconciliation, dataset evidence, rehearsal analysis and authenticated handoff.
 - An exhaustive deterministic CLI reference generated from the real `argparse` tree, including nested catalog commands.
 - Documentation drift checks that pin generated help, validate guide command syntax and reject missing local links.
+- An opt-in local `.xlsx` values projection with explicit worksheet and bounded-range selection, formula rejection, ZIP decoded-size limits, mixed-format comparison and all three comparison modes.
+- Installed XLSX-aware preflight schemas v4--v6 without changing released preflight schemas v1--v3.
 
 ### Compatibility
 
-- This documentation and contributor-check slice does not change recipes, schemas, comparison semantics, bundles, canonical bytes, CLI JSON or exit codes.
+- XLSX requires the released `semantic-scalar-v1` policy and a pinned optional parser dependency. Recipe versions, comparison result schemas, comparison semantics, bundles, canonical bytes and exit codes remain unchanged.
 
 ## 1.5.0 - 2026-10-17
 

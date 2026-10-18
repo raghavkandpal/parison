@@ -2,7 +2,7 @@
 
 Date: 18 October 2026
 
-Status: **candidate preparation**
+Status: **scope expanded; prior documentation-only candidate withdrawn**
 
 ## Capability gate
 
@@ -11,10 +11,14 @@ Status: **candidate preparation**
 - [x] Drift checks bind reference text, guide syntax and repository-local links
   to the checked-in parser and tree.
 - [x] Historical contracts and guides remain unchanged.
-- [x] Recipes, schemas, evidence, canonical bytes, CLI JSON and exit codes are
-  unchanged.
+- [ ] The approved XLSX values projection passes its frozen contract and
+  threat-model gates in keyed, aggregate and multiset modes.
+- [ ] New preflight schemas v4--v6 validate XLSX metadata while released
+  schemas v1--v3 remain byte-for-byte unchanged.
+- [ ] Recipes, comparison results, evidence bundles, canonical bytes and exit
+  codes remain unchanged.
 
-## Exact candidate
+## Superseded documentation checkpoint
 
 - [x] The post-correction local gate passes (345 tests; 11 expected
   optional-Polars skips).
@@ -32,12 +36,27 @@ Status: **candidate preparation**
   verification.
 - [x] Review of `origin/main...develop` reports no release blockers.
 
+This evidence remains valid for the documentation slice but is not release
+evidence for the expanded 1.6 scope. Pull request #45 was closed without merge,
+tag or publication.
+
 Candidate SHA-256:
 
 - `parison-1.6.0-py3-none-any.whl`:
   `495e1dd0424a8d4cb9a561602f9ceec166c157a5db9328159ca8abab8bbc12d0`
 - `parison-1.6.0.tar.gz`:
   `1c4ca256d484ab900deff9ef8429eca9a4b8dadc0ec8e0436a65314e77c37dd7`
+
+## Expanded exact candidate
+
+- [ ] Focused XLSX, schema and documentation gates pass.
+- [ ] `make check` passes with the optional XLSX dependency installed.
+- [ ] Exact implementation and versioned candidate commits pass built-wheel CI
+  on Python 3.11--3.14, Linux, macOS and Windows.
+- [ ] A clean archive produces wheel, source and checksums.
+- [ ] A fresh environment installs `parison[xlsx]` from the built wheel and
+  completes drafting, preflight, comparison and verification.
+- [ ] Independent Standards and Spec reviews report no blockers.
 
 ## Publication
 
