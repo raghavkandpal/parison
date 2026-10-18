@@ -2,6 +2,18 @@
 
 All notable changes will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- A stable task-oriented 1.x guide covering direct comparison, suites, schema evolution, reconciliation, dataset evidence, rehearsal analysis and authenticated handoff.
+- An exhaustive deterministic CLI reference generated from the real `argparse` tree, including nested catalog commands.
+- Documentation drift checks that pin generated help, validate guide command syntax and reject missing local links.
+
+### Compatibility
+
+- This documentation and contributor-check slice does not change recipes, schemas, comparison semantics, bundles, canonical bytes, CLI JSON or exit codes.
+
 ## 1.5.0 - 2026-10-17
 
 ### Added

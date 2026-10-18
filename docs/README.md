@@ -4,6 +4,16 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## Current 1.x documentation
+
+- [Task-oriented user guide](user-guide.md)
+- [Generated CLI command reference](command-reference.md)
+
+## 1.6 — active
+
+- [Current workflow and command-reference research](1.6/165-current-workflow-research.md)
+- [1.6 roadmap](1.6/166-roadmap.md)
+
 ## Pre-1.5 repository maintenance
 
 - [Repository quality and layout plan](157-repository-quality-and-layout-plan.md)
