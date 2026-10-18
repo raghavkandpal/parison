@@ -63,6 +63,16 @@ class XmlInput(unittest.TestCase):
         self.assertNotIn(str(self.document), json.dumps(result))
         self.assertEqual(draft_recipe(self.source, self.source)["input_projection"], "semantic-scalar-v1")
 
+        field_recipe = deepcopy(RECIPE)
+        field_recipe["keys"] = ["q:id"]
+        field_recipe["columns"] = {"q:id": {"type": "string", "comparison": "exact"}}
+        self.recipe.write_text(json.dumps(field_recipe), encoding="utf-8")
+        self.document.write_text(
+            '<root xmlns:q="urn:fields"><record><q:id>001</q:id></record></root>', encoding="utf-8"
+        )
+        field_source = f"xml:{self.document}#root/record?ns=q,urn%3Afields"
+        self.assertEqual(compare(self.recipe, field_source, field_source)["outcome"], "PASS")
+
     def test_all_modes_preflight_and_portable_suite(self):
         keyed = validate_inputs(self.recipe, self.source, self.source, validate_records=True)
         self.assertEqual(keyed["schema_version"], 10)
@@ -125,7 +135,10 @@ class XmlInput(unittest.TestCase):
                 self.document.write_text(content, encoding="utf-8")
                 with self.assertRaisesRegex(ParisonError, message):
                     compare(self.recipe, self.source, self.source)
-        with self.assertRaisesRegex(ParisonError, "prefixes must exactly match"):
+        self.document.write_bytes('<!DOCTYPE root [<!ENTITY x "value">]><root/>'.encode("utf-16"))
+        with self.assertRaisesRegex(ParisonError, "UTF-8 encoding"):
+            compare(self.recipe, self.source, self.source)
+        with self.assertRaisesRegex(ParisonError, "prefixes must be declared"):
             compare(self.recipe, f"xml:{self.document}#p:root/p:record", self.source)
         open_recipe = dict(RECIPE)
         open_recipe.pop("input_projection")

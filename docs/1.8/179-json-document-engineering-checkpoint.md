@@ -20,8 +20,9 @@ loose nested multiset preflight shape. Regression coverage pins every
 correction.
 
 Local completion gate: `make check` passes 369 tests on Python 3.14. The exact
-corrected commit and built-wheel CI link are recorded after the checkpoint is
-pushed.
+corrected feature is present at `f7d919453a84d79024bbc23f299f7afd4f53557b`,
+which passed the [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39142255693)
+and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39142255664).
 
 This completes one of three required 1.8 features. It is not a release
 candidate and must not be tagged or published independently.

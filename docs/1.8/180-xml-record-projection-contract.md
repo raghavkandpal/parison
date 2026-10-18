@@ -9,10 +9,11 @@ xml:path/to/export.xml#p:root/p:records/p:record?ns=p,https%3A%2F%2Fexample.com%
 ```
 
 The `xml:` prefix, local `.xml` regular file, `#` separator and bounded
-root-to-record path are mandatory. Path segments are unprefixed XML names or
-qualified names whose prefix has exactly one repeated `ns=prefix,URI` binding.
+root-to-record path are mandatory. Path segments use portable ASCII XML names
+or qualified names whose prefix has exactly one repeated `ns=prefix,URI` binding.
 Namespace values use ordinary URL percent encoding. Prefixes and namespace
-URIs must be unique. Wildcards, descendant search, predicates, parent steps,
+URIs must be unique. Bindings may additionally name field-only namespaces.
+Wildcards, descendant search, predicates, parent steps,
 XPath functions, implicit namespace discovery, compression, symlinks and
 partition directories are rejected.
 
@@ -31,7 +32,7 @@ comparison mode or approval semantics.
 
 ## Security, limits and evidence
 
-DTD and entity declarations are rejected before parsing; Parison performs no
+Documents must use UTF-8. DTD and entity declarations are rejected before parsing; Parison performs no
 XInclude, external-resource or network processing. XML documents are limited
 to 64 MiB, depth 100, 1,000,000 elements and 1 MiB text per element in addition
 to the existing combined physical-byte and selected-row limits.

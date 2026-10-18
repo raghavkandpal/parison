@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import gzip
 import hashlib
+import io
 import json
 import re
 import sqlite3
@@ -174,8 +175,8 @@ def _xml_source(source: str | Path) -> tuple[Path, str, dict[str, str]] | None:
                 raise ParisonError("XML namespace prefixes and URIs must be nonempty and unique")
             namespaces[prefix] = uri
     used_prefixes = {segment.split(":", 1)[0] for segment in segments if ":" in segment}
-    if used_prefixes != set(namespaces):
-        raise ParisonError("XML record path prefixes must exactly match declared namespaces")
+    if not used_prefixes <= set(namespaces):
+        raise ParisonError("XML record path prefixes must be declared")
     return Path(path_text), record_path, namespaces
 
 
@@ -548,13 +549,12 @@ def _xml_rows(source: str | Path, max_rows: int | None):
         raise ParisonError(f"cannot read XML document {path}: {exc}") from exc
     if len(content) > 64 * 1024 * 1024:
         raise ParisonError(f"XML document exceeds 67108864 byte parser limit: {path}")
-    if b"<!DOCTYPE" in content or b"<!ENTITY" in content:
-        raise ParisonError(f"XML document contains a forbidden DTD or entity declaration: {path}")
     try:
-        root = ET.fromstring(content)
-    except (ET.ParseError, RecursionError) as exc:
-        raise ParisonError(f"cannot parse XML document {path}: {exc}") from exc
-
+        xml_text = content.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ParisonError(f"XML document must use UTF-8 encoding: {path}") from exc
+    if "<!DOCTYPE" in xml_text or "<!ENTITY" in xml_text:
+        raise ParisonError(f"XML document contains a forbidden DTD or entity declaration: {path}")
     reverse_namespaces = {uri: prefix for prefix, uri in namespaces.items()}
 
     def expanded(name: str) -> str:
@@ -575,47 +575,59 @@ def _xml_rows(source: str | Path, max_rows: int | None):
     headers = None
     rows = 0
     elements = 0
-    stack = [(root, (root.tag,), 1)]
-    selected = []
-    while stack:
-        element, element_path, depth = stack.pop()
-        elements += 1
-        if elements > 1_000_000:
-            raise ParisonError(f"XML document exceeds 1000000 element limit: {path}")
-        if depth > 100:
-            raise ParisonError(f"XML document exceeds depth limit 100: {path}")
-        if element.text is not None and len(element.text.encode("utf-8")) > 1024 * 1024:
-            raise ParisonError(f"XML element text exceeds 1048576 byte limit: {path}")
-        if element.tail is not None and len(element.tail.encode("utf-8")) > 1024 * 1024:
-            raise ParisonError(f"XML element text exceeds 1048576 byte limit: {path}")
-        if element_path == expected_path:
-            selected.append(element)
-        for child in reversed(list(element)):
-            stack.append((child, (*element_path, child.tag), depth + 1))
-    if not selected:
+    path_stack = []
+    element_stack = []
+    try:
+        for event, element in ET.iterparse(io.BytesIO(content), events=("start", "end")):
+            if event == "start":
+                elements += 1
+                path_stack.append(element.tag)
+                element_stack.append(element)
+                if elements > 1_000_000:
+                    raise ParisonError(f"XML document exceeds 1000000 element limit: {path}")
+                if len(path_stack) > 100:
+                    raise ParisonError(f"XML document exceeds depth limit 100: {path}")
+                continue
+            if element.text is not None and len(element.text.encode("utf-8")) > 1024 * 1024:
+                raise ParisonError(f"XML element text exceeds 1048576 byte limit: {path}")
+            if element.tail is not None and len(element.tail.encode("utf-8")) > 1024 * 1024:
+                raise ParisonError(f"XML element text exceeds 1048576 byte limit: {path}")
+            if tuple(path_stack) == expected_path:
+                if max_rows is not None and rows >= max_rows:
+                    raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
+                if element.attrib or (element.text or "").strip():
+                    raise ParisonError(f"XML record has attributes or mixed text at {record_path}")
+                row = {}
+                for child in element:
+                    if child.attrib or len(child) or (child.tail and child.tail.strip()):
+                        raise ParisonError(f"XML field must be an attribute-free text element at {record_path}")
+                    name = projected(child.tag)
+                    if name in row:
+                        raise ParisonError(f"XML record has a duplicate field {name} at {record_path}")
+                    row[name] = child.text or ""
+                if not row:
+                    raise ParisonError(f"XML record at {record_path} has no fields")
+                if headers is None:
+                    headers = list(row)
+                    yield headers, None
+                elif set(row) != set(headers):
+                    raise ParisonError(f"inconsistent XML fields at record {rows} in {path}")
+                rows += 1
+                yield headers, row
+            preserve_for_record = (
+                len(path_stack) > len(expected_path) and tuple(path_stack[: len(expected_path)]) == expected_path
+            )
+            parent = element_stack[-2] if len(element_stack) > 1 else None
+            if parent is not None and not preserve_for_record:
+                parent.remove(element)
+            path_stack.pop()
+            element_stack.pop()
+    except ParisonError:
+        raise
+    except (ET.ParseError, RecursionError) as exc:
+        raise ParisonError(f"cannot parse XML document {path}: {exc}") from exc
+    if headers is None:
         raise ParisonError(f"XML record path selects no elements: {record_path}")
-    if max_rows is not None and len(selected) > max_rows:
-        raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
-    for element in selected:
-        if element.attrib or (element.text or "").strip():
-            raise ParisonError(f"XML record has attributes or mixed text at {record_path}")
-        row = {}
-        for child in element:
-            if child.attrib or len(child) or (child.tail and child.tail.strip()):
-                raise ParisonError(f"XML field must be an attribute-free text element at {record_path}")
-            name = projected(child.tag)
-            if name in row:
-                raise ParisonError(f"XML record has a duplicate field {name} at {record_path}")
-            row[name] = child.text or ""
-        if not row:
-            raise ParisonError(f"XML record at {record_path} has no fields")
-        if headers is None:
-            headers = list(row)
-            yield headers, None
-        elif set(row) != set(headers):
-            raise ParisonError(f"inconsistent XML fields at record {rows} in {path}")
-        rows += 1
-        yield headers, row
 
 
 def _iter_jsonl(path: Path, max_rows: int, decoded_sizes: dict[Path, int]):
