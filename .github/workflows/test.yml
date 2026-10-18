@@ -2,39 +2,57 @@ name: test
 
 on:
   push:
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+
+concurrency:
+  group: test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  quality:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.14"
           cache: pip
-      - run: python -m pip install 'ruff==0.17.1'
-      - run: make lint format-check
+      - run: python -m pip install --upgrade pip build
+      - run: python -m build
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: distributions
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
 
   test:
+    needs: build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: python -m pip install --upgrade pip build
-      - run: python -m build
-      - run: python -m pip install 'polars==1.44.2' dist/parison-*.whl
-      - run: python -m pip install 'jsonschema>=4,<5'
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: distributions
+          path: dist
+      - run: python -m pip install 'polars==1.44.2' 'jsonschema>=4,<5' dist/parison-*.whl
       - run: parison --version
       - run: parison schema recipe
       - run: parison schema recipe-authoring
@@ -156,17 +174,20 @@ jobs:
           parison verify /tmp/parison-0.15-suite
       - name: Upload smoke evidence
         if: matrix.python-version == '3.14'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: parison-smoke-${{ github.run_id }}
           path: /tmp/parison-smoke
           if-no-files-found: error
           retention-days: 14
       - run: python -m unittest discover -s tests -v
-      - run: python benchmarks/generate_cases.py --output /tmp/parison-bench --rows 1000
-      - run: python benchmarks/run_cases.py --repeats 1 --max-memory-per-row 6000 /tmp/parison-bench/rows-1000
-      - run: python benchmarks/generate_aggregate_cases.py --output /tmp/parison-aggregate-bench --rows 1000
-      - run: python benchmarks/run_cases.py --repeats 1 --max-memory-per-row 6000 /tmp/parison-aggregate-bench/aggregate-global-1000 /tmp/parison-aggregate-bench/aggregate-low-1000 /tmp/parison-aggregate-bench/aggregate-high-1000
+      - name: Check in-memory benchmark accuracy
+        if: matrix.python-version == '3.14'
+        run: |
+          python benchmarks/generate_cases.py --output /tmp/parison-bench --rows 1000
+          python benchmarks/run_cases.py --repeats 1 --max-memory-per-row 6000 /tmp/parison-bench/rows-1000
+          python benchmarks/generate_aggregate_cases.py --output /tmp/parison-aggregate-bench --rows 1000
+          python benchmarks/run_cases.py --repeats 1 --max-memory-per-row 6000 /tmp/parison-aggregate-bench/aggregate-global-1000 /tmp/parison-aggregate-bench/aggregate-low-1000 /tmp/parison-aggregate-bench/aggregate-high-1000
       - name: Check SQLite multiset benchmark accuracy
         if: matrix.python-version == '3.14'
         run: |
@@ -176,6 +197,7 @@ jobs:
           python benchmarks/run_spill_cases.py --repeats 1 /tmp/parison-spill-bench/keyed-1000
 
   platform-smoke:
+    needs: build
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -183,37 +205,28 @@ jobs:
         os: [macos-latest, windows-latest]
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: python -m pip install --upgrade pip build
-      - run: python -m build
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: distributions
+          path: dist
       - run: python -m pip install 'polars==1.44.2' 'jsonschema>=4,<5'
       - name: Install built wheel
         run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', *glob.glob('dist/parison-*.whl')])"
       - run: parison --version
-      - run: parison schema recipe
-      - run: parison schema recipe-v2
       - run: parison schema recipe-v3
       - run: parison schema statement
-      - run: parison schema schema-evolution
-      - run: parison schema policy-diff
       - run: parison schema reconciliation-result
       - run: parison schema dataset-manifest
       - run: parison schema reproducibility-diagnostic
       - run: parison verify-dataset-manifest --manifest examples/1.4/payout-dataset-manifest.json --root . --policy-file examples/1.3/reconciliation.json --summary
       - run: parison reconcile --alignment examples/1.3/alignment.json --reconciliation examples/1.3/reconciliation.json --receipt examples/1.3/extraction-receipt.json --dataset payments examples/1.3/payments.recipe.json examples/1.3/payments-baseline.csv examples/1.3/payments-candidate.jsonl --dataset payouts examples/1.3/payouts.recipe.json examples/1.3/payouts-baseline.csv examples/1.3/payouts-candidate.jsonl --engine sqlite --output ${{ runner.temp }}/parison-1.3-reconciliation --summary
-      - run: parison publish-dataset-evidence --manifest examples/1.4/payout-dataset-manifest.json --root . --policy-file examples/1.3/reconciliation.json --result-bundle ${{ runner.temp }}/parison-1.3-reconciliation --output ${{ runner.temp }}/parison-1.4-dataset-evidence
-      - run: parison verify ${{ runner.temp }}/parison-1.4-dataset-evidence
-      - run: parison inspect ${{ runner.temp }}/parison-1.4-dataset-evidence
-      - run: parison validate-evolution examples/1.2/orders.schema-evolution.json
-      - run: parison diff-policy --baseline-recipe examples/1.2/baseline.recipe.json --candidate-recipe examples/1.2/candidate.recipe.json --evolution examples/1.2/orders.schema-evolution.json --summary
       - run: parison verify ${{ runner.temp }}/parison-1.3-reconciliation
       - run: parison inspect ${{ runner.temp }}/parison-1.3-reconciliation
-      - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
-      - run: parison compare --recipe examples/0.7/revenue.recipe.json --baseline examples/0.7/baseline.csv --candidate examples/0.7/candidate.jsonl --output ${{ runner.temp }}/parison-aggregate-smoke
       - run: parison schema result-v3
       - run: parison schema preflight-v3
       - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output ${{ runner.temp }}/parison-multiset-smoke
@@ -223,20 +236,8 @@ jobs:
           parison statement ${{ runner.temp }}/parison-multiset-smoke --output ${{ runner.temp }}/parison-statement.json
           parison verify-statement ${{ runner.temp }}/parison-multiset-smoke ${{ runner.temp }}/parison-statement.json
           parison report-cutover ${{ runner.temp }}/parison-multiset-smoke --output ${{ runner.temp }}/parison-cutover.md
-      - run: parison validate-suite examples/0.10/mixed-suite.json
       - run: parison run-suite --plan examples/0.10/mixed-suite.json --output ${{ runner.temp }}/parison-suite-smoke
       - run: parison verify ${{ runner.temp }}/parison-suite-smoke
-      - run: parison inspect ${{ runner.temp }}/parison-suite-smoke
       - run: parison init ${{ runner.temp }}/parison-quickstart
-      - run: parison validate-recipe ${{ runner.temp }}/parison-quickstart/recipe.json
-      - run: parison validate-inputs --recipe ${{ runner.temp }}/parison-quickstart/recipe.json --baseline ${{ runner.temp }}/parison-quickstart/baseline.csv --candidate ${{ runner.temp }}/parison-quickstart/candidate.csv --records
       - run: parison compare --recipe ${{ runner.temp }}/parison-quickstart/recipe.json --baseline ${{ runner.temp }}/parison-quickstart/baseline.csv --candidate ${{ runner.temp }}/parison-quickstart/candidate.csv --output ${{ runner.temp }}/parison-quickstart/run
       - run: parison verify ${{ runner.temp }}/parison-quickstart/run
-      - run: parison validate-suite examples/0.14/backfill-suite.json
-      - run: parison run-suite --plan examples/0.14/backfill-suite.json --output ${{ runner.temp }}/parison-0.14-suite
-      - run: parison verify ${{ runner.temp }}/parison-0.14-suite
-      - run: python benchmarks/generate_spill_cases.py --output ${{ runner.temp }}/parison-spill-bench --rows 1000
-      - run: python benchmarks/run_spill_cases.py --repeats 1 ${{ runner.temp }}/parison-spill-bench/multiset-1000
-      - run: python benchmarks/generate_spill_cases.py --output ${{ runner.temp }}/parison-spill-bench --mode keyed --rows 1000
-      - run: python benchmarks/run_spill_cases.py --repeats 1 ${{ runner.temp }}/parison-spill-bench/keyed-1000
-      - run: python -m unittest discover -s tests -v

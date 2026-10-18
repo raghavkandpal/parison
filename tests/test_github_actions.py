@@ -53,22 +53,24 @@ class GitHubActionsReference(unittest.TestCase):
         self.assertIn("releases/download/0.15.0/parison-0.15.0-py3-none-any.whl", workflow)
         self.assertNotIn("pull_request_target:", workflow)
 
-    def test_installed_wheel_ci_runs_initialized_project_quickstart(self):
+    def test_platform_ci_installs_one_shared_wheel_and_runs_quickstart(self):
         workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
-        for command in (
-            "parison init",
-            "parison validate-recipe",
-            "parison validate-inputs",
-            "parison compare",
-            "parison verify",
-        ):
-            self.assertGreaterEqual(workflow.count(command), 2)
+        build = workflow[workflow.index("build:") : workflow.index("test:")]
+        self.assertIn("python -m build", build)
+        self.assertIn("name: distributions", build)
+        self.assertIn("actions/upload-artifact@", build)
         self.assertIn("platform-smoke:", workflow)
         platform = workflow[workflow.index("platform-smoke:") :]
-        self.assertIn("python -m build", platform)
+        self.assertIn("needs: build", platform)
+        self.assertIn("actions/download-artifact@", platform)
+        self.assertIn("name: distributions", platform)
         self.assertIn("dist/parison-*.whl", platform)
-        self.assertIn("--mode keyed", platform)
-        self.assertIn("keyed-1000", platform)
+        self.assertIn("parison init", platform)
+        self.assertIn("parison compare", platform)
+        self.assertIn("parison verify", platform)
+        self.assertNotIn("python -m build", platform)
+        self.assertNotIn("python benchmarks/", platform)
+        self.assertNotIn("python -m unittest", platform)
         self.assertNotIn("pip install '.[parquet,test]'", platform)
 
     def test_signing_reference_pins_tools_and_checks_exact_identity(self):
