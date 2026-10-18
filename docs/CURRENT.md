@@ -1,13 +1,21 @@
 # Current development state
 
-- Version: **1.7.0 released; 1.8 scope selection pending**
+- Version: **1.7.0 released; 1.8 three-feature release train pending**
 - Branch: `develop`
-- Theme: bounded SQLite-backed aggregate conservation
+- Theme: select and deliver at least three substantial 1.8 features before candidate review
 - Released: one maintained 1.x workflow plus explicit, bounded local XLSX values projection across all comparison modes
 - Verified: exact merge `80d49e797e6ecc88cdd8cef19e327b6eecf102dc` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39118675788) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and passed the complete XLSX workflow smoke fresh
-- Next gate: select one substantial 1.8 capability from the product direction before implementation
+- Next gate: define the three-feature 1.8 train and the independent completion gate for each feature
 
 ## Recorded next steps
+
+- Every release after 1.7.0 must contain at least three separately reviewable,
+  substantial feature additions. Push and record green feature checkpoints,
+  but do not open a candidate, tag or publish until all three are complete.
+  Refactors, fixes, documentation reconciliation and test hardening do not
+  count unless they independently add material user capability. Follow
+  [RELEASING.md](../RELEASING.md) and the accepted
+  [product direction](0.15/104-product-direction-and-release-arc.md).
 
 - Preserve the released [1.7 roadmap](1.7/172-roadmap.md) and [SQLite aggregate contract](1.7/173-aggregate-sqlite-contract.md). Cross-engine equivalence, controlled failures, cleanup and dual-cardinality benchmarks are qualified; keep engine selection explicit and preserve aggregate-v1 semantics and evidence bytes.
 
