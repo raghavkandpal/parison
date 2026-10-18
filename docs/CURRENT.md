@@ -1,15 +1,17 @@
 # Current development state
 
-- Version: **1.7.0 in development**
+- Version: **1.7.0 released; 1.8 scope selection pending**
 - Branch: `develop`
 - Theme: bounded SQLite-backed aggregate conservation
 - Released: one maintained 1.x workflow plus explicit, bounded local XLSX values projection across all comparison modes
 - Verified: exact merge `80d49e797e6ecc88cdd8cef19e327b6eecf102dc` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39118675788) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and passed the complete XLSX workflow smoke fresh
-- Next gate: merge the reviewed 1.7 candidate and require exact-merge CI before publication
+- Next gate: select one substantial 1.8 capability from the product direction before implementation
 
 ## Recorded next steps
 
-- Follow the active [1.7 roadmap](1.7/172-roadmap.md) and [SQLite aggregate contract](1.7/173-aggregate-sqlite-contract.md). Cross-engine equivalence, controlled failures, cleanup and dual-cardinality local benchmarks are complete; keep engine selection explicit and preserve aggregate-v1 semantics and evidence bytes.
+- Preserve the released [1.7 roadmap](1.7/172-roadmap.md) and [SQLite aggregate contract](1.7/173-aggregate-sqlite-contract.md). Cross-engine equivalence, controlled failures, cleanup and dual-cardinality benchmarks are qualified; keep engine selection explicit and preserve aggregate-v1 semantics and evidence bytes.
+
+- Release 1.7.0 is complete at exact merge `5da6e08dc97c4bdef3f57c6b71a272b42d7ea171`; public wheel, source and checksums were re-downloaded and the public wheel passed the primary SQLite aggregate smoke.
 
 - Follow the active [1.6 roadmap](1.6/166-roadmap.md), accepted [current-workflow research](1.6/165-current-workflow-research.md) and approved [XLSX values research](1.6/169-xlsx-values-projection-research.md). Keep task guidance hand-written, require explicit worksheet/range selection and preserve every released contract as history.
 
