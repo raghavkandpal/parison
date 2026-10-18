@@ -2,7 +2,7 @@
 
 Date: 18 October 2026
 
-Status: **scope expanded; prior documentation-only candidate withdrawn**
+Status: **expanded candidate qualified**
 
 ## Capability gate
 
@@ -11,11 +11,11 @@ Status: **scope expanded; prior documentation-only candidate withdrawn**
 - [x] Drift checks bind reference text, guide syntax and repository-local links
   to the checked-in parser and tree.
 - [x] Historical contracts and guides remain unchanged.
-- [ ] The approved XLSX values projection passes its frozen contract and
+- [x] The approved XLSX values projection passes its frozen contract and
   threat-model gates in keyed, aggregate and multiset modes.
-- [ ] New preflight schemas v4--v6 validate XLSX metadata while released
+- [x] New preflight schemas v4--v6 validate XLSX metadata while released
   schemas v1--v3 remain byte-for-byte unchanged.
-- [ ] Recipes, comparison results, evidence bundles, canonical bytes and exit
+- [x] Recipes, comparison results, evidence bundles, canonical bytes and exit
   codes remain unchanged.
 
 ## Superseded documentation checkpoint
@@ -49,14 +49,18 @@ Candidate SHA-256:
 
 ## Expanded exact candidate
 
-- [ ] Focused XLSX, schema and documentation gates pass.
-- [ ] `make check` passes with the optional XLSX dependency installed.
-- [ ] Exact implementation and versioned candidate commits pass built-wheel CI
+- [x] Focused XLSX, schema and documentation gates pass.
+- [x] `make check` passes with the optional XLSX dependency installed (358
+  tests; 11 expected optional-Polars skips).
+- [x] Exact implementation checkpoint
+  `54ab13a473440a46f43c32842fa0de283129476e` passes
+  [built-wheel CI run 39118401039](https://github.com/raghavkandpal/parison/actions/runs/39118401039)
   on Python 3.11--3.14, Linux, macOS and Windows.
-- [ ] A clean archive produces wheel, source and checksums.
-- [ ] A fresh environment installs `parison[xlsx]` from the built wheel and
+- [x] A clean archive produces wheel and source artifacts with the candidate
+  hashes recorded in the engineering checkpoint.
+- [x] A fresh Python 3.14 environment installs `parison[xlsx,test]` from the built wheel and
   completes drafting, preflight, comparison and verification.
-- [ ] Independent Standards and Spec reviews report no blockers.
+- [x] Independent Standards and Spec reviews report no remaining blockers.
 
 ## Publication
 

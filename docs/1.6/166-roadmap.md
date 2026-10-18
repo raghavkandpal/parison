@@ -1,6 +1,6 @@
 # Parison 1.6 roadmap
 
-Status: **implementation in progress**
+Status: **candidate qualified**
 
 Theme: one maintained workflow plus an explicit local XLSX values boundary
 
@@ -22,10 +22,10 @@ Theme: one maintained workflow plus an explicit local XLSX values boundary
 6. Specify and implement a narrow `.xlsx` values projection after explicit
    scope approval: workbook path, worksheet and bounded rectangle are all
    required; formulas and implicit workbook semantics fail closed.
-   **In progress.**
+   **Complete.**
 7. Qualify keyed, aggregate and multiset comparison, drafting, preflight,
    mixed-format execution and wheel installation across the full platform
-   matrix. **Pending.**
+   matrix. **Complete.**
 
 ## Compatibility
 

@@ -5,7 +5,7 @@
 - Theme: one maintained workflow plus an explicit local XLSX values boundary
 - Released: deterministic discrepancy analysis, exact-policy rehearsal series, live catalog selection and bounded verified raw drill-down
 - Verified: exact merge `e960a3eb899181d63a28b24c11f31daeaf6f280b` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39036693844) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and smoke-tested fresh
-- Next gate: complete XLSX qualification, independent review and exact-candidate built-wheel CI before deciding whether 1.6.0 is release-ready
+- Next gate: merge the reviewed 1.6.0 candidate, qualify the exact merge and publish/reconcile public assets
 
 ## Recorded next steps
 
