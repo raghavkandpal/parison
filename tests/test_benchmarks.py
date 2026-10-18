@@ -66,6 +66,7 @@ class GeneratedBenchmarks(unittest.TestCase):
     def test_spill_case_matches_memory_and_reports_temporary_bytes(self):
         with tempfile.TemporaryDirectory() as temporary:
             case = generate_spill(Path(temporary), 100)
+            self.assertEqual(case.name, "multiset-100")
             memory = measure_spill(case, "memory")
             sqlite = measure_spill(case, "sqlite")
             self.assertEqual(memory["counts"], sqlite["counts"])
@@ -76,6 +77,7 @@ class GeneratedBenchmarks(unittest.TestCase):
     def test_keyed_spill_case_matches_memory_and_reports_temporary_bytes(self):
         with tempfile.TemporaryDirectory() as temporary:
             case = generate_spill(Path(temporary), 100, "keyed")
+            self.assertEqual(case.name, "keyed-100")
             memory = measure_spill(case, "memory")
             sqlite = measure_spill(case, "sqlite")
             self.assertEqual(memory["counts"], sqlite["counts"])

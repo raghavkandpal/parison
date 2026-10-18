@@ -18,7 +18,7 @@ def row(index: int) -> dict[str, str]:
 def generate(root: Path, rows: int, mode: str = "multiset", profile: str = "high-cardinality") -> Path:
     if profile not in {"low-cardinality", "high-cardinality"}:
         raise ValueError(f"unknown spill profile: {profile}")
-    case = root / f"{mode}-{profile}-{rows}"
+    case = root / (f"aggregate-{profile}-{rows}" if mode == "aggregate" else f"{mode}-{rows}")
     case.mkdir(parents=True, exist_ok=True)
     for name, indices in (("baseline", range(rows)), ("candidate", range(rows - 1, -1, -1))):
         with (case / f"{name}.csv").open("w", encoding="utf-8", newline="") as handle:
