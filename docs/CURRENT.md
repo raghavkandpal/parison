@@ -9,6 +9,13 @@
 
 ## Recorded next steps
 
+- Continue active research, feature implementation and refinement through at
+  least v5.0. At every train boundary, choose reachable capabilities from
+  primary-source research and repository evidence; use fresh blind review and
+  tests for independent internal evidence rather than seeking real-world
+  approval. This authorizes continued development only, never operational
+  policy or cutover. See the accepted [product direction](0.15/104-product-direction-and-release-arc.md).
+
 - Every release after 1.7.0 must contain at least three separately reviewable,
   substantial feature additions. Push and record green feature checkpoints,
   but do not open a candidate, tag or publish until all three are complete.

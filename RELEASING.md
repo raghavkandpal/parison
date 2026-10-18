@@ -16,6 +16,13 @@ record its checkpoint, and continue building the same release train. Patch
 releases remain available only for urgent compatible fixes to an already
 published release; they are not a way around the three-feature minimum.
 
+This cadence remains the default through at least v5.0. Select each train from
+documented research and reachable repository evidence; do not wait for
+real-world approval or production adoption to continue building. Use fresh
+blind implementation review and tests where an internal scope decision needs
+independent evidence. That evidence may advance a candidate, but it must never
+be described as approval of a user's policy, data, migration or cutover.
+
 ## Candidate
 
 1. Confirm the active roadmap identifies at least three completed substantial
