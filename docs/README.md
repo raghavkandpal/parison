@@ -4,6 +4,12 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 1.8 — active
+
+- [Structured record projection research](1.8/176-structured-record-projection-research.md)
+- [1.8 roadmap](1.8/177-roadmap.md)
+- [JSON document projection contract](1.8/178-json-document-projection-contract.md)
+
 ## 1.7 — released
 
 - [Aggregate SQLite execution research](1.7/171-aggregate-sqlite-research.md)
