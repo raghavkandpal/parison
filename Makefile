@@ -1,7 +1,7 @@
 PYTHON ?= python
 TEST ?=
 
-.PHONY: context test lint format format-check check build
+.PHONY: context test lint format format-check docs-check check build
 
 context:
 	@git status --short --branch
@@ -20,7 +20,10 @@ format:
 format-check:
 	$(PYTHON) -m ruff format --check .
 
-check: lint format-check test
+docs-check:
+	PYTHONPATH=src $(PYTHON) scripts/generate_command_reference.py --check
+
+check: lint format-check docs-check test
 	git diff --check
 
 build:

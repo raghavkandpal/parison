@@ -26,6 +26,8 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **1.5.0 released.** Deterministic discrepancy analysis turns verified keyed, aggregate and multiset counters into summary-safe reason groups, compares exact-policy rehearsal series, and permits bounded drill-down only over raw samples already published in run bundles.
 
+**1.6.0 in development.** The active release consolidates the complete 1.x workflow into one maintained guide and adds an explicit, bounded local `.xlsx` values projection without adopting spreadsheet execution semantics.
+
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
 Development setup, quality gates and compatibility obligations are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -34,7 +36,7 @@ Development setup, quality gates and compatibility obligations are documented in
 
 Python 3.11 or newer is required.
 
-For the complete reviewed-policy, rehearsal, suite and authenticated handoff path, follow the [consolidated 1.x user guide](docs/0.19/131-user-guide.md).
+For the complete reviewed-policy, suite, reconciliation, dataset-evidence, rehearsal-analysis and authenticated-handoff path, follow the [current 1.x user guide](docs/user-guide.md). Every supported option is listed in the [generated command reference](docs/command-reference.md).
 
 For cross-format scalar representation rules, follow the [semantic scalar guide](docs/1.1/140-semantic-scalar-guide.md). For data-free rename, addition, removal, split and merge review, follow the [`schema-evolution-v1` and `policy-diff-v1` contract](docs/1.2/143-schema-evolution-and-policy-diff-contract.md).
 
@@ -70,7 +72,7 @@ Recipes can map renamed source columns to one canonical field. Keys, policies, c
 
 A generated PASS bundle is checked in under [`examples/output`](examples/output), containing [`result.json`](examples/output/result.json), [`effective-recipe.json`](examples/output/effective-recipe.json), [`report.html`](examples/output/report.html), and [`manifest.json`](examples/output/manifest.json). It is summary-only and contains no source keys or raw values.
 
-To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/1.4.0/parison-1.4.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md) and read-only [SQLite table](docs/0.2/24-sqlite-contract.md) inputs are also supported, including mixed-format comparisons. Recipes are strict JSON; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars versions without recording hostnames.
+To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/1.5.0/parison-1.5.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md) and read-only [SQLite table](docs/0.2/24-sqlite-contract.md) inputs are also supported, including mixed-format comparisons. In 1.6 development builds, install `parison[xlsx]` and use an explicit locator such as `'xlsx:export.xlsx#Sheet1!A1:F1000'`; formulas, implicit sheet/range selection and partitioned workbook directories are rejected by the [XLSX values contract](docs/1.6/170-xlsx-values-projection-contract.md). Recipes are strict JSON; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars version without recording hostnames.
 
 A baseline or candidate may also be a directory of same-format CSV, TSV, JSON Lines or Parquet files. Parison treats its immediate files as one logical input and enforces limits, schemas and identity across partitions. See the [partitioned-input contract](docs/0.3/30-partitioned-input-contract.md).
 
@@ -128,7 +130,7 @@ Every recipe must declare a source snapshot, extraction cutoff, intended filters
 
 Combined physical input size and combined decoded gzip size are each limited to 1 GB by default, and each input is limited to 5 million rows; override these with `--max-input-bytes`, `--max-decoded-bytes` and `--max-rows`. These are processing guards, not an operating-system memory sandbox. Ctrl-C returns exit code `130` and publishes a summary-only INTERRUPTED bundle when possible.
 
-The full CSV and Parquet suite runs in CI on Python 3.11 and 3.14.
+The built-wheel suite runs in CI on Python 3.11--3.14 across Linux, macOS and Windows; optional Parquet and XLSX coverage runs when their pinned dependencies are installed.
 
 For repeatable local measurements, run `PYTHONPATH=src python benchmarks/run.py`. The seeded harness reports elapsed time and Python allocation without claiming a supported scale envelope.
 
@@ -177,9 +179,9 @@ A subsequent [mixed-mode 100k-row measurement](benchmarks/results-2026-10-10-sui
 
 Start with the [documentation index](docs/README.md).
 
-- Step-by-step usage: [user guide](docs/0.2/27-user-guide.md)
-- 0.3 workflow: [user guide](docs/0.3/33-user-guide.md)
-- Latest release: [0.19 compatibility and 1.0 readiness](docs/0.19/125-roadmap.md)
+- Current task-oriented usage: [1.x user guide](docs/user-guide.md)
+- Exact CLI syntax: [generated command reference](docs/command-reference.md)
+- Current development state: [active handoff](docs/CURRENT.md)
 - Future direction research: [adoption-led post-1.0 decision](docs/0.20/134-post-1.0-direction-research.md)
 - Product direction and release arc: [accepted direction](docs/0.15/104-product-direction-and-release-arc.md)
 - Next opportunities: [real-world application research](docs/0.14/94-real-world-application-research.md)

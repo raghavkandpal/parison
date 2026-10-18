@@ -52,7 +52,7 @@ jobs:
         with:
           name: distributions
           path: dist
-      - run: python -m pip install 'polars==1.44.2' 'jsonschema>=4,<5' dist/parison-*.whl
+      - run: python -m pip install 'polars==1.44.2' 'openpyxl==3.1.5' 'jsonschema>=4,<5' dist/parison-*.whl
       - run: parison --version
       - run: parison schema recipe
       - run: parison schema recipe-authoring
@@ -63,6 +63,9 @@ jobs:
       - run: parison schema recipe-v3
       - run: parison schema preflight-v2
       - run: parison schema preflight-v3
+      - run: parison schema preflight-v4
+      - run: parison schema preflight-v5
+      - run: parison schema preflight-v6
       - run: parison schema result-v2
       - run: parison schema result-v3
       - run: parison schema suite
@@ -214,10 +217,11 @@ jobs:
         with:
           name: distributions
           path: dist
-      - run: python -m pip install 'polars==1.44.2' 'jsonschema>=4,<5'
+      - run: python -m pip install 'polars==1.44.2' 'openpyxl==3.1.5' 'jsonschema>=4,<5'
       - name: Install built wheel
         run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', *glob.glob('dist/parison-*.whl')])"
       - run: parison --version
+      - run: python tests/test_xlsx.py -v
       - run: parison schema recipe-v3
       - run: parison schema statement
       - run: parison schema reconciliation-result

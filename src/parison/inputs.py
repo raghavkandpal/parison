@@ -7,6 +7,7 @@ import gzip
 import hashlib
 import json
 import sqlite3
+import zipfile
 from collections import Counter
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
@@ -104,14 +105,31 @@ def _sqlite_source(source: str | Path) -> tuple[Path, str] | None:
     return Path(path_text), table
 
 
+def _xlsx_source(source: str | Path) -> tuple[Path, str, str] | None:
+    text = str(source)
+    if not text.startswith("xlsx:"):
+        return None
+    locator = text.removeprefix("xlsx:")
+    if "?" in locator or "#" not in locator or "!" not in locator:
+        raise ParisonError("XLSX locator must be xlsx:path#worksheet!range without parameters")
+    path_text, selection = locator.rsplit("#", 1)
+    worksheet, cell_range = selection.rsplit("!", 1)
+    if not path_text or not worksheet or not cell_range:
+        raise ParisonError("XLSX locator requires a workbook path, worksheet, and bounded range")
+    if Path(path_text).suffix.lower() != ".xlsx":
+        raise ParisonError("XLSX locator requires a .xlsx workbook")
+    return Path(path_text), worksheet, cell_range
+
+
 def _source_path(source: str | Path) -> Path:
     sqlite_source = _sqlite_source(source)
-    return sqlite_source[0] if sqlite_source else Path(source)
+    xlsx_source = _xlsx_source(source)
+    return sqlite_source[0] if sqlite_source else xlsx_source[0] if xlsx_source else Path(source)
 
 
 def _source_paths(source: str | Path) -> tuple[Path, ...]:
     path = _source_path(source)
-    if _sqlite_source(source) or not path.is_dir():
+    if _sqlite_source(source) or _xlsx_source(source) or not path.is_dir():
         return (path,)
     if path.is_symlink():
         raise ParisonError(f"partitioned input must not be a symlink: {path}")
@@ -128,6 +146,8 @@ def _source_paths(source: str | Path) -> tuple[Path, ...]:
     formats = {_file_format(item) for item in paths}
     if None in formats or len(formats) != 1:
         raise ParisonError(f"partitioned input must contain one supported file format: {path}")
+    if formats == {"xlsx"}:
+        raise ParisonError(f"XLSX partitioned inputs are not supported: {path}")
     return paths
 
 
@@ -157,6 +177,28 @@ def _decoded_sizes(sources: tuple[str | Path, ...], max_decoded_bytes: int) -> d
     sizes = {}
     for source in sources:
         for path in _source_paths(source):
+            if path.suffix.lower() == ".xlsx":
+                if path.is_symlink():
+                    raise ParisonError(f"XLSX workbook must be a regular non-symlink file: {path}")
+                try:
+                    with zipfile.ZipFile(path) as archive:
+                        members = archive.infolist()
+                        if len(members) > 10_000:
+                            raise ParisonError(f"XLSX archive has too many members: {path}")
+                        if len({member.filename for member in members}) != len(members):
+                            raise ParisonError(f"XLSX archive contains duplicate member names: {path}")
+                        if any(member.flag_bits & 1 for member in members):
+                            raise ParisonError(f"XLSX archive contains encrypted members: {path}")
+                        size = sum(member.file_size for member in members)
+                except ParisonError:
+                    raise
+                except (OSError, zipfile.BadZipFile) as exc:
+                    raise ParisonError(f"cannot inspect XLSX archive {path}: {exc}") from exc
+                total += size
+                if total > max_decoded_bytes:
+                    raise ParisonError(f"combined decoded input size exceeds limit {max_decoded_bytes} bytes")
+                sizes[path] = size
+                continue
             if path.suffix.lower() != ".gz":
                 continue
             size = 0
@@ -184,7 +226,13 @@ def _source_metadata(
 ) -> dict[str, Any]:
     path = _source_path(source)
     paths = _source_paths(source)
-    format_name = "sqlite" if _sqlite_source(source) else (_file_format(paths[0]) or path.suffix.lower().lstrip("."))
+    format_name = (
+        "sqlite"
+        if _sqlite_source(source)
+        else "xlsx"
+        if _xlsx_source(source)
+        else (_file_format(paths[0]) or path.suffix.lower().lstrip("."))
+    )
     metadata = {"sha256": digest, "bytes": _source_bytes(source), "format": format_name}
     if format_name in {"csv", "tsv"}:
         metadata["delimiter"] = delimiter
@@ -192,11 +240,79 @@ def _source_metadata(
     sqlite_source = _sqlite_source(source)
     if sqlite_source:
         metadata.update(format="sqlite", table=sqlite_source[1])
+    elif xlsx_source := _xlsx_source(source):
+        metadata.update(format="xlsx", worksheet=xlsx_source[1], range=xlsx_source[2])
     elif path.is_dir():
         metadata["partitions"] = len(paths)
     if decoded_sizes and any(item in decoded_sizes for item in paths):
-        metadata.update(compression="gzip", decoded_bytes=sum(decoded_sizes.get(item, 0) for item in paths))
+        metadata.update(
+            compression="zip" if format_name == "xlsx" else "gzip",
+            decoded_bytes=sum(decoded_sizes.get(item, 0) for item in paths),
+        )
     return metadata
+
+
+def _xlsx_rows(source: str | Path, max_rows: int | None):
+    path, worksheet_name, cell_range = _xlsx_source(source) or (None, None, None)
+    assert path is not None and worksheet_name is not None and cell_range is not None
+    if path.is_symlink() or not path.is_file():
+        raise ParisonError(f"XLSX workbook must be a regular non-symlink file: {path}")
+    try:
+        from openpyxl import load_workbook
+        from openpyxl.styles.numbers import is_datetime
+        from openpyxl.utils.cell import range_boundaries
+    except ImportError as exc:
+        raise ParisonError("XLSX support requires: pip install 'parison[xlsx]'") from exc
+    try:
+        min_col, min_row, max_col, max_row = range_boundaries(cell_range)
+        if (
+            min_col is None
+            or min_row is None
+            or max_col is None
+            or max_row is None
+            or min_col > max_col
+            or min_row > max_row
+        ):
+            raise ValueError("range is not bounded")
+    except ValueError as exc:
+        raise ParisonError(f"XLSX range must be one bounded rectangle: {cell_range}") from exc
+    if max_rows is not None and max_row - min_row > max_rows:
+        raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
+    workbook = None
+    try:
+        workbook = load_workbook(path, read_only=True, data_only=False, keep_links=False)
+        if worksheet_name not in workbook.sheetnames:
+            raise ParisonError(f"XLSX worksheet does not exist: {worksheet_name}")
+        worksheet = workbook[worksheet_name]
+        rows = worksheet.iter_rows(min_row=min_row, max_row=max_row, min_col=min_col, max_col=max_col)
+        header_cells = next(rows)
+        if any(cell.data_type == "f" for cell in header_cells):
+            raise ParisonError(f"XLSX range contains a formula cell: {cell_range}")
+        if any(cell.data_type == "e" for cell in header_cells):
+            raise ParisonError(f"XLSX range contains an error cell: {cell_range}")
+        headers = [cell.value for cell in header_cells]
+        if any(not isinstance(name, str) or not name for name in headers) or len(headers) != len(set(headers)):
+            raise ParisonError(f"XLSX range has empty, non-string, or duplicate column names: {cell_range}")
+        yield headers, None
+        for cells in rows:
+            if any(cell.data_type == "f" for cell in cells):
+                raise ParisonError(f"XLSX range contains a formula cell: {cell_range}")
+            if any(cell.data_type == "e" for cell in cells):
+                raise ParisonError(f"XLSX range contains an error cell: {cell_range}")
+            values = [
+                cell.value.date()
+                if type(cell.value) is datetime and is_datetime(cell.number_format) == "date"
+                else cell.value
+                for cell in cells
+            ]
+            yield headers, dict(zip(headers, values, strict=True))
+    except ParisonError:
+        raise
+    except Exception as exc:
+        raise ParisonError(f"cannot read XLSX range {worksheet_name}!{cell_range} from {path}: {exc}") from exc
+    finally:
+        if workbook is not None:
+            workbook.close()
 
 
 def _sqlite_rows(source: str | Path, max_rows: int):
@@ -393,6 +509,13 @@ def _input_columns(
             return columns
         finally:
             rows.close()
+    if _xlsx_source(path):
+        rows = _xlsx_rows(path, None)
+        try:
+            columns, _ = next(rows)
+            return columns
+        finally:
+            rows.close()
     path = Path(path)
     if path.is_symlink():
         raise ParisonError(f"input must not be a symlink: {path}")
@@ -426,7 +549,8 @@ def _input_columns(
             raise ParisonError(f"cannot read schema from {path}: {exc}") from exc
     else:
         raise ParisonError(
-            f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet or gzip-compressed text"
+            f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet, an XLSX locator, "
+            "or gzip-compressed text"
         )
     if not columns:
         raise ParisonError(f"input has no schema: {path}")
@@ -595,8 +719,9 @@ def validate_inputs(
             status = "invalid"
         paths = _source_paths(source)
         sqlite_source = _sqlite_source(source)
+        xlsx_source = _xlsx_source(source)
         inputs[side] = {
-            "format": "sqlite" if sqlite_source else _file_format(paths[0]),
+            "format": "sqlite" if sqlite_source else "xlsx" if xlsx_source else _file_format(paths[0]),
             "bytes": sizes[side],
             "columns": len(columns),
             "partitions": len(paths),
@@ -604,11 +729,16 @@ def validate_inputs(
         }
         if sqlite_source:
             inputs[side]["table"] = sqlite_source[1]
+        elif xlsx_source:
+            inputs[side].update(worksheet=xlsx_source[1], range=xlsx_source[2])
         if inputs[side]["format"] in {"csv", "tsv"}:
             inputs[side]["delimiter"] = delimiter
             inputs[side]["null_tokens"] = recipe["null_tokens"][side]
         if any(path in decoded_sizes for path in paths):
-            inputs[side].update(compression="gzip", decoded_bytes=sum(decoded_sizes.get(path, 0) for path in paths))
+            inputs[side].update(
+                compression="zip" if xlsx_source else "gzip",
+                decoded_bytes=sum(decoded_sizes.get(path, 0) for path in paths),
+            )
         if validate_records and not schema["missing"] and not schema["unexpected"]:
             inputs[side]["records"] = (
                 _aggregate_record_diagnostics(source, recipe, max_rows, max_groups, side, decoded_sizes)
@@ -621,12 +751,21 @@ def validate_inputs(
                 status = "invalid"
     if validate_records and any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being validated")
+    uses_xlsx = any(_xlsx_source(source) for source in (baseline, candidate))
     result = {
-        "schema_version": 2
-        if recipe["comparison_mode"] == "aggregate"
-        else 3
-        if recipe["comparison_mode"] == "multiset"
-        else 1,
+        "schema_version": (
+            5
+            if uses_xlsx and recipe["comparison_mode"] == "aggregate"
+            else 6
+            if uses_xlsx and recipe["comparison_mode"] == "multiset"
+            else 4
+            if uses_xlsx
+            else 2
+            if recipe["comparison_mode"] == "aggregate"
+            else 3
+            if recipe["comparison_mode"] == "multiset"
+            else 1
+        ),
         "status": status,
         "comparison_mode": recipe["comparison_mode"],
         "canonical_columns": len(recipe["columns"]),
@@ -749,8 +888,15 @@ def draft_recipe(
         "delimiters": delimiters,
         "null_tokens": {"baseline": [], "candidate": []},
     }
-    baseline_rows, _ = _read(baseline, inspection_recipe, 5_000_000, "baseline", decoded_sizes)
-    candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000, "candidate", decoded_sizes)
+    uses_xlsx = any(_xlsx_source(source) for source in (baseline, candidate))
+    if uses_xlsx:
+        inspection_recipe["input_projection"] = "semantic-scalar-v1"
+    if uses_xlsx:
+        baseline_rows = list(_iter_input_rows(baseline, inspection_recipe, 5_000_000, "baseline", decoded_sizes))
+        candidate_rows = list(_iter_input_rows(candidate, inspection_recipe, 5_000_000, "candidate", decoded_sizes))
+    else:
+        baseline_rows, _ = _read(baseline, inspection_recipe, 5_000_000, "baseline", decoded_sizes)
+        candidate_rows, _ = _read(candidate, inspection_recipe, 5_000_000, "candidate", decoded_sizes)
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being inspected")
     cutoff = (
@@ -779,6 +925,8 @@ def draft_recipe(
         },
         "output": {"sensitivity": "summary"},
     }
+    if uses_xlsx:
+        common["input_projection"] = "semantic-scalar-v1"
     if aggregate:
         rows = baseline_rows + candidate_rows
         group_by = []
@@ -829,6 +977,15 @@ def _iter_input_rows(
         stream = _sqlite_rows(path, max_rows)
         headers, _ = next(stream)
         _validate_headers(Path(str(path)), headers, recipe, side)
+        for _, row in stream:
+            yield row
+        return
+    if _xlsx_source(path):
+        if recipe.get("input_projection") != "semantic-scalar-v1":
+            raise ParisonError("XLSX inputs require input_projection 'semantic-scalar-v1'")
+        stream = _xlsx_rows(path, max_rows)
+        headers, _ = next(stream)
+        _validate_headers(_source_path(path), headers, recipe, side)
         for _, row in stream:
             yield row
         return
@@ -885,5 +1042,6 @@ def _iter_input_rows(
         yield from rows
     else:
         raise ParisonError(
-            f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet or gzip-compressed text"
+            f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet, an XLSX locator, "
+            "or gzip-compressed text"
         )

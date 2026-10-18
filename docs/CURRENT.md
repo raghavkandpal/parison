@@ -1,13 +1,15 @@
 # Current development state
 
-- Version: **1.5.0 released**
+- Version: **1.6.0 in development**
 - Branch: `develop`
-- Theme: deterministic, policy-bound discrepancy analysis across rehearsal runs
+- Theme: one maintained workflow plus an explicit local XLSX values boundary
 - Released: deterministic discrepancy analysis, exact-policy rehearsal series, live catalog selection and bounded verified raw drill-down
 - Verified: exact merge `e960a3eb899181d63a28b24c11f31daeaf6f280b` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39036693844) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and smoke-tested fresh
-- Next gate: select and research the next larger coherent feature from the recorded product direction before changing scope
+- Next gate: merge the reviewed 1.6.0 candidate, qualify the exact merge and publish/reconcile public assets
 
 ## Recorded next steps
+
+- Follow the active [1.6 roadmap](1.6/166-roadmap.md), accepted [current-workflow research](1.6/165-current-workflow-research.md) and approved [XLSX values research](1.6/169-xlsx-values-projection-research.md). Keep task guidance hand-written, require explicit worksheet/range selection and preserve every released contract as history.
 
 - The [pre-1.5 repository quality and layout plan](157-repository-quality-and-layout-plan.md) is complete at exact commit `35fe2d0`; see the [maintenance checkpoint](158-repository-maintenance-checkpoint.md). Ruff is mandatory, contributor standards are documented, `core.py` is a compatibility facade and atomic no-replace publication is consolidated in `_safe_fs.py`.
 - Exact maintenance commit `35fe2d0578ac54956c58bd4501aba8ae03fb8de2` passed the full built-wheel matrix on Python 3.11–3.14 across Linux, macOS and Windows in [CI run 39015498650](https://github.com/raghavkandpal/parison/actions/runs/39015498650). No product release was created for internal maintenance.

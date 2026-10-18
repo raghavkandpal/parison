@@ -27,6 +27,9 @@ class JsonSchemas(unittest.TestCase):
         cls.preflight_schema = load_schema("preflight")
         cls.preflight_v2_schema = load_schema("preflight-v2")
         cls.preflight_v3_schema = load_schema("preflight-v3")
+        cls.preflight_v4_schema = load_schema("preflight-v4")
+        cls.preflight_v5_schema = load_schema("preflight-v5")
+        cls.preflight_v6_schema = load_schema("preflight-v6")
         cls.suite_schema = load_schema("suite")
         cls.suite_v2_schema = load_schema("suite-v2")
         cls.suite_authoring_schema = load_schema("suite-authoring")
@@ -50,6 +53,9 @@ class JsonSchemas(unittest.TestCase):
         Draft202012Validator.check_schema(cls.preflight_schema)
         Draft202012Validator.check_schema(cls.preflight_v2_schema)
         Draft202012Validator.check_schema(cls.preflight_v3_schema)
+        Draft202012Validator.check_schema(cls.preflight_v4_schema)
+        Draft202012Validator.check_schema(cls.preflight_v5_schema)
+        Draft202012Validator.check_schema(cls.preflight_v6_schema)
         Draft202012Validator.check_schema(cls.recipe_authoring_schema)
         Draft202012Validator.check_schema(cls.suite_authoring_schema)
         Draft202012Validator.check_schema(cls.statement_schema)
@@ -135,6 +141,17 @@ class JsonSchemas(unittest.TestCase):
             validate_records=True,
         )
         Draft202012Validator(self.preflight_schema).validate(result)
+
+    def test_xlsx_preflight_schemas_keep_nested_results_closed(self):
+        keyed = Draft202012Validator(self.preflight_v4_schema)
+        aggregate = Draft202012Validator(self.preflight_v5_schema)
+        for validator, definition in (
+            (keyed, self.preflight_v4_schema["$defs"]["input"]),
+            (aggregate, self.preflight_v5_schema["$defs"]["input"]),
+        ):
+            with self.subTest(schema=validator.schema["$id"]):
+                self.assertFalse(validator.evolve(schema=definition["properties"]["schema"]).is_valid({}))
+                self.assertFalse(validator.evolve(schema=definition["properties"]["records"]).is_valid({}))
 
     def test_cli_prints_installed_schemas(self):
         stdout = StringIO()
