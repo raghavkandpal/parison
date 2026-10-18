@@ -25,7 +25,7 @@ def generate(root: Path, rows: int, mode: str = "multiset") -> Path:
             for index in indices:
                 writer.writerow(row(index))
     recipe = {
-        "recipe_version": 3 if mode == "multiset" else 1,
+        "recipe_version": 3 if mode == "multiset" else 2 if mode == "aggregate" else 1,
         "comparison_mode": mode,
         "scope": {
             "snapshot": f"synthetic-spill-{rows}",
@@ -41,7 +41,30 @@ def generate(root: Path, rows: int, mode: str = "multiset") -> Path:
         },
         "output": {"sensitivity": "summary"},
     }
-    if mode == "keyed":
+    if mode == "aggregate":
+        recipe.update(
+            group_by=["event_id"],
+            measures={
+                "rows": {"operator": "count"},
+                "amount": {"operator": "sum", "column": "amount", "nulls": "reject"},
+            },
+        )
+        expected = {
+            "outcome": "PASS",
+            "counts": {
+                "baseline_rows": rows,
+                "candidate_rows": rows,
+                "baseline_groups": rows,
+                "candidate_groups": rows,
+                "common_groups": rows,
+                "baseline_only_groups": 0,
+                "candidate_only_groups": 0,
+                "exact_measures": rows * 2,
+                "within_tolerance_measures": 0,
+                "different_measures": 0,
+            },
+        }
+    elif mode == "keyed":
         recipe.update(keys=["event_id"], identity={"null_keys": "reject", "duplicates": "reject"}, nulls_equal=True)
         expected = {
             "outcome": "PASS",
@@ -67,7 +90,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate deterministic high-cardinality spill-engine cases")
     parser.add_argument("--output", type=Path, default=Path("benchmarks/generated"))
     parser.add_argument("--rows", type=int, nargs="+", default=[10_000, 100_000, 250_000])
-    parser.add_argument("--mode", choices=("keyed", "multiset"), default="multiset")
+    parser.add_argument("--mode", choices=("keyed", "aggregate", "multiset"), default="multiset")
     args = parser.parse_args()
     if any(rows <= 0 for rows in args.rows):
         parser.error("row counts must be positive")

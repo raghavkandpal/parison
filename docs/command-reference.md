@@ -707,8 +707,8 @@ options:
   --max-distinct-rows MAX_DISTINCT_ROWS
                         maximum distinct rows in either multiset input (default: 100,000)
   --engine {memory,sqlite}
-                        execution engine; sqlite supports keyed and multiset recipes (default:
-                        memory)
+                        execution engine; sqlite supports keyed, aggregate and multiset recipes
+                        (default: memory)
   --max-temp-bytes MAX_TEMP_BYTES
                         maximum SQLite spill database size (default: 5 GB)
   --temp-directory TEMP_DIRECTORY

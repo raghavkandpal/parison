@@ -428,8 +428,6 @@ def compare(
         raise ParisonError("max_temp_bytes must be positive")
     recipe_path = Path(recipe_path)
     recipe = load_recipe(recipe_path)
-    if engine == "sqlite" and recipe["comparison_mode"] == "aggregate":
-        raise ParisonError("sqlite engine does not support aggregate recipes")
     if engine == "memory" and temp_directory is not None:
         raise ParisonError("temp_directory requires engine='sqlite'")
     policy_sha256 = _checked_policy_sha256(recipe, expected_policy_sha256)
@@ -445,6 +443,9 @@ def compare(
             max_decoded_bytes,
             max_groups,
             policy_sha256,
+            engine,
+            max_temp_bytes,
+            temp_directory,
         )
     if recipe["comparison_mode"] == "multiset":
         return _compare_multiset(
@@ -735,6 +736,261 @@ def _aggregate_input(
     return groups, rows, problems
 
 
+def _aggregate_state_json(group: dict[str, Any]) -> str:
+    return json.dumps(
+        {
+            "rows": group["rows"],
+            "measures": {
+                name: state | {"value": _json_value(state["value"])} for name, state in group["measures"].items()
+            },
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+
+
+def _restore_aggregate_state(value: str, recipe: dict[str, Any]) -> dict[str, Any]:
+    group = json.loads(value)
+    for name, state in group["measures"].items():
+        raw = state["value"]
+        if raw is None:
+            continue
+        policy = recipe["measures"][name]
+        if policy["operator"] in {"count", "sum"}:
+            state["value"] = int(raw)
+            continue
+        kind = recipe["columns"][policy["column"]]["type"]
+        if kind == "date":
+            state["value"] = date.fromisoformat(raw)
+        elif kind == "timestamp":
+            state["value"] = datetime.fromisoformat(raw)
+        elif kind == "decimal":
+            state["value"] = int(raw)
+    return group
+
+
+def _sqlite_aggregate_summary(
+    sources: tuple[str | Path, str | Path],
+    recipe: dict[str, Any],
+    max_rows: int,
+    max_groups: int,
+    sample_limit: int,
+    max_temp_bytes: int,
+    temp_directory: str | Path | None,
+    decoded_sizes: dict[Path, int],
+) -> dict[str, Any]:
+    parent = Path(temp_directory) if temp_directory is not None else None
+    if parent is not None and (parent.is_symlink() or not parent.is_dir()):
+        raise ParisonError("temp directory must be an existing non-symlink directory")
+    try:
+        with tempfile.TemporaryDirectory(prefix="parison-spill-", dir=parent) as workspace:
+            database = Path(workspace) / "aggregate.sqlite"
+            connection = sqlite3.connect(database)
+            try:
+                page_size = int(connection.execute("PRAGMA page_size").fetchone()[0])
+                page_limit = max_temp_bytes // page_size
+                if page_limit < 4:
+                    raise ParisonError(f"temporary storage limit {max_temp_bytes} bytes is too small")
+                connection.execute("PRAGMA journal_mode=OFF")
+                connection.execute("PRAGMA synchronous=OFF")
+                connection.execute(f"PRAGMA max_page_count={page_limit}")
+                connection.create_collation(
+                    "parison_key",
+                    lambda left, right: (
+                        (tuple(map(str, json.loads(left))) > tuple(map(str, json.loads(right))))
+                        - (tuple(map(str, json.loads(left))) < tuple(map(str, json.loads(right))))
+                    ),
+                )
+                connection.execute(
+                    "CREATE TABLE groups (side INTEGER NOT NULL, encoded BLOB NOT NULL, key_json TEXT NOT NULL, state_json TEXT NOT NULL, PRIMARY KEY (side, encoded)) WITHOUT ROWID"
+                )
+                row_totals, group_totals, problems = [], [], []
+                for side_id, (side, source) in enumerate(zip(("baseline", "candidate"), sources, strict=True)):
+                    rows = groups = null_groups = rejected_nulls = 0
+                    for raw in _iter_input_rows(source, recipe, max_rows, side, decoded_sizes):
+                        rows += 1
+                        row = _parse_row(raw, recipe, side)
+                        key = tuple(row[name] for name in recipe["group_by"])
+                        if any(value is None for value in key):
+                            null_groups += 1
+                            continue
+                        encoded = _multiset_encoding(key, recipe["group_by"], recipe)
+                        found = connection.execute(
+                            "SELECT state_json FROM groups WHERE side = ? AND encoded = ?", (side_id, encoded)
+                        ).fetchone()
+                        if found is None:
+                            groups += 1
+                            if groups > max_groups:
+                                raise ParisonError(f"{side} group count exceeds limit {max_groups}")
+                            group = {
+                                "rows": 0,
+                                "measures": {
+                                    name: {
+                                        "value": 0 if policy["operator"] == "count" else None,
+                                        "contributing": 0,
+                                        "ignored_nulls": 0,
+                                    }
+                                    for name, policy in recipe["measures"].items()
+                                },
+                            }
+                        else:
+                            group = _restore_aggregate_state(found[0], recipe)
+                        group["rows"] += 1
+                        for name, policy in recipe["measures"].items():
+                            state, operator = group["measures"][name], policy["operator"]
+                            if operator == "count":
+                                state["value"] += 1
+                                state["contributing"] += 1
+                                continue
+                            value = row[policy["column"]]
+                            if value is None:
+                                if policy["nulls"] == "ignore":
+                                    state["ignored_nulls"] += 1
+                                else:
+                                    rejected_nulls += 1
+                                continue
+                            value = _aggregate_value(value, recipe["columns"][policy["column"]])
+                            state["contributing"] += 1
+                            if operator == "sum":
+                                state["value"] = (state["value"] or 0) + value
+                            elif (
+                                state["value"] is None
+                                or (operator == "min" and value < state["value"])
+                                or (operator == "max" and value > state["value"])
+                            ):
+                                state["value"] = value
+                        connection.execute(
+                            "INSERT OR REPLACE INTO groups VALUES (?, ?, ?, ?)",
+                            (
+                                side_id,
+                                encoded,
+                                json.dumps(_key_text(key), separators=(",", ":"), ensure_ascii=False),
+                                _aggregate_state_json(group),
+                            ),
+                        )
+                    if not recipe["group_by"] and not groups:
+                        empty = {
+                            "rows": 0,
+                            "measures": {
+                                name: {
+                                    "value": 0 if policy["operator"] == "count" else None,
+                                    "contributing": 0,
+                                    "ignored_nulls": 0,
+                                }
+                                for name, policy in recipe["measures"].items()
+                            },
+                        }
+                        connection.execute(
+                            "INSERT INTO groups VALUES (?, ?, '[]', ?)", (side_id, b"", _aggregate_state_json(empty))
+                        )
+                        groups = 1
+                    if null_groups:
+                        problems.append(f"{side} has {null_groups} row(s) with null group components")
+                    if rejected_nulls:
+                        problems.append(f"{side} has {rejected_nulls} rejected null measure value(s)")
+                    row_totals.append(rows)
+                    group_totals.append(groups)
+                connection.commit()
+                measure_counts = {
+                    name: {kind: 0 for kind in ("exact", "within_tolerance", "different")}
+                    for name in recipe["measures"]
+                }
+                conservation = {
+                    name: {side: {"contributing": 0, "ignored_nulls": 0} for side in ("baseline", "candidate")}
+                    for name in recipe["measures"]
+                }
+                samples, common = [], 0
+                if recipe["output"]["sensitivity"] == "raw":
+                    for classification, query in (
+                        (
+                            "baseline_only",
+                            "SELECT baseline.key_json FROM groups AS baseline WHERE baseline.side = 0 AND NOT EXISTS (SELECT 1 FROM groups AS candidate WHERE candidate.side = 1 AND candidate.encoded = baseline.encoded) ORDER BY baseline.key_json COLLATE parison_key",
+                        ),
+                        (
+                            "candidate_only",
+                            "SELECT candidate.key_json FROM groups AS candidate WHERE candidate.side = 1 AND NOT EXISTS (SELECT 1 FROM groups AS baseline WHERE baseline.side = 0 AND baseline.encoded = candidate.encoded) ORDER BY candidate.key_json COLLATE parison_key",
+                        ),
+                    ):
+                        for (key_json,) in connection.execute(query):
+                            if len(samples) >= sample_limit:
+                                break
+                            samples.append(
+                                {"kind": "group", "group": json.loads(key_json), "classification": classification}
+                            )
+                baseline_only = candidate_only = measure_discrepancies = 0
+                records = connection.execute(
+                    "SELECT baseline.encoded, baseline.key_json, baseline.state_json, candidate.state_json FROM groups AS baseline LEFT JOIN groups AS candidate ON candidate.side = 1 AND candidate.encoded = baseline.encoded WHERE baseline.side = 0 "
+                    "UNION ALL SELECT candidate.encoded, candidate.key_json, NULL, candidate.state_json FROM groups AS candidate WHERE candidate.side = 1 AND NOT EXISTS (SELECT 1 FROM groups AS baseline WHERE baseline.side = 0 AND baseline.encoded = candidate.encoded) ORDER BY 2 COLLATE parison_key"
+                )
+                for _, key_json, left_json, right_json in records:
+                    key = json.loads(key_json)
+                    left = _restore_aggregate_state(left_json, recipe) if left_json else None
+                    right = _restore_aggregate_state(right_json, recipe) if right_json else None
+                    for side, group in (("baseline", left), ("candidate", right)):
+                        if group:
+                            for name, state in group["measures"].items():
+                                conservation[name][side]["contributing"] += state["contributing"]
+                                conservation[name][side]["ignored_nulls"] += state["ignored_nulls"]
+                    if left is None or right is None:
+                        classification = "candidate_only" if left is None else "baseline_only"
+                        baseline_only += classification == "baseline_only"
+                        candidate_only += classification == "candidate_only"
+                        continue
+                    common += 1
+                    if problems:
+                        continue
+                    for name, policy in recipe["measures"].items():
+                        lstate, rstate = left["measures"][name], right["measures"][name]
+                        column = recipe["columns"].get(policy.get("column"))
+                        lvalue = _aggregate_json_value(lstate["value"], policy["operator"], column)
+                        rvalue = _aggregate_json_value(rstate["value"], policy["operator"], column)
+                        classification, delta, allowance = _classify(lvalue, rvalue, policy, True)
+                        measure_counts[name][classification] += 1
+                        if classification != "exact":
+                            measure_discrepancies += 1
+                            if recipe["output"]["sensitivity"] == "raw" and len(samples) < sample_limit:
+                                samples.append(
+                                    {
+                                        "kind": "measure",
+                                        "group": key,
+                                        "measure": name,
+                                        "baseline": lvalue,
+                                        "candidate": rvalue,
+                                        "classification": classification,
+                                        "delta": delta,
+                                        "allowance": allowance,
+                                        "baseline_count": lstate["contributing"],
+                                        "candidate_count": rstate["contributing"],
+                                        "baseline_ignored_nulls": lstate["ignored_nulls"],
+                                        "candidate_ignored_nulls": rstate["ignored_nulls"],
+                                    }
+                                )
+                return {
+                    "rows": row_totals,
+                    "groups": group_totals,
+                    "problems": problems,
+                    "common": common,
+                    "baseline_only": baseline_only,
+                    "candidate_only": candidate_only,
+                    "measure_counts": measure_counts,
+                    "measure_conservation": conservation,
+                    "measure_discrepancies": measure_discrepancies,
+                    "samples": samples,
+                    "temporary_bytes": database.stat().st_size,
+                }
+            finally:
+                connection.close()
+    except ParisonError:
+        raise
+    except sqlite3.Error as exc:
+        if "full" in str(exc).lower():
+            raise ParisonError(f"temporary storage exceeds limit {max_temp_bytes} bytes") from exc
+        raise ParisonError(f"spill database failed: {exc}") from exc
+    except OSError as exc:
+        raise ParisonError(f"cannot use spill directory: {exc}") from exc
+
+
 def _compare_aggregate(
     recipe_path: Path,
     recipe: dict[str, Any],
@@ -746,88 +1002,127 @@ def _compare_aggregate(
     max_decoded_bytes: int,
     max_groups: int,
     policy_sha256: str,
+    engine: str = "memory",
+    max_temp_bytes: int = DEFAULT_MAX_TEMP_BYTES,
+    temp_directory: str | Path | None = None,
 ) -> dict[str, Any]:
     input_bytes = _source_bytes(baseline_path) + _source_bytes(candidate_path)
     if input_bytes > max_input_bytes:
         raise ParisonError(f"combined input size {input_bytes} exceeds limit {max_input_bytes} bytes")
     decoded_sizes = _decoded_sizes((baseline_path, candidate_path), max_decoded_bytes)
     before = {str(source): _source_digest(source) for source in (baseline_path, candidate_path)}
-    left, baseline_rows, problems = _aggregate_input(
-        baseline_path, recipe, "baseline", max_rows, max_groups, decoded_sizes
-    )
-    right, candidate_rows, right_problems = _aggregate_input(
-        candidate_path, recipe, "candidate", max_rows, max_groups, decoded_sizes
-    )
-    problems += right_problems
+    sqlite_summary = None
+    if engine == "sqlite":
+        sqlite_summary = _sqlite_aggregate_summary(
+            (baseline_path, candidate_path),
+            recipe,
+            max_rows,
+            max_groups,
+            sample_limit,
+            max_temp_bytes,
+            temp_directory,
+            decoded_sizes,
+        )
+        baseline_rows, candidate_rows = sqlite_summary["rows"]
+        problems = sqlite_summary["problems"]
+    else:
+        left, baseline_rows, problems = _aggregate_input(
+            baseline_path, recipe, "baseline", max_rows, max_groups, decoded_sizes
+        )
+        right, candidate_rows, right_problems = _aggregate_input(
+            candidate_path, recipe, "candidate", max_rows, max_groups, decoded_sizes
+        )
+        problems += right_problems
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being read")
     if (not baseline_rows or not candidate_rows) and not recipe["scope"]["expected_empty"]:
         problems.append("nonempty aggregate inputs are required")
-    common, baseline_only, candidate_only = set(left) & set(right), set(left) - set(right), set(right) - set(left)
-    measure_counts = {name: {"exact": 0, "within_tolerance": 0, "different": 0} for name in recipe["measures"]}
     raw_output = recipe["output"]["sensitivity"] == "raw"
-    discrepancies: list[dict[str, Any]] = []
-    for classification, keys in (("baseline_only", baseline_only), ("candidate_only", candidate_only)):
-        for key in sorted(keys, key=lambda item: tuple(str(value) for value in item)):
-            if raw_output and len(discrepancies) < sample_limit:
-                discrepancies.append({"kind": "group", "group": _key_text(key), "classification": classification})
-    measure_discrepancies = 0
-    if not problems:
-        for key in sorted(common, key=lambda item: tuple(str(value) for value in item)):
-            for name, policy in recipe["measures"].items():
-                lstate, rstate = left[key]["measures"][name], right[key]["measures"][name]
-                column = recipe["columns"].get(policy.get("column"))
-                lvalue = _aggregate_json_value(lstate["value"], policy["operator"], column)
-                rvalue = _aggregate_json_value(rstate["value"], policy["operator"], column)
-                classification, delta, allowance = _classify(lvalue, rvalue, policy, True)
-                measure_counts[name][classification] += 1
-                if classification != "exact":
-                    measure_discrepancies += 1
-                    if raw_output and len(discrepancies) < sample_limit:
-                        discrepancies.append(
-                            {
-                                "kind": "measure",
-                                "group": _key_text(key),
-                                "measure": name,
-                                "baseline": lvalue,
-                                "candidate": rvalue,
-                                "classification": classification,
-                                "delta": delta,
-                                "allowance": allowance,
-                                "baseline_count": lstate["contributing"],
-                                "candidate_count": rstate["contributing"],
-                                "baseline_ignored_nulls": lstate["ignored_nulls"],
-                                "candidate_ignored_nulls": rstate["ignored_nulls"],
-                            }
-                        )
+    if sqlite_summary:
+        baseline_groups, candidate_groups = sqlite_summary["groups"]
+        common_count = sqlite_summary["common"]
+        baseline_only_count = sqlite_summary["baseline_only"]
+        candidate_only_count = sqlite_summary["candidate_only"]
+        measure_counts = sqlite_summary["measure_counts"]
+        measure_conservation = sqlite_summary["measure_conservation"]
+        measure_discrepancies = sqlite_summary["measure_discrepancies"]
+        discrepancies = sqlite_summary["samples"]
+    else:
+        common = set(left) & set(right)
+        baseline_only, candidate_only = set(left) - set(right), set(right) - set(left)
+        baseline_groups, candidate_groups = len(left), len(right)
+        common_count, baseline_only_count, candidate_only_count = len(common), len(baseline_only), len(candidate_only)
+        measure_counts = {name: {"exact": 0, "within_tolerance": 0, "different": 0} for name in recipe["measures"]}
+        discrepancies = []
+        for classification, keys in (("baseline_only", baseline_only), ("candidate_only", candidate_only)):
+            for key in sorted(keys, key=lambda item: tuple(str(value) for value in item)):
+                if raw_output and len(discrepancies) < sample_limit:
+                    discrepancies.append({"kind": "group", "group": _key_text(key), "classification": classification})
+        measure_discrepancies = 0
+        if not problems:
+            for key in sorted(common, key=lambda item: tuple(str(value) for value in item)):
+                for name, policy in recipe["measures"].items():
+                    lstate, rstate = left[key]["measures"][name], right[key]["measures"][name]
+                    column = recipe["columns"].get(policy.get("column"))
+                    lvalue = _aggregate_json_value(lstate["value"], policy["operator"], column)
+                    rvalue = _aggregate_json_value(rstate["value"], policy["operator"], column)
+                    classification, delta, allowance = _classify(lvalue, rvalue, policy, True)
+                    measure_counts[name][classification] += 1
+                    if classification != "exact":
+                        measure_discrepancies += 1
+                        if raw_output and len(discrepancies) < sample_limit:
+                            discrepancies.append(
+                                {
+                                    "kind": "measure",
+                                    "group": _key_text(key),
+                                    "measure": name,
+                                    "baseline": lvalue,
+                                    "candidate": rvalue,
+                                    "classification": classification,
+                                    "delta": delta,
+                                    "allowance": allowance,
+                                    "baseline_count": lstate["contributing"],
+                                    "candidate_count": rstate["contributing"],
+                                    "baseline_ignored_nulls": lstate["ignored_nulls"],
+                                    "candidate_ignored_nulls": rstate["ignored_nulls"],
+                                }
+                            )
+        measure_conservation = {
+            name: {
+                side: {
+                    "contributing": sum(group["measures"][name]["contributing"] for group in groups.values()),
+                    "ignored_nulls": sum(group["measures"][name]["ignored_nulls"] for group in groups.values()),
+                }
+                for side, groups in (("baseline", left), ("candidate", right))
+            }
+            for name in recipe["measures"]
+        }
     totals = {
         kind: sum(values[kind] for values in measure_counts.values())
         for kind in ("exact", "within_tolerance", "different")
     }
-    measure_conservation = {}
-    for name in recipe["measures"]:
-        measure_conservation[name] = {
-            side: {
-                "contributing": sum(group["measures"][name]["contributing"] for group in groups.values()),
-                "ignored_nulls": sum(group["measures"][name]["ignored_nulls"] for group in groups.values()),
-            }
-            for side, groups in (("baseline", left), ("candidate", right))
-        }
     outcome = (
-        "INCONCLUSIVE" if problems else ("FAIL" if baseline_only or candidate_only or totals["different"] else "PASS")
+        "INCONCLUSIVE"
+        if problems
+        else ("FAIL" if baseline_only_count or candidate_only_count or totals["different"] else "PASS")
     )
+    runtime = _runtime_info((baseline_path, candidate_path), "aggregate-v1")
+    resource_limits = {
+        "max_input_bytes": max_input_bytes,
+        "max_decoded_bytes": max_decoded_bytes,
+        "max_rows_per_input": max_rows,
+        "max_groups_per_input": max_groups,
+    }
+    if sqlite_summary:
+        runtime.update(execution_engine="sqlite", temporary_bytes=sqlite_summary["temporary_bytes"])
+        resource_limits["max_temp_bytes"] = max_temp_bytes
     return {
         "schema_version": 2,
         "outcome": outcome,
         "complete": not problems,
         "sensitivity": recipe["output"]["sensitivity"],
-        "runtime": _runtime_info((baseline_path, candidate_path), "aggregate-v1"),
-        "resource_limits": {
-            "max_input_bytes": max_input_bytes,
-            "max_decoded_bytes": max_decoded_bytes,
-            "max_rows_per_input": max_rows,
-            "max_groups_per_input": max_groups,
-        },
+        "runtime": runtime,
+        "resource_limits": resource_limits,
         "scope": recipe["scope"],
         "group_by": recipe["group_by"],
         "measures": recipe["measures"],
@@ -846,18 +1141,18 @@ def _compare_aggregate(
         "counts": {
             "baseline_rows": baseline_rows,
             "candidate_rows": candidate_rows,
-            "baseline_groups": len(left),
-            "candidate_groups": len(right),
-            "common_groups": len(common),
-            "baseline_only_groups": len(baseline_only),
-            "candidate_only_groups": len(candidate_only),
+            "baseline_groups": baseline_groups,
+            "candidate_groups": candidate_groups,
+            "common_groups": common_count,
+            "baseline_only_groups": baseline_only_count,
+            "candidate_only_groups": candidate_only_count,
             "exact_measures": totals["exact"],
             "within_tolerance_measures": totals["within_tolerance"],
             "different_measures": totals["different"],
         },
         "measure_counts": measure_counts,
         "measure_conservation": measure_conservation,
-        "discrepancy_count": len(baseline_only) + len(candidate_only) + measure_discrepancies,
+        "discrepancy_count": baseline_only_count + candidate_only_count + measure_discrepancies,
         "discrepancy_sample": discrepancies,
         "discrepancy_sample_limit": sample_limit if raw_output else 0,
         "excluded_columns": recipe.get("excluded_columns", {}),

@@ -1,13 +1,15 @@
 # Current development state
 
-- Version: **1.6.0 released**
+- Version: **1.7.0 in development**
 - Branch: `develop`
-- Theme: one maintained workflow plus an explicit local XLSX values boundary
+- Theme: bounded SQLite-backed aggregate conservation
 - Released: one maintained 1.x workflow plus explicit, bounded local XLSX values projection across all comparison modes
 - Verified: exact merge `80d49e797e6ecc88cdd8cef19e327b6eecf102dc` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39118675788) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and passed the complete XLSX workflow smoke fresh
-- Next gate: select and research the next larger coherent feature from the recorded product direction before changing scope
+- Next gate: complete cross-engine aggregate equivalence, cleanup and benchmark gates before candidate review
 
 ## Recorded next steps
+
+- Follow the active [1.7 roadmap](1.7/172-roadmap.md) and [SQLite aggregate contract](1.7/173-aggregate-sqlite-contract.md). Keep engine selection explicit and preserve aggregate-v1 semantics and evidence bytes.
 
 - Follow the active [1.6 roadmap](1.6/166-roadmap.md), accepted [current-workflow research](1.6/165-current-workflow-research.md) and approved [XLSX values research](1.6/169-xlsx-values-projection-research.md). Keep task guidance hand-written, require explicit worksheet/range selection and preserve every released contract as history.
 

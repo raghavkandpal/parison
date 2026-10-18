@@ -233,8 +233,12 @@ class SuiteTests(unittest.TestCase):
         )
         (self.root / "aggregate.json").write_text(json.dumps(aggregate), encoding="utf-8")
         self.write_plan_v2([self.case() | {"recipe": "aggregate.json", "execution": {"engine": "sqlite"}}])
-        with self.assertRaisesRegex(ParisonError, "does not support an aggregate"):
-            load_suite(self.plan)
+        output = self.root / "sqlite-aggregate-suite"
+        run_suite(self.plan, output)
+        child = json.loads((output / "cases" / "orders" / "result.json").read_text(encoding="utf-8"))
+        self.assertEqual(child["outcome"], "PASS")
+        self.assertEqual(child["runtime"]["execution_engine"], "sqlite")
+        verify_bundle(output)
 
     def test_concurrent_suite_matches_sequential_semantics_and_plan_order(self):
         passing = self.case("first")

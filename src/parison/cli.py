@@ -544,7 +544,7 @@ operator and null policy. Suggestions are starting points, not approved policy."
         "--engine",
         choices=("memory", "sqlite"),
         default="memory",
-        help="execution engine; sqlite supports keyed and multiset recipes (default: memory)",
+        help="execution engine; sqlite supports keyed, aggregate and multiset recipes (default: memory)",
     )
     run.add_argument(
         "--max-temp-bytes",

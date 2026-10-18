@@ -2,6 +2,21 @@
 
 All notable changes will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- Explicit SQLite-backed aggregate-v1 execution for direct comparisons and
+  suite-v2 cases, with bounded private storage and streamed group comparison.
+- Deterministic cross-engine accuracy benchmarks for high-cardinality
+  aggregate conservation.
+
+### Compatibility
+
+- Memory remains the default aggregate engine. Recipe-v2, result-v2,
+  fingerprints, comparison semantics, canonical evidence and bundle readers
+  remain unchanged.
+
 ## 1.6.0 - 2026-10-18
 
 ### Added

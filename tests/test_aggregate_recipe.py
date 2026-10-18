@@ -130,6 +130,37 @@ class AggregateRecipeTests(unittest.TestCase):
         self.assertEqual(result["measure_conservation"]["revenue"]["baseline"], {"contributing": 3, "ignored_nulls": 0})
         self.assertNotIn("east", json.dumps(result).lower())
 
+    def test_sqlite_engine_matches_memory_and_cleans_spill(self):
+        value = json.loads(json.dumps(RECIPE))
+        value["output"]["sensitivity"] = "raw"
+        self.write(value)
+        left = self.csv(
+            "left.csv",
+            "region,amount,ordered_at\neast,10.00,2026-01-01T00:00:00Z\nwest,4.00,2026-01-02T00:00:00Z\n",
+        )
+        right = self.csv(
+            "right.csv",
+            "region,amount,ordered_at\neast,10.02,2026-01-03T00:00:00Z\nnorth,1.00,2026-01-02T00:00:00Z\n",
+        )
+        memory = compare(self.path, left, right)
+        spill = Path(self.tmp.name) / "spill"
+        spill.mkdir()
+        sqlite = compare(self.path, left, right, engine="sqlite", temp_directory=spill, max_temp_bytes=1_000_000)
+        for result in (memory, sqlite):
+            result.pop("runtime")
+            result.pop("resource_limits")
+        self.assertEqual(sqlite, memory)
+        self.assertEqual(list(spill.iterdir()), [])
+
+    def test_sqlite_engine_records_limits_and_rejects_tiny_storage(self):
+        rows = self.csv("rows.csv", "region,amount,ordered_at\neast,1.00,2026-01-01T00:00:00Z\n")
+        result = compare(self.path, rows, rows, engine="sqlite", max_temp_bytes=1_000_000)
+        self.assertEqual(result["runtime"]["execution_engine"], "sqlite")
+        self.assertGreater(result["runtime"]["temporary_bytes"], 0)
+        self.assertEqual(result["resource_limits"]["max_temp_bytes"], 1_000_000)
+        with self.assertRaisesRegex(ParisonError, "too small"):
+            compare(self.path, rows, rows, engine="sqlite", max_temp_bytes=1)
+
     def test_offsetting_groups_and_measure_differences_fail(self):
         left = self.csv(
             "left.csv", "region,amount,ordered_at\neast,1.00,2026-01-01T00:00:00Z\nwest,2.00,2026-01-01T00:00:00Z\n"

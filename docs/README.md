@@ -4,6 +4,13 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 1.7 — active
+
+- [Aggregate SQLite execution research](1.7/171-aggregate-sqlite-research.md)
+- [1.7 roadmap](1.7/172-roadmap.md)
+- [SQLite aggregate execution contract](1.7/173-aggregate-sqlite-contract.md)
+- [1.7.0 release checklist](1.7/174-release-checklist.md)
+
 ## Current 1.x documentation
 
 - [Task-oriented user guide](user-guide.md)
