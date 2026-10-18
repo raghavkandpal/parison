@@ -2,7 +2,7 @@
 
 Date: 18 October 2026
 
-Status: **candidate qualified**
+Status: **released**
 
 ## Capability gate
 
@@ -33,7 +33,20 @@ Status: **candidate qualified**
 
 ## Publication
 
-- [ ] Reviewed candidate is merged to `main` and exact-merge CI passes.
-- [ ] Exact-merge wheel, source and checksums are published under annotated
-  tag `1.7.0` and publicly re-verified.
-- [ ] All release records identify the same tested commit and assets.
+- [x] [Pull request #48](https://github.com/raghavkandpal/parison/pull/48)
+  merged the reviewed candidate as
+  `5da6e08dc97c4bdef3f57c6b71a272b42d7ea171`; exact-merge
+  [test run 39141006519](https://github.com/raghavkandpal/parison/actions/runs/39141006519)
+  and [quality run 39141006521](https://github.com/raghavkandpal/parison/actions/runs/39141006521)
+  passed.
+- [x] Exact-merge wheel SHA-256 is
+  `e95ed71704469998904ad3c631d8a43d81ef98e6eb78938df2fb09a207c51112`;
+  source SHA-256 is
+  `cd7ed510f930ab9d8150259792525a437eb442ce8a8bdcd8cc4dccded7d362e1`.
+- [x] Annotated tag `1.7.0` identifies the exact merge and the
+  [GitHub release](https://github.com/raghavkandpal/parison/releases/tag/1.7.0)
+  publishes the wheel, source archive and checksums.
+- [x] Public assets were re-downloaded and checksum-verified. A fresh Python
+  3.14 environment installed the public wheel and completed a 1,000-group
+  SQLite aggregate comparison, bundle verification and inspection.
+- [x] All release records identify the same tested commit and assets.

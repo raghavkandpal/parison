@@ -1,6 +1,6 @@
 # Parison 1.7 roadmap
 
-Status: **candidate qualified**
+Status: **released in 1.7.0**
 
 Theme: bounded SQLite-backed aggregate conservation
 

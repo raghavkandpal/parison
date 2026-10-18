@@ -2,7 +2,7 @@
 
 Date: 18 October 2026
 
-Status: **candidate qualified**
+Status: **released in 1.7.0**
 
 ## Delivered capability
 
@@ -59,3 +59,13 @@ SQLite selection is explicit operational policy. No automatic engine choice,
 resume database, remote service, new measure, repair or truth claim is added.
 Recipe-v2, result-v2, aggregate-v1 semantics, policy fingerprints, canonical
 values, CLI JSON, bundle readers and exit codes remain unchanged.
+
+## Publication
+
+[Pull request #48](https://github.com/raghavkandpal/parison/pull/48) merged as
+`5da6e08dc97c4bdef3f57c6b71a272b42d7ea171`. Exact-merge test and quality CI
+passed, and the annotated `1.7.0` tag identifies that commit. The
+[GitHub release](https://github.com/raghavkandpal/parison/releases/tag/1.7.0)
+publishes the clean-merge wheel, source archive and checksums. Re-downloaded
+assets matched their hashes and the public wheel completed the 1,000-group
+SQLite aggregate smoke in a fresh Python 3.14 environment.

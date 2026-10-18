@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 1.7.0 - 2026-10-18
+
 ### Added
 
 - Explicit SQLite-backed aggregate-v1 execution for direct comparisons and
