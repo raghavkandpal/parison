@@ -2,7 +2,7 @@
 
 Date: 18 October 2026
 
-Status: **expanded candidate qualified**
+Status: **released**
 
 ## Capability gate
 
@@ -64,12 +64,21 @@ Candidate SHA-256:
 
 ## Publication
 
-- [ ] The reviewed pull request is merged to `main` and exact-merge CI passes.
-- [ ] Exact-merge assets are rebuilt from a clean archive.
-- [ ] Annotated tag `1.6.0` identifies the exact merge and the GitHub release
+- [x] [Pull request #46](https://github.com/raghavkandpal/parison/pull/46)
+  merged the reviewed candidate as
+  `80d49e797e6ecc88cdd8cef19e327b6eecf102dc`; exact-merge
+  [test run 39118675788](https://github.com/raghavkandpal/parison/actions/runs/39118675788)
+  and [quality run 39118675924](https://github.com/raghavkandpal/parison/actions/runs/39118675924)
+  passed.
+- [x] Exact-merge assets were rebuilt from a clean archive. Wheel SHA-256:
+  `42620268779736b96f85b904fcbebf0df3a487df1978812bd829b2645d24febe`;
+  source archive:
+  `d227dd52ccc1d6592d2a212f223c7a47a9ea149b91ed447d4179fdecf9a6aeb0`.
+- [x] Annotated tag `1.6.0` identifies the exact merge and the [GitHub release](https://github.com/raghavkandpal/parison/releases/tag/1.6.0)
   publishes wheel, source archive and checksums.
-- [ ] Public assets are re-downloaded, checksum-verified and smoke-tested.
-- [ ] Roadmap, checklist, changelog, README, documentation index and current
+- [x] Public assets were re-downloaded, checksum-verified and smoke-tested in
+  a fresh Python 3.14 environment through all 12 XLSX workflow tests.
+- [x] Roadmap, checklist, changelog, README, documentation index and current
   state identify the release.
 
 Do not mark 1.6.0 released until code, tag, public assets and release records

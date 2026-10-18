@@ -1,6 +1,6 @@
 # Parison 1.6 roadmap
 
-Status: **candidate qualified**
+Status: **released in 1.6.0**
 
 Theme: one maintained workflow plus an explicit local XLSX values boundary
 

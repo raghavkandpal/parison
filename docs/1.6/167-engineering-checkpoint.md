@@ -2,7 +2,7 @@
 
 Date: 18 October 2026
 
-Status: **expanded candidate qualified**
+Status: **released in 1.6.0**
 
 ## Delivered capability
 
@@ -46,3 +46,13 @@ policy. Recipe versions, comparison result schemas, bundle semantics,
 canonical bytes, CLI JSON and exit codes remain unchanged. PASS still means
 agreement under the explicit policy, not extraction truth, approval or
 cutover authorization.
+
+## Publication
+
+[Pull request #46](https://github.com/raghavkandpal/parison/pull/46) merged as
+`80d49e797e6ecc88cdd8cef19e327b6eecf102dc`. Exact-merge test and quality CI
+passed, and the annotated `1.6.0` tag identifies that commit. The
+[GitHub release](https://github.com/raghavkandpal/parison/releases/tag/1.6.0)
+publishes the clean-merge wheel, source archive and checksums. Re-downloaded
+assets matched their hashes and the public wheel passed all 12 XLSX workflow
+tests in a fresh Python 3.14 environment.
