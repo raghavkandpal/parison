@@ -127,6 +127,22 @@ class XlsxInput(unittest.TestCase):
         multiset_preflight = validate_inputs(self.recipe, baseline, self.source, validate_records=True)
         Draft202012Validator(load_schema("preflight-v6")).validate(multiset_preflight)
 
+    def test_sqlite_engines_match_memory_results(self):
+        memory = compare(self.recipe, self.source, self.source)
+        sqlite = compare(self.recipe, self.source, self.source, engine="sqlite")
+        self.assertEqual(sqlite["outcome"], memory["outcome"])
+        self.assertEqual(sqlite["counts"], memory["counts"])
+
+        multiset = deepcopy(RECIPE)
+        multiset.update(recipe_version=3, comparison_mode="multiset")
+        for key in ("keys", "identity", "nulls_equal"):
+            multiset.pop(key)
+        self.recipe.write_text(json.dumps(multiset), encoding="utf-8")
+        memory = compare(self.recipe, self.source, self.source)
+        sqlite = compare(self.recipe, self.source, self.source, engine="sqlite")
+        self.assertEqual(sqlite["outcome"], memory["outcome"])
+        self.assertEqual(sqlite["counts"], memory["counts"])
+
     def test_suite_resolves_portable_xlsx_locators(self):
         suite = self.root / "suite.json"
         portable = "xlsx:records.xlsx#Export!A2:C4"
