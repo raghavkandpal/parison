@@ -8,7 +8,16 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from parison.core import ParisonError, compare, draft_recipe, load_schema, load_suite, validate_inputs
+from parison.core import (
+    ParisonError,
+    compare,
+    draft_recipe,
+    load_schema,
+    load_suite,
+    publish,
+    validate_inputs,
+    verify_bundle,
+)
 
 try:
     from openpyxl import Workbook
@@ -82,6 +91,15 @@ class XlsxInput(unittest.TestCase):
         self.assertEqual(metadata["compression"], "zip")
         self.assertGreater(metadata["decoded_bytes"], metadata["bytes"])
         self.assertNotIn(str(self.workbook), json.dumps(result))
+
+    def test_xlsx_result_publishes_as_a_verifiable_existing_bundle(self):
+        output = self.root / "run"
+        result = compare(self.recipe, self.source, self.source)
+        publish(output, result, RECIPE)
+        verify_bundle(output)
+        published = json.loads((output / "result.json").read_text(encoding="utf-8"))
+        self.assertEqual(published["outcome"], "PASS")
+        self.assertEqual(published["inputs"]["baseline"]["format"], "xlsx")
 
     def test_draft_recipe_preserves_closed_projection(self):
         draft = draft_recipe(self.source, self.source)

@@ -221,7 +221,7 @@ jobs:
       - name: Install built wheel
         run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', *glob.glob('dist/parison-*.whl')])"
       - run: parison --version
-      - run: python -m unittest tests.test_xlsx -v
+      - run: python tests/test_xlsx.py -v
       - run: parison schema recipe-v3
       - run: parison schema statement
       - run: parison schema reconciliation-result
