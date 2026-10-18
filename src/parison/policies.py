@@ -185,8 +185,6 @@ def load_suite(path: str | Path) -> dict[str, Any]:
                 )
             ):
                 raise ParisonError(f"suite case {identifier} has invalid execution settings")
-            if execution and recipe["comparison_mode"] == "aggregate":
-                raise ParisonError(f"suite case {identifier} sqlite execution does not support an aggregate recipe")
             effective_limits = {**_SUITE_LIMIT_DEFAULTS, **default_limits, **limits}
             resolved.update({"tags": tags, "limits": effective_limits, "policy_sha256": policy_sha256})
             portable.update({"tags": tags, "limits": effective_limits, "policy_sha256": policy_sha256})

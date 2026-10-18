@@ -28,6 +28,8 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **1.6.0 released.** The release consolidates the complete 1.x workflow into one maintained guide and adds an explicit, bounded local `.xlsx` values projection without adopting spreadsheet execution semantics.
 
+**1.7.0 in development.** The active release adds explicit bounded SQLite-backed aggregate conservation while preserving the released aggregate-v1 contract and memory default.
+
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
 Development setup, quality gates and compatibility obligations are documented in [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -66,6 +66,7 @@ class GeneratedBenchmarks(unittest.TestCase):
     def test_spill_case_matches_memory_and_reports_temporary_bytes(self):
         with tempfile.TemporaryDirectory() as temporary:
             case = generate_spill(Path(temporary), 100)
+            self.assertEqual(case.name, "multiset-100")
             memory = measure_spill(case, "memory")
             sqlite = measure_spill(case, "sqlite")
             self.assertEqual(memory["counts"], sqlite["counts"])
@@ -76,11 +77,28 @@ class GeneratedBenchmarks(unittest.TestCase):
     def test_keyed_spill_case_matches_memory_and_reports_temporary_bytes(self):
         with tempfile.TemporaryDirectory() as temporary:
             case = generate_spill(Path(temporary), 100, "keyed")
+            self.assertEqual(case.name, "keyed-100")
             memory = measure_spill(case, "memory")
             sqlite = measure_spill(case, "sqlite")
             self.assertEqual(memory["counts"], sqlite["counts"])
             self.assertEqual(memory["temporary_bytes"], 0)
             self.assertGreater(sqlite["temporary_bytes"], 0)
+
+    def test_aggregate_spill_case_matches_memory_and_reports_temporary_bytes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            for profile, groups in (("low-cardinality", 17), ("high-cardinality", 100)):
+                with self.subTest(profile=profile):
+                    case = generate_spill(Path(temporary), 100, "aggregate", profile)
+                    memory = measure_spill(case, "memory")
+                    sqlite = measure_spill(case, "sqlite")
+                    self.assertEqual(memory["counts"], sqlite["counts"])
+                    self.assertEqual(memory["counts"]["common_groups"], groups)
+                    self.assertEqual(memory["temporary_bytes"], 0)
+                    self.assertGreater(sqlite["temporary_bytes"], 0)
+                    self.assertGreater(memory["elapsed_seconds"], 0)
+                    self.assertGreater(sqlite["elapsed_seconds"], 0)
+                    self.assertGreater(memory["peak_python_bytes"], 0)
+                    self.assertGreater(sqlite["peak_python_bytes"], 0)
 
     def test_adversarial_profiles_match_their_oracles(self):
         with tempfile.TemporaryDirectory() as temporary:
