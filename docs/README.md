@@ -10,6 +10,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [1.8 roadmap](1.8/177-roadmap.md)
 - [JSON document projection contract](1.8/178-json-document-projection-contract.md)
 - [JSON document engineering checkpoint](1.8/179-json-document-engineering-checkpoint.md)
+- [XML record projection contract](1.8/180-xml-record-projection-contract.md)
+- [XML record engineering checkpoint](1.8/181-xml-record-engineering-checkpoint.md)
 
 ## 1.7 — released
 

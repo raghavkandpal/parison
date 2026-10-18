@@ -71,6 +71,9 @@ class JsonDocumentInput(unittest.TestCase):
         self.assertEqual(compare(self.recipe, source, source)["outcome"], "PASS")
         self.document.write_text('[{"id":"001","value":1.20,"active":true}]', encoding="utf-8")
         self.assertEqual(compare(self.recipe, f"json:{self.document}#", f"json:{self.document}#")["outcome"], "PASS")
+        self.document.write_text('{"a#b":[{"id":"001","value":1.20,"active":true}]}', encoding="utf-8")
+        hash_source = f"json:{self.document}#/a#b"
+        self.assertEqual(compare(self.recipe, hash_source, hash_source)["outcome"], "PASS")
 
     def test_all_modes_drafting_preflight_and_portable_suite(self):
         draft = draft_recipe(self.source, self.source)
@@ -148,7 +151,7 @@ class JsonDocumentInput(unittest.TestCase):
                 self.document.write_text(content, encoding="utf-8")
                 with self.assertRaisesRegex(ParisonError, message):
                     compare(self.recipe, f"json:{self.document}#/records", f"json:{self.document}#/records")
-        with self.assertRaisesRegex(ParisonError, "JSON or XLSX locator"):
+        with self.assertRaisesRegex(ParisonError, "JSON, XML, or XLSX locator"):
             compare(self.recipe, self.document, self.source)
         with self.assertRaisesRegex(ParisonError, "does not resolve"):
             compare(self.recipe, f"json:{self.document}#/missing", self.source)
@@ -182,6 +185,8 @@ class JsonDocumentInput(unittest.TestCase):
         self.recipe.write_text(json.dumps(open_recipe), encoding="utf-8")
         with self.assertRaisesRegex(ParisonError, "require input_projection"):
             compare(self.recipe, self.source, self.source)
+        with self.assertRaisesRegex(ParisonError, "require input_projection"):
+            validate_inputs(self.recipe, self.source, self.source)
 
 
 if __name__ == "__main__":

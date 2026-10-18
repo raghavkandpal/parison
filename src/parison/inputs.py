@@ -6,13 +6,16 @@ import csv
 import gzip
 import hashlib
 import json
+import re
 import sqlite3
+import xml.etree.ElementTree as ET
 import zipfile
 from collections import Counter
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl
 
 from .core import (
     _FILE_FORMATS,
@@ -128,7 +131,7 @@ def _json_source(source: str | Path) -> tuple[Path, str] | None:
     locator = text.removeprefix("json:")
     if "?" in locator or "#" not in locator:
         raise ParisonError("JSON locator must be json:path#pointer without parameters")
-    path_text, pointer = locator.rsplit("#", 1)
+    path_text, pointer = locator.split("#", 1)
     if not path_text or (pointer and not pointer.startswith("/")):
         raise ParisonError("JSON locator requires a .json path and an RFC 6901 pointer")
     if Path(path_text).suffix.lower() != ".json":
@@ -136,10 +139,51 @@ def _json_source(source: str | Path) -> tuple[Path, str] | None:
     return Path(path_text), pointer
 
 
+def _xml_source(source: str | Path) -> tuple[Path, str, dict[str, str]] | None:
+    text = str(source)
+    if not text.startswith("xml:"):
+        return None
+    locator = text.removeprefix("xml:")
+    if "#" not in locator:
+        raise ParisonError("XML locator must be xml:path#record-path with optional namespace bindings")
+    path_text, selection = locator.rsplit("#", 1)
+    record_path, separator, query = selection.partition("?")
+    if not path_text or not record_path or Path(path_text).suffix.lower() != ".xml":
+        raise ParisonError("XML locator requires a .xml document and bounded record path")
+    segments = record_path.split("/")
+    if not 1 <= len(segments) <= 32 or any(
+        not re.fullmatch(r"(?:[A-Za-z_][\w.-]*:)?[A-Za-z_][\w.-]*", segment, re.ASCII) for segment in segments
+    ):
+        raise ParisonError("XML record path must contain 1 to 32 bounded QName segments")
+    namespaces = {}
+    if separator:
+        try:
+            bindings = parse_qsl(query, keep_blank_values=True, strict_parsing=True)
+        except ValueError as exc:
+            raise ParisonError("XML namespace bindings are invalid") from exc
+        for name, binding in bindings:
+            if name != "ns" or "," not in binding:
+                raise ParisonError("XML locator parameters must be ns=prefix,URI bindings")
+            prefix, uri = binding.split(",", 1)
+            if (
+                not re.fullmatch(r"[A-Za-z_][\w.-]*", prefix, re.ASCII)
+                or not uri
+                or prefix in namespaces
+                or uri in namespaces.values()
+            ):
+                raise ParisonError("XML namespace prefixes and URIs must be nonempty and unique")
+            namespaces[prefix] = uri
+    used_prefixes = {segment.split(":", 1)[0] for segment in segments if ":" in segment}
+    if used_prefixes != set(namespaces):
+        raise ParisonError("XML record path prefixes must exactly match declared namespaces")
+    return Path(path_text), record_path, namespaces
+
+
 def _source_path(source: str | Path) -> Path:
     sqlite_source = _sqlite_source(source)
     xlsx_source = _xlsx_source(source)
     json_source = _json_source(source)
+    xml_source = _xml_source(source)
     return (
         sqlite_source[0]
         if sqlite_source
@@ -147,13 +191,21 @@ def _source_path(source: str | Path) -> Path:
         if xlsx_source
         else json_source[0]
         if json_source
+        else xml_source[0]
+        if xml_source
         else Path(source)
     )
 
 
 def _source_paths(source: str | Path) -> tuple[Path, ...]:
     path = _source_path(source)
-    if _sqlite_source(source) or _xlsx_source(source) or _json_source(source) or not path.is_dir():
+    if (
+        _sqlite_source(source)
+        or _xlsx_source(source)
+        or _json_source(source)
+        or _xml_source(source)
+        or not path.is_dir()
+    ):
         return (path,)
     if path.is_symlink():
         raise ParisonError(f"partitioned input must not be a symlink: {path}")
@@ -257,6 +309,8 @@ def _source_metadata(
         if _xlsx_source(source)
         else "json"
         if _json_source(source)
+        else "xml"
+        if _xml_source(source)
         else (_file_format(paths[0]) or path.suffix.lower().lstrip("."))
     )
     metadata = {"sha256": digest, "bytes": _source_bytes(source), "format": format_name}
@@ -270,6 +324,8 @@ def _source_metadata(
         metadata.update(format="xlsx", worksheet=xlsx_source[1], range=xlsx_source[2])
     elif json_source := _json_source(source):
         metadata.update(format="json", pointer=json_source[1])
+    elif xml_source := _xml_source(source):
+        metadata.update(format="xml", record_path=xml_source[1], namespaces=dict(sorted(xml_source[2].items())))
     elif path.is_dir():
         metadata["partitions"] = len(paths)
     if decoded_sizes and any(item in decoded_sizes for item in paths):
@@ -481,6 +537,87 @@ def _json_rows(source: str | Path, max_rows: int | None):
         raise ParisonError(f"input has no schema: {source}")
 
 
+def _xml_rows(source: str | Path, max_rows: int | None):
+    path, record_path, namespaces = _xml_source(source) or (None, None, None)
+    assert path is not None and record_path is not None and namespaces is not None
+    if path.is_symlink() or not path.is_file():
+        raise ParisonError(f"XML document must be a regular non-symlink file: {path}")
+    try:
+        content = path.read_bytes()
+    except OSError as exc:
+        raise ParisonError(f"cannot read XML document {path}: {exc}") from exc
+    if len(content) > 64 * 1024 * 1024:
+        raise ParisonError(f"XML document exceeds 67108864 byte parser limit: {path}")
+    if b"<!DOCTYPE" in content or b"<!ENTITY" in content:
+        raise ParisonError(f"XML document contains a forbidden DTD or entity declaration: {path}")
+    try:
+        root = ET.fromstring(content)
+    except (ET.ParseError, RecursionError) as exc:
+        raise ParisonError(f"cannot parse XML document {path}: {exc}") from exc
+
+    reverse_namespaces = {uri: prefix for prefix, uri in namespaces.items()}
+
+    def expanded(name: str) -> str:
+        if ":" not in name:
+            return name
+        prefix, local = name.split(":", 1)
+        return f"{{{namespaces[prefix]}}}{local}"
+
+    def projected(name: str) -> str:
+        if not name.startswith("{"):
+            return name
+        uri, local = name[1:].split("}", 1)
+        if uri not in reverse_namespaces:
+            raise ParisonError(f"XML field uses an undeclared namespace: {uri}")
+        return f"{reverse_namespaces[uri]}:{local}"
+
+    expected_path = tuple(expanded(segment) for segment in record_path.split("/"))
+    headers = None
+    rows = 0
+    elements = 0
+    stack = [(root, (root.tag,), 1)]
+    selected = []
+    while stack:
+        element, element_path, depth = stack.pop()
+        elements += 1
+        if elements > 1_000_000:
+            raise ParisonError(f"XML document exceeds 1000000 element limit: {path}")
+        if depth > 100:
+            raise ParisonError(f"XML document exceeds depth limit 100: {path}")
+        if element.text is not None and len(element.text.encode("utf-8")) > 1024 * 1024:
+            raise ParisonError(f"XML element text exceeds 1048576 byte limit: {path}")
+        if element.tail is not None and len(element.tail.encode("utf-8")) > 1024 * 1024:
+            raise ParisonError(f"XML element text exceeds 1048576 byte limit: {path}")
+        if element_path == expected_path:
+            selected.append(element)
+        for child in reversed(list(element)):
+            stack.append((child, (*element_path, child.tag), depth + 1))
+    if not selected:
+        raise ParisonError(f"XML record path selects no elements: {record_path}")
+    if max_rows is not None and len(selected) > max_rows:
+        raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
+    for element in selected:
+        if element.attrib or (element.text or "").strip():
+            raise ParisonError(f"XML record has attributes or mixed text at {record_path}")
+        row = {}
+        for child in element:
+            if child.attrib or len(child) or (child.tail and child.tail.strip()):
+                raise ParisonError(f"XML field must be an attribute-free text element at {record_path}")
+            name = projected(child.tag)
+            if name in row:
+                raise ParisonError(f"XML record has a duplicate field {name} at {record_path}")
+            row[name] = child.text or ""
+        if not row:
+            raise ParisonError(f"XML record at {record_path} has no fields")
+        if headers is None:
+            headers = list(row)
+            yield headers, None
+        elif set(row) != set(headers):
+            raise ParisonError(f"inconsistent XML fields at record {rows} in {path}")
+        rows += 1
+        yield headers, row
+
+
 def _iter_jsonl(path: Path, max_rows: int, decoded_sizes: dict[Path, int]):
     try:
         handle = _open_text(path, decoded_sizes)
@@ -618,6 +755,15 @@ def _input_columns(
             rows.close()
     if _json_source(path):
         rows = _json_rows(path, max_rows)
+        try:
+            columns, _ = next(rows)
+            for _ in rows:
+                pass
+            return columns
+        finally:
+            rows.close()
+    if _xml_source(path):
+        rows = _xml_rows(path, max_rows)
         try:
             columns, _ = next(rows)
             for _ in rows:
@@ -822,6 +968,10 @@ def validate_inputs(
     status = "valid"
     for side, source in (("baseline", baseline), ("candidate", candidate)):
         delimiter = recipe["delimiters"][side]
+        if _json_source(source) and recipe.get("input_projection") != "semantic-scalar-v1":
+            raise ParisonError("JSON document inputs require input_projection 'semantic-scalar-v1'")
+        if _xml_source(source) and recipe.get("input_projection") != "semantic-scalar-v1":
+            raise ParisonError("XML inputs require input_projection 'semantic-scalar-v1'")
         columns = _input_columns(source, decoded_sizes, delimiter, recipe, side, max_rows)
         schema = _schema_details(columns, recipe, side)
         if schema["missing"] or schema["unexpected"]:
@@ -830,6 +980,7 @@ def validate_inputs(
         sqlite_source = _sqlite_source(source)
         xlsx_source = _xlsx_source(source)
         json_source = _json_source(source)
+        xml_source = _xml_source(source)
         inputs[side] = {
             "format": "sqlite"
             if sqlite_source
@@ -837,6 +988,8 @@ def validate_inputs(
             if xlsx_source
             else "json"
             if json_source
+            else "xml"
+            if xml_source
             else _file_format(paths[0]),
             "bytes": sizes[side],
             "columns": len(columns),
@@ -849,6 +1002,8 @@ def validate_inputs(
             inputs[side].update(worksheet=xlsx_source[1], range=xlsx_source[2])
         elif json_source:
             inputs[side]["pointer"] = json_source[1]
+        elif xml_source:
+            inputs[side].update(record_path=xml_source[1], namespaces=dict(sorted(xml_source[2].items())))
         if inputs[side]["format"] in {"csv", "tsv"}:
             inputs[side]["delimiter"] = delimiter
             inputs[side]["null_tokens"] = recipe["null_tokens"][side]
@@ -871,9 +1026,16 @@ def validate_inputs(
         raise ParisonError("an input changed while it was being validated")
     uses_xlsx = any(_xlsx_source(source) for source in (baseline, candidate))
     uses_json = any(_json_source(source) for source in (baseline, candidate))
+    uses_xml = any(_xml_source(source) for source in (baseline, candidate))
     result = {
         "schema_version": (
-            8
+            11
+            if uses_xml and recipe["comparison_mode"] == "aggregate"
+            else 12
+            if uses_xml and recipe["comparison_mode"] == "multiset"
+            else 10
+            if uses_xml
+            else 8
             if uses_json and recipe["comparison_mode"] == "aggregate"
             else 9
             if uses_json and recipe["comparison_mode"] == "multiset"
@@ -1013,7 +1175,9 @@ def draft_recipe(
         "delimiters": delimiters,
         "null_tokens": {"baseline": [], "candidate": []},
     }
-    uses_structured = any(_xlsx_source(source) or _json_source(source) for source in (baseline, candidate))
+    uses_structured = any(
+        _xlsx_source(source) or _json_source(source) or _xml_source(source) for source in (baseline, candidate)
+    )
     if uses_structured:
         inspection_recipe["input_projection"] = "semantic-scalar-v1"
     if uses_structured:
@@ -1123,6 +1287,15 @@ def _iter_input_rows(
         for _, row in stream:
             yield row
         return
+    if _xml_source(path):
+        if recipe.get("input_projection") != "semantic-scalar-v1":
+            raise ParisonError("XML inputs require input_projection 'semantic-scalar-v1'")
+        stream = _xml_rows(path, max_rows)
+        headers, _ = next(stream)
+        _validate_headers(_source_path(path), headers, recipe, side)
+        for _, row in stream:
+            yield row
+        return
     path = Path(path)
     if path.is_symlink():
         raise ParisonError(f"input must not be a symlink: {path}")
@@ -1176,6 +1349,6 @@ def _iter_input_rows(
         yield from rows
     else:
         raise ParisonError(
-            f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet, a JSON or XLSX locator, "
+            f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet, a JSON, XML, or XLSX locator, "
             "or gzip-compressed text"
         )

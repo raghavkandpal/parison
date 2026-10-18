@@ -11,10 +11,13 @@ All notable changes will be documented in this file.
   portable suite locators and all comparison modes.
 - Strict JSON-aware preflight schemas v7--v9 without changing released
   preflight schemas v1--v6.
+- Explicit bounded XML record projection with QName paths, declared namespace
+  bindings, flat text fields, DTD/entity rejection and parser resource limits.
+- Strict XML-aware preflight schemas v10--v12 while preserving v1--v9.
 
 ### Compatibility
 
-- JSON document inputs require `semantic-scalar-v1`. Recipes, comparison
+- JSON document and XML inputs require `semantic-scalar-v1`. Recipes, comparison
   semantics, canonical values, results, bundles and exit codes are unchanged.
 
 ## 1.7.0 - 2026-10-18

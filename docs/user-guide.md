@@ -62,6 +62,20 @@ parison draft-recipe \
 Review the generated `semantic-scalar-v1` policy. See the
 [JSON document projection contract](1.8/178-json-document-projection-contract.md).
 
+Select XML records with an exact root-to-record QName path and explicit,
+percent-encoded namespace bindings:
+
+```sh
+parison draft-recipe \
+  --baseline 'xml:baseline.xml#p:root/p:records/p:record?ns=p,https%3A%2F%2Fexample.com%2Fv1' \
+  --candidate 'xml:candidate.xml#p:root/p:records/p:record?ns=p,https%3A%2F%2Fexample.com%2Fv1' \
+  --output recipe.json
+```
+
+Records contain direct, attribute-free text child elements only. Parison
+rejects DTDs, entities, XPath-like selection and undeclared namespaces. See
+the [XML record projection contract](1.8/180-xml-record-projection-contract.md).
+
 Install the XLSX extra, then identify the workbook, worksheet and bounded
 rectangle explicitly. The first row is the header:
 
