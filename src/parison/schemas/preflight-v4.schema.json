@@ -26,7 +26,28 @@
         "null_tokens": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
         "worksheet": {"type": "string", "minLength": 1}, "range": {"type": "string", "minLength": 1},
         "compression": {"enum": ["gzip", "zip"]}, "decoded_bytes": {"type": "integer", "minimum": 0},
-        "schema": {"type": "object"}, "records": {"type": "object"}
+        "records": {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "rows", "invalid_rows", "invalid_fields", "null_key_rows", "duplicate_keys"],
+          "properties": {
+            "status": {"enum": ["valid", "invalid"]},
+            "rows": {"type": "integer", "minimum": 0},
+            "invalid_rows": {"type": "integer", "minimum": 0},
+            "invalid_fields": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 1}},
+            "null_key_rows": {"type": "integer", "minimum": 0},
+            "duplicate_keys": {"type": "integer", "minimum": 0}
+          }
+        },
+        "schema": {
+          "type": "object", "additionalProperties": false,
+          "required": ["missing", "unexpected", "mapped", "excluded_present"],
+          "properties": {
+            "missing": {"type": "array", "items": {"type": "string"}},
+            "unexpected": {"type": "array", "items": {"type": "string"}},
+            "mapped": {"type": "object", "additionalProperties": {"type": "string"}},
+            "excluded_present": {"type": "array", "items": {"type": "string"}}
+          }
+        }
       },
       "allOf": [{"if": {"properties": {"format": {"const": "xlsx"}}, "required": ["format"]}, "then": {"required": ["worksheet", "range", "compression", "decoded_bytes"], "properties": {"compression": {"const": "zip"}}}}]
     }

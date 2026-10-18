@@ -2,8 +2,10 @@ import csv
 import json
 import tempfile
 import unittest
+import warnings
+import zipfile
 from copy import deepcopy
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
@@ -135,6 +137,9 @@ class XlsxInput(unittest.TestCase):
         self.assertEqual(compare(self.recipe, baseline, self.source)["outcome"], "PASS")
         aggregate_preflight = validate_inputs(self.recipe, baseline, self.source, validate_records=True)
         Draft202012Validator(load_schema("preflight-v5")).validate(aggregate_preflight)
+        aggregate_draft = draft_recipe(self.source, self.source, aggregate=True)
+        self.assertEqual(aggregate_draft["comparison_mode"], "aggregate")
+        self.assertEqual(aggregate_draft["input_projection"], "semantic-scalar-v1")
 
         multiset = deepcopy(RECIPE)
         multiset.update(recipe_version=3, comparison_mode="multiset")
@@ -144,6 +149,9 @@ class XlsxInput(unittest.TestCase):
         self.assertEqual(compare(self.recipe, baseline, self.source)["outcome"], "PASS")
         multiset_preflight = validate_inputs(self.recipe, baseline, self.source, validate_records=True)
         Draft202012Validator(load_schema("preflight-v6")).validate(multiset_preflight)
+        multiset_draft = draft_recipe(self.source, self.source, multiset=True)
+        self.assertEqual(multiset_draft["comparison_mode"], "multiset")
+        self.assertEqual(multiset_draft["input_projection"], "semantic-scalar-v1")
 
     def test_sqlite_engines_match_memory_results(self):
         memory = compare(self.recipe, self.source, self.source)
@@ -184,7 +192,7 @@ class XlsxInput(unittest.TestCase):
         self.assertEqual(case["baseline"], f"xlsx:{self.workbook}#Export!A2:C4")
         self.assertEqual(case["candidate"], case["baseline"])
 
-    def test_rejects_implicit_selection_formulas_errors_and_open_projection(self):
+    def test_rejects_implicit_selection_formulas_and_open_projection(self):
         with self.assertRaisesRegex(ParisonError, "XLSX locator"):
             compare(self.recipe, self.workbook, self.source)
         with self.assertRaisesRegex(ParisonError, "worksheet does not exist"):
@@ -209,7 +217,64 @@ class XlsxInput(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "require input_projection"):
             compare(self.recipe, formula_source, formula_source)
 
+    def test_rejects_formula_and_error_cells_in_headers_and_records(self):
+        cases = (('="id"', "formula cell"), ("#DIV/0!", "error cell"))
+        for value, message in cases:
+            for row in (1, 2):
+                with self.subTest(value=value, row=row):
+                    workbook = Workbook()
+                    worksheet = workbook.active
+                    worksheet.title = "Export"
+                    worksheet.append(["id", "value", "day"])
+                    worksheet.append(["001", 10, date(2026, 10, 17)])
+                    worksheet.cell(row=row, column=1, value=value)
+                    if message == "error cell":
+                        worksheet.cell(row=row, column=1).data_type = "e"
+                    workbook.save(self.workbook)
+                    workbook.close()
+                    source = f"xlsx:{self.workbook}#Export!A1:C2"
+                    with self.assertRaisesRegex(ParisonError, message):
+                        compare(self.recipe, source, source)
+
+    def test_rejects_malformed_duplicate_headers_and_naive_datetimes(self):
+        self.workbook.write_bytes(b"not a workbook")
+        with self.assertRaisesRegex(ParisonError, "cannot inspect XLSX archive"):
+            compare(self.recipe, self.source, self.source)
+
+        self._write_workbook([["id", "id", "day"], ["001", 10, date(2026, 10, 17)]])
+        source = f"xlsx:{self.workbook}#Export!A1:C2"
+        with self.assertRaisesRegex(ParisonError, "duplicate column names"):
+            compare(self.recipe, source, source)
+
+        self._write_workbook([["id", "observed_at"], ["001", datetime(2026, 10, 17, 12)]])
+        timestamp_recipe = deepcopy(RECIPE)
+        timestamp_recipe["columns"] = {
+            "id": {"type": "string", "comparison": "exact"},
+            "observed_at": {"type": "timestamp", "comparison": "exact", "timezone": "require-aware"},
+        }
+        self.recipe.write_text(json.dumps(timestamp_recipe), encoding="utf-8")
+        source = f"xlsx:{self.workbook}#Export!A1:B2"
+        with self.assertRaisesRegex(ParisonError, "timezone required"):
+            compare(self.recipe, source, source)
+
+    def test_rejects_symlink_and_duplicate_archive_members(self):
+        link = self.root / "linked.xlsx"
+        link.symlink_to(self.workbook)
+        linked_source = f"xlsx:{link}#Export!A2:C4"
+        with self.assertRaisesRegex(ParisonError, "non-symlink"):
+            compare(self.recipe, linked_source, linked_source)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            with zipfile.ZipFile(self.workbook, "w") as archive:
+                archive.writestr("duplicate", b"one")
+                archive.writestr("duplicate", b"two")
+        with self.assertRaisesRegex(ParisonError, "duplicate member names"):
+            compare(self.recipe, self.source, self.source)
+
     def test_rejects_row_and_decoded_size_overruns(self):
+        with self.assertRaisesRegex(ParisonError, "combined input size"):
+            compare(self.recipe, self.source, self.source, max_input_bytes=1)
         with self.assertRaisesRegex(ParisonError, "row count"):
             compare(self.recipe, self.source, self.source, max_rows=1)
         with self.assertRaisesRegex(ParisonError, "decoded input size"):

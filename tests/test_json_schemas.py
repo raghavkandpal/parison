@@ -142,6 +142,17 @@ class JsonSchemas(unittest.TestCase):
         )
         Draft202012Validator(self.preflight_schema).validate(result)
 
+    def test_xlsx_preflight_schemas_keep_nested_results_closed(self):
+        keyed = Draft202012Validator(self.preflight_v4_schema)
+        aggregate = Draft202012Validator(self.preflight_v5_schema)
+        for validator, definition in (
+            (keyed, self.preflight_v4_schema["$defs"]["input"]),
+            (aggregate, self.preflight_v5_schema["$defs"]["input"]),
+        ):
+            with self.subTest(schema=validator.schema["$id"]):
+                self.assertFalse(validator.evolve(schema=definition["properties"]["schema"]).is_valid({}))
+                self.assertFalse(validator.evolve(schema=definition["properties"]["records"]).is_valid({}))
+
     def test_cli_prints_installed_schemas(self):
         stdout = StringIO()
         with redirect_stdout(stdout):

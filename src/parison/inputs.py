@@ -286,6 +286,10 @@ def _xlsx_rows(source: str | Path, max_rows: int | None):
         worksheet = workbook[worksheet_name]
         rows = worksheet.iter_rows(min_row=min_row, max_row=max_row, min_col=min_col, max_col=max_col)
         header_cells = next(rows)
+        if any(cell.data_type == "f" for cell in header_cells):
+            raise ParisonError(f"XLSX range contains a formula cell: {cell_range}")
+        if any(cell.data_type == "e" for cell in header_cells):
+            raise ParisonError(f"XLSX range contains an error cell: {cell_range}")
         headers = [cell.value for cell in header_cells]
         if any(not isinstance(name, str) or not name for name in headers) or len(headers) != len(set(headers)):
             raise ParisonError(f"XLSX range has empty, non-string, or duplicate column names: {cell_range}")
@@ -884,9 +888,10 @@ def draft_recipe(
         "delimiters": delimiters,
         "null_tokens": {"baseline": [], "candidate": []},
     }
-    if any(_xlsx_source(source) for source in (baseline, candidate)):
+    uses_xlsx = any(_xlsx_source(source) for source in (baseline, candidate))
+    if uses_xlsx:
         inspection_recipe["input_projection"] = "semantic-scalar-v1"
-    if any(_xlsx_source(source) for source in (baseline, candidate)):
+    if uses_xlsx:
         baseline_rows = list(_iter_input_rows(baseline, inspection_recipe, 5_000_000, "baseline", decoded_sizes))
         candidate_rows = list(_iter_input_rows(candidate, inspection_recipe, 5_000_000, "candidate", decoded_sizes))
     else:
@@ -920,7 +925,7 @@ def draft_recipe(
         },
         "output": {"sensitivity": "summary"},
     }
-    if any(_xlsx_source(source) for source in (baseline, candidate)):
+    if uses_xlsx:
         common["input_projection"] = "semantic-scalar-v1"
     if aggregate:
         rows = baseline_rows + candidate_rows
