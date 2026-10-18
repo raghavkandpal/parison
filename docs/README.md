@@ -9,7 +9,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Task-oriented user guide](user-guide.md)
 - [Generated CLI command reference](command-reference.md)
 
-## 1.6 — active
+## 1.6 — released
 
 - [Current workflow and command-reference research](1.6/165-current-workflow-research.md)
 - [1.6 roadmap](1.6/166-roadmap.md)

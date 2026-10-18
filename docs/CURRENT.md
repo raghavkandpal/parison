@@ -1,11 +1,11 @@
 # Current development state
 
-- Version: **1.6.0 in development**
+- Version: **1.6.0 released**
 - Branch: `develop`
 - Theme: one maintained workflow plus an explicit local XLSX values boundary
-- Released: deterministic discrepancy analysis, exact-policy rehearsal series, live catalog selection and bounded verified raw drill-down
-- Verified: exact merge `e960a3eb899181d63a28b24c11f31daeaf6f280b` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39036693844) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and smoke-tested fresh
-- Next gate: merge the reviewed 1.6.0 candidate, qualify the exact merge and publish/reconcile public assets
+- Released: one maintained 1.x workflow plus explicit, bounded local XLSX values projection across all comparison modes
+- Verified: exact merge `80d49e797e6ecc88cdd8cef19e327b6eecf102dc` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39118675788) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and passed the complete XLSX workflow smoke fresh
+- Next gate: select and research the next larger coherent feature from the recorded product direction before changing scope
 
 ## Recorded next steps
 
