@@ -433,7 +433,7 @@ def _json_rows(source: str | Path, max_rows: int | None):
         )
     except ParisonError:
         raise
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, RecursionError) as exc:
         raise ParisonError(f"cannot parse JSON document {path}: {exc}") from exc
     for raw_token in pointer.split("/")[1:] if pointer else ():
         if "~" in raw_token.replace("~0", "").replace("~1", ""):
@@ -441,8 +441,14 @@ def _json_rows(source: str | Path, max_rows: int | None):
         token = raw_token.replace("~1", "/").replace("~0", "~")
         if isinstance(value, dict) and token in value:
             value = value[token]
-        elif isinstance(value, list) and token.isdigit() and (token == "0" or not token.startswith("0")):
-            index = int(token)
+        elif isinstance(value, list) and (
+            token == "0"
+            or (token and token[0] in "123456789" and all(character in "0123456789" for character in token))
+        ):
+            try:
+                index = int(token)
+            except ValueError as exc:
+                raise ParisonError(f"JSON pointer does not resolve: {pointer}") from exc
             if index >= len(value):
                 raise ParisonError(f"JSON pointer does not resolve: {pointer}")
             value = value[index]
@@ -584,12 +590,14 @@ def _input_columns(
     delimiter: str = ",",
     recipe: dict[str, Any] | None = None,
     side: str | None = None,
+    max_rows: int | None = None,
 ) -> list[str]:
     decoded_sizes = decoded_sizes or {}
     source_path = _source_path(path)
     if source_path.is_dir():
         schemas = [
-            _input_columns(partition, decoded_sizes, delimiter, recipe, side) for partition in _source_paths(path)
+            _input_columns(partition, decoded_sizes, delimiter, recipe, side, max_rows)
+            for partition in _source_paths(path)
         ]
         if any(set(schema) != set(schemas[0]) for schema in schemas[1:]):
             raise ParisonError(f"partitioned input has inconsistent schemas: {source_path}")
@@ -609,9 +617,11 @@ def _input_columns(
         finally:
             rows.close()
     if _json_source(path):
-        rows = _json_rows(path, None)
+        rows = _json_rows(path, max_rows)
         try:
             columns, _ = next(rows)
+            for _ in rows:
+                pass
             return columns
         finally:
             rows.close()
@@ -812,7 +822,7 @@ def validate_inputs(
     status = "valid"
     for side, source in (("baseline", baseline), ("candidate", candidate)):
         delimiter = recipe["delimiters"][side]
-        columns = _input_columns(source, decoded_sizes, delimiter, recipe, side)
+        columns = _input_columns(source, decoded_sizes, delimiter, recipe, side, max_rows)
         schema = _schema_details(columns, recipe, side)
         if schema["missing"] or schema["unexpected"]:
             status = "invalid"

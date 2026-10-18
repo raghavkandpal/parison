@@ -3,10 +3,12 @@ import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
 from parison.core import ParisonError, compare, draft_recipe, load_schema, load_suite, validate_inputs
+from parison.inputs import _json_rows
 
 RECIPE = {
     "recipe_version": 1,
@@ -124,6 +126,16 @@ class JsonDocumentInput(unittest.TestCase):
         case = load_suite(suite)["cases"][0]
         self.assertEqual(case["baseline"], self.source)
 
+    def test_schema_preflight_enforces_row_limit_and_all_record_shapes(self):
+        with self.assertRaisesRegex(ParisonError, "row count.*exceeds limit 1"):
+            validate_inputs(self.recipe, self.source, self.source, max_rows=1)
+        self.document.write_text(
+            '{"exports":{"records":[{"id":"001","value":1,"active":true},{"id":"002","value":2}]}}',
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(ParisonError, "inconsistent JSON fields"):
+            validate_inputs(self.recipe, self.source, self.source)
+
     def test_rejects_implicit_open_or_malformed_documents(self):
         cases = (
             ('{"records":[{"id":"1","id":"2","value":1,"active":true}]}', "duplicate JSON key"),
@@ -142,6 +154,15 @@ class JsonDocumentInput(unittest.TestCase):
             compare(self.recipe, f"json:{self.document}#/missing", self.source)
         with self.assertRaisesRegex(ParisonError, "invalid escape"):
             compare(self.recipe, f"json:{self.document}#/bad~2pointer", self.source)
+        self.document.write_text('{"records":[[{"id":"1","value":1,"active":true}]]}', encoding="utf-8")
+        for token in ("\u0660", "1" * 5000):
+            with self.subTest(pointer_token=token), self.assertRaisesRegex(ParisonError, "does not resolve"):
+                compare(self.recipe, f"json:{self.document}#/records/{token}", f"json:{self.document}#/records/{token}")
+        with (
+            patch("parison.inputs.json.loads", side_effect=RecursionError),
+            self.assertRaisesRegex(ParisonError, "cannot parse JSON document"),
+        ):
+            next(_json_rows(self.source, None))
         self.document.write_text('{"records":[]}', encoding="utf-8")
         with self.assertRaisesRegex(ParisonError, "input has no schema"):
             compare(self.recipe, f"json:{self.document}#/records", f"json:{self.document}#/records")

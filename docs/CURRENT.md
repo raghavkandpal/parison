@@ -16,6 +16,12 @@
   approval. This authorizes continued development only, never operational
   policy or cutover. See the accepted [product direction](0.15/104-product-direction-and-release-arc.md).
 
+- When an autonomous session stops near its usage limit, return a copy-ready
+  next-session goal prompt. Include the exact branch and commits, green CI and
+  review evidence, completed train features, open findings, next gate,
+  compatibility constraints, release cadence and the through-v5.0 direction
+  so work resumes without repeating discovery.
+
 - Every release after 1.7.0 must contain at least three separately reviewable,
   substantial feature additions. Push and record green feature checkpoints,
   but do not open a candidate, tag or publish until all three are complete.

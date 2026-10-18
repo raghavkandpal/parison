@@ -159,6 +159,14 @@ class JsonSchemas(unittest.TestCase):
                 self.assertFalse(validator.evolve(schema=definition["properties"]["schema"]).is_valid({}))
                 self.assertFalse(validator.evolve(schema=definition["properties"]["records"]).is_valid({}))
 
+    def test_json_preflight_schemas_keep_nested_results_closed(self):
+        for schema in (self.preflight_v7_schema, self.preflight_v8_schema, self.preflight_v9_schema):
+            definition = schema["$defs"]["input"]
+            validator = Draft202012Validator(schema)
+            with self.subTest(schema=schema["$id"]):
+                self.assertFalse(validator.evolve(schema=definition["properties"]["schema"]).is_valid({}))
+                self.assertFalse(validator.evolve(schema=definition["properties"]["records"]).is_valid({}))
+
     def test_cli_prints_installed_schemas(self):
         stdout = StringIO()
         with redirect_stdout(stdout):
