@@ -22,11 +22,22 @@ Status: **candidate preparation**
   `891f377bf70cc13e3a80e7982c62e4f6ea547d29` passes
   [built-wheel CI run 39100830901](https://github.com/raghavkandpal/parison/actions/runs/39100830901)
   on Python 3.11--3.14, Linux, macOS and Windows.
-- [ ] Exact versioned candidate passes the same built-wheel matrix.
-- [ ] Clean-archive wheel and source hashes are recorded.
-- [ ] A fresh supported-Python environment installs the wheel and completes
-  initialization, guide drift verification and the direct comparison workflow.
-- [ ] Review of `origin/main...develop` reports no release blockers.
+- [x] Exact versioned candidate
+  `f70e990a383bf367c4b8e344ee921704bd85088d` passes
+  [built-wheel CI run 39100944127](https://github.com/raghavkandpal/parison/actions/runs/39100944127)
+  and [quality run 39100944155](https://github.com/raghavkandpal/parison/actions/runs/39100944155).
+- [x] Clean-archive wheel and source hashes are recorded below.
+- [x] A fresh Python 3.14 environment installs the wheel and completes version,
+  initialization, recipe/input validation, direct comparison and bundle
+  verification.
+- [x] Review of `origin/main...develop` reports no release blockers.
+
+Candidate SHA-256:
+
+- `parison-1.6.0-py3-none-any.whl`:
+  `495e1dd0424a8d4cb9a561602f9ceec166c157a5db9328159ca8abab8bbc12d0`
+- `parison-1.6.0.tar.gz`:
+  `1c4ca256d484ab900deff9ef8429eca9a4b8dadc0ec8e0436a65314e77c37dd7`
 
 ## Publication
 

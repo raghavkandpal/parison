@@ -5,7 +5,7 @@
 - Theme: one maintained workflow entry point backed by the real CLI
 - Released: deterministic discrepancy analysis, exact-policy rehearsal series, live catalog selection and bounded verified raw drill-down
 - Verified: exact merge `e960a3eb899181d63a28b24c11f31daeaf6f280b` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39036693844) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and smoke-tested fresh
-- Next gate: qualify and release the exact 1.6.0 candidate
+- Next gate: merge the reviewed 1.6.0 candidate, require exact-merge CI, then publish and verify public assets
 
 ## Recorded next steps
 
