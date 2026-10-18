@@ -10,6 +10,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [1.7 roadmap](1.7/172-roadmap.md)
 - [SQLite aggregate execution contract](1.7/173-aggregate-sqlite-contract.md)
 - [1.7.0 release checklist](1.7/174-release-checklist.md)
+- [1.7 engineering checkpoint](1.7/175-engineering-checkpoint.md)
 
 ## Current 1.x documentation
 

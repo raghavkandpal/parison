@@ -5,7 +5,7 @@
 - Theme: bounded SQLite-backed aggregate conservation
 - Released: one maintained 1.x workflow plus explicit, bounded local XLSX values projection across all comparison modes
 - Verified: exact merge `80d49e797e6ecc88cdd8cef19e327b6eecf102dc` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39118675788) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and passed the complete XLSX workflow smoke fresh
-- Next gate: pass exact-checkpoint built-wheel CI and complete candidate review
+- Next gate: merge the reviewed 1.7 candidate and require exact-merge CI before publication
 
 ## Recorded next steps
 

@@ -1,6 +1,6 @@
 # Parison 1.7 roadmap
 
-Status: **implementation in progress**
+Status: **candidate qualified**
 
 Theme: bounded SQLite-backed aggregate conservation
 
@@ -15,8 +15,7 @@ Theme: bounded SQLite-backed aggregate conservation
 4. Support suite-v2 execution, cleanup, controlled failures and interruption,
    including attributable verifiable error bundles. **Complete.**
 5. Add deterministic accuracy benchmarks and qualify installed wheels across
-   the supported Python and operating-system matrix. **Local benchmark and
-   full gate complete; built-wheel qualification pending.**
+   the supported Python and operating-system matrix. **Complete.**
 
 ## Compatibility
 

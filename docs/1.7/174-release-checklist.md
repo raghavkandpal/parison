@@ -2,7 +2,7 @@
 
 Date: 18 October 2026
 
-Status: **implementation in progress**
+Status: **candidate qualified**
 
 ## Capability gate
 
@@ -23,9 +23,13 @@ Status: **implementation in progress**
 - [x] Focused aggregate, suite and benchmark tests pass.
 - [x] `make check` passes with 363 tests and 11 expected optional-Polars skips.
 - [x] Independent Standards and Spec re-reviews report no blockers.
-- [ ] Exact candidate built-wheel CI passes on Python 3.11--3.14, macOS and
-  Windows.
-- [ ] Clean-archive artifacts and fresh-wheel aggregate smoke pass.
+- [x] Exact implementation checkpoint
+  `74a87f48564190f6637a37682dcd55790904bc21` passes
+  [built-wheel CI run 39140670513](https://github.com/raghavkandpal/parison/actions/runs/39140670513)
+  on Python 3.11--3.14, Linux, macOS and Windows, plus
+  [quality run 39140670525](https://github.com/raghavkandpal/parison/actions/runs/39140670525).
+- [x] Clean-archive artifacts and a fresh Python 3.14 SQLite aggregate smoke
+  pass; hashes and results are recorded in the engineering checkpoint.
 
 ## Publication
 
