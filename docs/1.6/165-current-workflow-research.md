@@ -65,7 +65,8 @@ unchanged as release records.
 - Generate reference text only from the in-process parser. Do not scrape shell
   output, add a documentation framework or publish a machine-stable CLI schema.
 - Make generation deterministic across supported Python versions by setting
-  the parser program name and normalizing only trailing whitespace.
+  the parser program name, omitting interpreter-dependent usage wrapping and
+  normalizing only trailing whitespace.
 - Check the generated file in so installed-package or website tooling is not
   required to read it.
 - Test documented commands against repository examples without executing

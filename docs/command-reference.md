@@ -6,9 +6,6 @@ end-to-end tasks, use the [current user guide](user-guide.md). Do not edit this 
 ## `parison`
 
 ```text
-usage: parison [-h] [--version]
-               {init,validate-recipe,explain,validate-evolution,explain-evolution,compile-evolution,diff-policy,validate-time-alignment,explain-time-alignment,validate-reconciliation,explain-reconciliation,preflight-alignment,check-identity-references,check-conservation,reconcile,verify-reconciliation,inspect-reconciliation,create-dataset-manifest,validate-dataset-manifest,explain-dataset-manifest,verify-dataset-manifest,publish-dataset-evidence,capture-reproducibility,diff-reproducibility,schema,export-editor-schemas,validate-suite,list-suite,run-suite,assemble-suite,report-ci,validate-inputs,draft-recipe,verify,inspect,analyze,verify-analysis,drilldown,verify-drilldown,statement,verify-statement,report-cutover,catalog,export-evidence,compare} ...
-
 Compare data-pipeline outputs deterministically
 
 positional arguments:
@@ -83,8 +80,6 @@ options:
 ## `parison init`
 
 ```text
-usage: parison init [-h] directory
-
 positional arguments:
   directory
 
@@ -95,8 +90,6 @@ options:
 ## `parison validate-recipe`
 
 ```text
-usage: parison validate-recipe [-h] recipe
-
 positional arguments:
   recipe
 
@@ -107,8 +100,6 @@ options:
 ## `parison explain`
 
 ```text
-usage: parison explain [-h] recipe
-
 positional arguments:
   recipe
 
@@ -119,8 +110,6 @@ options:
 ## `parison validate-evolution`
 
 ```text
-usage: parison validate-evolution [-h] evolution
-
 positional arguments:
   evolution
 
@@ -131,8 +120,6 @@ options:
 ## `parison explain-evolution`
 
 ```text
-usage: parison explain-evolution [-h] evolution
-
 positional arguments:
   evolution
 
@@ -143,8 +130,6 @@ options:
 ## `parison compile-evolution`
 
 ```text
-usage: parison compile-evolution [-h] evolution
-
 positional arguments:
   evolution
 
@@ -155,9 +140,6 @@ options:
 ## `parison diff-policy`
 
 ```text
-usage: parison diff-policy [-h] --baseline-recipe BASELINE_RECIPE
-                           --candidate-recipe CANDIDATE_RECIPE --evolution EVOLUTION [--summary]
-
 options:
   -h, --help            show this help message and exit
   --baseline-recipe BASELINE_RECIPE
@@ -169,8 +151,6 @@ options:
 ## `parison validate-time-alignment`
 
 ```text
-usage: parison validate-time-alignment [-h] alignment
-
 positional arguments:
   alignment
 
@@ -181,8 +161,6 @@ options:
 ## `parison explain-time-alignment`
 
 ```text
-usage: parison explain-time-alignment [-h] alignment
-
 positional arguments:
   alignment
 
@@ -193,8 +171,6 @@ options:
 ## `parison validate-reconciliation`
 
 ```text
-usage: parison validate-reconciliation [-h] reconciliation
-
 positional arguments:
   reconciliation
 
@@ -205,8 +181,6 @@ options:
 ## `parison explain-reconciliation`
 
 ```text
-usage: parison explain-reconciliation [-h] reconciliation
-
 positional arguments:
   reconciliation
 
@@ -217,11 +191,6 @@ options:
 ## `parison preflight-alignment`
 
 ```text
-usage: parison preflight-alignment [-h] --alignment ALIGNMENT --reconciliation RECONCILIATION
-                                   --receipt RECEIPT --dataset ID RECIPE BASELINE CANDIDATE
-                                   [--max-input-bytes MAX_INPUT_BYTES]
-                                   [--max-decoded-bytes MAX_DECODED_BYTES] [--max-rows MAX_ROWS]
-
 options:
   -h, --help            show this help message and exit
   --alignment ALIGNMENT
@@ -236,15 +205,6 @@ options:
 ## `parison check-identity-references`
 
 ```text
-usage: parison check-identity-references [-h] --reconciliation RECONCILIATION
-                                         --dataset ID RECIPE BASELINE CANDIDATE
-                                         [--engine {memory,sqlite}]
-                                         [--max-input-bytes MAX_INPUT_BYTES]
-                                         [--max-decoded-bytes MAX_DECODED_BYTES]
-                                         [--max-rows MAX_ROWS] [--max-keys MAX_KEYS]
-                                         [--max-temp-bytes MAX_TEMP_BYTES]
-                                         [--temp-directory TEMP_DIRECTORY]
-
 options:
   -h, --help            show this help message and exit
   --reconciliation RECONCILIATION
@@ -261,13 +221,6 @@ options:
 ## `parison check-conservation`
 
 ```text
-usage: parison check-conservation [-h] --reconciliation RECONCILIATION
-                                  --dataset ID RECIPE BASELINE CANDIDATE [--engine {memory,sqlite}]
-                                  [--max-input-bytes MAX_INPUT_BYTES]
-                                  [--max-decoded-bytes MAX_DECODED_BYTES] [--max-rows MAX_ROWS]
-                                  [--max-groups MAX_GROUPS] [--max-temp-bytes MAX_TEMP_BYTES]
-                                  [--temp-directory TEMP_DIRECTORY]
-
 options:
   -h, --help            show this help message and exit
   --reconciliation RECONCILIATION
@@ -284,14 +237,6 @@ options:
 ## `parison reconcile`
 
 ```text
-usage: parison reconcile [-h] --alignment ALIGNMENT --reconciliation RECONCILIATION
-                         --receipt RECEIPT --dataset ID RECIPE BASELINE CANDIDATE
-                         [--engine {memory,sqlite}] [--summary] [--output OUTPUT]
-                         [--max-input-bytes MAX_INPUT_BYTES] [--max-decoded-bytes MAX_DECODED_BYTES]
-                         [--max-rows MAX_ROWS] [--max-keys MAX_KEYS] [--max-groups MAX_GROUPS]
-                         [--max-distinct-rows MAX_DISTINCT_ROWS] [--max-temp-bytes MAX_TEMP_BYTES]
-                         [--temp-directory TEMP_DIRECTORY]
-
 options:
   -h, --help            show this help message and exit
   --alignment ALIGNMENT
@@ -314,8 +259,6 @@ options:
 ## `parison verify-reconciliation`
 
 ```text
-usage: parison verify-reconciliation [-h] bundle
-
 positional arguments:
   bundle
 
@@ -326,8 +269,6 @@ options:
 ## `parison inspect-reconciliation`
 
 ```text
-usage: parison inspect-reconciliation [-h] bundle
-
 positional arguments:
   bundle
 
@@ -338,12 +279,6 @@ options:
 ## `parison create-dataset-manifest`
 
 ```text
-usage: parison create-dataset-manifest [-h] --root ROOT --collection-id COLLECTION_ID
-                                       --policy-kind {suite,reconciliation}
-                                       --policy-sha256 POLICY_SHA256 --policy-file POLICY_FILE
-                                       [--closed-scope CLOSED_SCOPE] --resource ID ROLE FORMAT PATH
-                                       --output OUTPUT
-
 options:
   -h, --help            show this help message and exit
   --root ROOT
@@ -359,8 +294,6 @@ options:
 ## `parison validate-dataset-manifest`
 
 ```text
-usage: parison validate-dataset-manifest [-h] manifest
-
 positional arguments:
   manifest
 
@@ -371,8 +304,6 @@ options:
 ## `parison explain-dataset-manifest`
 
 ```text
-usage: parison explain-dataset-manifest [-h] manifest
-
 positional arguments:
   manifest
 
@@ -383,9 +314,6 @@ options:
 ## `parison verify-dataset-manifest`
 
 ```text
-usage: parison verify-dataset-manifest [-h] --manifest MANIFEST --root ROOT [--summary]
-                                       --policy-file POLICY_FILE
-
 options:
   -h, --help            show this help message and exit
   --manifest MANIFEST
@@ -397,10 +325,6 @@ options:
 ## `parison publish-dataset-evidence`
 
 ```text
-usage: parison publish-dataset-evidence [-h] --manifest MANIFEST --root ROOT
-                                        --policy-file POLICY_FILE --result-bundle RESULT_BUNDLE
-                                        --output OUTPUT
-
 options:
   -h, --help            show this help message and exit
   --manifest MANIFEST
@@ -413,8 +337,6 @@ options:
 ## `parison capture-reproducibility`
 
 ```text
-usage: parison capture-reproducibility [-h] --manifest MANIFEST --output OUTPUT
-
 options:
   -h, --help           show this help message and exit
   --manifest MANIFEST
@@ -424,8 +346,6 @@ options:
 ## `parison diff-reproducibility`
 
 ```text
-usage: parison diff-reproducibility [-h] left right
-
 positional arguments:
   left
   right
@@ -437,9 +357,6 @@ options:
 ## `parison schema`
 
 ```text
-usage: parison schema [-h]
-                      {recipe,recipe-authoring,recipe-v2,recipe-v3,result,result-v2,result-v3,manifest,preflight,preflight-v2,preflight-v3,suite,suite-authoring,suite-v2,suite-result,suite-result-v2,suite-manifest,suite-manifest-v2,statement,schema-evolution,policy-diff,time-alignment,reconciliation,alignment-preflight,relationship-result,conservation-result,reconciliation-result,dataset-manifest,reproducibility-diagnostic,discrepancy-analysis,discrepancy-drilldown}
-
 positional arguments:
   {recipe,recipe-authoring,recipe-v2,recipe-v3,result,result-v2,result-v3,manifest,preflight,preflight-v2,preflight-v3,suite,suite-authoring,suite-v2,suite-result,suite-result-v2,suite-manifest,suite-manifest-v2,statement,schema-evolution,policy-diff,time-alignment,reconciliation,alignment-preflight,relationship-result,conservation-result,reconciliation-result,dataset-manifest,reproducibility-diagnostic,discrepancy-analysis,discrepancy-drilldown}
 
@@ -450,8 +367,6 @@ options:
 ## `parison export-editor-schemas`
 
 ```text
-usage: parison export-editor-schemas [-h] --output OUTPUT
-
 options:
   -h, --help       show this help message and exit
   --output OUTPUT
@@ -460,8 +375,6 @@ options:
 ## `parison validate-suite`
 
 ```text
-usage: parison validate-suite [-h] plan
-
 positional arguments:
   plan
 
@@ -472,10 +385,6 @@ options:
 ## `parison list-suite`
 
 ```text
-usage: parison list-suite [-h] [--case CASE] [--tag TAG] [--shard-index SHARD_INDEX]
-                          [--shard-count SHARD_COUNT] [--json]
-                          plan
-
 positional arguments:
   plan
 
@@ -491,13 +400,6 @@ options:
 ## `parison run-suite`
 
 ```text
-usage: parison run-suite [-h] --plan PLAN --output OUTPUT [--sample-limit SAMPLE_LIMIT]
-                         [--max-input-bytes MAX_INPUT_BYTES] [--max-decoded-bytes MAX_DECODED_BYTES]
-                         [--max-rows MAX_ROWS] [--max-groups MAX_GROUPS]
-                         [--max-distinct-rows MAX_DISTINCT_ROWS] [--case CASE] [--tag TAG]
-                         [--shard-index SHARD_INDEX] [--shard-count SHARD_COUNT]
-                         [--workspace WORKSPACE] [--resume] [--jobs JOBS]
-
 options:
   -h, --help            show this help message and exit
   --plan PLAN
@@ -520,8 +422,6 @@ options:
 ## `parison assemble-suite`
 
 ```text
-usage: parison assemble-suite [-h] --plan PLAN --input INPUT --output OUTPUT
-
 options:
   -h, --help       show this help message and exit
   --plan PLAN
@@ -532,8 +432,6 @@ options:
 ## `parison report-ci`
 
 ```text
-usage: parison report-ci [-h] --format {markdown,junit} --output OUTPUT bundle
-
 positional arguments:
   bundle
 
@@ -546,13 +444,6 @@ options:
 ## `parison validate-inputs`
 
 ```text
-usage: parison validate-inputs [-h] --recipe RECIPE --baseline BASELINE --candidate CANDIDATE
-                               [--max-input-bytes MAX_INPUT_BYTES]
-                               [--max-decoded-bytes MAX_DECODED_BYTES] [--records]
-                               [--max-rows MAX_ROWS] [--max-groups MAX_GROUPS]
-                               [--max-distinct-rows MAX_DISTINCT_ROWS]
-                               [--expected-policy-sha256 EXPECTED_POLICY_SHA256]
-
 options:
   -h, --help            show this help message and exit
   --recipe RECIPE
@@ -576,10 +467,6 @@ options:
 ## `parison draft-recipe`
 
 ```text
-usage: parison draft-recipe [-h] --baseline BASELINE --candidate CANDIDATE --output OUTPUT
-                            [--max-input-bytes MAX_INPUT_BYTES]
-                            [--max-decoded-bytes MAX_DECODED_BYTES] [--aggregate | --multiset]
-
 options:
   -h, --help            show this help message and exit
   --baseline BASELINE   baseline file, SQLite locator or partition directory
@@ -603,8 +490,6 @@ null policy. Suggestions are starting points, not approved policy.
 ## `parison verify`
 
 ```text
-usage: parison verify [-h] [--json] run_directory
-
 positional arguments:
   run_directory
 
@@ -616,8 +501,6 @@ options:
 ## `parison inspect`
 
 ```text
-usage: parison inspect [-h] run_directory
-
 positional arguments:
   run_directory
 
@@ -628,9 +511,6 @@ options:
 ## `parison analyze`
 
 ```text
-usage: parison analyze [-h] [--catalog CATALOG] [--policy-sha256 POLICY_SHA256] --output OUTPUT
-                       [bundle ...]
-
 positional arguments:
   bundle
 
@@ -644,8 +524,6 @@ options:
 ## `parison verify-analysis`
 
 ```text
-usage: parison verify-analysis [-h] bundle
-
 positional arguments:
   bundle
 
@@ -656,10 +534,6 @@ options:
 ## `parison drilldown`
 
 ```text
-usage: parison drilldown [-h] --group-id GROUP_ID [--limit LIMIT] [--per-run-limit PER_RUN_LIMIT]
-                         --output OUTPUT
-                         bundle [bundle ...]
-
 positional arguments:
   bundle
 
@@ -674,8 +548,6 @@ options:
 ## `parison verify-drilldown`
 
 ```text
-usage: parison verify-drilldown [-h] artifact
-
 positional arguments:
   artifact
 
@@ -686,8 +558,6 @@ options:
 ## `parison statement`
 
 ```text
-usage: parison statement [-h] --output OUTPUT bundle
-
 positional arguments:
   bundle
 
@@ -699,8 +569,6 @@ options:
 ## `parison verify-statement`
 
 ```text
-usage: parison verify-statement [-h] bundle statement
-
 positional arguments:
   bundle
   statement
@@ -712,8 +580,6 @@ options:
 ## `parison report-cutover`
 
 ```text
-usage: parison report-cutover [-h] --output OUTPUT bundle
-
 positional arguments:
   bundle
 
@@ -725,8 +591,6 @@ options:
 ## `parison catalog`
 
 ```text
-usage: parison catalog [-h] {add,list,show,history,diff,remove} ...
-
 positional arguments:
   {add,list,show,history,diff,remove}
     add                 verify and index a bundle
@@ -743,8 +607,6 @@ options:
 ## `parison catalog add`
 
 ```text
-usage: parison catalog add [-h] --database DATABASE bundle
-
 positional arguments:
   bundle
 
@@ -756,11 +618,6 @@ options:
 ## `parison catalog list`
 
 ```text
-usage: parison catalog list [-h] --database DATABASE
-                            [--outcome {PASS,FAIL,ERROR,INCONCLUSIVE,INTERRUPTED}]
-                            [--kind {run,suite,suite-shard}] [--policy-sha256 POLICY_SHA256]
-                            [--state {current,modified,missing}]
-
 options:
   -h, --help            show this help message and exit
   --database DATABASE
@@ -773,8 +630,6 @@ options:
 ## `parison catalog show`
 
 ```text
-usage: parison catalog show [-h] --database DATABASE bundle
-
 positional arguments:
   bundle
 
@@ -786,8 +641,6 @@ options:
 ## `parison catalog history`
 
 ```text
-usage: parison catalog history [-h] --database DATABASE --policy-sha256 POLICY_SHA256
-
 options:
   -h, --help            show this help message and exit
   --database DATABASE
@@ -797,8 +650,6 @@ options:
 ## `parison catalog diff`
 
 ```text
-usage: parison catalog diff [-h] --database DATABASE left_bundle right_bundle
-
 positional arguments:
   left_bundle
   right_bundle
@@ -811,8 +662,6 @@ options:
 ## `parison catalog remove`
 
 ```text
-usage: parison catalog remove [-h] --database DATABASE bundle
-
 positional arguments:
   bundle
 
@@ -824,11 +673,6 @@ options:
 ## `parison export-evidence`
 
 ```text
-usage: parison export-evidence [-h] --output OUTPUT [--classification CLASSIFICATION]
-                               [--kind {record,field,group,measure,row}] [--name NAME]
-                               [--limit LIMIT]
-                               run_directory
-
 positional arguments:
   run_directory
 
@@ -844,14 +688,6 @@ options:
 ## `parison compare`
 
 ```text
-usage: parison compare [-h] --recipe RECIPE --baseline BASELINE --candidate CANDIDATE
-                       --output OUTPUT [--sample-limit SAMPLE_LIMIT]
-                       [--max-input-bytes MAX_INPUT_BYTES] [--max-decoded-bytes MAX_DECODED_BYTES]
-                       [--max-rows MAX_ROWS] [--max-groups MAX_GROUPS]
-                       [--max-distinct-rows MAX_DISTINCT_ROWS] [--engine {memory,sqlite}]
-                       [--max-temp-bytes MAX_TEMP_BYTES] [--temp-directory TEMP_DIRECTORY]
-                       [--expected-policy-sha256 EXPECTED_POLICY_SHA256]
-
 options:
   -h, --help            show this help message and exit
   --recipe RECIPE

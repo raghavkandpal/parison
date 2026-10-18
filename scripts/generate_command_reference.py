@@ -33,7 +33,8 @@ def render() -> str:
     root = parser()
     root.prog = "parison"
     for command in _walk(root):
-        sections.extend(("", f"## `{command.prog}`", "", "```text", command.format_help().rstrip(), "```"))
+        _, _, stable_help = command.format_help().partition("\n\n")
+        sections.extend(("", f"## `{command.prog}`", "", "```text", stable_help.rstrip(), "```"))
     return "\n".join(sections) + "\n"
 
 
