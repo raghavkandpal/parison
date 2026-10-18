@@ -4,6 +4,19 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Explicit local JSON document projection through an RFC 6901 JSON Pointer to
+  one array of flat records, with duplicate-key rejection, exact number tokens,
+  portable suite locators and all comparison modes.
+- Strict JSON-aware preflight schemas v7--v9 without changing released
+  preflight schemas v1--v6.
+
+### Compatibility
+
+- JSON document inputs require `semantic-scalar-v1`. Recipes, comparison
+  semantics, canonical values, results, bundles and exit codes are unchanged.
+
 ## 1.7.0 - 2026-10-18
 
 ### Added

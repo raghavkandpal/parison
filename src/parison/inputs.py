@@ -121,15 +121,39 @@ def _xlsx_source(source: str | Path) -> tuple[Path, str, str] | None:
     return Path(path_text), worksheet, cell_range
 
 
+def _json_source(source: str | Path) -> tuple[Path, str] | None:
+    text = str(source)
+    if not text.startswith("json:"):
+        return None
+    locator = text.removeprefix("json:")
+    if "?" in locator or "#" not in locator:
+        raise ParisonError("JSON locator must be json:path#pointer without parameters")
+    path_text, pointer = locator.rsplit("#", 1)
+    if not path_text or (pointer and not pointer.startswith("/")):
+        raise ParisonError("JSON locator requires a .json path and an RFC 6901 pointer")
+    if Path(path_text).suffix.lower() != ".json":
+        raise ParisonError("JSON locator requires a .json document")
+    return Path(path_text), pointer
+
+
 def _source_path(source: str | Path) -> Path:
     sqlite_source = _sqlite_source(source)
     xlsx_source = _xlsx_source(source)
-    return sqlite_source[0] if sqlite_source else xlsx_source[0] if xlsx_source else Path(source)
+    json_source = _json_source(source)
+    return (
+        sqlite_source[0]
+        if sqlite_source
+        else xlsx_source[0]
+        if xlsx_source
+        else json_source[0]
+        if json_source
+        else Path(source)
+    )
 
 
 def _source_paths(source: str | Path) -> tuple[Path, ...]:
     path = _source_path(source)
-    if _sqlite_source(source) or _xlsx_source(source) or not path.is_dir():
+    if _sqlite_source(source) or _xlsx_source(source) or _json_source(source) or not path.is_dir():
         return (path,)
     if path.is_symlink():
         raise ParisonError(f"partitioned input must not be a symlink: {path}")
@@ -231,6 +255,8 @@ def _source_metadata(
         if _sqlite_source(source)
         else "xlsx"
         if _xlsx_source(source)
+        else "json"
+        if _json_source(source)
         else (_file_format(paths[0]) or path.suffix.lower().lstrip("."))
     )
     metadata = {"sha256": digest, "bytes": _source_bytes(source), "format": format_name}
@@ -242,6 +268,8 @@ def _source_metadata(
         metadata.update(format="sqlite", table=sqlite_source[1])
     elif xlsx_source := _xlsx_source(source):
         metadata.update(format="xlsx", worksheet=xlsx_source[1], range=xlsx_source[2])
+    elif json_source := _json_source(source):
+        metadata.update(format="json", pointer=json_source[1])
     elif path.is_dir():
         metadata["partitions"] = len(paths)
     if decoded_sizes and any(item in decoded_sizes for item in paths):
@@ -383,6 +411,70 @@ def _jsonl_record(line: str, path: Path, line_number: int) -> dict[str, Any]:
     return {name: ("true" if item is True else "false" if item is False else item) for name, item in value.items()}
 
 
+def _json_rows(source: str | Path, max_rows: int | None):
+    path, pointer = _json_source(source) or (None, None)
+    assert path is not None and pointer is not None
+    if path.is_symlink() or not path.is_file():
+        raise ParisonError(f"JSON document must be a regular non-symlink file: {path}")
+
+    def object_pairs(pairs):
+        value = dict(pairs)
+        if len(value) != len(pairs):
+            raise ParisonError(f"duplicate JSON key in {path}")
+        return value
+
+    try:
+        value = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=object_pairs,
+            parse_int=str,
+            parse_float=str,
+            parse_constant=lambda token: (_ for _ in ()).throw(ValueError(token)),
+        )
+    except ParisonError:
+        raise
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ParisonError(f"cannot parse JSON document {path}: {exc}") from exc
+    for raw_token in pointer.split("/")[1:] if pointer else ():
+        if "~" in raw_token.replace("~0", "").replace("~1", ""):
+            raise ParisonError(f"JSON pointer has an invalid escape: {pointer}")
+        token = raw_token.replace("~1", "/").replace("~0", "~")
+        if isinstance(value, dict) and token in value:
+            value = value[token]
+        elif isinstance(value, list) and token.isdigit() and (token == "0" or not token.startswith("0")):
+            index = int(token)
+            if index >= len(value):
+                raise ParisonError(f"JSON pointer does not resolve: {pointer}")
+            value = value[index]
+        else:
+            raise ParisonError(f"JSON pointer does not resolve: {pointer}")
+    if not isinstance(value, list):
+        raise ParisonError(f"JSON pointer must select an array: {pointer}")
+    if max_rows is not None and len(value) > max_rows:
+        raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
+    headers = None
+    for index, row in enumerate(value):
+        if not isinstance(row, dict):
+            raise ParisonError(f"JSON record {index} in {path} must be an object")
+        if any(not isinstance(name, str) or not name for name in row):
+            raise ParisonError(f"JSON record {index} in {path} has an empty or invalid field name")
+        if any(isinstance(item, (dict, list)) for item in row.values()):
+            raise ParisonError(f"JSON record {index} in {path} contains a nested value")
+        if headers is None:
+            headers = list(row)
+            if not headers:
+                raise ParisonError(f"JSON record {index} in {path} has no fields")
+            yield headers, None
+        elif set(row) != set(headers):
+            raise ParisonError(f"inconsistent JSON fields at record {index} in {path}")
+        yield (
+            headers,
+            {name: "true" if item is True else "false" if item is False else item for name, item in row.items()},
+        )
+    if headers is None:
+        raise ParisonError(f"input has no schema: {source}")
+
+
 def _iter_jsonl(path: Path, max_rows: int, decoded_sizes: dict[Path, int]):
     try:
         handle = _open_text(path, decoded_sizes)
@@ -511,6 +603,13 @@ def _input_columns(
             rows.close()
     if _xlsx_source(path):
         rows = _xlsx_rows(path, None)
+        try:
+            columns, _ = next(rows)
+            return columns
+        finally:
+            rows.close()
+    if _json_source(path):
+        rows = _json_rows(path, None)
         try:
             columns, _ = next(rows)
             return columns
@@ -720,8 +819,15 @@ def validate_inputs(
         paths = _source_paths(source)
         sqlite_source = _sqlite_source(source)
         xlsx_source = _xlsx_source(source)
+        json_source = _json_source(source)
         inputs[side] = {
-            "format": "sqlite" if sqlite_source else "xlsx" if xlsx_source else _file_format(paths[0]),
+            "format": "sqlite"
+            if sqlite_source
+            else "xlsx"
+            if xlsx_source
+            else "json"
+            if json_source
+            else _file_format(paths[0]),
             "bytes": sizes[side],
             "columns": len(columns),
             "partitions": len(paths),
@@ -731,6 +837,8 @@ def validate_inputs(
             inputs[side]["table"] = sqlite_source[1]
         elif xlsx_source:
             inputs[side].update(worksheet=xlsx_source[1], range=xlsx_source[2])
+        elif json_source:
+            inputs[side]["pointer"] = json_source[1]
         if inputs[side]["format"] in {"csv", "tsv"}:
             inputs[side]["delimiter"] = delimiter
             inputs[side]["null_tokens"] = recipe["null_tokens"][side]
@@ -752,9 +860,16 @@ def validate_inputs(
     if validate_records and any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being validated")
     uses_xlsx = any(_xlsx_source(source) for source in (baseline, candidate))
+    uses_json = any(_json_source(source) for source in (baseline, candidate))
     result = {
         "schema_version": (
-            5
+            8
+            if uses_json and recipe["comparison_mode"] == "aggregate"
+            else 9
+            if uses_json and recipe["comparison_mode"] == "multiset"
+            else 7
+            if uses_json
+            else 5
             if uses_xlsx and recipe["comparison_mode"] == "aggregate"
             else 6
             if uses_xlsx and recipe["comparison_mode"] == "multiset"
@@ -888,10 +1003,10 @@ def draft_recipe(
         "delimiters": delimiters,
         "null_tokens": {"baseline": [], "candidate": []},
     }
-    uses_xlsx = any(_xlsx_source(source) for source in (baseline, candidate))
-    if uses_xlsx:
+    uses_structured = any(_xlsx_source(source) or _json_source(source) for source in (baseline, candidate))
+    if uses_structured:
         inspection_recipe["input_projection"] = "semantic-scalar-v1"
-    if uses_xlsx:
+    if uses_structured:
         baseline_rows = list(_iter_input_rows(baseline, inspection_recipe, 5_000_000, "baseline", decoded_sizes))
         candidate_rows = list(_iter_input_rows(candidate, inspection_recipe, 5_000_000, "candidate", decoded_sizes))
     else:
@@ -925,7 +1040,7 @@ def draft_recipe(
         },
         "output": {"sensitivity": "summary"},
     }
-    if uses_xlsx:
+    if uses_structured:
         common["input_projection"] = "semantic-scalar-v1"
     if aggregate:
         rows = baseline_rows + candidate_rows
@@ -989,6 +1104,15 @@ def _iter_input_rows(
         for _, row in stream:
             yield row
         return
+    if _json_source(path):
+        if recipe.get("input_projection") != "semantic-scalar-v1":
+            raise ParisonError("JSON document inputs require input_projection 'semantic-scalar-v1'")
+        stream = _json_rows(path, max_rows)
+        headers, _ = next(stream)
+        _validate_headers(_source_path(path), headers, recipe, side)
+        for _, row in stream:
+            yield row
+        return
     path = Path(path)
     if path.is_symlink():
         raise ParisonError(f"input must not be a symlink: {path}")
@@ -1042,6 +1166,6 @@ def _iter_input_rows(
         yield from rows
     else:
         raise ParisonError(
-            f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet, an XLSX locator, "
+            f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet, a JSON or XLSX locator, "
             "or gzip-compressed text"
         )

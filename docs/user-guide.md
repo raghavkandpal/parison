@@ -44,9 +44,23 @@ receipts separately.
 
 ### 1. Review and lock policy
 
-Supported inputs are CSV/TSV, JSON Lines, Parquet, read-only SQLite tables and
-explicit XLSX value ranges. Partitioned directories and bounded gzip text
-inputs are also supported.
+Supported inputs are CSV/TSV, JSON Lines, explicit JSON document record arrays,
+Parquet, read-only SQLite tables and explicit XLSX value ranges. Partitioned
+directories and bounded gzip text inputs are also supported.
+
+Select JSON document records with an RFC 6901 JSON Pointer. The selected value
+must be an array of flat objects with consistent fields; duplicate members,
+nested values and implicit array discovery are rejected:
+
+```sh
+parison draft-recipe \
+  --baseline 'json:baseline.json#/exports/records' \
+  --candidate 'json:candidate.json#/exports/records' \
+  --output recipe.json
+```
+
+Review the generated `semantic-scalar-v1` policy. See the
+[JSON document projection contract](1.8/178-json-document-projection-contract.md).
 
 Install the XLSX extra, then identify the workbook, worksheet and bounded
 rectangle explicitly. The first row is the header:

@@ -8,7 +8,7 @@ Theme: explicit structured-record projection
 
 1. JSON document projection: select one array of flat record objects with an
    RFC 6901 JSON Pointer. Gate: all comparison modes, drafting, suites,
-   preflight/evidence and hostile-input cases pass. **In progress.**
+   preflight/evidence and hostile-input cases pass. **Complete locally; exact-commit CI pending.**
 2. XML record projection: select repeated records with a bounded element path
    and explicit namespaces. Gate: scalar mapping, structural ambiguity,
    security limits and all existing workflows pass. **Pending.**

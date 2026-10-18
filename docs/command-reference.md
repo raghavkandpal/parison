@@ -358,7 +358,7 @@ options:
 
 ```text
 positional arguments:
-  {recipe,recipe-authoring,recipe-v2,recipe-v3,result,result-v2,result-v3,manifest,preflight,preflight-v2,preflight-v3,preflight-v4,preflight-v5,preflight-v6,suite,suite-authoring,suite-v2,suite-result,suite-result-v2,suite-manifest,suite-manifest-v2,statement,schema-evolution,policy-diff,time-alignment,reconciliation,alignment-preflight,relationship-result,conservation-result,reconciliation-result,dataset-manifest,reproducibility-diagnostic,discrepancy-analysis,discrepancy-drilldown}
+  {recipe,recipe-authoring,recipe-v2,recipe-v3,result,result-v2,result-v3,manifest,preflight,preflight-v2,preflight-v3,preflight-v4,preflight-v5,preflight-v6,preflight-v7,preflight-v8,preflight-v9,suite,suite-authoring,suite-v2,suite-result,suite-result-v2,suite-manifest,suite-manifest-v2,statement,schema-evolution,policy-diff,time-alignment,reconciliation,alignment-preflight,relationship-result,conservation-result,reconciliation-result,dataset-manifest,reproducibility-diagnostic,discrepancy-analysis,discrepancy-drilldown}
 
 options:
   -h, --help            show this help message and exit

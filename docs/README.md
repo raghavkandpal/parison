@@ -9,6 +9,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Structured record projection research](1.8/176-structured-record-projection-research.md)
 - [1.8 roadmap](1.8/177-roadmap.md)
 - [JSON document projection contract](1.8/178-json-document-projection-contract.md)
+- [JSON document engineering checkpoint](1.8/179-json-document-engineering-checkpoint.md)
 
 ## 1.7 — released
 
