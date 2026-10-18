@@ -13,6 +13,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 
 - [Current workflow and command-reference research](1.6/165-current-workflow-research.md)
 - [1.6 roadmap](1.6/166-roadmap.md)
+- [1.6 engineering checkpoint](1.6/167-engineering-checkpoint.md)
+- [1.6.0 release checklist](1.6/168-release-checklist.md)
 
 ## Pre-1.5 repository maintenance
 

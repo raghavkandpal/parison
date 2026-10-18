@@ -1,20 +1,24 @@
 # Parison 1.6 roadmap
 
-Status: **active**
+Status: **complete**
 
 Theme: one maintained workflow entry point backed by the real CLI
 
 ## Scope
 
-1. Record the adoption evidence, boundary and completion gate.
+1. Record the adoption evidence, boundary and completion gate. **Complete.**
 2. Add a deterministic standard-library command-reference generator and pin
    its output with a focused drift test.
+   **Complete.**
 3. Replace the frozen 0.19 entry point with a stable current 1.x guide that
    covers all released workflows through discrepancy analysis.
+   **Complete.**
 4. Make the README and documentation index point to the stable current pages;
    preserve versioned guides as historical records.
+   **Complete.**
 5. Verify focused documentation tests, the full local check and the required
    built-wheel platform matrix before preparing 1.6.0.
+   **Complete.**
 
 ## Compatibility
 
