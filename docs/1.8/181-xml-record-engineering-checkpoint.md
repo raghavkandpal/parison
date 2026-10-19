@@ -23,12 +23,18 @@ also passed.
 
 Fresh blind review then found that UTF-16 could bypass the declaration scan,
 resource limits were enforced only after full tree construction, and
-field-only namespace bindings were rejected. The follow-up requires UTF-8,
-scans declarations independent of a byte encoding trick, enforces depth/node/
-text bounds during event parsing, releases completed elements, and permits
-additional unique field namespace bindings. Its focused 17-test parser/schema
-gate and Ruff pass; a full `make check`, commit, push and exact-commit CI remain
-for the next session.
+field-only namespace bindings were rejected. Exact correction checkpoint
+`9b3bf0877390e3e80966deeb6f44c55e4182bb72` requires UTF-8, enforces
+depth/node/text bounds during event parsing, releases completed elements, and
+permits additional unique field namespace bindings. It passed the full
+[built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39142456297)
+and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39142456312).
+
+A second fresh blind review found that the declaration pre-scan also rejected
+literal declaration markers inside valid comments and CDATA. The follow-up
+distinguishes those content regions while continuing to reject actual DTD and
+entity declarations; direct depth and text-limit regressions strengthen the
+streaming-bound proof. A full local check and exact-commit CI remain.
 
 This completes two of three required 1.8 features. It is not a release
 candidate and must not be tagged or published independently.

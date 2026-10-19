@@ -553,7 +553,21 @@ def _xml_rows(source: str | Path, max_rows: int | None):
         xml_text = content.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
         raise ParisonError(f"XML document must use UTF-8 encoding: {path}") from exc
-    if "<!DOCTYPE" in xml_text or "<!ENTITY" in xml_text:
+    offset = 0
+    while (declaration := xml_text.find("<!", offset)) >= 0:
+        if xml_text.startswith("<!--", declaration):
+            end = xml_text.find("-->", declaration + 4)
+            offset = len(xml_text) if end < 0 else end + 3
+        elif xml_text.startswith("<![CDATA[", declaration):
+            end = xml_text.find("]]>", declaration + 9)
+            offset = len(xml_text) if end < 0 else end + 3
+        elif xml_text.startswith(("<!DOCTYPE", "<!ENTITY"), declaration):
+            break
+        else:
+            offset = declaration + 2
+    else:
+        declaration = -1
+    if declaration >= 0 and xml_text.startswith(("<!DOCTYPE", "<!ENTITY"), declaration):
         raise ParisonError(f"XML document contains a forbidden DTD or entity declaration: {path}")
     reverse_namespaces = {uri: prefix for prefix, uri in namespaces.items()}
 

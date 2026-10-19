@@ -146,6 +146,35 @@ class XmlInput(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "require input_projection"):
             validate_inputs(self.recipe, self.source, self.source)
 
+    def test_declaration_markers_in_comments_and_cdata_are_values_not_declarations(self):
+        self.recipe.write_text(
+            json.dumps(
+                {
+                    **RECIPE,
+                    "keys": ["id"],
+                    "columns": {"id": {"type": "string", "comparison": "exact"}},
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.document.write_text(
+            "<root><!-- <!DOCTYPE harmless> --><record><id><![CDATA[literal <!ENTITY marker>]]></id></record></root>",
+            encoding="utf-8",
+        )
+        source = f"xml:{self.document}#root/record"
+        self.assertEqual(compare(self.recipe, source, source)["outcome"], "PASS")
+
+    def test_streaming_parser_enforces_depth_and_text_limits(self):
+        self.document.write_text("<root>" + "<x>" * 100 + "</x>" * 100 + "</root>", encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "depth limit 100"):
+            compare(self.recipe, f"xml:{self.document}#root/record", self.source)
+
+        self.document.write_text(
+            "<root><record><id>" + "x" * (1024 * 1024 + 1) + "</id></record></root>", encoding="utf-8"
+        )
+        with self.assertRaisesRegex(ParisonError, "text exceeds 1048576 byte limit"):
+            compare(self.recipe, f"xml:{self.document}#root/record", self.source)
+
 
 if __name__ == "__main__":
     unittest.main()
