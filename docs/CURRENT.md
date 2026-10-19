@@ -6,7 +6,11 @@
 - Released: explicit JSON Pointer, bounded QName XML and exact XLSX named-table record projection across all comparison modes
 - Verified: exact 1.8 merge `511b1bbc9c68a581760939b72690255ec545dbbb` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39230867633) and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39230867642); public assets were checksum-verified and all three projection workflows passed fresh
 - Verified: combined parser-train checkpoint `defb65fac85ac0bc8eac48b2f6f70af3ebb07bcc` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39201282230), [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39201282259), independent Standards and Spec review, and a fresh Python 3.14 named-table wheel smoke
-- Next gate: implement and qualify the frozen JSON field-projection contract under recipe versions 4--6
+- Implemented and reviewed: JSON field projection under recipe versions 4--6
+  passed fresh blind Standards and Spec review after correcting preflight
+  source pairing, XML schema coverage and controlled surrogate rejection
+- Next gate: qualify the exact JSON checkpoint in built-wheel CI, record that
+  evidence, then freeze the XML field-projection contract
 
 ## Recorded next steps
 

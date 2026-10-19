@@ -62,6 +62,33 @@ parison draft-recipe \
 Review the generated `semantic-scalar-v1` policy. See the
 [JSON document projection contract](1.8/178-json-document-projection-contract.md).
 
+To select nested scalar fields from each JSON record, write and review a
+recipe-version 4, 5 or 6 policy instead of relying on drafting. Each logical
+field has one explicit RFC 6901 pointer, while a flat side uses an equally
+explicit direct mapping:
+
+```json
+{
+  "field_projection": {
+    "version": 1,
+    "baseline": {
+      "kind": "json-pointer-v1",
+      "fields": {"id": "/identity/id", "amount": "/totals/net"}
+    },
+    "candidate": {
+      "kind": "direct-v1",
+      "fields": {"id": "id", "amount": "amount"}
+    }
+  }
+}
+```
+
+The maps must cover exactly the configured logical fields. Missing paths and
+selected containers are errors; unselected members are outside comparison
+scope. The selectors affect the policy fingerprint but are excluded from
+summary results. See the
+[JSON field-projection contract](1.9/189-json-field-projection-contract.md).
+
 Select XML records with an exact root-to-record QName path and explicit,
 percent-encoded namespace bindings:
 

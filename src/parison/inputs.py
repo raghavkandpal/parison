@@ -580,7 +580,31 @@ def _jsonl_record(line: str, path: Path, line_number: int) -> dict[str, Any]:
     return {name: ("true" if item is True else "false" if item is False else item) for name, item in value.items()}
 
 
-def _json_rows(source: str | Path, max_rows: int | None):
+def _resolve_json_pointer(value: Any, pointer: str, where: str) -> Any:
+    failure = f"JSON pointer does not resolve{f' {where}' if where else ''}: {pointer}"
+    for raw_token in pointer.split("/")[1:] if pointer else ():
+        if "~" in raw_token.replace("~0", "").replace("~1", ""):
+            raise ParisonError(f"JSON pointer has an invalid escape: {pointer}")
+        token = raw_token.replace("~1", "/").replace("~0", "~")
+        if isinstance(value, dict) and token in value:
+            value = value[token]
+        elif isinstance(value, list) and (
+            token == "0"
+            or (token and token[0] in "123456789" and all(character in "0123456789" for character in token))
+        ):
+            try:
+                index = int(token)
+            except ValueError as exc:
+                raise ParisonError(failure) from exc
+            if index >= len(value):
+                raise ParisonError(failure)
+            value = value[index]
+        else:
+            raise ParisonError(failure)
+    return value
+
+
+def _json_rows(source: str | Path, max_rows: int | None, selectors: dict[str, str] | None = None):
     path, pointer = _json_source(source) or (None, None)
     assert path is not None and pointer is not None
     if path.is_symlink() or not path.is_file():
@@ -604,25 +628,7 @@ def _json_rows(source: str | Path, max_rows: int | None):
         raise
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, RecursionError) as exc:
         raise ParisonError(f"cannot parse JSON document {path}: {exc}") from exc
-    for raw_token in pointer.split("/")[1:] if pointer else ():
-        if "~" in raw_token.replace("~0", "").replace("~1", ""):
-            raise ParisonError(f"JSON pointer has an invalid escape: {pointer}")
-        token = raw_token.replace("~1", "/").replace("~0", "~")
-        if isinstance(value, dict) and token in value:
-            value = value[token]
-        elif isinstance(value, list) and (
-            token == "0"
-            or (token and token[0] in "123456789" and all(character in "0123456789" for character in token))
-        ):
-            try:
-                index = int(token)
-            except ValueError as exc:
-                raise ParisonError(f"JSON pointer does not resolve: {pointer}") from exc
-            if index >= len(value):
-                raise ParisonError(f"JSON pointer does not resolve: {pointer}")
-            value = value[index]
-        else:
-            raise ParisonError(f"JSON pointer does not resolve: {pointer}")
+    value = _resolve_json_pointer(value, pointer, "")
     if not isinstance(value, list):
         raise ParisonError(f"JSON pointer must select an array: {pointer}")
     if max_rows is not None and len(value) > max_rows:
@@ -633,18 +639,27 @@ def _json_rows(source: str | Path, max_rows: int | None):
             raise ParisonError(f"JSON record {index} in {path} must be an object")
         if any(not isinstance(name, str) or not name for name in row):
             raise ParisonError(f"JSON record {index} in {path} has an empty or invalid field name")
-        if any(isinstance(item, (dict, list)) for item in row.values()):
-            raise ParisonError(f"JSON record {index} in {path} contains a nested value")
+        if selectors is None:
+            if any(isinstance(item, (dict, list)) for item in row.values()):
+                raise ParisonError(f"JSON record {index} in {path} contains a nested value")
+            projected = row
+        else:
+            projected = {}
+            for name, field_pointer in selectors.items():
+                item = _resolve_json_pointer(row, field_pointer, f"at record {index}")
+                if isinstance(item, (dict, list)):
+                    raise ParisonError(f"JSON field pointer for {name} selects a container at record {index} in {path}")
+                projected[name] = item
         if headers is None:
-            headers = list(row)
+            headers = list(projected)
             if not headers:
                 raise ParisonError(f"JSON record {index} in {path} has no fields")
             yield headers, None
-        elif set(row) != set(headers):
+        elif selectors is None and set(projected) != set(headers):
             raise ParisonError(f"inconsistent JSON fields at record {index} in {path}")
         yield (
             headers,
-            {name: "true" if item is True else "false" if item is False else item for name, item in row.items()},
+            {name: "true" if item is True else "false" if item is False else item for name, item in projected.items()},
         )
     if headers is None:
         raise ParisonError(f"input has no schema: {source}")
@@ -895,7 +910,9 @@ def _input_columns(
         finally:
             rows.close()
     if _json_source(path):
-        rows = _json_rows(path, max_rows)
+        projection = recipe.get("field_projection", {}).get(side) if recipe is not None and side is not None else None
+        selectors = projection["fields"] if projection and projection["kind"] == "json-pointer-v1" else None
+        rows = _json_rows(path, max_rows, selectors)
         try:
             columns, _ = next(rows)
             for _ in rows:
@@ -953,6 +970,17 @@ def _input_columns(
     if any(not isinstance(name, str) or not name for name in columns) or len(columns) != len(set(columns)):
         raise ParisonError(f"input has empty or duplicate column names: {path}")
     return columns
+
+
+def _validate_field_projection_source(path: str | Path, recipe: dict[str, Any], side: str) -> None:
+    projection = recipe.get("field_projection", {}).get(side)
+    if projection is None:
+        return
+    json_source = _json_source(path)
+    if json_source and projection["kind"] != "json-pointer-v1":
+        raise ParisonError(f"field_projection.{side} for a JSON document must use json-pointer-v1")
+    if not json_source and projection["kind"] == "json-pointer-v1":
+        raise ParisonError(f"field_projection.{side} kind json-pointer-v1 requires a JSON document locator")
 
 
 def _record_diagnostics(
@@ -1109,6 +1137,7 @@ def validate_inputs(
     status = "valid"
     for side, source in (("baseline", baseline), ("candidate", candidate)):
         delimiter = recipe["delimiters"][side]
+        _validate_field_projection_source(source, recipe, side)
         if _xlsx_source(source) and recipe.get("input_projection") != "semantic-scalar-v1":
             raise ParisonError("XLSX inputs require input_projection 'semantic-scalar-v1'")
         if _json_source(source) and recipe.get("input_projection") != "semantic-scalar-v1":
@@ -1175,7 +1204,13 @@ def validate_inputs(
     uses_xml = any(_xml_source(source) for source in (baseline, candidate))
     result = {
         "schema_version": (
-            14
+            17
+            if recipe["recipe_version"] == 5
+            else 18
+            if recipe["recipe_version"] == 6
+            else 16
+            if recipe["recipe_version"] == 4
+            else 14
             if uses_xlsx_table and recipe["comparison_mode"] == "aggregate"
             else 15
             if uses_xlsx_table and recipe["comparison_mode"] == "multiset"
@@ -1211,6 +1246,8 @@ def validate_inputs(
         "policy_sha256": policy_sha256,
         "inputs": inputs,
     }
+    if "field_projection" in recipe:
+        result["field_projection"] = recipe["field_projection"]
     if recipe["comparison_mode"] == "aggregate":
         result.update(group_by=recipe["group_by"], measures=list(recipe["measures"]), max_groups=max_groups)
     elif recipe["comparison_mode"] == "multiset":
@@ -1405,6 +1442,8 @@ def _iter_input_rows(
 ):
     decoded_sizes = decoded_sizes or {}
     source_path = _source_path(path)
+    field_projection = recipe.get("field_projection", {}).get(side)
+    _validate_field_projection_source(path, recipe, side)
     if source_path.is_dir():
         row_count = 0
         for partition in _source_paths(path):
@@ -1433,7 +1472,10 @@ def _iter_input_rows(
     if _json_source(path):
         if recipe.get("input_projection") != "semantic-scalar-v1":
             raise ParisonError("JSON document inputs require input_projection 'semantic-scalar-v1'")
-        stream = _json_rows(path, max_rows)
+        selectors = (
+            field_projection["fields"] if field_projection and field_projection["kind"] == "json-pointer-v1" else None
+        )
+        stream = _json_rows(path, max_rows, selectors)
         headers, _ = next(stream)
         _validate_headers(_source_path(path), headers, recipe, side)
         for _, row in stream:

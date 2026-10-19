@@ -4,6 +4,18 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Explicit per-field RFC 6901 projection from selected JSON records through
+  recipe versions 4--6, with exact direct-side mappings, strict recipe and
+  preflight schemas, policy fingerprinting and all comparison modes.
+
+### Compatibility
+
+- Recipe versions 1--3, released schemas and existing result/bundle formats
+  remain unchanged. Summary comparison results exclude field selectors and
+  source names.
+
 ## 1.8.0 - 2026-10-19
 
 ### Added

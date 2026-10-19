@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/raghavkandpal/parison/main/src/parison/schemas/recipe-v5.schema.json",
+  "title": "Parison aggregate recipe v5",
+  "description": "A strict global or grouped aggregate comparison policy with explicit measures and null handling.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["recipe_version", "comparison_mode", "group_by", "measures", "scope", "columns", "input_projection", "field_projection"],
+  "allOf": [{"not": {"required": ["column_mappings"]}}],
+  "properties": {
+    "recipe_version": {"const": 5},
+    "comparison_mode": {"const": "aggregate"},
+    "field_projection": {"$ref": "#/$defs/fieldProjection"},
+    "input_projection": {"const": "semantic-scalar-v1", "description": "Opt-in closed source-scalar projection before the existing aggregate comparison semantics."},
+    "group_by": {"description": "Canonical columns defining groups; an empty array requests one global group.", "type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "measures": {
+      "description": "Named count, sum, minimum or maximum measures compared per group.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"minLength": 1},
+      "additionalProperties": {"$ref": "#/$defs/measure"}
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshot", "cutoff", "filters", "completeness", "expected_empty"],
+      "properties": {
+        "snapshot": {"type": "string", "minLength": 1},
+        "cutoff": {"type": "string", "minLength": 1},
+        "filters": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "completeness": {"const": "full"},
+        "expected_empty": {"type": "boolean"}
+      }
+    },
+    "null_tokens": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline", "candidate"],
+      "properties": {
+        "baseline": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "candidate": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "columns": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/column"}},
+    "column_mappings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["baseline", "candidate"],
+        "properties": {
+          "baseline": {"type": "string", "minLength": 1},
+          "candidate": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "excluded_columns": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}},
+    "delimiters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline", "candidate"],
+      "properties": {
+        "baseline": {"type": "string", "minLength": 1, "maxLength": 1},
+        "candidate": {"type": "string", "minLength": 1, "maxLength": 1}
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sensitivity"],
+      "properties": {"sensitivity": {"enum": ["summary", "raw"]}}
+    }
+  },
+  "$defs": {
+    "fieldProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "baseline", "candidate"],
+      "properties": {"version": {"const": 1}, "baseline": {"$ref": "#/$defs/sideProjection"}, "candidate": {"$ref": "#/$defs/sideProjection"}}
+    },
+    "sideProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "fields"],
+      "properties": {"kind": {"enum": ["direct-v1", "json-pointer-v1"]}, "fields": {"type": "object", "minProperties": 1, "maxProperties": 256, "additionalProperties": {"type": "string", "minLength": 1}}}
+    },
+    "column": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["string", "integer", "decimal", "float", "boolean", "date", "timestamp"]},
+        "comparison": {"const": "exact"},
+        "timezone": {"const": "require-aware"},
+        "scale": {"type": "integer", "minimum": 0},
+        "normalize": {"type": "array", "uniqueItems": true, "items": {"enum": ["trim", "casefold", "unicode_nfc"]}}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"const": "timestamp"}}}, "then": {"required": ["timezone"]}, "else": {"not": {"required": ["timezone"]}}},
+        {"if": {"properties": {"type": {"const": "decimal"}}}, "then": {"required": ["scale"]}, "else": {"not": {"required": ["scale"]}}},
+        {"if": {"properties": {"type": {"const": "string"}}}, "else": {"not": {"required": ["normalize"]}}}
+      ]
+    },
+    "tolerance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formula", "absolute", "relative"],
+      "properties": {
+        "formula": {"const": "symmetric-v1"},
+        "absolute": {"type": ["string", "number", "integer"]},
+        "relative": {"type": ["string", "number", "integer"]}
+      }
+    },
+    "measure": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operator"],
+          "properties": {"operator": {"const": "count"}}
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operator", "column", "nulls"],
+          "properties": {
+            "operator": {"enum": ["sum", "min", "max"]},
+            "column": {"type": "string", "minLength": 1},
+            "nulls": {"enum": ["reject", "ignore"]},
+            "comparison": {"enum": ["exact", "numeric"]},
+            "tolerance": {"$ref": "#/$defs/tolerance"}
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"comparison": {"const": "numeric"}}, "required": ["comparison"]},
+              "then": {"required": ["tolerance"]},
+              "else": {"not": {"required": ["tolerance"]}}
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

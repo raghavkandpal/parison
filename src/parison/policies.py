@@ -52,6 +52,9 @@ def export_editor_schemas(output: str | Path) -> dict[str, Any]:
         "recipe-v1.schema.json": "recipe",
         "recipe-v2.schema.json": "recipe-v2",
         "recipe-v3.schema.json": "recipe-v3",
+        "recipe-v4.schema.json": "recipe-v4",
+        "recipe-v5.schema.json": "recipe-v5",
+        "recipe-v6.schema.json": "recipe-v6",
         "suite.schema.json": "suite-authoring",
         "suite-v1.schema.json": "suite",
         "suite-v2.schema.json": "suite-v2",
@@ -317,10 +320,16 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         raise ParisonError(f"cannot read recipe: {exc}") from exc
     if not isinstance(recipe, dict):
         raise ParisonError("recipe must be a JSON object")
+    if recipe.get("recipe_version") in {4, 5, 6}:
+        return _load_projected_recipe(recipe)
     if recipe.get("recipe_version") == 2:
         return _load_aggregate_recipe(recipe)
     if recipe.get("recipe_version") == 3:
         return _load_multiset_recipe(recipe)
+    return _load_keyed_recipe(recipe)
+
+
+def _load_keyed_recipe(recipe: dict[str, Any]) -> dict[str, Any]:
     _unknown(recipe, _RECIPE_KEYS, "recipe")
     if recipe.get("recipe_version") != 1:
         raise ParisonError("recipe_version must be 1")
@@ -455,6 +464,70 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     recipe["output"] = output
     _validate_input_projection(recipe)
     return recipe
+
+
+def _load_projected_recipe(recipe: dict[str, Any]) -> dict[str, Any]:
+    version = recipe["recipe_version"]
+    expected_mode = {4: "keyed", 5: "aggregate", 6: "multiset"}[version]
+    if recipe.get("comparison_mode") != expected_mode:
+        raise ParisonError(f"recipe_version {version} requires comparison_mode={expected_mode!r}")
+    if "column_mappings" in recipe:
+        raise ParisonError(f"recipe_version {version} replaces column_mappings with field_projection")
+    projection = recipe.get("field_projection")
+    legacy = dict(recipe)
+    legacy.pop("field_projection", None)
+    legacy["recipe_version"] = version - 3
+    loaded = (
+        _load_aggregate_recipe(legacy)
+        if version == 5
+        else _load_multiset_recipe(legacy)
+        if version == 6
+        else _load_keyed_recipe(legacy)
+    )
+    if loaded.get("input_projection") != "semantic-scalar-v1":
+        raise ParisonError(f"recipe_version {version} requires input_projection='semantic-scalar-v1'")
+    _validate_field_projection(projection, set(loaded["columns"]))
+    loaded["recipe_version"] = version
+    loaded["field_projection"] = projection
+    return loaded
+
+
+def _validate_field_projection(projection: Any, columns: set[str]) -> None:
+    if not isinstance(projection, dict) or set(projection) != {"version", "baseline", "candidate"}:
+        raise ParisonError("field_projection must contain exactly version, baseline and candidate")
+    if projection["version"] != 1:
+        raise ParisonError("field_projection.version must be 1")
+    if len(columns) > 256:
+        raise ParisonError("field_projection supports at most 256 configured columns")
+    for side in ("baseline", "candidate"):
+        configured = projection[side]
+        if not isinstance(configured, dict) or set(configured) != {"kind", "fields"}:
+            raise ParisonError(f"field_projection.{side} must contain exactly kind and fields")
+        kind = configured["kind"]
+        if kind not in {"direct-v1", "json-pointer-v1"}:
+            raise ParisonError(f"field_projection.{side}.kind is unsupported")
+        fields = configured["fields"]
+        if not isinstance(fields, dict) or set(fields) != columns:
+            raise ParisonError(f"field_projection.{side}.fields must name exactly the configured columns")
+        try:
+            selectors_valid = all(
+                isinstance(value, str) and value and len(value.encode("utf-8")) <= 1024 for value in fields.values()
+            )
+        except UnicodeEncodeError:
+            selectors_valid = False
+        if not selectors_valid:
+            raise ParisonError(f"field_projection.{side}.fields must contain nonempty selectors up to 1024 bytes")
+        if len(set(fields.values())) != len(fields):
+            raise ParisonError(f"field_projection.{side}.fields selectors must be unique")
+        if kind == "json-pointer-v1":
+            for pointer in fields.values():
+                tokens = pointer.split("/")[1:] if pointer.startswith("/") else []
+                if not pointer.startswith("/") or not 1 <= len(tokens) <= 32:
+                    raise ParisonError(
+                        f"field_projection.{side} JSON pointers must be nonempty and contain at most 32 tokens"
+                    )
+                if any("~" in token.replace("~0", "").replace("~1", "") for token in tokens):
+                    raise ParisonError(f"field_projection.{side} contains an invalid JSON pointer escape")
 
 
 def _load_aggregate_recipe(recipe: dict[str, Any]) -> dict[str, Any]:
@@ -709,12 +782,19 @@ def _parse_input(raw: Any, policy: dict[str, Any], column: str, recipe: dict[str
 
 
 def _source_name(recipe: dict[str, Any], name: str, side: str) -> str:
+    projection = recipe.get("field_projection", {}).get(side)
+    if projection is not None:
+        return projection["fields"][name] if projection["kind"] == "direct-v1" else name
     return recipe.get("column_mappings", {}).get(name, {}).get(side, name)
 
 
-def _with_input_projection(recipe: dict[str, Any], policy: dict[str, Any]) -> dict[str, Any]:
+def _with_input_projection(
+    recipe: dict[str, Any], policy: dict[str, Any], include_field_projection: bool = True
+) -> dict[str, Any]:
     if "input_projection" in recipe:
         policy["input_projection"] = recipe["input_projection"]
+    if include_field_projection and "field_projection" in recipe:
+        policy["field_projection"] = recipe["field_projection"]
     return policy
 
 
@@ -778,7 +858,7 @@ def _effective_aggregate_policy(recipe: dict[str, Any]) -> dict[str, Any]:
         recipe,
         {
             "schema_version": 2,
-            "recipe_version": 2,
+            "recipe_version": recipe["recipe_version"],
             "comparison_mode": "aggregate",
             "aggregate_contract": "aggregate-v1",
             "scope": recipe["scope"],
@@ -813,7 +893,7 @@ def _effective_multiset_policy(recipe: dict[str, Any]) -> dict[str, Any]:
         recipe,
         {
             "schema_version": 3,
-            "recipe_version": 3,
+            "recipe_version": recipe["recipe_version"],
             "comparison_mode": "multiset",
             "multiset_contract": "multiset-v1",
             "canonical_encoding": "typed-length-prefixed-v1",

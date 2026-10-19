@@ -61,11 +61,17 @@ jobs:
       - run: parison schema preflight
       - run: parison schema recipe-v2
       - run: parison schema recipe-v3
+      - run: parison schema recipe-v4
+      - run: parison schema recipe-v5
+      - run: parison schema recipe-v6
       - run: parison schema preflight-v2
       - run: parison schema preflight-v3
       - run: parison schema preflight-v4
       - run: parison schema preflight-v5
       - run: parison schema preflight-v6
+      - run: parison schema preflight-v16
+      - run: parison schema preflight-v17
+      - run: parison schema preflight-v18
       - run: parison schema result-v2
       - run: parison schema result-v3
       - run: parison schema suite
@@ -223,6 +229,9 @@ jobs:
       - run: parison --version
       - run: python tests/test_xlsx.py -v
       - run: parison schema recipe-v3
+      - run: parison schema recipe-v4
+      - run: parison schema recipe-v5
+      - run: parison schema recipe-v6
       - run: parison schema statement
       - run: parison schema reconciliation-result
       - run: parison schema dataset-manifest
@@ -233,6 +242,9 @@ jobs:
       - run: parison inspect ${{ runner.temp }}/parison-1.3-reconciliation
       - run: parison schema result-v3
       - run: parison schema preflight-v3
+      - run: parison schema preflight-v16
+      - run: parison schema preflight-v17
+      - run: parison schema preflight-v18
       - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output ${{ runner.temp }}/parison-multiset-smoke
       - run: parison inspect ${{ runner.temp }}/parison-multiset-smoke
       - name: Exercise evidence handoff

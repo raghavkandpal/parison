@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/raghavkandpal/parison/main/src/parison/schemas/recipe-v6.schema.json",
+  "title": "Parison multiset recipe v6",
+  "description": "A strict keyless comparison policy where complete canonical rows and duplicate occurrence counts matter.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["recipe_version", "comparison_mode", "scope", "columns", "input_projection", "field_projection"],
+  "allOf": [{"not": {"required": ["column_mappings"]}}],
+  "properties": {
+    "recipe_version": {"const": 6},
+    "comparison_mode": {"const": "multiset"},
+    "field_projection": {"$ref": "#/$defs/fieldProjection"},
+    "input_projection": {"const": "semantic-scalar-v1", "description": "Opt-in closed source-scalar projection before the existing multiset comparison semantics."},
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshot", "cutoff", "filters", "completeness", "expected_empty"],
+      "properties": {
+        "snapshot": {"type": "string", "minLength": 1},
+        "cutoff": {"type": "string", "minLength": 1},
+        "filters": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "completeness": {"const": "full"},
+        "expected_empty": {"type": "boolean"}
+      }
+    },
+    "null_tokens": {
+      "type": "object", "additionalProperties": false, "required": ["baseline", "candidate"],
+      "properties": {
+        "baseline": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "candidate": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "columns": {"description": "Canonical columns that together define each complete multiset row.", "type": "object", "minProperties": 1, "propertyNames": {"minLength": 1}, "additionalProperties": {"$ref": "#/$defs/column"}},
+    "column_mappings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false, "required": ["baseline", "candidate"],
+        "properties": {"baseline": {"type": "string", "minLength": 1}, "candidate": {"type": "string", "minLength": 1}}
+      }
+    },
+    "excluded_columns": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}},
+    "delimiters": {
+      "type": "object", "additionalProperties": false, "required": ["baseline", "candidate"],
+      "properties": {"baseline": {"type": "string", "minLength": 1, "maxLength": 1}, "candidate": {"type": "string", "minLength": 1, "maxLength": 1}}
+    },
+    "output": {
+      "type": "object", "additionalProperties": false, "required": ["sensitivity"],
+      "properties": {"sensitivity": {"enum": ["summary", "raw"]}}
+    }
+  },
+  "$defs": {
+    "fieldProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "baseline", "candidate"],
+      "properties": {"version": {"const": 1}, "baseline": {"$ref": "#/$defs/sideProjection"}, "candidate": {"$ref": "#/$defs/sideProjection"}}
+    },
+    "sideProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "fields"],
+      "properties": {"kind": {"enum": ["direct-v1", "json-pointer-v1"]}, "fields": {"type": "object", "minProperties": 1, "maxProperties": 256, "additionalProperties": {"type": "string", "minLength": 1}}}
+    },
+    "column": {
+      "type": "object", "additionalProperties": false, "required": ["type"],
+      "properties": {
+        "type": {"enum": ["string", "integer", "decimal", "float", "boolean", "date", "timestamp"]},
+        "comparison": {"const": "exact"},
+        "timezone": {"const": "require-aware"},
+        "scale": {"type": "integer", "minimum": 0},
+        "normalize": {"type": "array", "uniqueItems": true, "items": {"enum": ["trim", "casefold", "unicode_nfc"]}}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"const": "timestamp"}}}, "then": {"required": ["timezone"]}, "else": {"not": {"required": ["timezone"]}}},
+        {"if": {"properties": {"type": {"const": "decimal"}}}, "then": {"required": ["scale"]}, "else": {"not": {"required": ["scale"]}}},
+        {"if": {"properties": {"type": {"const": "string"}}}, "else": {"not": {"required": ["normalize"]}}}
+      ]
+    }
+  }
+}

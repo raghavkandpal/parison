@@ -612,6 +612,7 @@ def compare(
                 "null_tokens": recipe["null_tokens"],
                 "sensitivity": recipe["output"]["sensitivity"],
             },
+            False,
         ),
         "column_policies": recipe["columns"],
         "column_mappings": recipe.get("column_mappings", {}),
@@ -1096,6 +1097,7 @@ def _compare_aggregate(
                 "null_tokens": recipe["null_tokens"],
                 "sensitivity": recipe["output"]["sensitivity"],
             },
+            False,
         ),
         "column_policies": recipe["columns"],
         "column_mappings": recipe.get("column_mappings", {}),
@@ -1354,7 +1356,9 @@ def _compare_multiset(
         "resource_limits": limits,
         "scope": recipe["scope"],
         "policy": _with_input_projection(
-            recipe, {"canonical_encoding": "typed-length-prefixed-v1", "column_order": names, "nulls_equal": True}
+            recipe,
+            {"canonical_encoding": "typed-length-prefixed-v1", "column_order": names, "nulls_equal": True},
+            False,
         ),
         "column_policies": recipe["columns"],
         "column_mappings": recipe.get("column_mappings", {}),

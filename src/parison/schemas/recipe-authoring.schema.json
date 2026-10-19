@@ -6,7 +6,10 @@
   "oneOf": [
     {"$ref": "recipe-v1.schema.json"},
     {"$ref": "recipe-v2.schema.json"},
-    {"$ref": "recipe-v3.schema.json"}
+    {"$ref": "recipe-v3.schema.json"},
+    {"$ref": "recipe-v4.schema.json"},
+    {"$ref": "recipe-v5.schema.json"},
+    {"$ref": "recipe-v6.schema.json"}
   ],
   "examples": [
     {
