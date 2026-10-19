@@ -11,6 +11,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [JSON field-projection contract](1.9/189-json-field-projection-contract.md)
 - [JSON field-projection engineering checkpoint](1.9/190-json-field-projection-engineering-checkpoint.md)
 - [XML field-projection contract](1.9/191-xml-field-projection-contract.md)
+- [XML field-projection engineering checkpoint](1.9/192-xml-field-projection-engineering-checkpoint.md)
 
 ## 1.8 — released
 

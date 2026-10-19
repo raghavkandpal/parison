@@ -193,7 +193,7 @@ class JsonFieldProjection(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "nonempty selectors up to 1024 bytes"):
             load_recipe(self.recipe)
 
-    def test_projection_limits_fingerprint_and_direct_xml_preflight(self):
+    def test_projection_limits_fingerprint_and_xml_preflight(self):
         original_fingerprint = explain_recipe(self.recipe)["policy_sha256"]
         changed = deepcopy(RECIPE)
         changed["field_projection"]["baseline"]["fields"]["label"] = "/meta/a~0b"
@@ -219,10 +219,10 @@ class JsonFieldProjection(unittest.TestCase):
         xml_source = f"xml:{xml}#root/record"
         for version, schema_name in ((4, "preflight-v16"), (5, "preflight-v17"), (6, "preflight-v18")):
             recipe = deepcopy(RECIPE)
-            recipe["field_projection"]["candidate"]["fields"] = {
-                "id": "id",
-                "value": "value",
-                "label": "label",
+            recipe["field_projection"]["candidate"] = {
+                "kind": "xml-field-v1",
+                "namespaces": {},
+                "fields": {"id": "id", "value": "value", "label": "label"},
             }
             if version == 5:
                 recipe.update(

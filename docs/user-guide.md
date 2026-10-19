@@ -103,6 +103,24 @@ Records contain direct, attribute-free text child elements only. Parison
 rejects DTDs, entities, XPath-like selection and undeclared namespaces. See
 the [XML record projection contract](1.8/180-xml-record-projection-contract.md).
 
+To project record attributes or bounded nested XML leaves, write and review a
+recipe-version 4, 5 or 6 policy. The XML side owns a separate namespace map
+and uses exact attribute or child-path selectors:
+
+```json
+{
+  "kind": "xml-field-v1",
+  "namespaces": {"o": "https://example.com/orders/v1"},
+  "fields": {"id": "@id", "amount": "o:totals/o:net"}
+}
+```
+
+Every attribute and branch in each selected record must belong to the declared
+projection; missing, repeated, unselected and mixed-content shapes are errors.
+Unprefixed selectors mean no namespace, including for attributes. Drafting
+does not invent these selectors. See the
+[XML field-projection contract](1.9/191-xml-field-projection-contract.md).
+
 Install the XLSX extra, then identify either the workbook, worksheet and
 bounded rectangle or one exact workbook table name. The first row is the
 header:

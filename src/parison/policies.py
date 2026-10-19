@@ -501,10 +501,13 @@ def _validate_field_projection(projection: Any, columns: set[str]) -> None:
         raise ParisonError("field_projection supports at most 256 configured columns")
     for side in ("baseline", "candidate"):
         configured = projection[side]
-        if not isinstance(configured, dict) or set(configured) != {"kind", "fields"}:
-            raise ParisonError(f"field_projection.{side} must contain exactly kind and fields")
+        if not isinstance(configured, dict) or "kind" not in configured:
+            raise ParisonError(f"field_projection.{side} must contain a supported kind")
         kind = configured["kind"]
-        if kind not in {"direct-v1", "json-pointer-v1"}:
+        expected_keys = {"kind", "fields", "namespaces"} if kind == "xml-field-v1" else {"kind", "fields"}
+        if set(configured) != expected_keys:
+            raise ParisonError(f"field_projection.{side} must contain exactly {', '.join(sorted(expected_keys))}")
+        if kind not in {"direct-v1", "json-pointer-v1", "xml-field-v1"}:
             raise ParisonError(f"field_projection.{side}.kind is unsupported")
         fields = configured["fields"]
         if not isinstance(fields, dict) or set(fields) != columns:
@@ -528,6 +531,48 @@ def _validate_field_projection(projection: Any, columns: set[str]) -> None:
                     )
                 if any("~" in token.replace("~0", "").replace("~1", "") for token in tokens):
                     raise ParisonError(f"field_projection.{side} contains an invalid JSON pointer escape")
+        elif kind == "xml-field-v1":
+            namespaces = configured["namespaces"]
+            if not isinstance(namespaces, dict):
+                raise ParisonError(f"field_projection.{side}.namespaces must be an object")
+            try:
+                namespaces_valid = all(
+                    isinstance(prefix, str)
+                    and re.fullmatch(r"[A-Za-z_][\w.-]*", prefix, re.ASCII)
+                    and isinstance(uri, str)
+                    and uri
+                    and len(uri.encode("utf-8")) <= 1024
+                    for prefix, uri in namespaces.items()
+                )
+            except UnicodeEncodeError:
+                namespaces_valid = False
+            if not namespaces_valid or len(set(namespaces.values())) != len(namespaces):
+                raise ParisonError(f"field_projection.{side}.namespaces must contain unique portable bindings")
+            qname = r"(?:[A-Za-z_][\w.-]*:)?[A-Za-z_][\w.-]*"
+            used_prefixes = set()
+            element_paths = []
+            for selector in fields.values():
+                path = selector[1:] if selector.startswith("@") else selector
+                segments = path.split("/")
+                if (
+                    not 1 <= len(segments) <= 32
+                    or any(not re.fullmatch(qname, segment, re.ASCII) for segment in segments)
+                    or (selector.startswith("@") and len(segments) != 1)
+                ):
+                    raise ParisonError(
+                        f"field_projection.{side} XML selectors must be an attribute or 1 to 32 QName segments"
+                    )
+                used_prefixes.update(segment.split(":", 1)[0] for segment in segments if ":" in segment)
+                if not selector.startswith("@"):
+                    element_paths.append(tuple(segments))
+            if any(
+                left != right and (left[: len(right)] == right or right[: len(left)] == left)
+                for left in element_paths
+                for right in element_paths
+            ):
+                raise ParisonError(f"field_projection.{side} XML element selectors must not overlap as prefixes")
+            if used_prefixes != set(namespaces):
+                raise ParisonError(f"field_projection.{side} XML selector prefixes must exactly match namespaces")
 
 
 def _load_aggregate_recipe(recipe: dict[str, Any]) -> dict[str, Any]:

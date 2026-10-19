@@ -16,7 +16,7 @@ Theme: explicit structured field selection
    attribute or bounded unique child-element path. Gate: QName/namespace and
    attribute rules, structural ambiguity, streaming/resource limits, mixed
    inputs, all modes and engines, blind security review and exact-commit CI.
-   **Contract frozen; implementation pending.**
+   **Implemented and blind-reviewed; exact-commit qualification pending.**
 3. XLSX defined-name projection: resolve one exact static workbook-scoped name
    to one local bounded rectangle. Gate: scope, reference grammar, hostile
    definitions, headers, formulas/errors, ZIP limits, all modes and engines,

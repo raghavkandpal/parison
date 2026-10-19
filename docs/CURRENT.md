@@ -13,11 +13,12 @@
   `c657fb2c3afefa6e2fb495cab59020a0b60bf3b7` passed the full
   [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39233529242)
   and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39233529210)
-- Frozen: XML field projection selects exact record attributes or bounded
+- Implemented: XML field projection selects exact record attributes or bounded
   unique child-element paths under policy-owned namespace bindings and a
-  closed record shape; see the active implementation contract
-- Next gate: implement and qualify XML field projection as the second of three
-  required 1.9 features
+  closed record shape; fresh Spec review is clear and the Standards tail-text
+  finding is corrected and independently cleared
+- Next gate: qualify the exact XML checkpoint in built-wheel CI as the second
+  of three required features, then freeze the XLSX defined-name contract
 
 ## Recorded next steps
 

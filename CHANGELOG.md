@@ -9,6 +9,9 @@ All notable changes will be documented in this file.
 - Explicit per-field RFC 6901 projection from selected JSON records through
   recipe versions 4--6, with exact direct-side mappings, strict recipe and
   preflight schemas, policy fingerprinting and all comparison modes.
+- Explicit XML field projection from exact record attributes or bounded unique
+  child-element paths, with policy-owned namespaces, closed record shapes and
+  preserved streaming parser limits across all comparison modes.
 
 ### Compatibility
 

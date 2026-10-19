@@ -665,7 +665,7 @@ def _json_rows(source: str | Path, max_rows: int | None, selectors: dict[str, st
         raise ParisonError(f"input has no schema: {source}")
 
 
-def _xml_rows(source: str | Path, max_rows: int | None):
+def _xml_rows(source: str | Path, max_rows: int | None, field_projection: dict[str, Any] | None = None):
     path, record_path, namespaces = _xml_source(source) or (None, None, None)
     assert path is not None and record_path is not None and namespaces is not None
     if path.is_symlink() or not path.is_file():
@@ -716,6 +716,62 @@ def _xml_rows(source: str | Path, max_rows: int | None):
         return f"{reverse_namespaces[uri]}:{local}"
 
     expected_path = tuple(expanded(segment) for segment in record_path.split("/"))
+    selector_namespaces = field_projection.get("namespaces", {}) if field_projection else {}
+
+    def expanded_selector(name: str) -> str:
+        if ":" not in name:
+            return name
+        prefix, local = name.split(":", 1)
+        return f"{{{selector_namespaces[prefix]}}}{local}"
+
+    attribute_fields = {}
+    element_trie: dict[str, Any] = {}
+    if field_projection:
+        for name, selector in field_projection["fields"].items():
+            if selector.startswith("@"):
+                attribute_fields[expanded_selector(selector[1:])] = name
+                continue
+            node = element_trie
+            for segment in selector.split("/"):
+                node = node.setdefault(expanded_selector(segment), {})
+            node[None] = name
+
+    def projected_record(element: ET.Element) -> dict[str, Any]:
+        if set(element.attrib) != set(attribute_fields):
+            raise ParisonError(f"XML record attributes do not match field projection at {record_path}")
+        if (element.text or "").strip():
+            raise ParisonError(f"XML record has mixed text at {record_path}")
+        if element.tail and element.tail.strip():
+            raise ParisonError(f"XML record has mixed tail text at {record_path}")
+        row = {name: element.attrib[tag] for tag, name in attribute_fields.items()}
+
+        def walk(parent: ET.Element, trie: dict[str | None, Any]) -> None:
+            expected_children = {tag for tag in trie if tag is not None}
+            children: dict[str, ET.Element] = {}
+            for child in parent:
+                if child.tag not in expected_children:
+                    raise ParisonError(f"XML record contains an unselected element at {record_path}")
+                if child.tag in children:
+                    raise ParisonError(f"XML field path is repeated at {record_path}")
+                if child.tail and child.tail.strip():
+                    raise ParisonError(f"XML field contains mixed tail text at {record_path}")
+                children[child.tag] = child
+            if set(children) != expected_children:
+                raise ParisonError(f"XML field path does not resolve at {record_path}")
+            for tag, child in children.items():
+                branch = trie[tag]
+                if None in branch:
+                    if child.attrib or len(child):
+                        raise ParisonError(f"XML field must be an attribute-free text element at {record_path}")
+                    row[branch[None]] = child.text or ""
+                else:
+                    if child.attrib or (child.text or "").strip():
+                        raise ParisonError("XML intermediate field element must contain only selected children")
+                    walk(child, branch)
+
+        walk(element, element_trie)
+        return row
+
     headers = None
     rows = 0
     elements = 0
@@ -739,16 +795,19 @@ def _xml_rows(source: str | Path, max_rows: int | None):
             if tuple(path_stack) == expected_path:
                 if max_rows is not None and rows >= max_rows:
                     raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
-                if element.attrib or (element.text or "").strip():
-                    raise ParisonError(f"XML record has attributes or mixed text at {record_path}")
-                row = {}
-                for child in element:
-                    if child.attrib or len(child) or (child.tail and child.tail.strip()):
-                        raise ParisonError(f"XML field must be an attribute-free text element at {record_path}")
-                    name = projected(child.tag)
-                    if name in row:
-                        raise ParisonError(f"XML record has a duplicate field {name} at {record_path}")
-                    row[name] = child.text or ""
+                if field_projection:
+                    row = projected_record(element)
+                else:
+                    if element.attrib or (element.text or "").strip():
+                        raise ParisonError(f"XML record has attributes or mixed text at {record_path}")
+                    row = {}
+                    for child in element:
+                        if child.attrib or len(child) or (child.tail and child.tail.strip()):
+                            raise ParisonError(f"XML field must be an attribute-free text element at {record_path}")
+                        name = projected(child.tag)
+                        if name in row:
+                            raise ParisonError(f"XML record has a duplicate field {name} at {record_path}")
+                        row[name] = child.text or ""
                 if not row:
                     raise ParisonError(f"XML record at {record_path} has no fields")
                 if headers is None:
@@ -921,7 +980,8 @@ def _input_columns(
         finally:
             rows.close()
     if _xml_source(path):
-        rows = _xml_rows(path, max_rows)
+        projection = recipe.get("field_projection", {}).get(side) if recipe is not None and side is not None else None
+        rows = _xml_rows(path, max_rows, projection if projection and projection["kind"] == "xml-field-v1" else None)
         try:
             columns, _ = next(rows)
             for _ in rows:
@@ -977,10 +1037,15 @@ def _validate_field_projection_source(path: str | Path, recipe: dict[str, Any], 
     if projection is None:
         return
     json_source = _json_source(path)
+    xml_source = _xml_source(path)
     if json_source and projection["kind"] != "json-pointer-v1":
         raise ParisonError(f"field_projection.{side} for a JSON document must use json-pointer-v1")
     if not json_source and projection["kind"] == "json-pointer-v1":
         raise ParisonError(f"field_projection.{side} kind json-pointer-v1 requires a JSON document locator")
+    if xml_source and projection["kind"] != "xml-field-v1":
+        raise ParisonError(f"field_projection.{side} for an XML document must use xml-field-v1")
+    if not xml_source and projection["kind"] == "xml-field-v1":
+        raise ParisonError(f"field_projection.{side} kind xml-field-v1 requires an XML document locator")
 
 
 def _record_diagnostics(
@@ -1484,7 +1549,7 @@ def _iter_input_rows(
     if _xml_source(path):
         if recipe.get("input_projection") != "semantic-scalar-v1":
             raise ParisonError("XML inputs require input_projection 'semantic-scalar-v1'")
-        stream = _xml_rows(path, max_rows)
+        stream = _xml_rows(path, max_rows, field_projection)
         headers, _ = next(stream)
         _validate_headers(_source_path(path), headers, recipe, side)
         for _, row in stream:

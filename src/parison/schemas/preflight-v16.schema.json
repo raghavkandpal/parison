@@ -16,7 +16,8 @@
     "inputs": {"$ref": "#/$defs/inputs"}
   },
   "$defs": {
-    "sideProjection": {"type": "object", "additionalProperties": false, "required": ["kind", "fields"], "properties": {"kind": {"enum": ["direct-v1", "json-pointer-v1"]}, "fields": {"type": "object", "minProperties": 1, "maxProperties": 256, "additionalProperties": {"type": "string", "minLength": 1}}}},
+    "sideProjection": {"oneOf": [{"type": "object", "additionalProperties": false, "required": ["kind", "fields"], "properties": {"kind": {"enum": ["direct-v1", "json-pointer-v1"]}, "fields": {"$ref": "#/$defs/fieldMap"}}}, {"type": "object", "additionalProperties": false, "required": ["kind", "namespaces", "fields"], "properties": {"kind": {"const": "xml-field-v1"}, "namespaces": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}}, "fields": {"$ref": "#/$defs/fieldMap"}}}]},
+    "fieldMap": {"type": "object", "minProperties": 1, "maxProperties": 256, "additionalProperties": {"type": "string", "minLength": 1}},
     "inputs": {"type": "object", "additionalProperties": false, "required": ["baseline", "candidate"], "properties": {"baseline": {"$ref": "#/$defs/input"}, "candidate": {"$ref": "#/$defs/input"}}},
     "input": {
       "type": "object", "additionalProperties": false,
