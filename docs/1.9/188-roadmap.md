@@ -10,7 +10,7 @@ Theme: explicit structured field selection
    pointer relative to the explicitly selected record. Gate: new versioned
    policy, strict schemas, mixed direct/JSON inputs, all comparison modes,
    drafting, suites, preflight/evidence, hostile traversal cases, blind review
-   and exact-commit CI.
+   and exact-commit CI. **Contract frozen; implementation pending.**
 2. XML per-field projection: select each logical field from one exact record
    attribute or bounded unique child-element path. Gate: QName/namespace and
    attribute rules, structural ambiguity, streaming/resource limits, mixed

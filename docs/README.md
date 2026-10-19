@@ -8,6 +8,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 
 - [Structured field-selection research](1.9/187-structured-field-selection-research.md)
 - [1.9 roadmap](1.9/188-roadmap.md)
+- [JSON field-projection contract](1.9/189-json-field-projection-contract.md)
 
 ## 1.8 — released
 
