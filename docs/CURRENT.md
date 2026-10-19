@@ -21,8 +21,11 @@
   `94078a4ffb6bcc68127f663359f7346e97870b86` passed the full
   [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39272848506)
   and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39272848633)
-- Next gate: freeze the XLSX defined-name contract before implementing the
-  third and final required 1.9 feature
+- Frozen: XLSX defined-name projection resolves one exact non-reserved,
+  workbook-scoped static name to one local bounded rectangle; see the active
+  implementation contract
+- Next gate: implement and qualify XLSX defined-name projection as the third
+  and final required 1.9 feature
 
 ## Recorded next steps
 
