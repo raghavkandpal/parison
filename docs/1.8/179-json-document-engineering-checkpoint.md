@@ -1,6 +1,6 @@
 # JSON document engineering checkpoint
 
-Status: **feature gate complete locally**
+Status: **released in 1.8.0**
 
 The first feature in the 1.8 release train is implemented. Explicit `json:`
 locators resolve RFC 6901 pointers to arrays of flat objects and feed the

@@ -1,6 +1,6 @@
 # XML record engineering checkpoint
 
-Status: **feature gate complete locally**
+Status: **released in 1.8.0**
 
 The second feature in the 1.8 train is implemented. Explicit `xml:` locators
 bind a bounded QName record path to a unique namespace map and project flat

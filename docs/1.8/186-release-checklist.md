@@ -2,7 +2,7 @@
 
 Date: 19 October 2026
 
-Status: **candidate qualified**
+Status: **released**
 
 ## Capability gate
 
@@ -54,10 +54,24 @@ Status: **candidate qualified**
 
 ## Publication
 
-- [ ] Reviewed candidate is merged to `main` and exact-merge CI passes.
-- [ ] Exact-merge wheel, source and checksums are published under annotated
-  tag `1.8.0` and publicly re-verified.
-- [ ] All release records identify the same tested commit and assets.
+- [x] [Pull request #50](https://github.com/raghavkandpal/parison/pull/50)
+  merged the reviewed candidate as
+  `511b1bbc9c68a581760939b72690255ec545dbbb`; exact-merge
+  [test run 39230867633](https://github.com/raghavkandpal/parison/actions/runs/39230867633)
+  and [quality run 39230867642](https://github.com/raghavkandpal/parison/actions/runs/39230867642)
+  passed.
+- [x] Exact-merge wheel SHA-256 is
+  `17dc6fcdb93d129a4ebbbf1ff90bf192574ab8d8010e5e1ee5f8b8dd271da82f`;
+  source SHA-256 is
+  `c41514a93718408e2d02e55633deb36d6ae66cd8758a2ed9aa22d7d537ff7a0b`.
+- [x] Annotated tag `1.8.0` identifies the exact merge and the
+  [GitHub release](https://github.com/raghavkandpal/parison/releases/tag/1.8.0)
+  publishes the wheel, source archive and checksums.
+- [x] Public assets were re-downloaded and checksum-verified. A fresh Python
+  3.14 environment installed the public wheel; JSON Pointer, bounded XML path
+  and XLSX named-table comparisons each produced a two-row PASS and a valid
+  verified bundle.
+- [x] All release records identify the same tested commit and assets.
 
 Internal qualification supports deterministic development evidence only. It
 does not establish extraction truth, policy approval, migration approval or

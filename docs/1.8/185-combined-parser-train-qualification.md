@@ -2,7 +2,7 @@
 
 Date: 19 October 2026
 
-Status: **combined review and exact-commit qualification complete**
+Status: **released in 1.8.0**
 
 The JSON Pointer, bounded QName XML and XLSX named-table features are complete
 as one three-feature 1.8 train. Exact XLSX checkpoint
@@ -33,8 +33,13 @@ fresh Python 3.14 environment with openpyxl 3.1.5. A new workbook containing
 the exact named table `Orders` passed strict record preflight under schema v13,
 keyed comparison with two exact matches, and bundle verification. The
 comparison used the wheel's installed `parison` command rather than the source
-checkout. The combined train is therefore ready for a single 1.8 candidate
-decision.
+checkout. The combined train advanced as a single 1.8 candidate.
+
+[Pull request #50](https://github.com/raghavkandpal/parison/pull/50) merged that
+candidate as `511b1bbc9c68a581760939b72690255ec545dbbb`. Exact-merge CI,
+clean-archive rebuilding, annotated tag and public-asset verification completed
+before 1.8.0 was recorded as released; full publication evidence is in the
+[release checklist](186-release-checklist.md).
 
 This evidence is internal development qualification only. It does not establish
 extraction truth, policy approval, migration approval or cutover authorization.

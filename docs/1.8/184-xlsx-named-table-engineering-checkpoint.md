@@ -2,7 +2,7 @@
 
 Date: 19 October 2026
 
-Status: **feature gate complete and qualified**
+Status: **released in 1.8.0**
 
 The third feature in the 1.8 parser train is implemented. The explicit
 `xlsx:path#table=Name` locator resolves one exact openpyxl table name, uses its
@@ -30,6 +30,6 @@ passes 380 local tests with 11 expected optional-Polars skips, the full
 [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39200813257)
 and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39200813324).
 
-This completes all three required 1.8 features locally. It is not a release
-candidate and must not be tagged or published before combined review and
-qualification.
+This completed all three required 1.8 features. Combined review, exact-merge
+qualification and public-asset verification are recorded in the 1.8 release
+checklist.
