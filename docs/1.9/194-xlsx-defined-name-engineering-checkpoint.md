@@ -1,6 +1,6 @@
 # XLSX defined-name engineering checkpoint
 
-Status: **implementation complete; qualification pending**
+Status: **qualified feature checkpoint**
 
 The third feature in the 1.9 release train is implemented. An explicit
 `xlsx:path#defined-name=Name` locator performs case-sensitive lookup of one
@@ -29,8 +29,12 @@ versions 4--6 now exercise both engines with record-validating preflight.
 Fresh blind Standards/security review drove pre-load metadata bounds, numeric
 scope normalization and DTD/entity plus UTF-16 bypass rejection; final
 re-review passed with no remaining blocker. Full `make check` passes 399 tests
-on Python 3.14 with 11 optional dependency skips. Exact-commit built-wheel CI
-remains required before this checkpoint is qualified. This is not a release
-candidate and must not be tagged or published independently.
+on Python 3.14 with 11 optional dependency skips. Exact checkpoint
+`5a0f8009681ffef327985d9439ffafb84fc1c236` passed the full
+[built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39275323739)
+on Python 3.11--3.14 across Linux, macOS and Windows, plus the independent
+[quality gate](https://github.com/raghavkandpal/parison/actions/runs/39275323852).
+This is not a release candidate and must not be tagged or published
+independently.
 Internal evidence does not establish extraction truth, policy approval,
 migration approval or cutover authorization.

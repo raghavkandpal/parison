@@ -21,13 +21,16 @@
   `94078a4ffb6bcc68127f663359f7346e97870b86` passed the full
   [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39272848506)
   and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39272848633)
-- Implemented locally: XLSX defined-name projection resolves one exact
+- Implemented and reviewed: XLSX defined-name projection resolves one exact
   non-reserved workbook-scoped static name to one local bounded rectangle,
   with raw metadata auditing, portable suites, summary-safe evidence and
   strict preflight schemas v19--v24
-- Next gate: fresh blind Standards and Spec review, correction of any findings,
-  full local qualification and exact-commit built-wheel CI for the third and
-  final required 1.9 feature
+- Verified: exact XLSX defined-name checkpoint
+  `5a0f8009681ffef327985d9439ffafb84fc1c236` passed the full
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39275323739)
+  and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39275323852)
+- Next gate: combined 1.9 Standards and Spec review, candidate qualification,
+  exact merge CI and public 1.9.0 release verification; then stop development
 
 ## Recorded next steps
 
