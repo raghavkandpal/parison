@@ -16,6 +16,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [XLSX named-table projection contract](1.8/183-xlsx-named-table-projection-contract.md)
 - [XLSX named-table engineering checkpoint](1.8/184-xlsx-named-table-engineering-checkpoint.md)
 - [Combined parser-train qualification](1.8/185-combined-parser-train-qualification.md)
+- [1.8.0 release checklist](1.8/186-release-checklist.md)
 
 ## 1.7 — released
 
