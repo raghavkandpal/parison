@@ -121,9 +121,9 @@ Unprefixed selectors mean no namespace, including for attributes. Drafting
 does not invent these selectors. See the
 [XML field-projection contract](1.9/191-xml-field-projection-contract.md).
 
-Install the XLSX extra, then identify either the workbook, worksheet and
-bounded rectangle or one exact workbook table name. The first row is the
-header:
+Install the XLSX extra, then identify the workbook and either one bounded
+worksheet rectangle, one exact workbook table name or one exact
+workbook-scoped defined name. The first row is the header:
 
 ```sh
 python -m pip install 'parison[xlsx]'
@@ -134,6 +134,9 @@ parison draft-recipe \
 parison validate-inputs --records --recipe recipe.json \
   --baseline 'xlsx:baseline.xlsx#table=Orders' \
   --candidate 'xlsx:candidate.xlsx#table=Orders'
+parison validate-inputs --records --recipe recipe.json \
+  --baseline 'xlsx:baseline.xlsx#defined-name=OrdersExport' \
+  --candidate 'xlsx:candidate.xlsx#defined-name=OrdersExport'
 ```
 
 Review the generated `semantic-scalar-v1` policy. Formula and error cells are
@@ -142,6 +145,10 @@ evaluate formulas. Named tables use their stored rectangle and reject totals,
 calculated columns and mismatched table/header metadata. See the released
 [XLSX values contract](1.6/170-xlsx-values-projection-contract.md) and the
 [named-table contract](1.8/183-xlsx-named-table-projection-contract.md).
+Defined names must be exact, non-reserved, workbook-scoped static references
+to one local absolute rectangle; local, dynamic, relative, external, union and
+whole-row or whole-column definitions are rejected. See the
+[defined-name contract](1.9/193-xlsx-defined-name-contract.md).
 
 ```sh
 parison draft-recipe --baseline baseline.csv --candidate candidate.csv \

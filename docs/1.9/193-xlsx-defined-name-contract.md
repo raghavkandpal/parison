@@ -20,6 +20,8 @@ case-insensitively. Duplicate global names or conflicting global/local names
 are invalid workbook metadata even if openpyxl would expose only one value.
 The workbook package is audited before exact lookup so duplicate declarations
 cannot be normalized away silently.
+Defined-name metadata must use an ASCII-compatible XML encoding; DTD and
+entity declarations are rejected before XML parsing or workbook loading.
 
 Released explicit rectangle and exact named-table locators remain unchanged.
 
@@ -60,7 +62,9 @@ Full/raw evidence records exact `defined_name`, resolved `worksheet` and
 normalized `range`, plus the released workbook digest, physical/decoded byte
 counts and ZIP compression metadata. Summary comparison results omit the
 defined name, worksheet and range. Strict preflight schemas v19--v21 cover
-keyed, aggregate and multiset defined-name inputs without changing v1--v18.
+keyed, aggregate and multiset defined-name inputs for recipe versions 1--3.
+Strict schemas v22--v24 carry the same input evidence with field projection
+for recipe versions 4--6, without changing v1--v18.
 
 ## Compatibility and non-goals
 

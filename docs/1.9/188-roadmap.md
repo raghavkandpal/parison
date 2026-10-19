@@ -21,7 +21,7 @@ Theme: explicit structured field selection
    to one local bounded rectangle. Gate: scope, reference grammar, hostile
    definitions, headers, formulas/errors, ZIP limits, all modes and engines,
    suites/evidence, blind review and exact-commit CI.
-   **Contract frozen; implementation pending.**
+   **Implemented locally; blind review and exact-commit qualification pending.**
 
 Each feature earns a coherent pushed checkpoint. Do not open a candidate, tag
 or release any subset; all three features plus combined Standards/Spec review

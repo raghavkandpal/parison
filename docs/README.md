@@ -13,6 +13,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [XML field-projection contract](1.9/191-xml-field-projection-contract.md)
 - [XML field-projection engineering checkpoint](1.9/192-xml-field-projection-engineering-checkpoint.md)
 - [XLSX defined-name projection contract](1.9/193-xlsx-defined-name-contract.md)
+- [XLSX defined-name engineering checkpoint](1.9/194-xlsx-defined-name-engineering-checkpoint.md)
 
 ## 1.8 — released
 
@@ -105,6 +106,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 ## Future direction research
 
 - [Post-1.0 product direction](0.20/134-post-1.0-direction-research.md)
+- [Verification workbench product research](2.0/194-verification-workbench-product-research.md)
+- [Verification workbench development direction](2.0/195-verification-workbench-development-direction.md)
 
 ## 0.19 — released
 

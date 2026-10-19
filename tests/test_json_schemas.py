@@ -45,6 +45,12 @@ class JsonSchemas(unittest.TestCase):
         cls.preflight_v16_schema = load_schema("preflight-v16")
         cls.preflight_v17_schema = load_schema("preflight-v17")
         cls.preflight_v18_schema = load_schema("preflight-v18")
+        cls.preflight_v19_schema = load_schema("preflight-v19")
+        cls.preflight_v20_schema = load_schema("preflight-v20")
+        cls.preflight_v21_schema = load_schema("preflight-v21")
+        cls.preflight_v22_schema = load_schema("preflight-v22")
+        cls.preflight_v23_schema = load_schema("preflight-v23")
+        cls.preflight_v24_schema = load_schema("preflight-v24")
         cls.suite_schema = load_schema("suite")
         cls.suite_v2_schema = load_schema("suite-v2")
         cls.suite_authoring_schema = load_schema("suite-authoring")
@@ -86,6 +92,12 @@ class JsonSchemas(unittest.TestCase):
         Draft202012Validator.check_schema(cls.preflight_v16_schema)
         Draft202012Validator.check_schema(cls.preflight_v17_schema)
         Draft202012Validator.check_schema(cls.preflight_v18_schema)
+        Draft202012Validator.check_schema(cls.preflight_v19_schema)
+        Draft202012Validator.check_schema(cls.preflight_v20_schema)
+        Draft202012Validator.check_schema(cls.preflight_v21_schema)
+        Draft202012Validator.check_schema(cls.preflight_v22_schema)
+        Draft202012Validator.check_schema(cls.preflight_v23_schema)
+        Draft202012Validator.check_schema(cls.preflight_v24_schema)
         Draft202012Validator.check_schema(cls.recipe_authoring_schema)
         Draft202012Validator.check_schema(cls.suite_authoring_schema)
         Draft202012Validator.check_schema(cls.statement_schema)
@@ -200,6 +212,12 @@ class JsonSchemas(unittest.TestCase):
             self.preflight_v16_schema,
             self.preflight_v17_schema,
             self.preflight_v18_schema,
+            self.preflight_v19_schema,
+            self.preflight_v20_schema,
+            self.preflight_v21_schema,
+            self.preflight_v22_schema,
+            self.preflight_v23_schema,
+            self.preflight_v24_schema,
         ):
             definition = schema["$defs"]["input"]
             validator = Draft202012Validator(schema)

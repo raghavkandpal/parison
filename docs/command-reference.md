@@ -358,7 +358,7 @@ options:
 
 ```text
 positional arguments:
-  {recipe,recipe-authoring,recipe-v2,recipe-v3,recipe-v4,recipe-v5,recipe-v6,result,result-v2,result-v3,manifest,preflight,preflight-v2,preflight-v3,preflight-v4,preflight-v5,preflight-v6,preflight-v7,preflight-v8,preflight-v9,preflight-v10,preflight-v11,preflight-v12,preflight-v13,preflight-v14,preflight-v15,preflight-v16,preflight-v17,preflight-v18,suite,suite-authoring,suite-v2,suite-result,suite-result-v2,suite-manifest,suite-manifest-v2,statement,schema-evolution,policy-diff,time-alignment,reconciliation,alignment-preflight,relationship-result,conservation-result,reconciliation-result,dataset-manifest,reproducibility-diagnostic,discrepancy-analysis,discrepancy-drilldown}
+  {recipe,recipe-authoring,recipe-v2,recipe-v3,recipe-v4,recipe-v5,recipe-v6,result,result-v2,result-v3,manifest,preflight,preflight-v2,preflight-v3,preflight-v4,preflight-v5,preflight-v6,preflight-v7,preflight-v8,preflight-v9,preflight-v10,preflight-v11,preflight-v12,preflight-v13,preflight-v14,preflight-v15,preflight-v16,preflight-v17,preflight-v18,preflight-v19,preflight-v20,preflight-v21,preflight-v22,preflight-v23,preflight-v24,suite,suite-authoring,suite-v2,suite-result,suite-result-v2,suite-manifest,suite-manifest-v2,statement,schema-evolution,policy-diff,time-alignment,reconciliation,alignment-preflight,relationship-result,conservation-result,reconciliation-result,dataset-manifest,reproducibility-diagnostic,discrepancy-analysis,discrepancy-drilldown}
 
 options:
   -h, --help            show this help message and exit

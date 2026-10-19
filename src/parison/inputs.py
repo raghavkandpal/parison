@@ -109,27 +109,38 @@ def _sqlite_source(source: str | Path) -> tuple[Path, str] | None:
     return Path(path_text), table
 
 
-def _xlsx_source(source: str | Path) -> tuple[Path, str | None, str] | None:
+def _xlsx_source(source: str | Path) -> tuple[Path, str, str | None, str] | None:
     text = str(source)
     if not text.startswith("xlsx:"):
         return None
     locator = text.removeprefix("xlsx:")
     if "?" in locator or "#" not in locator:
-        raise ParisonError("XLSX locator must select a worksheet range or exact table name without parameters")
+        raise ParisonError(
+            "XLSX locator must select a worksheet range, exact table name, or exact defined name without parameters"
+        )
     path_text, selection = locator.rsplit("#", 1)
     if selection.startswith("table="):
-        worksheet, cell_range = None, selection.removeprefix("table=")
+        kind, worksheet, cell_range = "table", None, selection.removeprefix("table=")
         if "!" in cell_range:
             raise ParisonError("XLSX table locator must contain one exact table name")
+    elif selection.startswith("defined-name="):
+        kind, worksheet, cell_range = "defined-name", None, selection.removeprefix("defined-name=")
+        try:
+            valid_name = bool(cell_range) and len(cell_range.encode("utf-8")) <= 255
+        except UnicodeEncodeError:
+            valid_name = False
+        if not valid_name or cell_range.casefold().startswith("_xlnm."):
+            raise ParisonError("XLSX defined-name locator requires one non-reserved exact name up to 255 bytes")
     elif "!" in selection:
+        kind = "range"
         worksheet, cell_range = selection.rsplit("!", 1)
     else:
-        raise ParisonError("XLSX locator must select a worksheet range or exact table name")
+        raise ParisonError("XLSX locator must select a worksheet range, exact table name, or exact defined name")
     if not path_text or not cell_range or (worksheet is not None and not worksheet):
         raise ParisonError("XLSX locator requires a workbook path and explicit selection")
     if Path(path_text).suffix.lower() != ".xlsx":
         raise ParisonError("XLSX locator requires a .xlsx workbook")
-    return Path(path_text), worksheet, cell_range
+    return Path(path_text), kind, worksheet, cell_range
 
 
 def _xlsx_table(workbook, table_name: str):
@@ -193,6 +204,71 @@ def _xlsx_table(workbook, table_name: str):
     return worksheet_name, table
 
 
+def _xlsx_defined_name_declarations(path: Path) -> list[tuple[str, int | None]]:
+    from openpyxl.xml.functions import iterparse
+
+    namespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    declarations = []
+    try:
+        with zipfile.ZipFile(path) as archive:
+            with archive.open("xl/workbook.xml") as source:
+                overlap = b""
+                while chunk := source.read(64 * 1024):
+                    if b"\0" in chunk:
+                        raise ValueError("workbook metadata must use an ASCII-compatible XML encoding")
+                    inspected = (overlap + chunk).upper()
+                    if b"<!DOCTYPE" in inspected or b"<!ENTITY" in inspected:
+                        raise ValueError("DTD and entity declarations are forbidden")
+                    overlap = inspected[-16:]
+            with archive.open("xl/workbook.xml") as source:
+                for _, element in iterparse(source, events=("end",)):
+                    if element.tag == f"{{{namespace}}}definedName":
+                        name = element.attrib.get("name")
+                        scope = element.attrib.get("localSheetId")
+                        if not name:
+                            raise ValueError("names must be nonempty")
+                        if scope is not None and re.fullmatch(r"[0-9]+", scope) is None:
+                            raise ValueError("local sheet scope is invalid")
+                        declarations.append((name, int(scope) if scope is not None else None))
+                        if len(declarations) > 10_000:
+                            raise ValueError("defined-name metadata exceeds 10000 declarations")
+                    element.clear()
+    except (KeyError, OSError, TypeError, ValueError, zipfile.BadZipFile, ET.ParseError) as exc:
+        raise ParisonError(f"XLSX workbook has invalid defined-name metadata: {exc}") from exc
+    return declarations
+
+
+def _xlsx_defined_name(workbook, defined_name: str, declarations: list[tuple[str, int | None]]) -> tuple[str, str]:
+    if any(scope is not None and scope >= len(workbook.sheetnames) for _, scope in declarations):
+        raise ParisonError("XLSX workbook has invalid defined-name metadata: local sheet scope is invalid")
+    identities = [(name, scope) for name, scope in declarations]
+    if len(identities) != len(set(identities)):
+        raise ParisonError("XLSX workbook has invalid defined-name metadata: names must be unique within scope")
+    global_names = {name for name, scope in declarations if scope is None}
+    local_names = {name for name, scope in declarations if scope is not None}
+    if global_names & local_names:
+        raise ParisonError("XLSX workbook has invalid defined-name metadata: global and local names conflict")
+    if defined_name not in global_names:
+        if defined_name in local_names:
+            raise ParisonError(f"XLSX defined name must be workbook-scoped: {defined_name}")
+        raise ParisonError(f"XLSX defined name does not exist: {defined_name}")
+    definition = workbook.defined_names.get(defined_name)
+    if definition is None or definition.localSheetId is not None or definition.type != "RANGE":
+        raise ParisonError(f"XLSX defined name must be one static workbook range: {defined_name}")
+    try:
+        destinations = list(definition.destinations)
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ParisonError(f"XLSX defined name has an invalid destination: {defined_name}") from exc
+    if len(destinations) != 1:
+        raise ParisonError(f"XLSX defined name must resolve to one destination: {defined_name}")
+    worksheet_name, cell_range = destinations[0]
+    if worksheet_name not in workbook.sheetnames:
+        raise ParisonError(f"XLSX defined name must reference one local worksheet: {defined_name}")
+    if not re.fullmatch(r"\$[A-Z]+\$[1-9][0-9]*:\$[A-Z]+\$[1-9][0-9]*", cell_range):
+        raise ParisonError(f"XLSX defined name must use one absolute bounded rectangle: {defined_name}")
+    return worksheet_name, cell_range
+
+
 def _xlsx_range(cell_range: str, table: bool = False):
     from openpyxl.utils.cell import get_column_letter, range_boundaries
 
@@ -215,9 +291,9 @@ def _xlsx_range(cell_range: str, table: bool = False):
 
 
 def _xlsx_resolved_metadata(source: str | Path) -> dict[str, str]:
-    path, worksheet_name, selection = _xlsx_source(source) or (None, None, None)
+    path, kind, worksheet_name, selection = _xlsx_source(source) or (None, None, None, None)
     assert path is not None and selection is not None
-    if worksheet_name is not None:
+    if kind == "range":
         return {"worksheet": worksheet_name, "range": selection}
     try:
         from openpyxl import load_workbook
@@ -225,14 +301,22 @@ def _xlsx_resolved_metadata(source: str | Path) -> dict[str, str]:
         raise ParisonError("XLSX support requires: pip install 'parison[xlsx]'") from exc
     workbook = None
     try:
+        declarations = _xlsx_defined_name_declarations(path) if kind == "defined-name" else None
         workbook = load_workbook(path, read_only=True, data_only=False, keep_links=False)
-        worksheet_name, table = _xlsx_table(workbook, selection)
-        normalized, *_ = _xlsx_range(table.ref, table=True)
-        return {"table": selection, "worksheet": worksheet_name, "range": normalized}
+        if kind == "table":
+            worksheet_name, table = _xlsx_table(workbook, selection)
+            selected_range = table.ref
+            metadata = {"table": selection}
+        else:
+            assert declarations is not None
+            worksheet_name, selected_range = _xlsx_defined_name(workbook, selection, declarations)
+            metadata = {"defined_name": selection}
+        normalized, *_ = _xlsx_range(selected_range, table=True)
+        return {**metadata, "worksheet": worksheet_name, "range": normalized}
     except ParisonError:
         raise
     except Exception as exc:
-        raise ParisonError(f"cannot read XLSX table {selection} from {path}: {exc}") from exc
+        raise ParisonError(f"cannot read XLSX selection {selection} from {path}: {exc}") from exc
     finally:
         if workbook is not None:
             workbook.close()
@@ -437,7 +521,7 @@ def _source_metadata(
         metadata.update(format="sqlite", table=sqlite_source[1])
     elif _xlsx_source(source):
         selection = _xlsx_resolved_metadata(source)
-        if include_xlsx_table_selection or "table" not in selection:
+        if include_xlsx_table_selection or not ({"table", "defined_name"} & set(selection)):
             metadata.update(selection)
         metadata["format"] = "xlsx"
     elif json_source := _json_source(source):
@@ -455,7 +539,7 @@ def _source_metadata(
 
 
 def _xlsx_rows(source: str | Path, max_rows: int | None):
-    path, worksheet_name, selection = _xlsx_source(source) or (None, None, None)
+    path, kind, worksheet_name, selection = _xlsx_source(source) or (None, None, None, None)
     assert path is not None and selection is not None
     if path.is_symlink() or not path.is_file():
         raise ParisonError(f"XLSX workbook must be a regular non-symlink file: {path}")
@@ -466,11 +550,16 @@ def _xlsx_rows(source: str | Path, max_rows: int | None):
         raise ParisonError("XLSX support requires: pip install 'parison[xlsx]'") from exc
     workbook = None
     try:
+        declarations = _xlsx_defined_name_declarations(path) if kind == "defined-name" else None
         workbook = load_workbook(path, read_only=True, data_only=False, keep_links=False)
         table = None
-        if worksheet_name is None:
+        if kind == "table":
             worksheet_name, table = _xlsx_table(workbook, selection)
             cell_range, min_col, min_row, max_col, max_row = _xlsx_range(table.ref, table=True)
+        elif kind == "defined-name":
+            assert declarations is not None
+            worksheet_name, defined_range = _xlsx_defined_name(workbook, selection, declarations)
+            cell_range, min_col, min_row, max_col, max_row = _xlsx_range(defined_range, table=True)
         else:
             cell_range = selection
             _, min_col, min_row, max_col, max_row = _xlsx_range(cell_range)
@@ -1263,18 +1352,34 @@ def validate_inputs(
         raise ParisonError("an input changed while it was being validated")
     uses_xlsx = any(_xlsx_source(source) for source in (baseline, candidate))
     uses_xlsx_table = any(
-        (selection := _xlsx_source(source)) is not None and selection[1] is None for source in (baseline, candidate)
+        (selection := _xlsx_source(source)) is not None and selection[1] == "table" for source in (baseline, candidate)
+    )
+    uses_xlsx_defined_name = any(
+        (selection := _xlsx_source(source)) is not None and selection[1] == "defined-name"
+        for source in (baseline, candidate)
     )
     uses_json = any(_json_source(source) for source in (baseline, candidate))
     uses_xml = any(_xml_source(source) for source in (baseline, candidate))
     result = {
         "schema_version": (
-            17
+            23
+            if uses_xlsx_defined_name and recipe["recipe_version"] == 5
+            else 24
+            if uses_xlsx_defined_name and recipe["recipe_version"] == 6
+            else 22
+            if uses_xlsx_defined_name and recipe["recipe_version"] == 4
+            else 17
             if recipe["recipe_version"] == 5
             else 18
             if recipe["recipe_version"] == 6
             else 16
             if recipe["recipe_version"] == 4
+            else 20
+            if uses_xlsx_defined_name and recipe["comparison_mode"] == "aggregate"
+            else 21
+            if uses_xlsx_defined_name and recipe["comparison_mode"] == "multiset"
+            else 19
+            if uses_xlsx_defined_name
             else 14
             if uses_xlsx_table and recipe["comparison_mode"] == "aggregate"
             else 15

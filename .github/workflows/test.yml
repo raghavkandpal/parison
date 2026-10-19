@@ -72,6 +72,12 @@ jobs:
       - run: parison schema preflight-v16
       - run: parison schema preflight-v17
       - run: parison schema preflight-v18
+      - run: parison schema preflight-v19
+      - run: parison schema preflight-v20
+      - run: parison schema preflight-v21
+      - run: parison schema preflight-v22
+      - run: parison schema preflight-v23
+      - run: parison schema preflight-v24
       - run: parison schema result-v2
       - run: parison schema result-v3
       - run: parison schema suite
@@ -245,6 +251,12 @@ jobs:
       - run: parison schema preflight-v16
       - run: parison schema preflight-v17
       - run: parison schema preflight-v18
+      - run: parison schema preflight-v19
+      - run: parison schema preflight-v20
+      - run: parison schema preflight-v21
+      - run: parison schema preflight-v22
+      - run: parison schema preflight-v23
+      - run: parison schema preflight-v24
       - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output ${{ runner.temp }}/parison-multiset-smoke
       - run: parison inspect ${{ runner.temp }}/parison-multiset-smoke
       - name: Exercise evidence handoff
