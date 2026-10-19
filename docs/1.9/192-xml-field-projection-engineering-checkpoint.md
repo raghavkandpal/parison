@@ -1,6 +1,6 @@
 # XML field-projection engineering checkpoint
 
-Status: **implemented and independently reviewed; exact-commit CI pending**
+Status: **qualified feature checkpoint**
 
 The second feature in the 1.9 release train is implemented. Recipe versions
 4--6 accept `xml-field-v1` sides whose policy-owned namespace map and exact
@@ -30,8 +30,11 @@ record, intermediate and leaf tails. Standards re-review cleared the corrected
 gate with no remaining security or compatibility finding.
 
 The focused XML/JSON/schema/suite gate passes 53 tests. Full `make check`
-passes 392 tests on Python 3.14 with 11 optional dependency skips. Exact-commit
-built-wheel qualification remains.
+passes 392 tests on Python 3.14 with 11 optional dependency skips. Exact
+checkpoint `94078a4ffb6bcc68127f663359f7346e97870b86` passed the full
+[built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39272848506)
+on Python 3.11--3.14 across Linux, macOS and Windows, plus the independent
+[quality gate](https://github.com/raghavkandpal/parison/actions/runs/39272848633).
 
 This is the second of three required 1.9 features. It is not a release
 candidate and must not be tagged or published independently. Review and test

@@ -17,8 +17,12 @@
   unique child-element paths under policy-owned namespace bindings and a
   closed record shape; fresh Spec review is clear and the Standards tail-text
   finding is corrected and independently cleared
-- Next gate: qualify the exact XML checkpoint in built-wheel CI as the second
-  of three required features, then freeze the XLSX defined-name contract
+- Verified: exact XML field-projection checkpoint
+  `94078a4ffb6bcc68127f663359f7346e97870b86` passed the full
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39272848506)
+  and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39272848633)
+- Next gate: freeze the XLSX defined-name contract before implementing the
+  third and final required 1.9 feature
 
 ## Recorded next steps
 
