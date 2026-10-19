@@ -1,12 +1,12 @@
 # Current development state
 
-- Version: **1.8.0 released; 1.9 three-feature research pending**
+- Version: **1.8.0 released; 1.9 three-feature train active**
 - Branch: `develop`
-- Theme: select the next researched three-feature train while preserving explicit local projection boundaries
+- Theme: explicit JSON, XML and XLSX structured field selection as one three-feature train
 - Released: explicit JSON Pointer, bounded QName XML and exact XLSX named-table record projection across all comparison modes
 - Verified: exact 1.8 merge `511b1bbc9c68a581760939b72690255ec545dbbb` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39230867633) and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39230867642); public assets were checksum-verified and all three projection workflows passed fresh
 - Verified: combined parser-train checkpoint `defb65fac85ac0bc8eac48b2f6f70af3ebb07bcc` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39201282230), [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39201282259), independent Standards and Spec review, and a fresh Python 3.14 named-table wheel smoke
-- Next gate: use primary-source research and repository evidence to freeze one substantial three-feature 1.9 train before implementation
+- Next gate: freeze and implement feature 1, JSON per-field RFC 6901 projection, under recipe versions 4--6
 
 ## Recorded next steps
 
@@ -35,6 +35,12 @@
   contracts. Release 1.8.0 is complete at exact merge
   `511b1bbc9c68a581760939b72690255ec545dbbb`; the public wheel, source and
   checksums were re-downloaded and all three parser workflows passed fresh.
+
+- Follow the active [1.9 roadmap](1.9/188-roadmap.md) and
+  [structured field-selection research](1.9/187-structured-field-selection-research.md).
+  Keep record/range locators separate from logical-field policy, preserve
+  recipe versions 1--3, and do not begin candidate work until JSON, XML and
+  XLSX feature checkpoints are independently qualified.
 
 - Preserve the released [1.7 roadmap](1.7/172-roadmap.md) and [SQLite aggregate contract](1.7/173-aggregate-sqlite-contract.md). Cross-engine equivalence, controlled failures, cleanup and dual-cardinality benchmarks are qualified; keep engine selection explicit and preserve aggregate-v1 semantics and evidence bytes.
 

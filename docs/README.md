@@ -4,6 +4,11 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 1.9 — active
+
+- [Structured field-selection research](1.9/187-structured-field-selection-research.md)
+- [1.9 roadmap](1.9/188-roadmap.md)
+
 ## 1.8 — released
 
 - [Structured record projection research](1.8/176-structured-record-projection-research.md)
