@@ -34,7 +34,10 @@ A second fresh blind review found that the declaration pre-scan also rejected
 literal declaration markers inside valid comments and CDATA. The follow-up
 distinguishes those content regions while continuing to reject actual DTD and
 entity declarations; direct depth and text-limit regressions strengthen the
-streaming-bound proof. A full local check and exact-commit CI remain.
+streaming-bound proof. Final XML checkpoint
+`f0a8a9a98286a9ca1a069dc1b6dc7458df9bb23d` passed 374 local tests, the full
+[built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39199787028)
+and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39199787047).
 
 This completes two of three required 1.8 features. It is not a release
 candidate and must not be tagged or published independently.

@@ -14,11 +14,15 @@ All notable changes will be documented in this file.
 - Explicit bounded XML record projection with QName paths, declared namespace
   bindings, flat text fields, DTD/entity rejection and parser resource limits.
 - Strict XML-aware preflight schemas v10--v12 while preserving v1--v9.
+- Exact XLSX named-table projection using the table's stored rectangle, with
+  table/header agreement and totals/calculated-formula rejection.
+- Strict named-table preflight schemas v13--v15 without changing v1--v12.
 
 ### Compatibility
 
-- JSON document and XML inputs require `semantic-scalar-v1`. Recipes, comparison
-  semantics, canonical values, results, bundles and exit codes are unchanged.
+- JSON document, XML and XLSX named-table inputs require
+  `semantic-scalar-v1`. Recipes, comparison semantics, canonical values,
+  results, bundles and exit codes are unchanged.
 
 ## 1.7.0 - 2026-10-18
 

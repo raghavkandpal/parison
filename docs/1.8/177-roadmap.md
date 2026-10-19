@@ -14,7 +14,8 @@ Theme: explicit structured-record projection
    security limits and all existing workflows pass. **Complete locally; exact-commit CI and review pending.**
 3. XLSX named-table projection: select one exact worksheet table by name and
    reuse the released cell-value policy. Gate: table identity, bounds,
-   formulas, suites, evidence and all comparison modes pass. **Next.**
+   formulas, suites, evidence and all comparison modes pass. **Complete
+   locally; exact-commit CI pending.**
 
 After each gate, run `make check`, commit coherently and push for exact-commit
 CI. Do not open a candidate or release any subset. Candidate review begins only

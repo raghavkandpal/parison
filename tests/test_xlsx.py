@@ -22,9 +22,13 @@ from parison.core import (
 )
 
 try:
-    from openpyxl import Workbook
+    from openpyxl import Workbook, load_workbook
+    from openpyxl.worksheet.table import Table, TableFormula
 except ImportError:
     Workbook = None
+    Table = None
+    TableFormula = None
+    load_workbook = None
 
 RECIPE = {
     "recipe_version": 1,
@@ -69,18 +73,213 @@ class XlsxInput(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def _write_workbook(self, rows):
+    def _write_workbook(self, rows, table=None, table_ref=None):
         workbook = Workbook()
         worksheet = workbook.active
         worksheet.title = "Export"
         for row in rows:
             worksheet.append(row)
+        if table is not None:
+            worksheet.add_table(Table(displayName=table, ref=table_ref))
         workbook.save(self.workbook)
         workbook.close()
 
     @property
     def source(self):
         return f"xlsx:{self.workbook}#Export!A2:C4"
+
+    @property
+    def table_source(self):
+        return f"xlsx:{self.workbook}#table=Orders"
+
+    def _write_named_table(self):
+        self._write_workbook(
+            [
+                ["ignored"],
+                ["id", "value", "day"],
+                ["001", 10, date(2026, 10, 17)],
+                ["002", 20, date(2026, 10, 18)],
+            ],
+            table="Orders",
+            table_ref="A2:C4",
+        )
+
+    def _rewrite_workbook_archive(self, transform):
+        replacement = self.root / "replacement.xlsx"
+        with zipfile.ZipFile(self.workbook) as source, zipfile.ZipFile(replacement, "w") as target:
+            for member in source.infolist():
+                data = transform(member.filename, source.read(member))
+                if data is not None:
+                    target.writestr(member, data)
+        replacement.replace(self.workbook)
+
+    def test_named_table_compares_drafts_and_records_resolved_metadata(self):
+        self._write_named_table()
+        result = compare(self.recipe, self.table_source, self.table_source)
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(result["counts"]["matched_exact"], 2)
+        metadata = result["inputs"]["baseline"]
+        self.assertEqual(metadata["table"], "Orders")
+        self.assertEqual(metadata["worksheet"], "Export")
+        self.assertEqual(metadata["range"], "A2:C4")
+        self.assertNotIn(str(self.workbook), json.dumps(result))
+        self.assertEqual(draft_recipe(self.table_source, self.table_source)["input_projection"], "semantic-scalar-v1")
+
+        preflight = validate_inputs(self.recipe, self.table_source, self.table_source, validate_records=True)
+        self.assertEqual(preflight["schema_version"], 13)
+        Draft202012Validator(load_schema("preflight-v13")).validate(preflight)
+        without_table = deepcopy(preflight)
+        without_table["inputs"]["baseline"].pop("table")
+        without_table["inputs"]["candidate"].pop("table")
+        self.assertFalse(Draft202012Validator(load_schema("preflight-v13")).is_valid(without_table))
+
+        open_recipe = dict(RECIPE)
+        open_recipe.pop("input_projection")
+        self.recipe.write_text(json.dumps(open_recipe), encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "require input_projection"):
+            validate_inputs(self.recipe, self.table_source, self.table_source)
+
+    def test_named_table_normalizes_its_resolved_range(self):
+        self._write_named_table()
+        workbook = load_workbook(self.workbook)
+        workbook["Export"].tables["Orders"].ref = "$A$2:$C$4"
+        workbook.save(self.workbook)
+        workbook.close()
+        result = compare(self.recipe, self.table_source, self.table_source)
+        self.assertEqual(result["inputs"]["baseline"]["range"], "A2:C4")
+
+    def test_named_table_supports_all_modes_and_portable_suites(self):
+        self._write_named_table()
+        aggregate = deepcopy(RECIPE)
+        aggregate.update(
+            recipe_version=2,
+            comparison_mode="aggregate",
+            group_by=["id"],
+            measures={"value_sum": {"operator": "sum", "column": "value", "nulls": "reject"}},
+        )
+        for key in ("keys", "identity", "nulls_equal"):
+            aggregate.pop(key)
+        self.recipe.write_text(json.dumps(aggregate), encoding="utf-8")
+        self.assertEqual(compare(self.recipe, self.table_source, self.table_source)["outcome"], "PASS")
+        aggregate_preflight = validate_inputs(self.recipe, self.table_source, self.table_source)
+        self.assertEqual(aggregate_preflight["schema_version"], 14)
+        Draft202012Validator(load_schema("preflight-v14")).validate(aggregate_preflight)
+
+        multiset = deepcopy(RECIPE)
+        multiset.update(recipe_version=3, comparison_mode="multiset")
+        for key in ("keys", "identity", "nulls_equal"):
+            multiset.pop(key)
+        self.recipe.write_text(json.dumps(multiset), encoding="utf-8")
+        self.assertEqual(compare(self.recipe, self.table_source, self.table_source, engine="sqlite")["outcome"], "PASS")
+        multiset_preflight = validate_inputs(self.recipe, self.table_source, self.table_source)
+        self.assertEqual(multiset_preflight["schema_version"], 15)
+        Draft202012Validator(load_schema("preflight-v15")).validate(multiset_preflight)
+
+        suite = self.root / "suite.json"
+        portable = "xlsx:records.xlsx#table=Orders"
+        suite.write_text(
+            json.dumps(
+                {
+                    "suite_version": 2,
+                    "cases": [
+                        {"id": "xlsx-table", "recipe": "recipe.json", "baseline": portable, "candidate": portable}
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.assertEqual(load_suite(suite)["cases"][0]["baseline"], self.table_source)
+
+    def test_named_table_rejects_missing_case_variant_and_totals(self):
+        self._write_named_table()
+        with self.assertRaisesRegex(ParisonError, "table does not exist"):
+            compare(self.recipe, self.table_source.replace("Orders", "orders"), self.table_source)
+
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Export"
+        worksheet.append(["id", "value", "day"])
+        worksheet.append(["001", 10, date(2026, 10, 17)])
+        worksheet.add_table(Table(displayName="Orders", ref="A1:C2", totalsRowShown=True))
+        workbook.save(self.workbook)
+        workbook.close()
+        with self.assertRaisesRegex(ParisonError, "no totals row"):
+            compare(self.recipe, self.table_source, self.table_source)
+
+    def test_named_table_rejects_metadata_formula_header_mismatch_and_header_only_ref(self):
+        self._write_named_table()
+        workbook = load_workbook(self.workbook)
+        table = workbook["Export"].tables["Orders"]
+        table.tableColumns[1].calculatedColumnFormula = TableFormula(attr_text="SUM([value])")
+        workbook.save(self.workbook)
+        workbook.close()
+        with self.assertRaisesRegex(ParisonError, "formula declaration"):
+            compare(self.recipe, self.table_source, self.table_source)
+
+        self._write_named_table()
+        workbook = load_workbook(self.workbook)
+        workbook["Export"].tables["Orders"].tableColumns[0].name = "wrong"
+        workbook.save(self.workbook)
+        workbook.close()
+        with self.assertRaisesRegex(ParisonError, "do not match stored header"):
+            compare(self.recipe, self.table_source, self.table_source)
+
+        self._write_workbook([["id", "value", "day"]], table="Orders", table_ref="A1:C1")
+        with self.assertRaisesRegex(ParisonError, "header and data"):
+            compare(self.recipe, self.table_source, self.table_source)
+
+    def test_named_table_rejects_broken_relationships_targets_and_duplicate_identities(self):
+        workbook = Workbook()
+        for index, (name, table_name) in enumerate((("Export", "Orders"), ("Broken", "Other"))):
+            worksheet = workbook.active if index == 0 else workbook.create_sheet()
+            worksheet.title = name
+            worksheet.append(["id", "value", "day"])
+            worksheet.append(["001", 10, date(2026, 10, 17)])
+            worksheet.add_table(Table(displayName=table_name, ref="A1:C2"))
+        workbook.save(self.workbook)
+        workbook.close()
+        self._rewrite_workbook_archive(
+            lambda name, data: None if name == "xl/worksheets/_rels/sheet2.xml.rels" else data
+        )
+        with self.assertRaisesRegex(ParisonError, "invalid table metadata"):
+            compare(self.recipe, self.table_source, self.table_source)
+
+        self._write_named_table()
+        self._rewrite_workbook_archive(
+            lambda name, data: (
+                data.replace(b"/xl/tables/table1.xml", b"../../../evil.xml")
+                if name == "xl/worksheets/_rels/sheet1.xml.rels"
+                else data
+            )
+        )
+        with self.assertRaisesRegex(ParisonError, "invalid package target"):
+            compare(self.recipe, self.table_source, self.table_source)
+
+        workbook = Workbook()
+        for index, table_name in enumerate(("Orders", "Other", "Third")):
+            worksheet = workbook.active if index == 0 else workbook.create_sheet()
+            worksheet.title = f"Sheet{index + 1}"
+            worksheet.append(["id", "value", "day"])
+            worksheet.append(["001", 10, date(2026, 10, 17)])
+            worksheet.add_table(Table(displayName=table_name, ref="A1:C2"))
+        workbook.save(self.workbook)
+        workbook.close()
+        self._rewrite_workbook_archive(
+            lambda name, data: data.replace(b"Third", b"Other") if name == "xl/tables/table3.xml" else data
+        )
+        with self.assertRaisesRegex(ParisonError, "names and identifiers.*unique"):
+            compare(self.recipe, self.table_source, self.table_source)
+
+        self._write_named_table()
+        self._rewrite_workbook_archive(
+            lambda name, data: (
+                data.replace(b'<tableParts count="1">', b'<tableParts count="2">')
+                if name == "xl/worksheets/sheet1.xml"
+                else data
+            )
+        )
+        with self.assertRaisesRegex(ParisonError, "count does not match"):
+            compare(self.recipe, self.table_source, self.table_source)
 
     def test_explicit_range_compares_and_records_bounded_source_metadata(self):
         result = compare(self.recipe, self.source, self.source)

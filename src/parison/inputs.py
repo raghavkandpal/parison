@@ -109,20 +109,133 @@ def _sqlite_source(source: str | Path) -> tuple[Path, str] | None:
     return Path(path_text), table
 
 
-def _xlsx_source(source: str | Path) -> tuple[Path, str, str] | None:
+def _xlsx_source(source: str | Path) -> tuple[Path, str | None, str] | None:
     text = str(source)
     if not text.startswith("xlsx:"):
         return None
     locator = text.removeprefix("xlsx:")
-    if "?" in locator or "#" not in locator or "!" not in locator:
-        raise ParisonError("XLSX locator must be xlsx:path#worksheet!range without parameters")
+    if "?" in locator or "#" not in locator:
+        raise ParisonError("XLSX locator must select a worksheet range or exact table name without parameters")
     path_text, selection = locator.rsplit("#", 1)
-    worksheet, cell_range = selection.rsplit("!", 1)
-    if not path_text or not worksheet or not cell_range:
-        raise ParisonError("XLSX locator requires a workbook path, worksheet, and bounded range")
+    if selection.startswith("table="):
+        worksheet, cell_range = None, selection.removeprefix("table=")
+        if "!" in cell_range:
+            raise ParisonError("XLSX table locator must contain one exact table name")
+    elif "!" in selection:
+        worksheet, cell_range = selection.rsplit("!", 1)
+    else:
+        raise ParisonError("XLSX locator must select a worksheet range or exact table name")
+    if not path_text or not cell_range or (worksheet is not None and not worksheet):
+        raise ParisonError("XLSX locator requires a workbook path and explicit selection")
     if Path(path_text).suffix.lower() != ".xlsx":
         raise ParisonError("XLSX locator requires a .xlsx workbook")
     return Path(path_text), worksheet, cell_range
+
+
+def _xlsx_table(workbook, table_name: str):
+    from openpyxl.packaging.relationship import get_dependents, get_rels_path
+    from openpyxl.worksheet.table import Table, TableList
+    from openpyxl.xml.constants import REL_NS, SHEET_MAIN_NS
+    from openpyxl.xml.functions import fromstring, iterparse
+
+    matches = []
+    names, identifiers_seen, targets = set(), set(), set()
+    for worksheet in workbook.worksheets:
+        tables = TableList()
+        try:
+            with workbook._archive.open(worksheet._worksheet_path) as source:
+                identifiers, declared_counts = [], []
+                for _, element in iterparse(source, events=("end",)):
+                    if element.tag == f"{{{SHEET_MAIN_NS}}}tablePart":
+                        identifiers.append(element.attrib.get(f"{{{REL_NS}}}id"))
+                    elif element.tag == f"{{{SHEET_MAIN_NS}}}tableParts":
+                        declared_counts.append(element.attrib.get("count"))
+                    element.clear()
+            if declared_counts:
+                if len(declared_counts) != 1 or declared_counts[0] != str(len(identifiers)):
+                    raise ValueError("table part count does not match declared metadata")
+            elif identifiers:
+                raise ValueError("table parts are missing their container")
+            if not identifiers:
+                continue
+            relationships = get_dependents(workbook._archive, get_rels_path(worksheet._worksheet_path))
+            relationship_ids = [relationship.Id for relationship in relationships]
+            if len(relationship_ids) != len(set(relationship_ids)) or len(identifiers) != len(set(identifiers)):
+                raise ValueError("table relationships must be unique")
+            for identifier in identifiers:
+                relationship = relationships.get(identifier)
+                if relationship.Type != Table._rel_type:
+                    raise ValueError("table part has an invalid relationship type")
+                if not relationship.target.startswith("xl/tables/") or ".." in Path(relationship.target).parts:
+                    raise ValueError("table part has an invalid package target")
+                if relationship.target in targets:
+                    raise ValueError("table package targets must be unique")
+                targets.add(relationship.target)
+                table = Table.from_tree(fromstring(workbook._archive.read(relationship.target)))
+                if not table.name or table.name in names or table.id in identifiers_seen:
+                    raise ValueError("table names and identifiers must be nonempty and unique")
+                names.add(table.name)
+                identifiers_seen.add(table.id)
+                tables.add(table)
+        except (KeyError, TypeError, ValueError, ET.ParseError) as exc:
+            raise ParisonError(f"XLSX workbook has invalid table metadata: {exc}") from exc
+        if table := tables.get(name=table_name):
+            matches.append((worksheet.title, table))
+    if not matches:
+        raise ParisonError(f"XLSX table does not exist: {table_name}")
+    if len(matches) != 1:
+        raise ParisonError(f"XLSX table name is ambiguous: {table_name}")
+    worksheet_name, table = matches[0]
+    if table.headerRowCount != 1 or table.totalsRowCount or table.totalsRowShown:
+        raise ParisonError(f"XLSX table must have one header row and no totals row: {table_name}")
+    if any(column.calculatedColumnFormula or column.totalsRowFormula for column in table.tableColumns):
+        raise ParisonError(f"XLSX table contains a formula declaration: {table_name}")
+    return worksheet_name, table
+
+
+def _xlsx_range(cell_range: str, table: bool = False):
+    from openpyxl.utils.cell import get_column_letter, range_boundaries
+
+    try:
+        min_col, min_row, max_col, max_row = range_boundaries(cell_range)
+        if (
+            min_col is None
+            or min_row is None
+            or max_col is None
+            or max_row is None
+            or min_col > max_col
+            or min_row > max_row
+            or (table and min_row == max_row)
+        ):
+            raise ValueError("range is not a bounded header plus data rectangle")
+    except ValueError as exc:
+        raise ParisonError(f"XLSX range must be one bounded rectangle with a header and data: {cell_range}") from exc
+    normalized = f"{get_column_letter(min_col)}{min_row}:{get_column_letter(max_col)}{max_row}"
+    return normalized, min_col, min_row, max_col, max_row
+
+
+def _xlsx_resolved_metadata(source: str | Path) -> dict[str, str]:
+    path, worksheet_name, selection = _xlsx_source(source) or (None, None, None)
+    assert path is not None and selection is not None
+    if worksheet_name is not None:
+        return {"worksheet": worksheet_name, "range": selection}
+    try:
+        from openpyxl import load_workbook
+    except ImportError as exc:
+        raise ParisonError("XLSX support requires: pip install 'parison[xlsx]'") from exc
+    workbook = None
+    try:
+        workbook = load_workbook(path, read_only=True, data_only=False, keep_links=False)
+        worksheet_name, table = _xlsx_table(workbook, selection)
+        normalized, *_ = _xlsx_range(table.ref, table=True)
+        return {"table": selection, "worksheet": worksheet_name, "range": normalized}
+    except ParisonError:
+        raise
+    except Exception as exc:
+        raise ParisonError(f"cannot read XLSX table {selection} from {path}: {exc}") from exc
+    finally:
+        if workbook is not None:
+            workbook.close()
 
 
 def _json_source(source: str | Path) -> tuple[Path, str] | None:
@@ -321,8 +434,8 @@ def _source_metadata(
     sqlite_source = _sqlite_source(source)
     if sqlite_source:
         metadata.update(format="sqlite", table=sqlite_source[1])
-    elif xlsx_source := _xlsx_source(source):
-        metadata.update(format="xlsx", worksheet=xlsx_source[1], range=xlsx_source[2])
+    elif _xlsx_source(source):
+        metadata.update(format="xlsx", **_xlsx_resolved_metadata(source))
     elif json_source := _json_source(source):
         metadata.update(format="json", pointer=json_source[1])
     elif xml_source := _xml_source(source):
@@ -338,36 +451,29 @@ def _source_metadata(
 
 
 def _xlsx_rows(source: str | Path, max_rows: int | None):
-    path, worksheet_name, cell_range = _xlsx_source(source) or (None, None, None)
-    assert path is not None and worksheet_name is not None and cell_range is not None
+    path, worksheet_name, selection = _xlsx_source(source) or (None, None, None)
+    assert path is not None and selection is not None
     if path.is_symlink() or not path.is_file():
         raise ParisonError(f"XLSX workbook must be a regular non-symlink file: {path}")
     try:
         from openpyxl import load_workbook
         from openpyxl.styles.numbers import is_datetime
-        from openpyxl.utils.cell import range_boundaries
     except ImportError as exc:
         raise ParisonError("XLSX support requires: pip install 'parison[xlsx]'") from exc
-    try:
-        min_col, min_row, max_col, max_row = range_boundaries(cell_range)
-        if (
-            min_col is None
-            or min_row is None
-            or max_col is None
-            or max_row is None
-            or min_col > max_col
-            or min_row > max_row
-        ):
-            raise ValueError("range is not bounded")
-    except ValueError as exc:
-        raise ParisonError(f"XLSX range must be one bounded rectangle: {cell_range}") from exc
-    if max_rows is not None and max_row - min_row > max_rows:
-        raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
     workbook = None
     try:
         workbook = load_workbook(path, read_only=True, data_only=False, keep_links=False)
+        table = None
+        if worksheet_name is None:
+            worksheet_name, table = _xlsx_table(workbook, selection)
+            cell_range, min_col, min_row, max_col, max_row = _xlsx_range(table.ref, table=True)
+        else:
+            cell_range = selection
+            _, min_col, min_row, max_col, max_row = _xlsx_range(cell_range)
         if worksheet_name not in workbook.sheetnames:
             raise ParisonError(f"XLSX worksheet does not exist: {worksheet_name}")
+        if max_rows is not None and max_row - min_row > max_rows:
+            raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
         worksheet = workbook[worksheet_name]
         rows = worksheet.iter_rows(min_row=min_row, max_row=max_row, min_col=min_col, max_col=max_col)
         header_cells = next(rows)
@@ -378,6 +484,8 @@ def _xlsx_rows(source: str | Path, max_rows: int | None):
         headers = [cell.value for cell in header_cells]
         if any(not isinstance(name, str) or not name for name in headers) or len(headers) != len(set(headers)):
             raise ParisonError(f"XLSX range has empty, non-string, or duplicate column names: {cell_range}")
+        if table is not None and headers != table.column_names:
+            raise ParisonError(f"XLSX table columns do not match stored header cells: {selection}")
         yield headers, None
         for cells in rows:
             if any(cell.data_type == "f" for cell in cells):
@@ -394,7 +502,7 @@ def _xlsx_rows(source: str | Path, max_rows: int | None):
     except ParisonError:
         raise
     except Exception as exc:
-        raise ParisonError(f"cannot read XLSX range {worksheet_name}!{cell_range} from {path}: {exc}") from exc
+        raise ParisonError(f"cannot read XLSX selection from {path}: {exc}") from exc
     finally:
         if workbook is not None:
             workbook.close()
@@ -994,6 +1102,8 @@ def validate_inputs(
     status = "valid"
     for side, source in (("baseline", baseline), ("candidate", candidate)):
         delimiter = recipe["delimiters"][side]
+        if _xlsx_source(source) and recipe.get("input_projection") != "semantic-scalar-v1":
+            raise ParisonError("XLSX inputs require input_projection 'semantic-scalar-v1'")
         if _json_source(source) and recipe.get("input_projection") != "semantic-scalar-v1":
             raise ParisonError("JSON document inputs require input_projection 'semantic-scalar-v1'")
         if _xml_source(source) and recipe.get("input_projection") != "semantic-scalar-v1":
@@ -1025,7 +1135,7 @@ def validate_inputs(
         if sqlite_source:
             inputs[side]["table"] = sqlite_source[1]
         elif xlsx_source:
-            inputs[side].update(worksheet=xlsx_source[1], range=xlsx_source[2])
+            inputs[side].update(_xlsx_resolved_metadata(source))
         elif json_source:
             inputs[side]["pointer"] = json_source[1]
         elif xml_source:
@@ -1051,11 +1161,20 @@ def validate_inputs(
     if validate_records and any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being validated")
     uses_xlsx = any(_xlsx_source(source) for source in (baseline, candidate))
+    uses_xlsx_table = any(
+        (selection := _xlsx_source(source)) is not None and selection[1] is None for source in (baseline, candidate)
+    )
     uses_json = any(_json_source(source) for source in (baseline, candidate))
     uses_xml = any(_xml_source(source) for source in (baseline, candidate))
     result = {
         "schema_version": (
-            11
+            14
+            if uses_xlsx_table and recipe["comparison_mode"] == "aggregate"
+            else 15
+            if uses_xlsx_table and recipe["comparison_mode"] == "multiset"
+            else 13
+            if uses_xlsx_table
+            else 11
             if uses_xml and recipe["comparison_mode"] == "aggregate"
             else 12
             if uses_xml and recipe["comparison_mode"] == "multiset"

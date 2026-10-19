@@ -150,7 +150,8 @@ def load_suite(path: str | Path) -> dict[str, Any]:
             resolved[name] = (
                 f"sqlite:{source_path}#{sqlite_source[1]}"
                 if sqlite_source
-                else f"xlsx:{source_path}#{xlsx_source[1]}!{xlsx_source[2]}"
+                else f"xlsx:{source_path}#"
+                + (f"{xlsx_source[1]}!{xlsx_source[2]}" if xlsx_source[1] is not None else f"table={xlsx_source[2]}")
                 if xlsx_source
                 else f"json:{source_path}#{json_source[1]}"
                 if json_source

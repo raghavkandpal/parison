@@ -12,6 +12,9 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [JSON document engineering checkpoint](1.8/179-json-document-engineering-checkpoint.md)
 - [XML record projection contract](1.8/180-xml-record-projection-contract.md)
 - [XML record engineering checkpoint](1.8/181-xml-record-engineering-checkpoint.md)
+- [XLSX named-table projection research](1.8/182-xlsx-named-table-projection-research.md)
+- [XLSX named-table projection contract](1.8/183-xlsx-named-table-projection-contract.md)
+- [XLSX named-table engineering checkpoint](1.8/184-xlsx-named-table-engineering-checkpoint.md)
 
 ## 1.7 — released
 
