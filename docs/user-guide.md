@@ -44,12 +44,41 @@ receipts separately.
 
 ### 1. Review and lock policy
 
-Supported inputs are CSV/TSV, JSON Lines, Parquet, read-only SQLite tables and
-explicit XLSX value ranges. Partitioned directories and bounded gzip text
-inputs are also supported.
+Supported inputs are CSV/TSV, JSON Lines, explicit JSON document record arrays,
+Parquet, read-only SQLite tables and explicit XLSX value ranges. Partitioned
+directories and bounded gzip text inputs are also supported.
 
-Install the XLSX extra, then identify the workbook, worksheet and bounded
-rectangle explicitly. The first row is the header:
+Select JSON document records with an RFC 6901 JSON Pointer. The selected value
+must be an array of flat objects with consistent fields; duplicate members,
+nested values and implicit array discovery are rejected:
+
+```sh
+parison draft-recipe \
+  --baseline 'json:baseline.json#/exports/records' \
+  --candidate 'json:candidate.json#/exports/records' \
+  --output recipe.json
+```
+
+Review the generated `semantic-scalar-v1` policy. See the
+[JSON document projection contract](1.8/178-json-document-projection-contract.md).
+
+Select XML records with an exact root-to-record QName path and explicit,
+percent-encoded namespace bindings:
+
+```sh
+parison draft-recipe \
+  --baseline 'xml:baseline.xml#p:root/p:records/p:record?ns=p,https%3A%2F%2Fexample.com%2Fv1' \
+  --candidate 'xml:candidate.xml#p:root/p:records/p:record?ns=p,https%3A%2F%2Fexample.com%2Fv1' \
+  --output recipe.json
+```
+
+Records contain direct, attribute-free text child elements only. Parison
+rejects DTDs, entities, XPath-like selection and undeclared namespaces. See
+the [XML record projection contract](1.8/180-xml-record-projection-contract.md).
+
+Install the XLSX extra, then identify either the workbook, worksheet and
+bounded rectangle or one exact workbook table name. The first row is the
+header:
 
 ```sh
 python -m pip install 'parison[xlsx]'
@@ -58,13 +87,16 @@ parison draft-recipe \
   --candidate 'xlsx:candidate.xlsx#Export!A1:F1000' \
   --output recipe.json
 parison validate-inputs --records --recipe recipe.json \
-  --baseline 'xlsx:baseline.xlsx#Export!A1:F1000' \
-  --candidate 'xlsx:candidate.xlsx#Export!A1:F1000'
+  --baseline 'xlsx:baseline.xlsx#table=Orders' \
+  --candidate 'xlsx:candidate.xlsx#table=Orders'
 ```
 
 Review the generated `semantic-scalar-v1` policy. Formula and error cells are
 rejected; Parison never infers the active sheet or used range and does not
-evaluate formulas. See the [XLSX values contract](1.6/170-xlsx-values-projection-contract.md).
+evaluate formulas. Named tables use their stored rectangle and reject totals,
+calculated columns and mismatched table/header metadata. See the released
+[XLSX values contract](1.6/170-xlsx-values-projection-contract.md) and the
+[named-table contract](1.8/183-xlsx-named-table-projection-contract.md).
 
 ```sh
 parison draft-recipe --baseline baseline.csv --candidate candidate.csv \

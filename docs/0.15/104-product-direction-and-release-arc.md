@@ -41,6 +41,46 @@ Reconsider a boundary only when repeated user evidence identifies it as an adopt
 
 ## Suggested release arc
 
+### Active development through at least v5.0
+
+Parison remains in active product expansion and refinement through at least
+v5.0. Reaching a stable 1.x contract is a foundation, not a signal to restrict
+work to maintenance. Every train should research the strongest reachable next
+capabilities, freeze their trust boundaries, implement them, gather independent
+test and review evidence, and refine existing workflows where that makes the
+new capability coherent.
+
+Feature selection is evidence-driven but does not wait for real-world approval,
+customer authorization or production adoption. Repository research, primary
+sources, compatibility fixtures, hostile-input tests, benchmarks and fresh
+blind review are sufficient to make internal product decisions when the scope
+is reachable and preserves Parison's invariants. Such evidence approves only
+continued product development; it never approves a user's keys, tolerances,
+scope, exclusions, repairs, migration or cutover.
+
+The roadmap beyond the active train is deliberately directional rather than a
+fixed backlog. At each train boundary, research current gaps and select at
+least three substantial, separately reviewable features that deepen local
+verification. Prefer coherent capability groups over unrelated release
+fillers, and revise the path when implementation evidence exposes a stronger
+or safer direction. Continue this research-build-review cycle through at least
+v5.0 before considering a maintenance-only posture.
+
+### Release cadence after 1.7.0
+
+Post-1.7 minor releases are release trains, not per-feature publication. Each
+train must contain at least three separately reviewable, substantial feature
+additions. A feature earns a green pushed checkpoint when its own contract and
+completion gate pass, but candidate review, merge, tagging and publication
+wait until all three features are complete.
+
+Internal refactors, documentation reconciliation, defect fixes and additional
+tests strengthen a train but do not count toward the minimum unless they add a
+material user capability. Urgent compatible corrections to a published
+release may still use a patch version. This cadence keeps release ceremony
+proportional to product value and reserves full cross-platform qualification
+for a meaningful combined increment.
+
 ### v0.15 — rehearsal history
 
 - Policy-locked catalog history.

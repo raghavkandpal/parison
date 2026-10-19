@@ -74,7 +74,7 @@ def export_editor_schemas(output: str | Path) -> dict[str, Any]:
 
 
 def load_suite(path: str | Path) -> dict[str, Any]:
-    from .inputs import _source_path, _source_paths, _sqlite_source, _xlsx_source
+    from .inputs import _json_source, _source_path, _source_paths, _sqlite_source, _xlsx_source, _xml_source
 
     suite_path = Path(path)
     try:
@@ -128,7 +128,19 @@ def load_suite(path: str | Path) -> dict[str, Any]:
                 raise ParisonError(f"suite case {identifier} has an invalid {name} reference")
             sqlite_source = _sqlite_source(value) if name != "recipe" else None
             xlsx_source = _xlsx_source(value) if name != "recipe" else None
-            source_path = sqlite_source[0] if sqlite_source else xlsx_source[0] if xlsx_source else Path(value)
+            json_source = _json_source(value) if name != "recipe" else None
+            xml_source = _xml_source(value) if name != "recipe" else None
+            source_path = (
+                sqlite_source[0]
+                if sqlite_source
+                else xlsx_source[0]
+                if xlsx_source
+                else json_source[0]
+                if json_source
+                else xml_source[0]
+                if xml_source
+                else Path(value)
+            )
             if version == 2 and source_path.is_absolute():
                 raise ParisonError(f"suite case {identifier} {name} must be a portable plan-relative reference")
             if not source_path.is_absolute():
@@ -138,8 +150,14 @@ def load_suite(path: str | Path) -> dict[str, Any]:
             resolved[name] = (
                 f"sqlite:{source_path}#{sqlite_source[1]}"
                 if sqlite_source
-                else f"xlsx:{source_path}#{xlsx_source[1]}!{xlsx_source[2]}"
+                else f"xlsx:{source_path}#"
+                + (f"{xlsx_source[1]}!{xlsx_source[2]}" if xlsx_source[1] is not None else f"table={xlsx_source[2]}")
                 if xlsx_source
+                else f"json:{source_path}#{json_source[1]}"
+                if json_source
+                else f"xml:{source_path}#{xml_source[1]}"
+                + ("?" + str(value).split("?", 1)[1] if "?" in str(value) else "")
+                if xml_source
                 else str(source_path)
             )
             portable[name] = value

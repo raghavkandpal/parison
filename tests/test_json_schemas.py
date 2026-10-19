@@ -30,6 +30,15 @@ class JsonSchemas(unittest.TestCase):
         cls.preflight_v4_schema = load_schema("preflight-v4")
         cls.preflight_v5_schema = load_schema("preflight-v5")
         cls.preflight_v6_schema = load_schema("preflight-v6")
+        cls.preflight_v7_schema = load_schema("preflight-v7")
+        cls.preflight_v8_schema = load_schema("preflight-v8")
+        cls.preflight_v9_schema = load_schema("preflight-v9")
+        cls.preflight_v10_schema = load_schema("preflight-v10")
+        cls.preflight_v11_schema = load_schema("preflight-v11")
+        cls.preflight_v12_schema = load_schema("preflight-v12")
+        cls.preflight_v13_schema = load_schema("preflight-v13")
+        cls.preflight_v14_schema = load_schema("preflight-v14")
+        cls.preflight_v15_schema = load_schema("preflight-v15")
         cls.suite_schema = load_schema("suite")
         cls.suite_v2_schema = load_schema("suite-v2")
         cls.suite_authoring_schema = load_schema("suite-authoring")
@@ -56,6 +65,15 @@ class JsonSchemas(unittest.TestCase):
         Draft202012Validator.check_schema(cls.preflight_v4_schema)
         Draft202012Validator.check_schema(cls.preflight_v5_schema)
         Draft202012Validator.check_schema(cls.preflight_v6_schema)
+        Draft202012Validator.check_schema(cls.preflight_v7_schema)
+        Draft202012Validator.check_schema(cls.preflight_v8_schema)
+        Draft202012Validator.check_schema(cls.preflight_v9_schema)
+        Draft202012Validator.check_schema(cls.preflight_v10_schema)
+        Draft202012Validator.check_schema(cls.preflight_v11_schema)
+        Draft202012Validator.check_schema(cls.preflight_v12_schema)
+        Draft202012Validator.check_schema(cls.preflight_v13_schema)
+        Draft202012Validator.check_schema(cls.preflight_v14_schema)
+        Draft202012Validator.check_schema(cls.preflight_v15_schema)
         Draft202012Validator.check_schema(cls.recipe_authoring_schema)
         Draft202012Validator.check_schema(cls.suite_authoring_schema)
         Draft202012Validator.check_schema(cls.statement_schema)
@@ -150,6 +168,24 @@ class JsonSchemas(unittest.TestCase):
             (aggregate, self.preflight_v5_schema["$defs"]["input"]),
         ):
             with self.subTest(schema=validator.schema["$id"]):
+                self.assertFalse(validator.evolve(schema=definition["properties"]["schema"]).is_valid({}))
+                self.assertFalse(validator.evolve(schema=definition["properties"]["records"]).is_valid({}))
+
+    def test_json_preflight_schemas_keep_nested_results_closed(self):
+        for schema in (
+            self.preflight_v7_schema,
+            self.preflight_v8_schema,
+            self.preflight_v9_schema,
+            self.preflight_v10_schema,
+            self.preflight_v11_schema,
+            self.preflight_v12_schema,
+            self.preflight_v13_schema,
+            self.preflight_v14_schema,
+            self.preflight_v15_schema,
+        ):
+            definition = schema["$defs"]["input"]
+            validator = Draft202012Validator(schema)
+            with self.subTest(schema=schema["$id"]):
                 self.assertFalse(validator.evolve(schema=definition["properties"]["schema"]).is_valid({}))
                 self.assertFalse(validator.evolve(schema=definition["properties"]["records"]).is_valid({}))
 

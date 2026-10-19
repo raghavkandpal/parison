@@ -2,9 +2,31 @@
 
 The active version checklist records evidence; this file defines the reusable procedure.
 
+## Release train size
+
+For every release after 1.7.0, accumulate at least three separately reviewable,
+substantial feature additions before opening a release candidate. Each feature
+must have its own checkable completion gate and green pushed checkpoint.
+Documentation-only reconciliation, refactors, defect fixes and test hardening
+do not count as one of the three features unless they independently add a
+material user capability.
+
+Do not tag or publish a completed individual feature. Keep it on `develop`,
+record its checkpoint, and continue building the same release train. Patch
+releases remain available only for urgent compatible fixes to an already
+published release; they are not a way around the three-feature minimum.
+
+This cadence remains the default through at least v5.0. Select each train from
+documented research and reachable repository evidence; do not wait for
+real-world approval or production adoption to continue building. Use fresh
+blind implementation review and tests where an internal scope decision needs
+independent evidence. That evidence may advance a candidate, but it must never
+be described as approval of a user's policy, data, migration or cutover.
+
 ## Candidate
 
-1. Confirm version, changelog, roadmap, checkpoint and checklist agree.
+1. Confirm the active roadmap identifies at least three completed substantial
+   features and that version, changelog, checkpoints and checklist agree.
 2. Run `make check`; require built-wheel CI on every supported Python and operating-system lane.
 3. Review `origin/main...develop` against its contracts and repository invariants; correct every release blocker.
 4. Export the candidate with `git archive` into a clean directory; build wheel and source archive there.

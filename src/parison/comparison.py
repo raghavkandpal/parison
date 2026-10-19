@@ -639,6 +639,7 @@ def compare(
                 decoded_sizes,
                 recipe["delimiters"]["baseline"],
                 recipe["null_tokens"]["baseline"],
+                recipe["output"]["sensitivity"] == "raw",
             ),
             "candidate": _source_metadata(
                 candidate_path,
@@ -646,6 +647,7 @@ def compare(
                 decoded_sizes,
                 recipe["delimiters"]["candidate"],
                 recipe["null_tokens"]["candidate"],
+                recipe["output"]["sensitivity"] == "raw",
             ),
         },
         "recipe_sha256": _digest(recipe_path),
@@ -1123,6 +1125,7 @@ def _compare_aggregate(
                 decoded_sizes,
                 recipe["delimiters"]["baseline"],
                 recipe["null_tokens"]["baseline"],
+                recipe["output"]["sensitivity"] == "raw",
             ),
             "candidate": _source_metadata(
                 candidate_path,
@@ -1130,6 +1133,7 @@ def _compare_aggregate(
                 decoded_sizes,
                 recipe["delimiters"]["candidate"],
                 recipe["null_tokens"]["candidate"],
+                recipe["output"]["sensitivity"] == "raw",
             ),
         },
         "recipe_sha256": _digest(recipe_path),
@@ -1362,7 +1366,12 @@ def _compare_multiset(
         "excluded_columns": recipe.get("excluded_columns", {}),
         "inputs": {
             side: _source_metadata(
-                path, before[str(path)], decoded_sizes, recipe["delimiters"][side], recipe["null_tokens"][side]
+                path,
+                before[str(path)],
+                decoded_sizes,
+                recipe["delimiters"][side],
+                recipe["null_tokens"][side],
+                recipe["output"]["sensitivity"] == "raw",
             )
             for side, path in (("baseline", baseline_path), ("candidate", candidate_path))
         },

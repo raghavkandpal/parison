@@ -5,14 +5,18 @@ from __future__ import annotations
 import csv
 import gzip
 import hashlib
+import io
 import json
+import re
 import sqlite3
+import xml.etree.ElementTree as ET
 import zipfile
 from collections import Counter
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl
 
 from .core import (
     _FILE_FORMATS,
@@ -105,31 +109,217 @@ def _sqlite_source(source: str | Path) -> tuple[Path, str] | None:
     return Path(path_text), table
 
 
-def _xlsx_source(source: str | Path) -> tuple[Path, str, str] | None:
+def _xlsx_source(source: str | Path) -> tuple[Path, str | None, str] | None:
     text = str(source)
     if not text.startswith("xlsx:"):
         return None
     locator = text.removeprefix("xlsx:")
-    if "?" in locator or "#" not in locator or "!" not in locator:
-        raise ParisonError("XLSX locator must be xlsx:path#worksheet!range without parameters")
+    if "?" in locator or "#" not in locator:
+        raise ParisonError("XLSX locator must select a worksheet range or exact table name without parameters")
     path_text, selection = locator.rsplit("#", 1)
-    worksheet, cell_range = selection.rsplit("!", 1)
-    if not path_text or not worksheet or not cell_range:
-        raise ParisonError("XLSX locator requires a workbook path, worksheet, and bounded range")
+    if selection.startswith("table="):
+        worksheet, cell_range = None, selection.removeprefix("table=")
+        if "!" in cell_range:
+            raise ParisonError("XLSX table locator must contain one exact table name")
+    elif "!" in selection:
+        worksheet, cell_range = selection.rsplit("!", 1)
+    else:
+        raise ParisonError("XLSX locator must select a worksheet range or exact table name")
+    if not path_text or not cell_range or (worksheet is not None and not worksheet):
+        raise ParisonError("XLSX locator requires a workbook path and explicit selection")
     if Path(path_text).suffix.lower() != ".xlsx":
         raise ParisonError("XLSX locator requires a .xlsx workbook")
     return Path(path_text), worksheet, cell_range
 
 
+def _xlsx_table(workbook, table_name: str):
+    from openpyxl.packaging.relationship import get_dependents, get_rels_path
+    from openpyxl.worksheet.table import Table, TableList
+    from openpyxl.xml.constants import REL_NS, SHEET_MAIN_NS
+    from openpyxl.xml.functions import fromstring, iterparse
+
+    matches = []
+    names, identifiers_seen, targets = set(), set(), set()
+    for worksheet in workbook.worksheets:
+        tables = TableList()
+        try:
+            with workbook._archive.open(worksheet._worksheet_path) as source:
+                identifiers, declared_counts = [], []
+                for _, element in iterparse(source, events=("end",)):
+                    if element.tag == f"{{{SHEET_MAIN_NS}}}tablePart":
+                        identifiers.append(element.attrib.get(f"{{{REL_NS}}}id"))
+                    elif element.tag == f"{{{SHEET_MAIN_NS}}}tableParts":
+                        declared_counts.append(element.attrib.get("count"))
+                    element.clear()
+            if declared_counts:
+                if len(declared_counts) != 1 or declared_counts[0] != str(len(identifiers)):
+                    raise ValueError("table part count does not match declared metadata")
+            elif identifiers:
+                raise ValueError("table parts are missing their container")
+            if not identifiers:
+                continue
+            relationships = get_dependents(workbook._archive, get_rels_path(worksheet._worksheet_path))
+            relationship_ids = [relationship.Id for relationship in relationships]
+            if len(relationship_ids) != len(set(relationship_ids)) or len(identifiers) != len(set(identifiers)):
+                raise ValueError("table relationships must be unique")
+            for identifier in identifiers:
+                relationship = relationships.get(identifier)
+                if relationship.Type != Table._rel_type:
+                    raise ValueError("table part has an invalid relationship type")
+                if not relationship.target.startswith("xl/tables/") or ".." in Path(relationship.target).parts:
+                    raise ValueError("table part has an invalid package target")
+                if relationship.target in targets:
+                    raise ValueError("table package targets must be unique")
+                targets.add(relationship.target)
+                table = Table.from_tree(fromstring(workbook._archive.read(relationship.target)))
+                if not table.name or table.name in names or table.id in identifiers_seen:
+                    raise ValueError("table names and identifiers must be nonempty and unique")
+                names.add(table.name)
+                identifiers_seen.add(table.id)
+                tables.add(table)
+        except (KeyError, TypeError, ValueError, ET.ParseError) as exc:
+            raise ParisonError(f"XLSX workbook has invalid table metadata: {exc}") from exc
+        if table := tables.get(name=table_name):
+            matches.append((worksheet.title, table))
+    if not matches:
+        raise ParisonError(f"XLSX table does not exist: {table_name}")
+    if len(matches) != 1:
+        raise ParisonError(f"XLSX table name is ambiguous: {table_name}")
+    worksheet_name, table = matches[0]
+    if table.headerRowCount != 1 or table.totalsRowCount or table.totalsRowShown:
+        raise ParisonError(f"XLSX table must have one header row and no totals row: {table_name}")
+    if any(column.calculatedColumnFormula or column.totalsRowFormula for column in table.tableColumns):
+        raise ParisonError(f"XLSX table contains a formula declaration: {table_name}")
+    return worksheet_name, table
+
+
+def _xlsx_range(cell_range: str, table: bool = False):
+    from openpyxl.utils.cell import get_column_letter, range_boundaries
+
+    try:
+        min_col, min_row, max_col, max_row = range_boundaries(cell_range)
+        if (
+            min_col is None
+            or min_row is None
+            or max_col is None
+            or max_row is None
+            or min_col > max_col
+            or min_row > max_row
+            or (table and min_row == max_row)
+        ):
+            raise ValueError("range is not a bounded header plus data rectangle")
+    except ValueError as exc:
+        raise ParisonError(f"XLSX range must be one bounded rectangle with a header and data: {cell_range}") from exc
+    normalized = f"{get_column_letter(min_col)}{min_row}:{get_column_letter(max_col)}{max_row}"
+    return normalized, min_col, min_row, max_col, max_row
+
+
+def _xlsx_resolved_metadata(source: str | Path) -> dict[str, str]:
+    path, worksheet_name, selection = _xlsx_source(source) or (None, None, None)
+    assert path is not None and selection is not None
+    if worksheet_name is not None:
+        return {"worksheet": worksheet_name, "range": selection}
+    try:
+        from openpyxl import load_workbook
+    except ImportError as exc:
+        raise ParisonError("XLSX support requires: pip install 'parison[xlsx]'") from exc
+    workbook = None
+    try:
+        workbook = load_workbook(path, read_only=True, data_only=False, keep_links=False)
+        worksheet_name, table = _xlsx_table(workbook, selection)
+        normalized, *_ = _xlsx_range(table.ref, table=True)
+        return {"table": selection, "worksheet": worksheet_name, "range": normalized}
+    except ParisonError:
+        raise
+    except Exception as exc:
+        raise ParisonError(f"cannot read XLSX table {selection} from {path}: {exc}") from exc
+    finally:
+        if workbook is not None:
+            workbook.close()
+
+
+def _json_source(source: str | Path) -> tuple[Path, str] | None:
+    text = str(source)
+    if not text.startswith("json:"):
+        return None
+    locator = text.removeprefix("json:")
+    if "?" in locator or "#" not in locator:
+        raise ParisonError("JSON locator must be json:path#pointer without parameters")
+    path_text, pointer = locator.split("#", 1)
+    if not path_text or (pointer and not pointer.startswith("/")):
+        raise ParisonError("JSON locator requires a .json path and an RFC 6901 pointer")
+    if Path(path_text).suffix.lower() != ".json":
+        raise ParisonError("JSON locator requires a .json document")
+    return Path(path_text), pointer
+
+
+def _xml_source(source: str | Path) -> tuple[Path, str, dict[str, str]] | None:
+    text = str(source)
+    if not text.startswith("xml:"):
+        return None
+    locator = text.removeprefix("xml:")
+    if "#" not in locator:
+        raise ParisonError("XML locator must be xml:path#record-path with optional namespace bindings")
+    path_text, selection = locator.rsplit("#", 1)
+    record_path, separator, query = selection.partition("?")
+    if not path_text or not record_path or Path(path_text).suffix.lower() != ".xml":
+        raise ParisonError("XML locator requires a .xml document and bounded record path")
+    segments = record_path.split("/")
+    if not 1 <= len(segments) <= 32 or any(
+        not re.fullmatch(r"(?:[A-Za-z_][\w.-]*:)?[A-Za-z_][\w.-]*", segment, re.ASCII) for segment in segments
+    ):
+        raise ParisonError("XML record path must contain 1 to 32 bounded QName segments")
+    namespaces = {}
+    if separator:
+        try:
+            bindings = parse_qsl(query, keep_blank_values=True, strict_parsing=True)
+        except ValueError as exc:
+            raise ParisonError("XML namespace bindings are invalid") from exc
+        for name, binding in bindings:
+            if name != "ns" or "," not in binding:
+                raise ParisonError("XML locator parameters must be ns=prefix,URI bindings")
+            prefix, uri = binding.split(",", 1)
+            if (
+                not re.fullmatch(r"[A-Za-z_][\w.-]*", prefix, re.ASCII)
+                or not uri
+                or prefix in namespaces
+                or uri in namespaces.values()
+            ):
+                raise ParisonError("XML namespace prefixes and URIs must be nonempty and unique")
+            namespaces[prefix] = uri
+    used_prefixes = {segment.split(":", 1)[0] for segment in segments if ":" in segment}
+    if not used_prefixes <= set(namespaces):
+        raise ParisonError("XML record path prefixes must be declared")
+    return Path(path_text), record_path, namespaces
+
+
 def _source_path(source: str | Path) -> Path:
     sqlite_source = _sqlite_source(source)
     xlsx_source = _xlsx_source(source)
-    return sqlite_source[0] if sqlite_source else xlsx_source[0] if xlsx_source else Path(source)
+    json_source = _json_source(source)
+    xml_source = _xml_source(source)
+    return (
+        sqlite_source[0]
+        if sqlite_source
+        else xlsx_source[0]
+        if xlsx_source
+        else json_source[0]
+        if json_source
+        else xml_source[0]
+        if xml_source
+        else Path(source)
+    )
 
 
 def _source_paths(source: str | Path) -> tuple[Path, ...]:
     path = _source_path(source)
-    if _sqlite_source(source) or _xlsx_source(source) or not path.is_dir():
+    if (
+        _sqlite_source(source)
+        or _xlsx_source(source)
+        or _json_source(source)
+        or _xml_source(source)
+        or not path.is_dir()
+    ):
         return (path,)
     if path.is_symlink():
         raise ParisonError(f"partitioned input must not be a symlink: {path}")
@@ -223,6 +413,7 @@ def _source_metadata(
     decoded_sizes: dict[Path, int] | None = None,
     delimiter: str = ",",
     null_tokens: list[str] | None = None,
+    include_xlsx_table_selection: bool = True,
 ) -> dict[str, Any]:
     path = _source_path(source)
     paths = _source_paths(source)
@@ -231,6 +422,10 @@ def _source_metadata(
         if _sqlite_source(source)
         else "xlsx"
         if _xlsx_source(source)
+        else "json"
+        if _json_source(source)
+        else "xml"
+        if _xml_source(source)
         else (_file_format(paths[0]) or path.suffix.lower().lstrip("."))
     )
     metadata = {"sha256": digest, "bytes": _source_bytes(source), "format": format_name}
@@ -240,8 +435,15 @@ def _source_metadata(
     sqlite_source = _sqlite_source(source)
     if sqlite_source:
         metadata.update(format="sqlite", table=sqlite_source[1])
-    elif xlsx_source := _xlsx_source(source):
-        metadata.update(format="xlsx", worksheet=xlsx_source[1], range=xlsx_source[2])
+    elif _xlsx_source(source):
+        selection = _xlsx_resolved_metadata(source)
+        if include_xlsx_table_selection or "table" not in selection:
+            metadata.update(selection)
+        metadata["format"] = "xlsx"
+    elif json_source := _json_source(source):
+        metadata.update(format="json", pointer=json_source[1])
+    elif xml_source := _xml_source(source):
+        metadata.update(format="xml", record_path=xml_source[1], namespaces=dict(sorted(xml_source[2].items())))
     elif path.is_dir():
         metadata["partitions"] = len(paths)
     if decoded_sizes and any(item in decoded_sizes for item in paths):
@@ -253,36 +455,29 @@ def _source_metadata(
 
 
 def _xlsx_rows(source: str | Path, max_rows: int | None):
-    path, worksheet_name, cell_range = _xlsx_source(source) or (None, None, None)
-    assert path is not None and worksheet_name is not None and cell_range is not None
+    path, worksheet_name, selection = _xlsx_source(source) or (None, None, None)
+    assert path is not None and selection is not None
     if path.is_symlink() or not path.is_file():
         raise ParisonError(f"XLSX workbook must be a regular non-symlink file: {path}")
     try:
         from openpyxl import load_workbook
         from openpyxl.styles.numbers import is_datetime
-        from openpyxl.utils.cell import range_boundaries
     except ImportError as exc:
         raise ParisonError("XLSX support requires: pip install 'parison[xlsx]'") from exc
-    try:
-        min_col, min_row, max_col, max_row = range_boundaries(cell_range)
-        if (
-            min_col is None
-            or min_row is None
-            or max_col is None
-            or max_row is None
-            or min_col > max_col
-            or min_row > max_row
-        ):
-            raise ValueError("range is not bounded")
-    except ValueError as exc:
-        raise ParisonError(f"XLSX range must be one bounded rectangle: {cell_range}") from exc
-    if max_rows is not None and max_row - min_row > max_rows:
-        raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
     workbook = None
     try:
         workbook = load_workbook(path, read_only=True, data_only=False, keep_links=False)
+        table = None
+        if worksheet_name is None:
+            worksheet_name, table = _xlsx_table(workbook, selection)
+            cell_range, min_col, min_row, max_col, max_row = _xlsx_range(table.ref, table=True)
+        else:
+            cell_range = selection
+            _, min_col, min_row, max_col, max_row = _xlsx_range(cell_range)
         if worksheet_name not in workbook.sheetnames:
             raise ParisonError(f"XLSX worksheet does not exist: {worksheet_name}")
+        if max_rows is not None and max_row - min_row > max_rows:
+            raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
         worksheet = workbook[worksheet_name]
         rows = worksheet.iter_rows(min_row=min_row, max_row=max_row, min_col=min_col, max_col=max_col)
         header_cells = next(rows)
@@ -293,6 +488,8 @@ def _xlsx_rows(source: str | Path, max_rows: int | None):
         headers = [cell.value for cell in header_cells]
         if any(not isinstance(name, str) or not name for name in headers) or len(headers) != len(set(headers)):
             raise ParisonError(f"XLSX range has empty, non-string, or duplicate column names: {cell_range}")
+        if table is not None and headers != table.column_names:
+            raise ParisonError(f"XLSX table columns do not match stored header cells: {selection}")
         yield headers, None
         for cells in rows:
             if any(cell.data_type == "f" for cell in cells):
@@ -309,7 +506,7 @@ def _xlsx_rows(source: str | Path, max_rows: int | None):
     except ParisonError:
         raise
     except Exception as exc:
-        raise ParisonError(f"cannot read XLSX range {worksheet_name}!{cell_range} from {path}: {exc}") from exc
+        raise ParisonError(f"cannot read XLSX selection from {path}: {exc}") from exc
     finally:
         if workbook is not None:
             workbook.close()
@@ -381,6 +578,185 @@ def _jsonl_record(line: str, path: Path, line_number: int) -> dict[str, Any]:
     if any(isinstance(item, (dict, list)) for item in value.values()):
         raise ParisonError(f"JSON Lines record {line_number} in {path} contains a nested value")
     return {name: ("true" if item is True else "false" if item is False else item) for name, item in value.items()}
+
+
+def _json_rows(source: str | Path, max_rows: int | None):
+    path, pointer = _json_source(source) or (None, None)
+    assert path is not None and pointer is not None
+    if path.is_symlink() or not path.is_file():
+        raise ParisonError(f"JSON document must be a regular non-symlink file: {path}")
+
+    def object_pairs(pairs):
+        value = dict(pairs)
+        if len(value) != len(pairs):
+            raise ParisonError(f"duplicate JSON key in {path}")
+        return value
+
+    try:
+        value = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=object_pairs,
+            parse_int=str,
+            parse_float=str,
+            parse_constant=lambda token: (_ for _ in ()).throw(ValueError(token)),
+        )
+    except ParisonError:
+        raise
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, RecursionError) as exc:
+        raise ParisonError(f"cannot parse JSON document {path}: {exc}") from exc
+    for raw_token in pointer.split("/")[1:] if pointer else ():
+        if "~" in raw_token.replace("~0", "").replace("~1", ""):
+            raise ParisonError(f"JSON pointer has an invalid escape: {pointer}")
+        token = raw_token.replace("~1", "/").replace("~0", "~")
+        if isinstance(value, dict) and token in value:
+            value = value[token]
+        elif isinstance(value, list) and (
+            token == "0"
+            or (token and token[0] in "123456789" and all(character in "0123456789" for character in token))
+        ):
+            try:
+                index = int(token)
+            except ValueError as exc:
+                raise ParisonError(f"JSON pointer does not resolve: {pointer}") from exc
+            if index >= len(value):
+                raise ParisonError(f"JSON pointer does not resolve: {pointer}")
+            value = value[index]
+        else:
+            raise ParisonError(f"JSON pointer does not resolve: {pointer}")
+    if not isinstance(value, list):
+        raise ParisonError(f"JSON pointer must select an array: {pointer}")
+    if max_rows is not None and len(value) > max_rows:
+        raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
+    headers = None
+    for index, row in enumerate(value):
+        if not isinstance(row, dict):
+            raise ParisonError(f"JSON record {index} in {path} must be an object")
+        if any(not isinstance(name, str) or not name for name in row):
+            raise ParisonError(f"JSON record {index} in {path} has an empty or invalid field name")
+        if any(isinstance(item, (dict, list)) for item in row.values()):
+            raise ParisonError(f"JSON record {index} in {path} contains a nested value")
+        if headers is None:
+            headers = list(row)
+            if not headers:
+                raise ParisonError(f"JSON record {index} in {path} has no fields")
+            yield headers, None
+        elif set(row) != set(headers):
+            raise ParisonError(f"inconsistent JSON fields at record {index} in {path}")
+        yield (
+            headers,
+            {name: "true" if item is True else "false" if item is False else item for name, item in row.items()},
+        )
+    if headers is None:
+        raise ParisonError(f"input has no schema: {source}")
+
+
+def _xml_rows(source: str | Path, max_rows: int | None):
+    path, record_path, namespaces = _xml_source(source) or (None, None, None)
+    assert path is not None and record_path is not None and namespaces is not None
+    if path.is_symlink() or not path.is_file():
+        raise ParisonError(f"XML document must be a regular non-symlink file: {path}")
+    try:
+        content = path.read_bytes()
+    except OSError as exc:
+        raise ParisonError(f"cannot read XML document {path}: {exc}") from exc
+    if len(content) > 64 * 1024 * 1024:
+        raise ParisonError(f"XML document exceeds 67108864 byte parser limit: {path}")
+    try:
+        xml_text = content.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ParisonError(f"XML document must use UTF-8 encoding: {path}") from exc
+    declaration = re.match(r"""<\?xml\s+[^?]*\bencoding\s*=\s*(["'])([^"']+)\1""", xml_text, re.IGNORECASE)
+    if declaration and declaration.group(2).lower().replace("_", "-") not in {"utf-8", "utf8"}:
+        raise ParisonError(f"XML document must use UTF-8 encoding: {path}")
+    offset = 0
+    while (declaration := xml_text.find("<!", offset)) >= 0:
+        if xml_text.startswith("<!--", declaration):
+            end = xml_text.find("-->", declaration + 4)
+            offset = len(xml_text) if end < 0 else end + 3
+        elif xml_text.startswith("<![CDATA[", declaration):
+            end = xml_text.find("]]>", declaration + 9)
+            offset = len(xml_text) if end < 0 else end + 3
+        elif xml_text.startswith(("<!DOCTYPE", "<!ENTITY"), declaration):
+            break
+        else:
+            offset = declaration + 2
+    else:
+        declaration = -1
+    if declaration >= 0 and xml_text.startswith(("<!DOCTYPE", "<!ENTITY"), declaration):
+        raise ParisonError(f"XML document contains a forbidden DTD or entity declaration: {path}")
+    reverse_namespaces = {uri: prefix for prefix, uri in namespaces.items()}
+
+    def expanded(name: str) -> str:
+        if ":" not in name:
+            return name
+        prefix, local = name.split(":", 1)
+        return f"{{{namespaces[prefix]}}}{local}"
+
+    def projected(name: str) -> str:
+        if not name.startswith("{"):
+            return name
+        uri, local = name[1:].split("}", 1)
+        if uri not in reverse_namespaces:
+            raise ParisonError(f"XML field uses an undeclared namespace: {uri}")
+        return f"{reverse_namespaces[uri]}:{local}"
+
+    expected_path = tuple(expanded(segment) for segment in record_path.split("/"))
+    headers = None
+    rows = 0
+    elements = 0
+    path_stack = []
+    element_stack = []
+    try:
+        for event, element in ET.iterparse(io.BytesIO(content), events=("start", "end")):
+            if event == "start":
+                elements += 1
+                path_stack.append(element.tag)
+                element_stack.append(element)
+                if elements > 1_000_000:
+                    raise ParisonError(f"XML document exceeds 1000000 element limit: {path}")
+                if len(path_stack) > 100:
+                    raise ParisonError(f"XML document exceeds depth limit 100: {path}")
+                continue
+            if element.text is not None and len(element.text.encode("utf-8")) > 1024 * 1024:
+                raise ParisonError(f"XML element text exceeds 1048576 byte limit: {path}")
+            if element.tail is not None and len(element.tail.encode("utf-8")) > 1024 * 1024:
+                raise ParisonError(f"XML element text exceeds 1048576 byte limit: {path}")
+            if tuple(path_stack) == expected_path:
+                if max_rows is not None and rows >= max_rows:
+                    raise ParisonError(f"row count in {source} exceeds limit {max_rows}")
+                if element.attrib or (element.text or "").strip():
+                    raise ParisonError(f"XML record has attributes or mixed text at {record_path}")
+                row = {}
+                for child in element:
+                    if child.attrib or len(child) or (child.tail and child.tail.strip()):
+                        raise ParisonError(f"XML field must be an attribute-free text element at {record_path}")
+                    name = projected(child.tag)
+                    if name in row:
+                        raise ParisonError(f"XML record has a duplicate field {name} at {record_path}")
+                    row[name] = child.text or ""
+                if not row:
+                    raise ParisonError(f"XML record at {record_path} has no fields")
+                if headers is None:
+                    headers = list(row)
+                    yield headers, None
+                elif set(row) != set(headers):
+                    raise ParisonError(f"inconsistent XML fields at record {rows} in {path}")
+                rows += 1
+                yield headers, row
+            preserve_for_record = (
+                len(path_stack) > len(expected_path) and tuple(path_stack[: len(expected_path)]) == expected_path
+            )
+            parent = element_stack[-2] if len(element_stack) > 1 else None
+            if parent is not None and not preserve_for_record:
+                parent.remove(element)
+            path_stack.pop()
+            element_stack.pop()
+    except ParisonError:
+        raise
+    except (ET.ParseError, RecursionError) as exc:
+        raise ParisonError(f"cannot parse XML document {path}: {exc}") from exc
+    if headers is None:
+        raise ParisonError(f"XML record path selects no elements: {record_path}")
 
 
 def _iter_jsonl(path: Path, max_rows: int, decoded_sizes: dict[Path, int]):
@@ -492,12 +868,14 @@ def _input_columns(
     delimiter: str = ",",
     recipe: dict[str, Any] | None = None,
     side: str | None = None,
+    max_rows: int | None = None,
 ) -> list[str]:
     decoded_sizes = decoded_sizes or {}
     source_path = _source_path(path)
     if source_path.is_dir():
         schemas = [
-            _input_columns(partition, decoded_sizes, delimiter, recipe, side) for partition in _source_paths(path)
+            _input_columns(partition, decoded_sizes, delimiter, recipe, side, max_rows)
+            for partition in _source_paths(path)
         ]
         if any(set(schema) != set(schemas[0]) for schema in schemas[1:]):
             raise ParisonError(f"partitioned input has inconsistent schemas: {source_path}")
@@ -513,6 +891,24 @@ def _input_columns(
         rows = _xlsx_rows(path, None)
         try:
             columns, _ = next(rows)
+            return columns
+        finally:
+            rows.close()
+    if _json_source(path):
+        rows = _json_rows(path, max_rows)
+        try:
+            columns, _ = next(rows)
+            for _ in rows:
+                pass
+            return columns
+        finally:
+            rows.close()
+    if _xml_source(path):
+        rows = _xml_rows(path, max_rows)
+        try:
+            columns, _ = next(rows)
+            for _ in rows:
+                pass
             return columns
         finally:
             rows.close()
@@ -713,15 +1109,31 @@ def validate_inputs(
     status = "valid"
     for side, source in (("baseline", baseline), ("candidate", candidate)):
         delimiter = recipe["delimiters"][side]
-        columns = _input_columns(source, decoded_sizes, delimiter, recipe, side)
+        if _xlsx_source(source) and recipe.get("input_projection") != "semantic-scalar-v1":
+            raise ParisonError("XLSX inputs require input_projection 'semantic-scalar-v1'")
+        if _json_source(source) and recipe.get("input_projection") != "semantic-scalar-v1":
+            raise ParisonError("JSON document inputs require input_projection 'semantic-scalar-v1'")
+        if _xml_source(source) and recipe.get("input_projection") != "semantic-scalar-v1":
+            raise ParisonError("XML inputs require input_projection 'semantic-scalar-v1'")
+        columns = _input_columns(source, decoded_sizes, delimiter, recipe, side, max_rows)
         schema = _schema_details(columns, recipe, side)
         if schema["missing"] or schema["unexpected"]:
             status = "invalid"
         paths = _source_paths(source)
         sqlite_source = _sqlite_source(source)
         xlsx_source = _xlsx_source(source)
+        json_source = _json_source(source)
+        xml_source = _xml_source(source)
         inputs[side] = {
-            "format": "sqlite" if sqlite_source else "xlsx" if xlsx_source else _file_format(paths[0]),
+            "format": "sqlite"
+            if sqlite_source
+            else "xlsx"
+            if xlsx_source
+            else "json"
+            if json_source
+            else "xml"
+            if xml_source
+            else _file_format(paths[0]),
             "bytes": sizes[side],
             "columns": len(columns),
             "partitions": len(paths),
@@ -730,7 +1142,11 @@ def validate_inputs(
         if sqlite_source:
             inputs[side]["table"] = sqlite_source[1]
         elif xlsx_source:
-            inputs[side].update(worksheet=xlsx_source[1], range=xlsx_source[2])
+            inputs[side].update(_xlsx_resolved_metadata(source))
+        elif json_source:
+            inputs[side]["pointer"] = json_source[1]
+        elif xml_source:
+            inputs[side].update(record_path=xml_source[1], namespaces=dict(sorted(xml_source[2].items())))
         if inputs[side]["format"] in {"csv", "tsv"}:
             inputs[side]["delimiter"] = delimiter
             inputs[side]["null_tokens"] = recipe["null_tokens"][side]
@@ -752,9 +1168,32 @@ def validate_inputs(
     if validate_records and any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while it was being validated")
     uses_xlsx = any(_xlsx_source(source) for source in (baseline, candidate))
+    uses_xlsx_table = any(
+        (selection := _xlsx_source(source)) is not None and selection[1] is None for source in (baseline, candidate)
+    )
+    uses_json = any(_json_source(source) for source in (baseline, candidate))
+    uses_xml = any(_xml_source(source) for source in (baseline, candidate))
     result = {
         "schema_version": (
-            5
+            14
+            if uses_xlsx_table and recipe["comparison_mode"] == "aggregate"
+            else 15
+            if uses_xlsx_table and recipe["comparison_mode"] == "multiset"
+            else 13
+            if uses_xlsx_table
+            else 11
+            if uses_xml and recipe["comparison_mode"] == "aggregate"
+            else 12
+            if uses_xml and recipe["comparison_mode"] == "multiset"
+            else 10
+            if uses_xml
+            else 8
+            if uses_json and recipe["comparison_mode"] == "aggregate"
+            else 9
+            if uses_json and recipe["comparison_mode"] == "multiset"
+            else 7
+            if uses_json
+            else 5
             if uses_xlsx and recipe["comparison_mode"] == "aggregate"
             else 6
             if uses_xlsx and recipe["comparison_mode"] == "multiset"
@@ -888,10 +1327,12 @@ def draft_recipe(
         "delimiters": delimiters,
         "null_tokens": {"baseline": [], "candidate": []},
     }
-    uses_xlsx = any(_xlsx_source(source) for source in (baseline, candidate))
-    if uses_xlsx:
+    uses_structured = any(
+        _xlsx_source(source) or _json_source(source) or _xml_source(source) for source in (baseline, candidate)
+    )
+    if uses_structured:
         inspection_recipe["input_projection"] = "semantic-scalar-v1"
-    if uses_xlsx:
+    if uses_structured:
         baseline_rows = list(_iter_input_rows(baseline, inspection_recipe, 5_000_000, "baseline", decoded_sizes))
         candidate_rows = list(_iter_input_rows(candidate, inspection_recipe, 5_000_000, "candidate", decoded_sizes))
     else:
@@ -925,7 +1366,7 @@ def draft_recipe(
         },
         "output": {"sensitivity": "summary"},
     }
-    if uses_xlsx:
+    if uses_structured:
         common["input_projection"] = "semantic-scalar-v1"
     if aggregate:
         rows = baseline_rows + candidate_rows
@@ -989,6 +1430,24 @@ def _iter_input_rows(
         for _, row in stream:
             yield row
         return
+    if _json_source(path):
+        if recipe.get("input_projection") != "semantic-scalar-v1":
+            raise ParisonError("JSON document inputs require input_projection 'semantic-scalar-v1'")
+        stream = _json_rows(path, max_rows)
+        headers, _ = next(stream)
+        _validate_headers(_source_path(path), headers, recipe, side)
+        for _, row in stream:
+            yield row
+        return
+    if _xml_source(path):
+        if recipe.get("input_projection") != "semantic-scalar-v1":
+            raise ParisonError("XML inputs require input_projection 'semantic-scalar-v1'")
+        stream = _xml_rows(path, max_rows)
+        headers, _ = next(stream)
+        _validate_headers(_source_path(path), headers, recipe, side)
+        for _, row in stream:
+            yield row
+        return
     path = Path(path)
     if path.is_symlink():
         raise ParisonError(f"input must not be a symlink: {path}")
@@ -1042,6 +1501,6 @@ def _iter_input_rows(
         yield from rows
     else:
         raise ParisonError(
-            f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet, an XLSX locator, "
+            f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet, a JSON, XML, or XLSX locator, "
             "or gzip-compressed text"
         )

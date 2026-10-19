@@ -1,13 +1,35 @@
 # Current development state
 
-- Version: **1.7.0 released; 1.8 scope selection pending**
+- Version: **1.7.0 released; 1.8.0 three-feature candidate qualified**
 - Branch: `develop`
-- Theme: bounded SQLite-backed aggregate conservation
+- Theme: explicit JSON, XML and XLSX-table record projection as one three-feature train
 - Released: one maintained 1.x workflow plus explicit, bounded local XLSX values projection across all comparison modes
 - Verified: exact merge `80d49e797e6ecc88cdd8cef19e327b6eecf102dc` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39118675788) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and passed the complete XLSX workflow smoke fresh
-- Next gate: select one substantial 1.8 capability from the product direction before implementation
+- Verified: combined parser-train checkpoint `defb65fac85ac0bc8eac48b2f6f70af3ebb07bcc` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39201282230), [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39201282259), independent Standards and Spec review, and a fresh Python 3.14 named-table wheel smoke
+- Next gate: review and merge the single 1.8.0 candidate, require exact-merge CI, then build and publish only from that merge commit
 
 ## Recorded next steps
+
+- Continue active research, feature implementation and refinement through at
+  least v5.0. At every train boundary, choose reachable capabilities from
+  primary-source research and repository evidence; use fresh blind review and
+  tests for independent internal evidence rather than seeking real-world
+  approval. This authorizes continued development only, never operational
+  policy or cutover. See the accepted [product direction](0.15/104-product-direction-and-release-arc.md).
+
+- When an autonomous session stops near its usage limit, return a copy-ready
+  next-session goal prompt. Include the exact branch and commits, green CI and
+  review evidence, completed train features, open findings, next gate,
+  compatibility constraints, release cadence and the through-v5.0 direction
+  so work resumes without repeating discovery.
+
+- Every release after 1.7.0 must contain at least three separately reviewable,
+  substantial feature additions. Push and record green feature checkpoints,
+  but do not open a candidate, tag or publish until all three are complete.
+  Refactors, fixes, documentation reconciliation and test hardening do not
+  count unless they independently add material user capability. Follow
+  [RELEASING.md](../RELEASING.md) and the accepted
+  [product direction](0.15/104-product-direction-and-release-arc.md).
 
 - Preserve the released [1.7 roadmap](1.7/172-roadmap.md) and [SQLite aggregate contract](1.7/173-aggregate-sqlite-contract.md). Cross-engine equivalence, controlled failures, cleanup and dual-cardinality benchmarks are qualified; keep engine selection explicit and preserve aggregate-v1 semantics and evidence bytes.
 
