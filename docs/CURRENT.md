@@ -1,12 +1,12 @@
 # Current development state
 
-- Version: **1.7.0 released; 1.8.0 three-feature candidate preparing**
+- Version: **1.7.0 released; 1.8.0 three-feature candidate qualified**
 - Branch: `develop`
 - Theme: explicit JSON, XML and XLSX-table record projection as one three-feature train
 - Released: one maintained 1.x workflow plus explicit, bounded local XLSX values projection across all comparison modes
 - Verified: exact merge `80d49e797e6ecc88cdd8cef19e327b6eecf102dc` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39118675788) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and passed the complete XLSX workflow smoke fresh
 - Verified: combined parser-train checkpoint `defb65fac85ac0bc8eac48b2f6f70af3ebb07bcc` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39201282230), [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39201282259), independent Standards and Spec review, and a fresh Python 3.14 named-table wheel smoke
-- Next gate: qualify the exact 1.8.0 candidate from a clean archive, then merge and publish only if every candidate gate remains green
+- Next gate: review and merge the single 1.8.0 candidate, require exact-merge CI, then build and publish only from that merge commit
 
 ## Recorded next steps
 

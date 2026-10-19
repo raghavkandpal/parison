@@ -2,7 +2,7 @@
 
 Date: 19 October 2026
 
-Status: **candidate preparation**
+Status: **candidate qualified**
 
 ## Capability gate
 
@@ -34,8 +34,23 @@ Status: **candidate preparation**
   [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39201282259).
 - [x] The exact combined CI wheel passes fresh Python 3.14 named-table
   preflight, comparison and bundle verification.
-- [ ] Review `origin/main...develop`, run the exact candidate CI, and qualify
-  clean-archive artifacts with hashes and a fresh primary-workflow smoke.
+- [x] Fresh Standards review of `origin/main...develop` reports no code or
+  contract blocker. Combined independent Spec review covers all semantic
+  implementation through `defb65f`; the subsequent candidate-only delta is
+  version and release-evidence metadata and was checked directly.
+- [x] Exact candidate-preparation commit
+  `7e16e69011b86ac4fcc7af0a2ba57d6dbe240df0` passes the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39201636279)
+  and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39201636500).
+- [x] A clean `git archive` of that commit built the 1.8.0 wheel and source
+  archive. Wheel SHA-256 is
+  `8dba9465008dfb65f7986d1560ca1fe304e13047f721ebd5a16142697a533863`;
+  source SHA-256 is
+  `820a046f7b7366f011c5e703b8b33d6b281bff95a9f976ee628c37c20a1bf876`.
+- [x] A fresh Python 3.14 environment installed the clean-archive wheel with
+  its declared test/XLSX dependencies. JSON Pointer, bounded XML path and XLSX
+  named-table inputs each produced a two-row PASS with two exact matches, and
+  each published bundle verified successfully.
 
 ## Publication
 
