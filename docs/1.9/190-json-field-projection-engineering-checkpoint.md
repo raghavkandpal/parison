@@ -1,6 +1,6 @@
 # JSON field-projection engineering checkpoint
 
-Status: **implemented and independently reviewed; exact-commit CI pending**
+Status: **qualified feature checkpoint**
 
 The first feature in the 1.9 release train is implemented. Recipe versions
 4--6 add explicit per-side field projection to the released keyed, aggregate
@@ -25,8 +25,11 @@ schemas, suite execution and summary safety. Both reviewers cleared the
 corrected gate.
 
 Local completion gate: `make check` passes 386 tests on Python 3.14, with 11
-optional dependency skips. Exact-commit built-wheel and quality-gate evidence
-will be added after the coherent checkpoint is pushed.
+optional dependency skips. Exact checkpoint
+`c657fb2c3afefa6e2fb495cab59020a0b60bf3b7` passed the full
+[built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39233529242)
+on Python 3.11--3.14 across Linux, macOS and Windows, plus the independent
+[quality gate](https://github.com/raghavkandpal/parison/actions/runs/39233529210).
 
 This completes one of three required 1.9 features. It is not a release
 candidate and must not be tagged or published independently. Review and test

@@ -9,8 +9,12 @@
 - Implemented and reviewed: JSON field projection under recipe versions 4--6
   passed fresh blind Standards and Spec review after correcting preflight
   source pairing, XML schema coverage and controlled surrogate rejection
-- Next gate: qualify the exact JSON checkpoint in built-wheel CI, record that
-  evidence, then freeze the XML field-projection contract
+- Verified: exact JSON field-projection checkpoint
+  `c657fb2c3afefa6e2fb495cab59020a0b60bf3b7` passed the full
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39233529242)
+  and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39233529210)
+- Next gate: freeze the XML field-projection contract before implementing the
+  second of three required 1.9 features
 
 ## Recorded next steps
 
