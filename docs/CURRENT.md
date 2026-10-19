@@ -1,12 +1,12 @@
 # Current development state
 
-- Version: **1.7.0 released; 1.8.0 three-feature candidate qualified**
+- Version: **1.8.0 released; 1.9 three-feature research pending**
 - Branch: `develop`
-- Theme: explicit JSON, XML and XLSX-table record projection as one three-feature train
-- Released: one maintained 1.x workflow plus explicit, bounded local XLSX values projection across all comparison modes
-- Verified: exact merge `80d49e797e6ecc88cdd8cef19e327b6eecf102dc` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39118675788) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and passed the complete XLSX workflow smoke fresh
+- Theme: select the next researched three-feature train while preserving explicit local projection boundaries
+- Released: explicit JSON Pointer, bounded QName XML and exact XLSX named-table record projection across all comparison modes
+- Verified: exact 1.8 merge `511b1bbc9c68a581760939b72690255ec545dbbb` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39230867633) and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39230867642); public assets were checksum-verified and all three projection workflows passed fresh
 - Verified: combined parser-train checkpoint `defb65fac85ac0bc8eac48b2f6f70af3ebb07bcc` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39201282230), [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39201282259), independent Standards and Spec review, and a fresh Python 3.14 named-table wheel smoke
-- Next gate: review and merge the single 1.8.0 candidate, require exact-merge CI, then build and publish only from that merge commit
+- Next gate: use primary-source research and repository evidence to freeze one substantial three-feature 1.9 train before implementation
 
 ## Recorded next steps
 
@@ -30,6 +30,11 @@
   count unless they independently add material user capability. Follow
   [RELEASING.md](../RELEASING.md) and the accepted
   [product direction](0.15/104-product-direction-and-release-arc.md).
+
+- Preserve the released [1.8 roadmap](1.8/177-roadmap.md) and projection
+  contracts. Release 1.8.0 is complete at exact merge
+  `511b1bbc9c68a581760939b72690255ec545dbbb`; the public wheel, source and
+  checksums were re-downloaded and all three parser workflows passed fresh.
 
 - Preserve the released [1.7 roadmap](1.7/172-roadmap.md) and [SQLite aggregate contract](1.7/173-aggregate-sqlite-contract.md). Cross-engine equivalence, controlled failures, cleanup and dual-cardinality benchmarks are qualified; keep engine selection explicit and preserve aggregate-v1 semantics and evidence bytes.
 

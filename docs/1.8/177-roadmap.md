@@ -1,6 +1,6 @@
 # Parison 1.8 roadmap
 
-Status: **complete**
+Status: **released in 1.8.0**
 
 Theme: explicit structured-record projection
 
@@ -19,7 +19,7 @@ Theme: explicit structured-record projection
 
 After each gate, run `make check`, commit coherently and push for exact-commit
 CI. Do not open a candidate or release any subset. All three feature gates and
-the combined review are complete; the full train advances as one 1.8 candidate.
+the combined review completed before the full train shipped together in 1.8.0.
 
 ## Compatibility
 
