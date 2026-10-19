@@ -138,6 +138,9 @@ class XmlInput(unittest.TestCase):
         self.document.write_bytes('<!DOCTYPE root [<!ENTITY x "value">]><root/>'.encode("utf-16"))
         with self.assertRaisesRegex(ParisonError, "UTF-8 encoding"):
             compare(self.recipe, self.source, self.source)
+        self.document.write_text('<?xml version="1.0" encoding="iso-8859-1"?><root/>', encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "UTF-8 encoding"):
+            compare(self.recipe, self.source, self.source)
         with self.assertRaisesRegex(ParisonError, "prefixes must be declared"):
             compare(self.recipe, f"xml:{self.document}#p:root/p:record", self.source)
         open_recipe = dict(RECIPE)

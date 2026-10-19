@@ -5,7 +5,7 @@
 - Theme: explicit JSON, XML and XLSX-table record projection as one three-feature train
 - Released: one maintained 1.x workflow plus explicit, bounded local XLSX values projection across all comparison modes
 - Verified: exact merge `80d49e797e6ecc88cdd8cef19e327b6eecf102dc` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39118675788) on Python 3.11–3.14, Linux, macOS and Windows; public assets were checksum-verified and passed the complete XLSX workflow smoke fresh
-- Next gate: commit, push and qualify the completed XLSX named-table feature, then run combined 1.8 review and qualification before considering one release candidate
+- Next gate: qualify the combined 1.8 review corrections at the exact commit, run a fresh built-wheel named-table smoke, then consider one 1.8 candidate
 
 ## Recorded next steps
 

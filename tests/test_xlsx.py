@@ -117,13 +117,23 @@ class XlsxInput(unittest.TestCase):
         self._write_named_table()
         result = compare(self.recipe, self.table_source, self.table_source)
         self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(compare(self.recipe, self.table_source, self.table_source, engine="sqlite")["outcome"], "PASS")
         self.assertEqual(result["counts"]["matched_exact"], 2)
         metadata = result["inputs"]["baseline"]
-        self.assertEqual(metadata["table"], "Orders")
-        self.assertEqual(metadata["worksheet"], "Export")
-        self.assertEqual(metadata["range"], "A2:C4")
+        self.assertNotIn("table", metadata)
+        self.assertNotIn("worksheet", metadata)
+        self.assertNotIn("range", metadata)
         self.assertNotIn(str(self.workbook), json.dumps(result))
         self.assertEqual(draft_recipe(self.table_source, self.table_source)["input_projection"], "semantic-scalar-v1")
+
+        raw_recipe = deepcopy(RECIPE)
+        raw_recipe["output"] = {"sensitivity": "raw"}
+        self.recipe.write_text(json.dumps(raw_recipe), encoding="utf-8")
+        raw_metadata = compare(self.recipe, self.table_source, self.table_source)["inputs"]["baseline"]
+        self.assertEqual(raw_metadata["table"], "Orders")
+        self.assertEqual(raw_metadata["worksheet"], "Export")
+        self.assertEqual(raw_metadata["range"], "A2:C4")
+        self.recipe.write_text(json.dumps(RECIPE), encoding="utf-8")
 
         preflight = validate_inputs(self.recipe, self.table_source, self.table_source, validate_records=True)
         self.assertEqual(preflight["schema_version"], 13)
@@ -141,6 +151,9 @@ class XlsxInput(unittest.TestCase):
 
     def test_named_table_normalizes_its_resolved_range(self):
         self._write_named_table()
+        raw_recipe = deepcopy(RECIPE)
+        raw_recipe["output"] = {"sensitivity": "raw"}
+        self.recipe.write_text(json.dumps(raw_recipe), encoding="utf-8")
         workbook = load_workbook(self.workbook)
         workbook["Export"].tables["Orders"].ref = "$A$2:$C$4"
         workbook.save(self.workbook)
@@ -161,6 +174,7 @@ class XlsxInput(unittest.TestCase):
             aggregate.pop(key)
         self.recipe.write_text(json.dumps(aggregate), encoding="utf-8")
         self.assertEqual(compare(self.recipe, self.table_source, self.table_source)["outcome"], "PASS")
+        self.assertEqual(compare(self.recipe, self.table_source, self.table_source, engine="sqlite")["outcome"], "PASS")
         aggregate_preflight = validate_inputs(self.recipe, self.table_source, self.table_source)
         self.assertEqual(aggregate_preflight["schema_version"], 14)
         Draft202012Validator(load_schema("preflight-v14")).validate(aggregate_preflight)
@@ -170,6 +184,7 @@ class XlsxInput(unittest.TestCase):
         for key in ("keys", "identity", "nulls_equal"):
             multiset.pop(key)
         self.recipe.write_text(json.dumps(multiset), encoding="utf-8")
+        self.assertEqual(compare(self.recipe, self.table_source, self.table_source)["outcome"], "PASS")
         self.assertEqual(compare(self.recipe, self.table_source, self.table_source, engine="sqlite")["outcome"], "PASS")
         multiset_preflight = validate_inputs(self.recipe, self.table_source, self.table_source)
         self.assertEqual(multiset_preflight["schema_version"], 15)

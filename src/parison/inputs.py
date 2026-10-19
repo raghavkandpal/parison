@@ -413,6 +413,7 @@ def _source_metadata(
     decoded_sizes: dict[Path, int] | None = None,
     delimiter: str = ",",
     null_tokens: list[str] | None = None,
+    include_xlsx_table_selection: bool = True,
 ) -> dict[str, Any]:
     path = _source_path(source)
     paths = _source_paths(source)
@@ -435,7 +436,10 @@ def _source_metadata(
     if sqlite_source:
         metadata.update(format="sqlite", table=sqlite_source[1])
     elif _xlsx_source(source):
-        metadata.update(format="xlsx", **_xlsx_resolved_metadata(source))
+        selection = _xlsx_resolved_metadata(source)
+        if include_xlsx_table_selection or "table" not in selection:
+            metadata.update(selection)
+        metadata["format"] = "xlsx"
     elif json_source := _json_source(source):
         metadata.update(format="json", pointer=json_source[1])
     elif xml_source := _xml_source(source):
@@ -661,6 +665,9 @@ def _xml_rows(source: str | Path, max_rows: int | None):
         xml_text = content.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
         raise ParisonError(f"XML document must use UTF-8 encoding: {path}") from exc
+    declaration = re.match(r"""<\?xml\s+[^?]*\bencoding\s*=\s*(["'])([^"']+)\1""", xml_text, re.IGNORECASE)
+    if declaration and declaration.group(2).lower().replace("_", "-") not in {"utf-8", "utf8"}:
+        raise ParisonError(f"XML document must use UTF-8 encoding: {path}")
     offset = 0
     while (declaration := xml_text.find("<!", offset)) >= 0:
         if xml_text.startswith("<!--", declaration):

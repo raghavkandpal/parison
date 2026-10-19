@@ -2,7 +2,7 @@
 
 Date: 19 October 2026
 
-Status: **feature gate complete locally; exact-commit CI pending**
+Status: **feature gate complete and qualified**
 
 The third feature in the 1.8 parser train is implemented. The explicit
 `xlsx:path#table=Name` locator resolves one exact openpyxl table name, uses its
@@ -25,9 +25,10 @@ package targets, incomplete workbook-wide identity checks, loose v13--v15
 discrimination, missing preflight projection enforcement, unnormalized table
 refs and unchecked table-part counts. Regression coverage pins every finding.
 
-Local completion gate: `make check` passes 380 tests on Python 3.14 with 11
-expected optional-Polars skips. A coherent commit, push, exact-commit
-built-wheel matrix and fresh-wheel named-table smoke remain.
+Exact feature checkpoint `2631575988a545aa655a3aa3b836d17522237d28`
+passes 380 local tests with 11 expected optional-Polars skips, the full
+[built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39200813257)
+and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39200813324).
 
 This completes all three required 1.8 features locally. It is not a release
 candidate and must not be tagged or published before combined review and
