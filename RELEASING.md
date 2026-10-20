@@ -35,7 +35,7 @@ be described as approval of a user's policy, data, migration or cutover.
 
 ## Merge and publish
 
-1. Merge the reviewed pull request to `main`; require CI on the exact merge commit.
+1. Open the release pull request from `develop` to `main`, merge it after review, and require CI on the exact merge commit. Other pull requests target `develop`.
 2. Build again from an archive of that merge commit. Never publish pre-merge artifacts.
 3. Complete release-specific external gates before tagging.
 4. Create annotated tag `VERSION` on the merge commit and push it.
