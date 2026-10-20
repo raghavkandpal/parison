@@ -46,6 +46,8 @@ All notable changes will be documented in this file.
 - A tiered repository CI policy: pull requests run quality and the complete
   Linux Python matrix, while direct `develop`/`main` checkpoints and manual
   runs retain the full built-wheel Windows and macOS compatibility matrix.
+- A coherent change-branch workflow from `develop` that returns work through
+  pull requests and reserves `main` pull requests for releases.
 
 ### Compatibility
 
