@@ -4,7 +4,7 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
-## 1.9 — active
+## 1.9 — released
 
 - [Structured field-selection research](1.9/187-structured-field-selection-research.md)
 - [1.9 roadmap](1.9/188-roadmap.md)
@@ -16,6 +16,11 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [XLSX defined-name engineering checkpoint](1.9/194-xlsx-defined-name-engineering-checkpoint.md)
 - [Combined structured-selection qualification](1.9/195-combined-structured-selection-qualification.md)
 - [1.9.0 release checklist](1.9/196-release-checklist.md)
+
+## Future research — development stopped after 1.9
+
+- [Verification workbench product research](2.0/194-verification-workbench-product-research.md)
+- [Verification workbench development direction](2.0/195-verification-workbench-development-direction.md)
 
 ## 1.8 — released
 

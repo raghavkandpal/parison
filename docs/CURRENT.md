@@ -1,9 +1,11 @@
 # Current development state
 
-- Version: **1.8.0 released; 1.9.0 three-feature candidate preparing**
+- Version: **1.9.0 released; development stopped**
 - Branch: `develop`
 - Theme: explicit JSON, XML and XLSX structured field selection as one three-feature train
-- Released: explicit JSON Pointer, bounded QName XML and exact XLSX named-table record projection across all comparison modes
+- Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
+  record projection and the 1.9 JSON/XML/XLSX structured field-selection train
+  across all comparison modes
 - Verified: exact 1.8 merge `511b1bbc9c68a581760939b72690255ec545dbbb` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39230867633) and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39230867642); public assets were checksum-verified and all three projection workflows passed fresh
 - Verified: combined parser-train checkpoint `defb65fac85ac0bc8eac48b2f6f70af3ebb07bcc` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39201282230), [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39201282259), independent Standards and Spec review, and a fresh Python 3.14 named-table wheel smoke
 - Implemented and reviewed: JSON field projection under recipe versions 4--6
@@ -38,17 +40,21 @@
   [built-wheel CI](https://github.com/raghavkandpal/parison/actions/runs/39369300738),
   [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39369300726),
   clean-archive artifact inspection and a fresh Python 3.14 wheel smoke
-- Next gate: merge the reviewed candidate, require exact-merge CI, publish and
-  publicly verify 1.9.0, then stop development
+- Released: exact merge `703e5b9daa39e9165f7bced933354061af0d5f89`
+  passed [built-wheel CI](https://github.com/raghavkandpal/parison/actions/runs/39369665801)
+  and [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39369665788);
+  annotated tag and [GitHub release 1.9.0](https://github.com/raghavkandpal/parison/releases/tag/1.9.0)
+  publish checksum-verified artifacts whose public wheel passed all 20 fresh
+  JSON, XML and XLSX structured-selection workflow tests
+- Next gate: none. Development stopped after verified 1.9.0 publication by
+  user direction; future workbench documents remain research only
 
 ## Recorded next steps
 
-- Continue active research, feature implementation and refinement through at
-  least v5.0. At every train boundary, choose reachable capabilities from
-  primary-source research and repository evidence; use fresh blind review and
-  tests for independent internal evidence rather than seeking real-world
-  approval. This authorizes continued development only, never operational
-  policy or cutover. See the accepted [product direction](0.15/104-product-direction-and-release-arc.md).
+- Development stopped after the verified 1.9.0 release by explicit user
+  direction. Preserve later research as non-active context; do not begin a 2.0
+  train unless a future user explicitly resumes development. Internal review
+  and test evidence never establishes operational policy or cutover approval.
 
 - When an autonomous session stops near its usage limit, return a copy-ready
   next-session goal prompt. Include the exact branch and commits, green CI and

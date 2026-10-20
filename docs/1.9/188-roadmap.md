@@ -1,6 +1,6 @@
 # Parison 1.9 roadmap
 
-Status: **candidate preparation**
+Status: **released**
 
 Theme: explicit structured field selection
 
@@ -27,9 +27,13 @@ Each feature earns a coherent pushed checkpoint. Do not open a candidate, tag
 or release any subset; all three features plus combined Standards/Spec review
 and exact built-wheel qualification are required for one 1.9.0 candidate.
 
-All three feature checkpoints and the combined review gate are complete. The
-train may advance as one 1.9.0 candidate; no individual feature is released
-separately.
+All three feature checkpoints and the combined review gate completed. The
+train advanced and was released as one 1.9.0 unit; no individual feature was
+released separately.
+
+Release 1.9.0 is complete at exact merge
+`703e5b9daa39e9165f7bced933354061af0d5f89`. Exact-merge CI, tagged artifacts,
+checksums and fresh public-wheel workflow verification passed.
 
 ## Versioned policy boundary
 

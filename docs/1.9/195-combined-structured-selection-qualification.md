@@ -31,3 +31,7 @@ on Python 3.11--3.14 across Linux, macOS and Windows.
 The complete train may advance as one 1.9.0 candidate. This qualification is
 internal development evidence only. It does not establish extraction truth,
 policy approval, migration approval or cutover authorization.
+
+Release 1.9.0 subsequently completed at exact merge
+`703e5b9daa39e9165f7bced933354061af0d5f89`; publication evidence is recorded
+in the release checklist.
