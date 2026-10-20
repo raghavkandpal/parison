@@ -43,6 +43,7 @@ class WorkbenchHostTests(unittest.TestCase):
             self.assertIn(b"Clear result", page_body)
             self.assertIn(b"Choose file...", page_body)
             self.assertIn(b"Download unapproved draft", page_body)
+            self.assertIn(b"Validate changes", page_body)
             response = self._post(connection, server, "/api/session", {}, Origin="http://attacker.invalid")
             self.assertEqual(response.status, 404)
             response.read()
@@ -131,6 +132,18 @@ class WorkbenchHostTests(unittest.TestCase):
             self.assertEqual(plan["comparison_mode"], "keyed")
             self.assertRegex(plan["policy_sha256"], r"^[0-9a-f]{64}$")
             self.assertNotIn(str(recipe), json.dumps(plan))
+
+            edited = json.loads(plan["source"])
+            edited["scope"]["snapshot"] = "edited"
+            response = self._post(connection, server, "/api/validate-plan", {"source": json.dumps(edited)})
+            self.assertEqual(response.status, 200)
+            validated = json.loads(response.read())
+            self.assertNotEqual(validated["policy_sha256"], plan["policy_sha256"])
+            self.assertEqual(validated["recipe_version"], 1)
+
+            response = self._post(connection, server, "/api/validate-plan", {"source": "{}"})
+            self.assertEqual(response.status, 422)
+            self.assertNotIn(b"recipe_version", response.read())
 
             response = self._post(connection, server, "/api/plan", {"recipe": "../recipe.json"})
             self.assertEqual(response.status, 422)

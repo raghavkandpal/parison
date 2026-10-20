@@ -12,10 +12,10 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .core import ParisonError
-from .workbench import plan_projection, workbench_projection
+from .workbench import plan_projection, plan_text_projection, workbench_projection
 from .workbench_page import PAGE
 
-_MAX_REQUEST_BYTES = 4096
+_MAX_REQUEST_BYTES = 262_144
 _MACOS_PICKER = 'POSIX path of (choose folder with prompt "Choose a Parison evidence bundle")'
 _MACOS_RECIPE_PICKER = 'POSIX path of (choose file with prompt "Choose a Parison recipe")'
 _WINDOWS_PICKER = (
@@ -105,6 +105,8 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
         def _headers(self, status: int, content_type: str) -> None:
             self.send_response(status)
             self.send_header("Content-Type", content_type)
+            if status != 200:
+                self.send_header("Content-Length", "0")
             self.send_header("Cache-Control", "no-store")
             self.send_header("Referrer-Policy", "no-referrer")
             self.send_header("X-Content-Type-Options", "nosniff")
@@ -186,6 +188,16 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     return
                 try:
                     payload = plan_projection(recipe)
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/validate-plan" and set(request) == {"source"}:
+                source = request["source"]
+                if not isinstance(source, str):
+                    self._headers(422, "application/json")
+                    return
+                try:
+                    payload = plan_text_projection(source)
                 except ParisonError:
                     self._headers(422, "application/json")
                     return

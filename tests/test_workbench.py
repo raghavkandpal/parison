@@ -9,7 +9,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from parison.core import ParisonError, compare, load_recipe, publish
-from parison.workbench import plan_projection, publish_plan_builder, publish_workbench, render_workbench
+from parison.workbench import (
+    plan_projection,
+    plan_text_projection,
+    publish_plan_builder,
+    publish_workbench,
+    render_workbench,
+)
 
 
 class WorkbenchTests(unittest.TestCase):
@@ -110,6 +116,13 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(plan["recipe_version"], 1)
         self.assertEqual(plan["comparison_mode"], "keyed")
         self.assertRegex(plan["policy_sha256"], r"^[0-9a-f]{64}$")
+        edited = json.loads(plan["source"])
+        edited["scope"]["snapshot"] = "edited"
+        validated = plan_text_projection(json.dumps(edited))
+        self.assertNotEqual(validated["policy_sha256"], plan["policy_sha256"])
+        self.assertEqual(validated["comparison_mode"], "keyed")
+        with self.assertRaisesRegex(ParisonError, "recipe_version"):
+            plan_text_projection("{}")
         self.assertIn("Verification plan builder", page)
         self.assertIn("Download unapproved draft", page)
         self.assertIn("parison validate-recipe plan.json", page)

@@ -319,8 +319,17 @@ def _unknown(mapping: dict[str, Any], allowed: set[str], where: str) -> None:
 
 def load_recipe(path: str | Path) -> dict[str, Any]:
     try:
-        recipe = json.loads(Path(path).read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        source = Path(path).read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ParisonError(f"cannot read recipe: {exc}") from exc
+    return load_recipe_text(source)
+
+
+def load_recipe_text(source: str) -> dict[str, Any]:
+    """Validate one in-memory JSON recipe through the authoritative loaders."""
+    try:
+        recipe = json.loads(source)
+    except json.JSONDecodeError as exc:
         raise ParisonError(f"cannot read recipe: {exc}") from exc
     if not isinstance(recipe, dict):
         raise ParisonError("recipe must be a JSON object")
@@ -965,6 +974,11 @@ def _effective_multiset_policy(recipe: dict[str, Any]) -> dict[str, Any]:
 def explain_recipe(path: str | Path) -> dict[str, Any]:
     """Return a fully explicit policy view without reading input data."""
     return _effective_policy(load_recipe(path))
+
+
+def explain_recipe_text(source: str) -> dict[str, Any]:
+    """Return the effective policy for one in-memory JSON recipe."""
+    return _effective_policy(load_recipe_text(source))
 
 
 def _checked_policy_sha256(recipe: dict[str, Any], expected: str | None = None) -> str:

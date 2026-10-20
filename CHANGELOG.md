@@ -29,6 +29,9 @@ All notable changes will be documented in this file.
 - A live unified Plans activity with authoritative recipe loading, exact source
   editing, effective policy identity, native macOS and Windows file selection,
   explicit clear state and local download of unapproved JSON drafts.
+- Closed in-memory validation for edited Workbench plans, which invalidates
+  stale policy identity on every edit and enables draft download only after the
+  current text passes the authoritative Python recipe loader.
 
 ### Compatibility
 
@@ -40,6 +43,8 @@ All notable changes will be documented in this file.
 
 - Allow the unified Workbench's embedded stylesheet through its restrictive
   Content Security Policy so the report-aligned interface renders correctly.
+- Mark empty Workbench HTTP responses with zero content length so rejected
+  requests close cleanly instead of intermittently resetting local clients.
 
 ## 1.9.0 - 2026-10-20
 

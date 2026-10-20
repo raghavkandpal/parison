@@ -30,6 +30,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Unified Workbench host checkpoint](2.0/202-unified-workbench-host-checkpoint.md)
 - [Unified Workbench verified Results checkpoint](2.0/203-unified-workbench-results-checkpoint.md)
 - [Unified Workbench Plans checkpoint](2.0/204-unified-workbench-plans-checkpoint.md)
+- [Edited-plan validation checkpoint](2.0/205-edited-plan-validation-checkpoint.md)
 
 ## 1.8 — released
 

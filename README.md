@@ -73,8 +73,9 @@ parison workbench --workspace .
 
 Workbench opens one local application. In **Plans**, open an existing recipe by
 workspace-relative path or with **Choose file** on macOS or Windows to review
-its exact JSON and effective policy identity, then download edits as an
-explicitly unapproved draft. In **Results**, open a complete bundle folder—not
+its exact JSON and effective policy identity. Edited text must pass
+authoritative Python validation before it can be downloaded as an explicitly
+unapproved draft. In **Results**, open a complete bundle folder—not
 its individual `result.json` file—to verify and view summary-safe evidence.
 Opening Workbench never starts a comparison.
 

@@ -90,8 +90,11 @@
   [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39398735075)
   on Python 3.11--3.14 with macOS and Windows smoke, plus the
   [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39398735044)
-- Next gate: add authoritative validation of edited plan text through a closed,
-  non-persisting route before beginning bounded local execution work
+- Implemented locally: every Plans edit invalidates its displayed policy
+  identity and disables download until a closed, bounded, non-persisting route
+  validates the exact current text through the authoritative Python loader
+- Next gate: specify and implement bounded Workbench host lifecycle controls
+  before exposing any local execution activity
 
 ## Recorded next steps
 

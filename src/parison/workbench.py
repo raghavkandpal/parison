@@ -13,7 +13,7 @@ from typing import Any
 from ._safe_fs import check_output_parent, rename_no_replace
 from .core import ParisonError
 from .evidence import inspect_bundle
-from .policies import explain_recipe, load_recipe
+from .policies import explain_recipe, explain_recipe_text, load_recipe
 
 _COMMON_FIELDS = (
     "kind",
@@ -60,6 +60,16 @@ def plan_projection(recipe: str | Path) -> dict[str, Any]:
         "policy_sha256": policy["policy_sha256"],
         "comparison_mode": loaded["comparison_mode"],
         "recipe_version": loaded["recipe_version"],
+    }
+
+
+def plan_text_projection(source: str) -> dict[str, Any]:
+    """Validate edited recipe text without persisting it."""
+    policy = explain_recipe_text(source)
+    return {
+        "policy_sha256": policy["policy_sha256"],
+        "comparison_mode": policy["comparison_mode"],
+        "recipe_version": policy["recipe_version"],
     }
 
 
