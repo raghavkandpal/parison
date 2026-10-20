@@ -15,7 +15,7 @@ nav{display:grid;gap:.35rem}.nav-item{display:flex;justify-content:space-between
 .nav-item:hover{background:var(--nav-hover)}.nav-item.active{background:var(--nav-active);color:#fff;font-weight:650}.nav-item[aria-disabled=true]{color:var(--nav-muted);cursor:default}.nav-item[aria-disabled=true]:hover{background:transparent}
 .soon{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em}
 .local{margin-top:auto;padding:var(--space-3);border:1px solid var(--nav-active);border-radius:.5rem;font-size:.8rem}.local strong{display:block;color:var(--success-surface)}.dot{display:inline-block;width:.5rem;height:.5rem;border-radius:50%;background:#32d583;margin-right:.4rem}
-.workspace{min-width:0}.topbar{height:4.5rem;background:var(--surface);border-bottom:1px solid #e4e7ec;display:flex;align-items:center;justify-content:space-between;padding:0 var(--space-8)}
+.workspace{min-width:0}.topbar{height:4.5rem;background:var(--surface);border-bottom:1px solid #e4e7ec;display:flex;align-items:center;justify-content:space-between;padding:0 var(--space-8)}.session-actions{display:flex;align-items:center;gap:var(--space-3)}
 .topbar p{margin:0;color:var(--ink-soft)}.session{font-size:.8rem;color:var(--success);background:var(--success-surface);border:1px solid #abefc6;border-radius:999px;padding:var(--space-1) .65rem}
 main{max-width:70rem;margin:0 auto;padding:3rem var(--space-8) 5rem}
 h1{font-size:2.25rem;line-height:1.15;margin:0 0 var(--space-3);letter-spacing:-.03em}h2{margin:0 0 .35rem}.lede{max-width:46rem;color:var(--ink-soft);font-size:1.05rem;margin:0 0 var(--space-8)}
@@ -45,7 +45,7 @@ table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccd3da;padding
 <span class="nav-item" aria-disabled="true">Compare <span class="soon">Planned</span></span>
 </nav>
 <div class="local"><strong><span class="dot"></span>Local only</strong>No network, credentials, or remote execution.</div></aside>
-<div class="workspace"><header class="topbar"><p>Current workspace</p><span id="session" class="session" role="status">Connecting...</span></header>
+<div class="workspace"><header class="topbar"><p>Current workspace</p><div class="session-actions"><span id="session" class="session" role="status">Connecting...</span><button id="shutdown" class="secondary clear" type="button">Stop workbench</button></div></header>
 <main><section id="plans-view" hidden><h1>Plans</h1>
 <p class="lede">Open a CLI-native recipe to review the exact JSON and its effective policy identity before execution.</p>
 <section class="card open-card"><form id="open-plan"><label for="recipe">Recipe file <span>Choose a JSON file or enter its path relative to this workspace.</span><input id="recipe" required placeholder="recipes/example.json" autocomplete="off"></label><div class="actions"><button id="choose-recipe" class="secondary" type="button">Choose file...</button><button>Validate and open</button></div></form><p id="plan-open-status" class="status" role="status">Ready for a local recipe.</p></section>
@@ -62,10 +62,11 @@ parison compare --recipe plan.json --baseline BASELINE --candidate CANDIDATE --o
 <aside class="boundary"><strong>What PASS means</strong>Agreement under the displayed policy—not extraction truth, approval, or cutover authorization. This view excludes source paths, keys, values, and discrepancy samples.</aside>
 </section></main></div></div>
 <script>
-const token=location.hash.slice(1);history.replaceState(null,'',location.pathname);
+let token=location.hash.slice(1);history.replaceState(null,'',location.pathname);
 const session=document.getElementById('session'),status=document.getElementById('status'),body=document.getElementById('evidence'),heading=document.getElementById('heading'),result=document.getElementById('result'),empty=document.getElementById('empty'),outcome=document.getElementById('outcome');
 const post=(path,data)=>fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Parison-Session':token},body:JSON.stringify(data)});
 post('/api/session',{}).then(r=>r.ok?r.json():Promise.reject()).then(()=>session.textContent='Local workspace ready').catch(()=>{session.textContent='Session rejected';session.style.color='#b42318'});
+document.getElementById('shutdown').addEventListener('click',async event=>{event.currentTarget.disabled=true;session.textContent='Stopping...';try{const response=await post('/api/shutdown',{});if(!response.ok)throw Error();token='';document.querySelectorAll('button,input,textarea').forEach(control=>control.disabled=true);session.textContent='Workbench stopped';session.style.color='#475467'}catch(error){event.currentTarget.disabled=false;session.textContent='Could not stop workbench'} });
 document.querySelectorAll('[data-view]').forEach(item=>item.addEventListener('click',()=>{document.querySelectorAll('[data-view]').forEach(other=>{other.classList.toggle('active',other===item);other.toggleAttribute('aria-current',other===item)});document.getElementById('plans-view').hidden=item.dataset.view!=='plans';document.getElementById('results-view').hidden=item.dataset.view!=='results'}));
 const form=document.getElementById('open'),bundle=document.getElementById('bundle'),choose=document.getElementById('choose');
 choose.addEventListener('click',async()=>{choose.disabled=true;status.textContent='Choose a bundle folder inside this workspace...';try{const response=await post('/api/choose-bundle',{});if(response.status===204){status.textContent='Folder selection cancelled.';return}if(!response.ok){status.textContent='Folder could not be selected. Choose a folder inside this workspace or enter its relative path.';return}bundle.value=(await response.json()).bundle;form.requestSubmit()}catch(error){status.textContent='Folder picker unavailable. Enter a workspace-relative path instead.'}finally{choose.disabled=false}});

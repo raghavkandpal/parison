@@ -44,6 +44,7 @@ class WorkbenchHostTests(unittest.TestCase):
             self.assertIn(b"Choose file...", page_body)
             self.assertIn(b"Download unapproved draft", page_body)
             self.assertIn(b"Validate changes", page_body)
+            self.assertIn(b"Stop workbench", page_body)
             response = self._post(connection, server, "/api/session", {}, Origin="http://attacker.invalid")
             self.assertEqual(response.status, 404)
             response.read()
@@ -59,6 +60,12 @@ class WorkbenchHostTests(unittest.TestCase):
                 response = self._post(connection, server, "/api/choose-recipe", {})
                 self.assertEqual(response.status, 200)
                 self.assertEqual(json.loads(response.read()), {"recipe": "recipes/one.json"})
+
+            response = self._post(connection, server, "/api/shutdown", {})
+            self.assertEqual(response.status, 200)
+            self.assertEqual(json.loads(response.read()), {"status": "stopping"})
+            thread.join(timeout=2)
+            self.assertFalse(thread.is_alive())
 
     def test_native_picker_returns_only_workspace_relative_folder(self):
         with tempfile.TemporaryDirectory() as directory:

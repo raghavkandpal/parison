@@ -113,8 +113,12 @@
   [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39433950485)
   on Python 3.11--3.14 with macOS and Windows smoke, plus the
   [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39433950126)
-- Next gate: specify and implement bounded Workbench host lifecycle controls
-  before exposing any local execution activity
+- Implemented locally: the unified host limits concurrent request handlers,
+  exposes one capability- and origin-guarded shutdown route, clears its launch
+  capability before stopping and gives the browser an explicit Stop workbench
+  action. See the [host lifecycle checkpoint](2.0/208-workbench-host-lifecycle-checkpoint.md).
+- Next gate: expose one bounded local recipe execution path, then atomically
+  register its verified output for summary-safe History and same-policy Compare
 
 ## Recorded next steps
 

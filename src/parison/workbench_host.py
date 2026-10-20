@@ -6,6 +6,7 @@ import json
 import secrets
 import subprocess
 import sys
+import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -16,6 +17,7 @@ from .workbench import plan_projection, plan_text_projection, workbench_projecti
 from .workbench_page import PAGE
 
 _MAX_REQUEST_BYTES = 262_144
+_MAX_REQUEST_THREADS = 8
 _MACOS_PICKER = 'POSIX path of (choose folder with prompt "Choose a Parison evidence bundle")'
 _MACOS_RECIPE_PICKER = 'POSIX path of (choose file with prompt "Choose a Parison recipe")'
 _WINDOWS_PICKER = (
@@ -94,12 +96,36 @@ def _choose_recipe(root: Path) -> str | None:
     return str(relative)
 
 
+class _WorkbenchServer(ThreadingHTTPServer):
+    daemon_threads = True
+    request_queue_size = _MAX_REQUEST_THREADS
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        self._request_slots = threading.BoundedSemaphore(_MAX_REQUEST_THREADS)
+        super().__init__(*args, **kwargs)
+
+    def process_request(self, request: object, client_address: object) -> None:
+        self._request_slots.acquire()
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._request_slots.release()
+            raise
+
+    def process_request_thread(self, request: object, client_address: object) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._request_slots.release()
+
+
 def create_workbench_server(workspace: str | Path, token: str | None = None) -> tuple[ThreadingHTTPServer, str]:
     root = Path(workspace)
     if root.is_symlink() or not root.is_dir():
         raise ParisonError("workbench workspace must be an existing non-symlink directory")
     root = root.resolve()
     capability = token or secrets.token_urlsafe(32)
+    session = {"capability": capability, "closing": False}
 
     class Handler(BaseHTTPRequestHandler):
         def _headers(self, status: int, content_type: str) -> None:
@@ -119,9 +145,10 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
         def _api_authorized(self) -> bool:
             origin = f"http://127.0.0.1:{self.server.server_port}"
             return (
-                self.headers.get("Host") == origin.removeprefix("http://")
+                not session["closing"]
+                and self.headers.get("Host") == origin.removeprefix("http://")
                 and self.headers.get("Origin") == origin
-                and self.headers.get("X-Parison-Session") == capability
+                and self.headers.get("X-Parison-Session") == session["capability"]
             )
 
         def _request_json(self) -> dict[str, object] | None:
@@ -161,6 +188,13 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
             path = urlsplit(self.path).path
             if path == "/api/session" and not request:
                 payload = {"activities": ["plans", "run", "results", "history", "investigate", "compare"]}
+            elif path == "/api/shutdown" and not request:
+                session["closing"] = True
+                session["capability"] = None
+                self._headers(200, "application/json")
+                self.wfile.write(b'{"status":"stopping"}')
+                threading.Thread(target=self.server.shutdown, daemon=True).start()
+                return
             elif path == "/api/choose-bundle" and not request:
                 try:
                     selected = _choose_bundle(root)
@@ -220,7 +254,7 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
         def log_message(self, format: str, *args: object) -> None:
             return
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server = _WorkbenchServer(("127.0.0.1", 0), Handler)
     return server, f"http://127.0.0.1:{server.server_port}/#{capability}"
 
 

@@ -35,6 +35,8 @@ All notable changes will be documented in this file.
 - A refined desktop Workbench hierarchy with semantic color and spacing tokens,
   legible planned-activity states, cleaner headings and overflow-safe plan
   editor controls for resized browser windows.
+- Explicit Workbench shutdown with immediate capability invalidation and a
+  fixed eight-handler concurrency bound before local execution is introduced.
 
 ### Compatibility
 

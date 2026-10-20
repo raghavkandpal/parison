@@ -45,14 +45,16 @@ receipts separately.
 
 The active 2.0 interface is one Python-hosted local application. The host binds
 only numeric loopback on an ephemeral port and requires a per-launch capability.
-The application is still under development and currently exposes only its shell;
-use the released CLI for verification work.
+The application is still under development. Results and Plans are usable; use
+the released CLI for execution until the Run activity is qualified.
 
 ```sh
 parison workbench --workspace .
 ```
 
-Stop it with Ctrl-C. The earlier generated evidence and plan applications were
+Stop it with **Stop workbench** in the application or Ctrl-C in the launching
+terminal. Closing the browser tab alone does not stop the local host. The
+earlier generated evidence and plan applications were
 prototypes and are not the 2.0 interface. Their safety contracts are being
 migrated behind this unified host.
 
