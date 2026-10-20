@@ -26,6 +26,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Verified navigator engineering checkpoint](2.0/198-verified-navigator-engineering-checkpoint.md)
 - [Workbench plan-builder contract](2.0/199-plan-builder-contract.md)
 - [Workbench plan-builder engineering checkpoint](2.0/200-plan-builder-engineering-checkpoint.md)
+- [Unified Workbench interface decision](2.0/201-unified-workbench-interface-decision.md)
 
 ## 1.8 — released
 

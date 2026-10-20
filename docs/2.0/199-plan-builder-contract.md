@@ -2,7 +2,8 @@
 
 Date: 20 October 2026
 
-Status: **active 2.0 feature contract; first slice**
+Status: **prototype feature contract; release interface superseded by the
+[unified Workbench decision](201-unified-workbench-interface-decision.md)**
 
 ## Purpose
 

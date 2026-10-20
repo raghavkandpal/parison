@@ -66,7 +66,12 @@
   and complete [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39371521251)
   on Python 3.11--3.14, including direct evidence and plan application smoke
   checks across every macOS and Windows entry
-- Next gate: schema-derived controls and an in-process validation seam
+- Decided: 2.0 exposes one `parison workbench` application with Plans, Run,
+  Results, History, Investigate and Compare activities. The current `evidence`
+  and `plan` commands are prototypes, not the release interface. See the
+  [unified interface decision](2.0/201-unified-workbench-interface-decision.md).
+- Next gate: freeze and implement the hardened unified loopback host, then move
+  the verified navigator and plan-builder seams behind that one application
 
 ## Recorded next steps
 
