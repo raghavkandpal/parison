@@ -60,8 +60,13 @@
   `workbench plan` activity with authoritative initial validation, exact JSON
   import, policy identity, local draft export and equivalent CLI commands;
   drafts remain visibly unapproved and execute nothing
-- Next gate: full quality and built-wheel qualification, then schema-derived
-  controls and an in-process validation seam
+- Verified: exact plan-builder checkpoint
+  `c9628d250ab112e830f1ce613678806453205b3f` passed the
+  [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39371521497)
+  and complete [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39371521251)
+  on Python 3.11--3.14, including direct evidence and plan application smoke
+  checks across every macOS and Windows entry
+- Next gate: schema-derived controls and an in-process validation seam
 
 ## Recorded next steps
 

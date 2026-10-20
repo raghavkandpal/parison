@@ -2,7 +2,7 @@
 
 Date: 20 October 2026
 
-Status: **first slice implemented locally; qualification pending**
+Status: **first slice implemented and exact-commit CI qualified**
 
 ## Implemented
 
@@ -24,9 +24,17 @@ Focused tests cover byte-preserving import, hostile HTML escaping, absence of
 the source path, authoritative rejection before publication, CLI behavior and
 the existing evidence-navigator guarantees.
 
+Exact checkpoint `c9628d250ab112e830f1ce613678806453205b3f` passed the
+[quality gate](https://github.com/raghavkandpal/parison/actions/runs/39371521497)
+and the complete
+[built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39371521251)
+on Python 3.11--3.14. Every macOS and Windows matrix entry generated and
+checked both the evidence navigator and plan-builder application from the
+built wheel.
+
 ## Next gate
 
-Pass the full quality and built-wheel matrix, then add schema-derived controls
-and an in-process validation seam. Do not introduce the loopback execution host
+Add schema-derived controls and an in-process validation seam. Do not
+introduce the loopback execution host
 until the bounded-runner cancellation and request-security contracts are
 frozen.
