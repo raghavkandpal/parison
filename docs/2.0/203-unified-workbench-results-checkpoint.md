@@ -1,0 +1,26 @@
+# Unified Workbench verified Results checkpoint
+
+Date: 20 October 2026
+
+Status: **implemented locally; qualification pending**
+
+The unified `parison workbench --workspace DIRECTORY` application now has its
+first useful Results flow. The user enters one bundle path relative to the
+selected workspace. Python rejects absolute paths, traversal and symlinks,
+verifies the bundle through the released evidence reader, and returns only the
+existing closed `workbench_projection` fields. The browser receives no source
+path, key, value, discrepancy sample or verification error detail.
+
+All API calls are closed POST routes and require an exact numeric-loopback
+Origin and Host, the per-launch capability, exact JSON content type and a body
+no larger than 4096 bytes. The page clears the capability fragment before
+making requests. Unexpected methods, routes, origins, capabilities and unsafe
+bundle paths fail closed; no CORS, static filesystem, URL-fetch, shell,
+mutation or execution route exists.
+
+Focused tests cover origin and capability rejection, loopback binding, verified
+summary-safe presentation, traversal and symlink rejection, tamper refusal and
+unsafe workspace rejection. The next slice should reuse authoritative recipe
+loading and policy explanation in a unified Plans activity. Execution remains
+deferred until the host has bounded concurrency and shutdown plus an explicit
+run contract and parity gate.

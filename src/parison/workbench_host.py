@@ -10,14 +10,17 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .core import ParisonError
+from .workbench import workbench_projection
 
-_PAGE = b"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Parison Workbench</title></head><body><h1>Parison Workbench</h1><p>Plans | Run | Results | History | Investigate | Compare</p><p id="status">Connecting to local Python host...</p><script>const token=location.hash.slice(1);location.hash='';fetch('/api/session',{headers:{'X-Parison-Session':token}}).then(r=>r.ok?r.json():Promise.reject()).then(()=>document.getElementById('status').textContent='Local workspace ready.').catch(()=>document.getElementById('status').textContent='Session rejected.');</script></body></html>"""
+_MAX_REQUEST_BYTES = 4096
+_PAGE = b"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Parison Workbench</title><style>:root{color-scheme:light dark;font:16px/1.5 system-ui,sans-serif}body{max-width:72rem;margin:auto;padding:2rem}nav{word-spacing:1rem}form{display:flex;gap:.5rem;margin:2rem 0}input{flex:1;padding:.5rem}button{padding:.5rem 1rem}table{border-collapse:collapse;width:100%}th,td{padding:.5rem;text-align:left;border-bottom:1px solid #8888}th{width:34%}code{overflow-wrap:anywhere}.notice{padding:1rem;border:1px solid;border-radius:.4rem}</style></head><body><header><p>Parison Workbench</p><h1>Results</h1><nav>Plans Run <strong>Results</strong> History Investigate Compare</nav></header><p id="status" role="status" class="notice">Connecting to local Python host...</p><form id="open"><label for="bundle">Bundle within workspace</label><input id="bundle" required placeholder="runs/example"><button>Verify and open</button></form><table><tbody id="evidence"></tbody></table><footer><p>PASS means agreement under the displayed policy; it is not extraction truth, approval, or cutover authorization.</p><p>No source paths, keys, values, or discrepancy samples are returned.</p></footer><script>const token=location.hash.slice(1);history.replaceState(null,'',location.pathname);const status=document.getElementById('status'),body=document.getElementById('evidence');const post=(path,data)=>fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Parison-Session':token},body:JSON.stringify(data)});post('/api/session',{}).then(r=>r.ok?r.json():Promise.reject()).then(()=>status.textContent='Local workspace ready.').catch(()=>status.textContent='Session rejected.');document.getElementById('open').addEventListener('submit',async event=>{event.preventDefault();status.textContent='Verifying bundle...';body.replaceChildren();const response=await post('/api/evidence',{bundle:document.getElementById('bundle').value});if(!response.ok){status.textContent='Bundle could not be verified.';return}const evidence=await response.json();const rows=(value,prefix='')=>{if(value&&typeof value==='object'&&!Array.isArray(value)){Object.keys(value).sort().forEach(key=>rows(value[key],prefix?prefix+'.'+key:key));return}const row=document.createElement('tr'),name=document.createElement('th'),cell=document.createElement('td'),code=document.createElement('code');name.scope='row';name.textContent=prefix;code.textContent=Array.isArray(value)?value.join(', '):JSON.stringify(value);cell.append(code);row.append(name,cell);body.append(row)};rows(evidence);status.textContent='Verified summary-safe evidence.'});</script></body></html>"""
 
 
 def create_workbench_server(workspace: str | Path, token: str | None = None) -> tuple[ThreadingHTTPServer, str]:
     root = Path(workspace)
     if root.is_symlink() or not root.is_dir():
         raise ParisonError("workbench workspace must be an existing non-symlink directory")
+    root = root.resolve()
     capability = token or secrets.token_urlsafe(32)
 
     class Handler(BaseHTTPRequestHandler):
@@ -33,6 +36,43 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
             )
             self.end_headers()
 
+        def _api_authorized(self) -> bool:
+            origin = f"http://127.0.0.1:{self.server.server_port}"
+            return (
+                self.headers.get("Host") == origin.removeprefix("http://")
+                and self.headers.get("Origin") == origin
+                and self.headers.get("X-Parison-Session") == capability
+            )
+
+        def _request_json(self) -> dict[str, object] | None:
+            if self.headers.get("Content-Type") != "application/json":
+                return None
+            try:
+                size = int(self.headers.get("Content-Length", ""))
+            except ValueError:
+                return None
+            if not 0 <= size <= _MAX_REQUEST_BYTES:
+                return None
+            try:
+                value = json.loads(self.rfile.read(size))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                return None
+            return value if isinstance(value, dict) else None
+
+        def _bundle(self, value: object) -> Path | None:
+            if not isinstance(value, str) or not value or Path(value).is_absolute():
+                return None
+            parts = Path(value).parts
+            if any(part in {"", ".", ".."} for part in parts):
+                return None
+            candidate = root.joinpath(*parts)
+            current = root
+            for part in parts:
+                current /= part
+                if current.is_symlink():
+                    return None
+            return candidate
+
         def do_GET(self) -> None:
             expected_host = f"127.0.0.1:{self.server.server_port}"
             if self.headers.get("Host") != expected_host:
@@ -43,14 +83,34 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 self._headers(200, "text/html; charset=utf-8")
                 self.wfile.write(_PAGE)
                 return
-            if path == "/api/session" and self.headers.get("X-Parison-Session") == capability:
-                payload = json.dumps(
-                    {"activities": ["plans", "run", "results", "history", "investigate", "compare"]}
-                ).encode()
-                self._headers(200, "application/json")
-                self.wfile.write(payload)
-                return
             self._headers(404, "text/plain; charset=utf-8")
+
+        def do_POST(self) -> None:
+            if not self._api_authorized():
+                self._headers(404, "text/plain; charset=utf-8")
+                return
+            request = self._request_json()
+            if request is None:
+                self._headers(415, "application/json")
+                return
+            path = urlsplit(self.path).path
+            if path == "/api/session" and not request:
+                payload = {"activities": ["plans", "run", "results", "history", "investigate", "compare"]}
+            elif path == "/api/evidence":
+                bundle = self._bundle(request.get("bundle"))
+                if bundle is None:
+                    self._headers(422, "application/json")
+                    return
+                try:
+                    payload = workbench_projection(bundle)
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            else:
+                self._headers(404, "text/plain; charset=utf-8")
+                return
+            self._headers(200, "application/json")
+            self.wfile.write(json.dumps(payload, sort_keys=True).encode())
 
         def log_message(self, format: str, *args: object) -> None:
             return

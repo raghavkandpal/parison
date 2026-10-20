@@ -28,6 +28,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Workbench plan-builder engineering checkpoint](2.0/200-plan-builder-engineering-checkpoint.md)
 - [Unified Workbench interface decision](2.0/201-unified-workbench-interface-decision.md)
 - [Unified Workbench host checkpoint](2.0/202-unified-workbench-host-checkpoint.md)
+- [Unified Workbench verified Results checkpoint](2.0/203-unified-workbench-results-checkpoint.md)
 
 ## 1.8 — released
 

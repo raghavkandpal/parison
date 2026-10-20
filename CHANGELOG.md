@@ -16,6 +16,10 @@ All notable changes will be documented in this file.
 - A unified `parison workbench` host foundation using numeric loopback, an
   ephemeral port and per-launch capability, replacing the prototype activity
   commands before release.
+- A first unified Results activity that opens an explicitly entered,
+  workspace-relative bundle only after integrity verification and returns the
+  existing closed summary-safe projection behind strict request-origin,
+  capability, content-type and body-size checks.
 
 ### Compatibility
 
