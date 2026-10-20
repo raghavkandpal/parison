@@ -98,8 +98,13 @@
   [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39400756824)
   on Python 3.11--3.14 with macOS and Windows smoke, plus the
   [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39400756800)
-- Next gate: specify and implement bounded Workbench host lifecycle controls
-  before exposing any local execution activity
+- Recorded: the first reproducible Impeccable source and rendered-browser audit
+  scored the current Workbench 13/20 and identified a bounded responsive,
+  touch-target, contrast, token and hierarchy refinement slice. See the
+  [Workbench Impeccable UI audit](2.0/206-workbench-impeccable-audit.md).
+- Next gate: complete the recorded UI-only refinement checkpoint, then specify
+  and implement bounded Workbench host lifecycle controls before exposing any
+  local execution activity
 
 ## Recorded next steps
 
