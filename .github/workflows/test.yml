@@ -1,11 +1,14 @@
 name: test
 
 on:
+  workflow_dispatch:
   push:
+    branches: [develop, main]
     paths-ignore:
       - "**/*.md"
       - "docs/**"
   pull_request:
+    branches: [develop]
     paths-ignore:
       - "**/*.md"
       - "docs/**"
@@ -214,6 +217,7 @@ jobs:
           python benchmarks/run_spill_cases.py --repeats 1 /tmp/parison-spill-bench/keyed-1000
 
   platform-smoke:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ${{ matrix.os }}
     strategy:

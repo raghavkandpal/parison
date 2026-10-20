@@ -73,6 +73,18 @@ class GitHubActionsReference(unittest.TestCase):
         self.assertNotIn("python -m unittest", platform)
         self.assertNotIn("pip install '.[parquet,test]'", platform)
 
+    def test_repository_ci_avoids_duplicate_branch_and_pull_request_runs(self):
+        root = Path(__file__).parents[1]
+        for name in ("quality.yml", "test.yml"):
+            workflow = (root / ".github" / "workflows" / name).read_text(encoding="utf-8")
+            self.assertIn("workflow_dispatch:", workflow)
+            self.assertIn("push:\n    branches: [develop, main]", workflow)
+            self.assertIn("pull_request:\n    branches: [develop]", workflow)
+
+        workflow = (root / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+        platform = workflow[workflow.index("platform-smoke:") :]
+        self.assertIn("if: github.event_name != 'pull_request'", platform)
+
     def test_signing_reference_pins_tools_and_checks_exact_identity(self):
         workflow = SIGNING_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("id-token: write", workflow)

@@ -1,8 +1,11 @@
 name: quality
 
 on:
+  workflow_dispatch:
   push:
+    branches: [develop, main]
   pull_request:
+    branches: [develop]
 
 concurrency:
   group: quality-${{ github.event.pull_request.number || github.ref }}

@@ -43,6 +43,9 @@ All notable changes will be documented in this file.
   registration.
 - Verified workspace History, stricter summary-safe discrepancy investigation,
   and exact-policy rehearsal Compare activities over immutable local evidence.
+- A tiered repository CI policy: pull requests run quality and the complete
+  Linux Python matrix, while direct `develop`/`main` checkpoints and manual
+  runs retain the full built-wheel Windows and macOS compatibility matrix.
 
 ### Compatibility
 
