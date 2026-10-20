@@ -81,8 +81,12 @@
 - Implemented locally: Results can invoke a fixed native macOS or Windows
   directory chooser constrained to the workspace, and users can clear the
   rendered result without changing the verified bundle
-- Next gate: migrate authoritative recipe loading and policy explanation into
-  the unified Plans activity without adding execution or generic file access
+- Implemented locally: unified Plans opens an existing workspace recipe through
+  authoritative validation, shows exact source and effective policy identity,
+  supports constrained native file selection, clears browser state on request,
+  and downloads edits only as explicitly unapproved local drafts
+- Next gate: add authoritative validation of edited plan text through a closed,
+  non-persisting route before beginning bounded local execution work
 
 ## Recorded next steps
 

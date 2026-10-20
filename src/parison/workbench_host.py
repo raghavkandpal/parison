@@ -12,16 +12,24 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .core import ParisonError
-from .workbench import workbench_projection
+from .workbench import plan_projection, workbench_projection
 from .workbench_page import PAGE
 
 _MAX_REQUEST_BYTES = 4096
 _MACOS_PICKER = 'POSIX path of (choose folder with prompt "Choose a Parison evidence bundle")'
+_MACOS_RECIPE_PICKER = 'POSIX path of (choose file with prompt "Choose a Parison recipe")'
 _WINDOWS_PICKER = (
     "Add-Type -AssemblyName System.Windows.Forms; "
     "$dialog = New-Object System.Windows.Forms.FolderBrowserDialog; "
     "$dialog.Description = 'Choose a Parison evidence bundle'; "
     "if ($dialog.ShowDialog() -eq 'OK') { $dialog.SelectedPath }"
+)
+_WINDOWS_RECIPE_PICKER = (
+    "Add-Type -AssemblyName System.Windows.Forms; "
+    "$dialog = New-Object System.Windows.Forms.OpenFileDialog; "
+    "$dialog.Title = 'Choose a Parison recipe'; "
+    "$dialog.Filter = 'JSON files (*.json)|*.json|All files (*.*)|*.*'; "
+    "if ($dialog.ShowDialog() -eq 'OK') { $dialog.FileName }"
 )
 
 
@@ -60,6 +68,29 @@ def _choose_bundle(root: Path) -> str | None:
     candidate = _workspace_path(root, str(relative))
     if candidate is None or not candidate.is_dir():
         raise ParisonError("selected bundle folder is unsafe")
+    return str(relative)
+
+
+def _choose_recipe(root: Path) -> str | None:
+    if sys.platform == "darwin":
+        command = ["/usr/bin/osascript", "-e", _MACOS_RECIPE_PICKER]
+    elif sys.platform == "win32":
+        command = ["powershell.exe", "-NoProfile", "-STA", "-Command", _WINDOWS_RECIPE_PICKER]
+    else:
+        raise ParisonError("native file selection is unavailable on this platform")
+    try:
+        selected = subprocess.run(command, capture_output=True, text=True, timeout=300, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ParisonError("native file selection failed") from exc
+    if selected.returncode or not selected.stdout.strip():
+        return None
+    try:
+        relative = Path(selected.stdout.strip()).absolute().relative_to(root)
+    except ValueError as exc:
+        raise ParisonError("selected file must be inside the workbench workspace") from exc
+    candidate = _workspace_path(root, str(relative))
+    if candidate is None or not candidate.is_file():
+        raise ParisonError("selected recipe file is unsafe")
     return str(relative)
 
 
@@ -138,7 +169,27 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     self._headers(204, "application/json")
                     return
                 payload = {"bundle": selected}
-            elif path == "/api/evidence":
+            elif path == "/api/choose-recipe" and not request:
+                try:
+                    selected = _choose_recipe(root)
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+                if selected is None:
+                    self._headers(204, "application/json")
+                    return
+                payload = {"recipe": selected}
+            elif path == "/api/plan" and set(request) == {"recipe"}:
+                recipe = _workspace_path(root, request["recipe"])
+                if recipe is None:
+                    self._headers(422, "application/json")
+                    return
+                try:
+                    payload = plan_projection(recipe)
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/evidence" and set(request) == {"bundle"}:
                 bundle = _workspace_path(root, request.get("bundle"))
                 if bundle is None:
                     self._headers(422, "application/json")

@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from parison.core import ParisonError, compare, load_recipe, publish
-from parison.workbench_host import _choose_bundle, create_workbench_server
+from parison.workbench_host import _choose_bundle, _choose_recipe, create_workbench_server
 
 
 class WorkbenchHostTests(unittest.TestCase):
@@ -41,6 +41,8 @@ class WorkbenchHostTests(unittest.TestCase):
             self.assertIn(b"Local only", page_body)
             self.assertIn(b"Choose folder...", page_body)
             self.assertIn(b"Clear result", page_body)
+            self.assertIn(b"Choose file...", page_body)
+            self.assertIn(b"Download unapproved draft", page_body)
             response = self._post(connection, server, "/api/session", {}, Origin="http://attacker.invalid")
             self.assertEqual(response.status, 404)
             response.read()
@@ -52,6 +54,10 @@ class WorkbenchHostTests(unittest.TestCase):
                 response = self._post(connection, server, "/api/choose-bundle", {})
                 self.assertEqual(response.status, 200)
                 self.assertEqual(json.loads(response.read()), {"bundle": "runs/one"})
+            with patch("parison.workbench_host._choose_recipe", return_value="recipes/one.json"):
+                response = self._post(connection, server, "/api/choose-recipe", {})
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read()), {"recipe": "recipes/one.json"})
 
     def test_native_picker_returns_only_workspace_relative_folder(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -70,6 +76,13 @@ class WorkbenchHostTests(unittest.TestCase):
                     with patch("parison.workbench_host.subprocess.run", return_value=completed):
                         with self.assertRaisesRegex(ParisonError, "inside"):
                             _choose_bundle(root)
+
+            recipe = root / "recipe.json"
+            recipe.write_text("{}", encoding="utf-8")
+            completed.stdout = f"{recipe}\n"
+            with patch("parison.workbench_host.sys.platform", "darwin"):
+                with patch("parison.workbench_host.subprocess.run", return_value=completed):
+                    self.assertEqual(_choose_recipe(root), "recipe.json")
 
     def test_opens_only_verified_summary_safe_workspace_bundle(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -111,6 +124,17 @@ class WorkbenchHostTests(unittest.TestCase):
             thread.start()
             self.addCleanup(server.shutdown)
             connection = http.client.HTTPConnection(*server.server_address)
+            response = self._post(connection, server, "/api/plan", {"recipe": "recipe.json"})
+            self.assertEqual(response.status, 200)
+            plan = json.loads(response.read())
+            self.assertEqual(plan["source"], recipe.read_text(encoding="utf-8"))
+            self.assertEqual(plan["comparison_mode"], "keyed")
+            self.assertRegex(plan["policy_sha256"], r"^[0-9a-f]{64}$")
+            self.assertNotIn(str(recipe), json.dumps(plan))
+
+            response = self._post(connection, server, "/api/plan", {"recipe": "../recipe.json"})
+            self.assertEqual(response.status, 422)
+            response.read()
             response = self._post(connection, server, "/api/evidence", {"bundle": "runs/one"})
             self.assertEqual(response.status, 200)
             payload = response.read()

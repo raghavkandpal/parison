@@ -46,6 +46,23 @@ def workbench_projection(bundle: str | Path) -> dict[str, Any]:
     return {name: inspected[name] for name in _COMMON_FIELDS if name in inspected}
 
 
+def plan_projection(recipe: str | Path) -> dict[str, Any]:
+    """Validate a recipe and return its exact source plus policy identity."""
+    path = Path(recipe)
+    loaded = load_recipe(path)
+    try:
+        source = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ParisonError(f"cannot read recipe: {exc}") from exc
+    policy = explain_recipe(path)
+    return {
+        "source": source,
+        "policy_sha256": policy["policy_sha256"],
+        "comparison_mode": loaded["comparison_mode"],
+        "recipe_version": loaded["recipe_version"],
+    }
+
+
 def _rows(value: Any, prefix: str = "") -> list[tuple[str, str]]:
     if isinstance(value, dict):
         rows = []
@@ -141,14 +158,8 @@ save.addEventListener('click',()=>{{try{{JSON.parse(plan.value);const link=docum
 
 def publish_plan_builder(recipe: str | Path, output: str | Path) -> Path:
     """Validate and publish an editor for one explicit CLI-native recipe."""
-    path = Path(recipe)
-    loaded = load_recipe(path)
-    try:
-        source = path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise ParisonError(f"cannot read recipe: {exc}") from exc
-    policy = explain_recipe(path)
+    plan = plan_projection(recipe)
     return _publish_page(
-        render_plan_builder(source, policy["policy_sha256"], loaded["comparison_mode"], loaded["recipe_version"]),
+        render_plan_builder(plan["source"], plan["policy_sha256"], plan["comparison_mode"], plan["recipe_version"]),
         output,
     )
