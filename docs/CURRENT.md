@@ -85,6 +85,11 @@
   authoritative validation, shows exact source and effective policy identity,
   supports constrained native file selection, clears browser state on request,
   and downloads edits only as explicitly unapproved local drafts
+- Verified: exact unified Plans checkpoint
+  `462eeac3b9e21b641df2070a4cdff8bfbde91c94` passed the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39398735075)
+  on Python 3.11--3.14 with macOS and Windows smoke, plus the
+  [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39398735044)
 - Next gate: add authoritative validation of edited plan text through a closed,
   non-persisting route before beginning bounded local execution work
 

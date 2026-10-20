@@ -2,7 +2,7 @@
 
 Date: 20 October 2026
 
-Status: **implemented locally; qualification pending**
+Status: **qualified at exact implementation commit `462eeac`**
 
 The unified `parison workbench --workspace DIRECTORY` application now exposes
 Plans as its second live activity. A user can enter a workspace-relative recipe
@@ -34,3 +34,8 @@ recipe load and explicit clear behavior.
 The next slice should validate edited plan text through a closed, non-persisting
 Python route. Local execution remains deferred until bounded concurrency,
 shutdown and an explicit parity-tested run contract exist.
+
+Exact commit `462eeac3b9e21b641df2070a4cdff8bfbde91c94` passed the complete
+[built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39398735075)
+on Python 3.11--3.14 with macOS and Windows platform smoke, plus the
+[quality gate](https://github.com/raghavkandpal/parison/actions/runs/39398735044).
