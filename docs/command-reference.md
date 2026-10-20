@@ -9,7 +9,7 @@ end-to-end tasks, use the [current user guide](user-guide.md). Do not edit this 
 Compare data-pipeline outputs deterministically
 
 positional arguments:
-  {init,validate-recipe,explain,validate-evolution,explain-evolution,compile-evolution,diff-policy,validate-time-alignment,explain-time-alignment,validate-reconciliation,explain-reconciliation,preflight-alignment,check-identity-references,check-conservation,reconcile,verify-reconciliation,inspect-reconciliation,create-dataset-manifest,validate-dataset-manifest,explain-dataset-manifest,verify-dataset-manifest,publish-dataset-evidence,capture-reproducibility,diff-reproducibility,schema,export-editor-schemas,validate-suite,list-suite,run-suite,assemble-suite,report-ci,validate-inputs,draft-recipe,verify,inspect,analyze,verify-analysis,drilldown,verify-drilldown,statement,verify-statement,report-cutover,catalog,export-evidence,compare}
+  {init,validate-recipe,explain,validate-evolution,explain-evolution,compile-evolution,diff-policy,validate-time-alignment,explain-time-alignment,validate-reconciliation,explain-reconciliation,preflight-alignment,check-identity-references,check-conservation,reconcile,verify-reconciliation,inspect-reconciliation,create-dataset-manifest,validate-dataset-manifest,explain-dataset-manifest,verify-dataset-manifest,publish-dataset-evidence,capture-reproducibility,diff-reproducibility,schema,export-editor-schemas,validate-suite,list-suite,run-suite,assemble-suite,report-ci,validate-inputs,draft-recipe,verify,inspect,workbench,analyze,verify-analysis,drilldown,verify-drilldown,statement,verify-statement,report-cutover,catalog,export-evidence,compare}
     init                create a minimal keyed migration project
     validate-recipe     validate a JSON recipe
     explain             print the effective recipe policy without reading inputs
@@ -61,6 +61,7 @@ positional arguments:
     draft-recipe        draft a JSON recipe with reviewable suggestions
     verify              verify a published run bundle
     inspect             inspect safe metadata from a verified run bundle
+    workbench           build a verified local evidence navigator
     analyze             publish summary-safe discrepancy groups from verified runs
     verify-analysis     verify a discrepancy analysis bundle
     drilldown           export bounded raw samples for one discrepancy group
@@ -506,6 +507,18 @@ positional arguments:
 
 options:
   -h, --help     show this help message and exit
+```
+
+## `parison workbench`
+
+```text
+positional arguments:
+  bundle
+
+options:
+  -h, --help       show this help message and exit
+  --output OUTPUT  new directory for the local application
+  --open           open the published application in a browser
 ```
 
 ## `parison analyze`

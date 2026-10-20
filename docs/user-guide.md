@@ -5,7 +5,8 @@ then produces deterministic evidence that can be verified elsewhere. A `PASS`
 means agreement under that policy. It does not prove extraction truth, approve
 the policy or authorize a cutover.
 
-This is the maintained guide for the current 1.x release line. The
+This is the maintained guide for the released 1.x line and active 2.0
+workbench development. The
 [generated command reference](command-reference.md) lists every option; frozen
 version contracts remain the normative record for artifact semantics.
 
@@ -39,6 +40,23 @@ approve it.
 Keep extraction, credentials, signing and cutover approval outside Parison.
 Use source-owned jobs to materialize coordinated local inputs and retain their
 receipts separately.
+
+## Open verified evidence in Workbench
+
+The first 2.0 workbench feature is a generated local application. It runs from
+the installed Python package, verifies an existing bundle before display, and
+contains only a closed summary-safe projection. It does not start a server or
+make network requests.
+
+```sh
+parison workbench runs/orders-example --output workbench/orders-example --open
+```
+
+The output directory must not exist. Omit `--open` to generate the application
+without launching a browser, then open `workbench/orders-example/index.html`
+yourself. A workbench PASS remains agreement under the displayed policy; it is
+not approval or cutover authorization. See the
+[verified navigator contract](2.0/197-verified-navigator-contract.md).
 
 ## Compare one dataset
 

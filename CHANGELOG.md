@@ -2,6 +2,20 @@
 
 All notable changes will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- A zero-dependency `parison workbench` command that verifies an existing
+  evidence bundle and atomically publishes a deterministic, script-free,
+  summary-safe local application, with optional explicit browser launch.
+
+### Compatibility
+
+- The workbench is a derived view over released verification and inspection
+  interfaces. It does not change recipes, schemas, evidence bundles, canonical
+  bytes, comparison semantics, exit codes, or existing CLI JSON.
+
 ## 1.9.0 - 2026-10-20
 
 ### Added

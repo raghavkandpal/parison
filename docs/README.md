@@ -17,10 +17,13 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Combined structured-selection qualification](1.9/195-combined-structured-selection-qualification.md)
 - [1.9.0 release checklist](1.9/196-release-checklist.md)
 
-## Future research — development stopped after 1.9
+## 2.0 — active workbench development
 
 - [Verification workbench product research](2.0/194-verification-workbench-product-research.md)
 - [Verification workbench development direction](2.0/195-verification-workbench-development-direction.md)
+- [Workbench delivery research](2.0/196-workbench-delivery-research.md)
+- [Verified navigator contract](2.0/197-verified-navigator-contract.md)
+- [Verified navigator engineering checkpoint](2.0/198-verified-navigator-engineering-checkpoint.md)
 
 ## 1.8 — released
 

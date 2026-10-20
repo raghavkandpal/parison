@@ -1,8 +1,9 @@
 # Current development state
 
-- Version: **1.9.0 released; development stopped**
+- Version: **2.0 workbench development active after 1.9.0**
 - Branch: `develop`
-- Theme: explicit JSON, XML and XLSX structured field selection as one three-feature train
+- Theme: local-first Workbench — verified navigation, explicit plan authoring,
+  and bounded local execution as one three-feature train
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
   record projection and the 1.9 JSON/XML/XLSX structured field-selection train
   across all comparison modes
@@ -46,15 +47,19 @@
   annotated tag and [GitHub release 1.9.0](https://github.com/raghavkandpal/parison/releases/tag/1.9.0)
   publish checksum-verified artifacts whose public wheel passed all 20 fresh
   JSON, XML and XLSX structured-selection workflow tests
-- Next gate: none. Development stopped after verified 1.9.0 publication by
-  user direction; future workbench documents remain research only
+- Implemented: first 2.0 slice adds `parison workbench`, a Python-native
+  launcher for a deterministic script-free local application. It verifies an
+  existing bundle before rendering, applies a closed summary-safe projection,
+  and publishes atomically without overwrite or network access.
+- Next gate: complete quality and independent Standards/Spec review, push the
+  exact verified navigator checkpoint, then begin schema-driven plan authoring
 
 ## Recorded next steps
 
-- Development stopped after the verified 1.9.0 release by explicit user
-  direction. Preserve later research as non-active context; do not begin a 2.0
-  train unless a future user explicitly resumes development. Internal review
-  and test evidence never establishes operational policy or cutover approval.
+- Development resumed by explicit user direction after the verified 1.9.0
+  release. Follow the active 2.0 research, contract and checkpoint documents;
+  internal review and test evidence never establishes operational policy or
+  cutover approval.
 
 - When an autonomous session stops near its usage limit, return a copy-ready
   next-session goal prompt. Include the exact branch and commits, green CI and
