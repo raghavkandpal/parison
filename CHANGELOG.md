@@ -9,6 +9,10 @@ All notable changes will be documented in this file.
 - A zero-dependency `parison workbench` command that verifies an existing
   evidence bundle and atomically publishes a deterministic, script-free,
   summary-safe local application, with optional explicit browser launch.
+- An explicit Workbench plan activity that validates an existing recipe with
+  the Python engine, shows its effective policy identity and equivalent CLI,
+  preserves its JSON text in an escaped local editor, and downloads only an
+  unapproved CLI-native draft.
 
 ### Compatibility
 

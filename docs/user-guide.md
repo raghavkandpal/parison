@@ -49,7 +49,7 @@ contains only a closed summary-safe projection. It does not start a server or
 make network requests.
 
 ```sh
-parison workbench runs/orders-example --output workbench/orders-example --open
+parison workbench evidence runs/orders-example --output workbench/orders-example --open
 ```
 
 The output directory must not exist. Omit `--open` to generate the application
@@ -57,6 +57,19 @@ without launching a browser, then open `workbench/orders-example/index.html`
 yourself. A workbench PASS remains agreement under the displayed policy; it is
 not approval or cutover authorization. See the
 [verified navigator contract](2.0/197-verified-navigator-contract.md).
+
+To review or revise an existing valid recipe without introducing another plan
+format, generate the local plan builder:
+
+```sh
+parison workbench plan recipe.json --output workbench/plan --open
+```
+
+The editor preserves the loaded JSON text, shows its effective policy
+fingerprint and downloads an unapproved `plan.json` draft. Its live feedback
+checks JSON syntax only. Run `parison validate-recipe plan.json` before using
+the draft; the browser never approves its policy choices. See the
+[plan-builder contract](2.0/199-plan-builder-contract.md).
 
 ## Compare one dataset
 

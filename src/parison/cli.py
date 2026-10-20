@@ -83,7 +83,7 @@ from .reconciliation import (
     summarize_reconciliation_result,
     verify_reconciliation_bundle,
 )
-from .workbench import publish_workbench
+from .workbench import publish_plan_builder, publish_workbench
 
 
 def _shell_command(parts: list[str]) -> str:
@@ -473,10 +473,15 @@ operator and null policy. Suggestions are starting points, not approved policy."
     verify.add_argument("--json", action="store_true", help="print verified manifest metadata as JSON")
     inspect = commands.add_parser("inspect", help="inspect safe metadata from a verified run bundle")
     inspect.add_argument("run_directory")
-    workbench = commands.add_parser("workbench", help="build a verified local evidence navigator")
-    workbench.add_argument("bundle")
-    workbench.add_argument("--output", required=True, help="new directory for the local application")
-    workbench.add_argument("--open", action="store_true", help="open the published application in a browser")
+    workbench = commands.add_parser("workbench", help="build a local verification workbench")
+    workbench_commands = workbench.add_subparsers(dest="workbench_command", required=True)
+    workbench_evidence = workbench_commands.add_parser("evidence", help="build a verified evidence navigator")
+    workbench_evidence.add_argument("bundle")
+    workbench_plan = workbench_commands.add_parser("plan", help="build an explicit JSON plan editor")
+    workbench_plan.add_argument("recipe")
+    for workbench_view in (workbench_evidence, workbench_plan):
+        workbench_view.add_argument("--output", required=True, help="new directory for the local application")
+        workbench_view.add_argument("--open", action="store_true", help="open the application in a browser")
     analysis = commands.add_parser("analyze", help="publish summary-safe discrepancy groups from verified runs")
     analysis.add_argument("bundle", nargs="*")
     analysis.add_argument("--catalog")
@@ -610,12 +615,25 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(inspect_bundle(args.run_directory), indent=2, sort_keys=True))
             return 0
         if args.command == "workbench":
-            page = publish_workbench(args.bundle, args.output)
+            page = (
+                publish_workbench(args.bundle, args.output)
+                if args.workbench_command == "evidence"
+                else publish_plan_builder(args.recipe, args.output)
+            )
             if args.open and not webbrowser.open(page.resolve().as_uri()):
                 raise ParisonError("cannot open the workbench in a browser")
-            print(json.dumps({"application": str(page), "verified": True}, sort_keys=True))
             print(
-                "Workbench views verified summary-safe evidence; PASS is not approval or cutover authorization.",
+                json.dumps(
+                    {
+                        "application": str(page),
+                        "verified": args.workbench_command == "evidence",
+                        "view": args.workbench_command,
+                    },
+                    sort_keys=True,
+                )
+            )
+            print(
+                "Workbench evidence is verified before display; plan drafts remain unapproved until validated.",
                 file=sys.stderr,
             )
             return 0

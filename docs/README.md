@@ -24,6 +24,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Workbench delivery research](2.0/196-workbench-delivery-research.md)
 - [Verified navigator contract](2.0/197-verified-navigator-contract.md)
 - [Verified navigator engineering checkpoint](2.0/198-verified-navigator-engineering-checkpoint.md)
+- [Workbench plan-builder contract](2.0/199-plan-builder-contract.md)
+- [Workbench plan-builder engineering checkpoint](2.0/200-plan-builder-engineering-checkpoint.md)
 
 ## 1.8 — released
 

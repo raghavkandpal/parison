@@ -19,7 +19,7 @@ execution is added.
 ## Command
 
 ```sh
-parison workbench RUN_DIRECTORY --output APPLICATION_DIRECTORY [--open]
+parison workbench evidence RUN_DIRECTORY --output APPLICATION_DIRECTORY [--open]
 ```
 
 The command verifies the selected bundle, obtains the released summary-safe

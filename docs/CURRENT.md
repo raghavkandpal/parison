@@ -56,7 +56,12 @@
   [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39370931644)
   on Python 3.11--3.14 with direct macOS and Windows Workbench smoke coverage,
   plus the [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39370931604)
-- Next gate: independent Standards/Spec review, then schema-driven plan authoring
+- Implemented locally: the first plan-builder slice adds an explicit
+  `workbench plan` activity with authoritative initial validation, exact JSON
+  import, policy identity, local draft export and equivalent CLI commands;
+  drafts remain visibly unapproved and execute nothing
+- Next gate: full quality and built-wheel qualification, then schema-derived
+  controls and an in-process validation seam
 
 ## Recorded next steps
 

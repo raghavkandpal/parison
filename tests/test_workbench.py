@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import html
 import json
+import re
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -10,7 +12,7 @@ from unittest.mock import patch
 
 from parison.cli import main
 from parison.core import ParisonError, compare, load_recipe, publish
-from parison.workbench import publish_workbench, render_workbench
+from parison.workbench import publish_plan_builder, publish_workbench, render_workbench
 
 
 class WorkbenchTests(unittest.TestCase):
@@ -87,9 +89,57 @@ class WorkbenchTests(unittest.TestCase):
             redirect_stdout(StringIO()) as stdout,
             redirect_stderr(StringIO()),
         ):
-            self.assertEqual(main(["workbench", str(self.bundle), "--output", str(output), "--open"]), 0)
+            self.assertEqual(main(["workbench", "evidence", str(self.bundle), "--output", str(output), "--open"]), 0)
         self.assertEqual(json.loads(stdout.getvalue())["verified"], True)
         opened.assert_called_once_with((output / "index.html").resolve().as_uri())
+
+    def test_plan_builder_uses_validated_cli_native_recipe(self):
+        recipe = self.root / "recipe.json"
+        recipe.write_text(
+            json.dumps(
+                {
+                    "recipe_version": 1,
+                    "comparison_mode": "keyed",
+                    "keys": ["id"],
+                    "scope": {
+                        "snapshot": "<reviewed>",
+                        "cutoff": "2026-10-20T00:00:00Z",
+                        "filters": [],
+                        "completeness": "full",
+                        "expected_empty": False,
+                    },
+                    "identity": {"null_keys": "reject", "duplicates": "reject"},
+                    "nulls_equal": True,
+                    "columns": {"id": {"type": "string", "comparison": "exact"}},
+                    "output": {"sensitivity": "summary"},
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        page = publish_plan_builder(recipe, self.root / "builder").read_text(encoding="utf-8")
+        self.assertIn("Verification plan builder", page)
+        self.assertIn("Download unapproved draft", page)
+        self.assertIn("parison validate-recipe plan.json", page)
+        self.assertIn("endsWith('\\n')", page)
+        self.assertIn("&lt;reviewed&gt;", page)
+        self.assertNotIn(str(recipe), page)
+        embedded = re.search(r'<textarea id="plan"[^>]*>(.*?)</textarea>', page, re.DOTALL)
+        self.assertIsNotNone(embedded)
+        self.assertEqual(html.unescape(embedded.group(1)), recipe.read_text(encoding="utf-8"))
+
+        cli_output = self.root / "cli-builder"
+        with redirect_stdout(StringIO()) as stdout, redirect_stderr(StringIO()):
+            self.assertEqual(main(["workbench", "plan", str(recipe), "--output", str(cli_output)]), 0)
+        self.assertEqual(json.loads(stdout.getvalue())["view"], "plan")
+        self.assertFalse(json.loads(stdout.getvalue())["verified"])
+
+        invalid = self.root / "invalid.json"
+        invalid.write_text("{}", encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "recipe_version"):
+            publish_plan_builder(invalid, self.root / "invalid-builder")
+        self.assertFalse((self.root / "invalid-builder").exists())
 
 
 if __name__ == "__main__":

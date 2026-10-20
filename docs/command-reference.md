@@ -61,7 +61,7 @@ positional arguments:
     draft-recipe        draft a JSON recipe with reviewable suggestions
     verify              verify a published run bundle
     inspect             inspect safe metadata from a verified run bundle
-    workbench           build a verified local evidence navigator
+    workbench           build a local verification workbench
     analyze             publish summary-safe discrepancy groups from verified runs
     verify-analysis     verify a discrepancy analysis bundle
     drilldown           export bounded raw samples for one discrepancy group
@@ -513,12 +513,36 @@ options:
 
 ```text
 positional arguments:
+  {evidence,plan}
+    evidence       build a verified evidence navigator
+    plan           build an explicit JSON plan editor
+
+options:
+  -h, --help       show this help message and exit
+```
+
+## `parison workbench evidence`
+
+```text
+positional arguments:
   bundle
 
 options:
   -h, --help       show this help message and exit
   --output OUTPUT  new directory for the local application
-  --open           open the published application in a browser
+  --open           open the application in a browser
+```
+
+## `parison workbench plan`
+
+```text
+positional arguments:
+  recipe
+
+options:
+  -h, --help       show this help message and exit
+  --output OUTPUT  new directory for the local application
+  --open           open the application in a browser
 ```
 
 ## `parison analyze`

@@ -32,7 +32,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **1.8.0 released.** Explicit RFC 6901 JSON document projection, bounded QName XML record projection and exact XLSX named-table projection feed the released semantic-scalar boundary without changing comparison or evidence semantics.
 
-**1.9.0 released; 2.0 development active.** Structured JSON, XML and XLSX field selection is released. The first Parison Workbench slice now generates a deterministic, verified, summary-safe local application directly from the Python package.
+**1.9.0 released; 2.0 development active.** Structured JSON, XML and XLSX field selection is released. Parison Workbench now generates deterministic local evidence and plan-review applications directly from the Python package; plans remain explicit CLI-native JSON and drafts remain unapproved.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -68,7 +68,8 @@ parison compare --recipe examples/orders.recipe.json \
 parison verify runs/orders-example
 parison verify runs/orders-example --json
 parison inspect runs/orders-example
-parison workbench runs/orders-example --output workbench/orders-example --open
+parison workbench evidence runs/orders-example --output workbench/orders-example --open
+parison workbench plan examples/orders.recipe.json --output workbench/orders-plan --open
 ```
 
 `draft-recipe` inspects both inputs and writes a valid starting recipe with suggested keys, data types, scope metadata and exclusion rationales. Review every suggestion, then use `validate-recipe` as the structural gate. See the [recipe draft contract and workflow](docs/0.2/22-recipe-draft-contract.md).

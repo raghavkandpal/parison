@@ -6,7 +6,7 @@ Status: **implemented and exact-commit CI qualified**
 
 ## Implemented
 
-- `parison workbench BUNDLE --output DIRECTORY [--open]` runs from the same
+- `parison workbench evidence BUNDLE --output DIRECTORY [--open]` runs from the same
   installed Python package as the verification engine.
 - `parison.workbench` is a deep module with one publication interface. It
   verifies first, applies a closed summary-safe projection, renders one
