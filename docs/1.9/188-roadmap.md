@@ -38,8 +38,8 @@ aggregate and multiset modes respectively. These versions require one
   field, replacing rather than combining with `column_mappings`;
 - `json-pointer-v1` maps every configured logical field to one nonempty RFC
   6901 pointer relative to each selected JSON record; and
-- the second feature will add one closed XML selector kind under the same
-  projection version.
+- `xml-field-v1` maps every configured logical field to one exact record
+  attribute or bounded unique child-element path.
 
 The side maps must cover exactly the configured logical columns so projection
 cannot silently fall back to a source name. Selectors enter the effective

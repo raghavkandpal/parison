@@ -9,6 +9,18 @@
     "max_distinct_rows": {"type": "integer", "minimum": 1}, "canonical_columns": {"type": "integer", "minimum": 1},
     "policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "field_projection": {"type": "object", "additionalProperties": false, "required": ["version", "baseline", "candidate"], "properties": {"version": {"const": 1}, "baseline": {"$ref": "#/$defs/sideProjection"}, "candidate": {"$ref": "#/$defs/sideProjection"}}}, "inputs": {"$ref": "#/$defs/inputs"}
   },
+  "allOf": [
+    {"oneOf": [
+      {"properties": {"field_projection": {"properties": {"baseline": {"properties": {"kind": {"const": "json-pointer-v1"}}, "required": ["kind"]}}, "required": ["baseline"]}, "inputs": {"properties": {"baseline": {"properties": {"format": {"const": "json"}}, "required": ["format"]}}, "required": ["baseline"]}}, "required": ["field_projection", "inputs"]},
+      {"properties": {"field_projection": {"properties": {"baseline": {"properties": {"kind": {"const": "xml-field-v1"}}, "required": ["kind"]}}, "required": ["baseline"]}, "inputs": {"properties": {"baseline": {"properties": {"format": {"const": "xml"}}, "required": ["format"]}}, "required": ["baseline"]}}, "required": ["field_projection", "inputs"]},
+      {"properties": {"field_projection": {"properties": {"baseline": {"properties": {"kind": {"const": "direct-v1"}}, "required": ["kind"]}}, "required": ["baseline"]}, "inputs": {"properties": {"baseline": {"properties": {"format": {"not": {"enum": ["json", "xml"]}}}, "required": ["format"]}}, "required": ["baseline"]}}, "required": ["field_projection", "inputs"]}
+    ]},
+    {"oneOf": [
+      {"properties": {"field_projection": {"properties": {"candidate": {"properties": {"kind": {"const": "json-pointer-v1"}}, "required": ["kind"]}}, "required": ["candidate"]}, "inputs": {"properties": {"candidate": {"properties": {"format": {"const": "json"}}, "required": ["format"]}}, "required": ["candidate"]}}, "required": ["field_projection", "inputs"]},
+      {"properties": {"field_projection": {"properties": {"candidate": {"properties": {"kind": {"const": "xml-field-v1"}}, "required": ["kind"]}}, "required": ["candidate"]}, "inputs": {"properties": {"candidate": {"properties": {"format": {"const": "xml"}}, "required": ["format"]}}, "required": ["candidate"]}}, "required": ["field_projection", "inputs"]},
+      {"properties": {"field_projection": {"properties": {"candidate": {"properties": {"kind": {"const": "direct-v1"}}, "required": ["kind"]}}, "required": ["candidate"]}, "inputs": {"properties": {"candidate": {"properties": {"format": {"not": {"enum": ["json", "xml"]}}}, "required": ["format"]}}, "required": ["candidate"]}}, "required": ["field_projection", "inputs"]}
+    ]}
+  ],
   "$defs": {
     "sideProjection": {"oneOf": [{"type": "object", "additionalProperties": false, "required": ["kind", "fields"], "properties": {"kind": {"enum": ["direct-v1", "json-pointer-v1"]}, "fields": {"$ref": "#/$defs/fieldMap"}}}, {"type": "object", "additionalProperties": false, "required": ["kind", "namespaces", "fields"], "properties": {"kind": {"const": "xml-field-v1"}, "namespaces": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}}, "fields": {"$ref": "#/$defs/fieldMap"}}}]},
     "fieldMap": {"type": "object", "minProperties": 1, "maxProperties": 256, "additionalProperties": {"type": "string", "minLength": 1}},

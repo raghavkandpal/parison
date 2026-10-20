@@ -240,7 +240,14 @@ class JsonFieldProjection(unittest.TestCase):
             self._write_recipe(recipe)
             preflight = validate_inputs(self.recipe, self.source, xml_source)
             with self.subTest(version=version):
-                Draft202012Validator(load_schema(schema_name)).validate(preflight)
+                validator = Draft202012Validator(load_schema(schema_name))
+                validator.validate(preflight)
+                wrong_json_source = deepcopy(preflight)
+                wrong_json_source["inputs"]["baseline"]["format"] = "csv"
+                self.assertFalse(validator.is_valid(wrong_json_source))
+                wrong_xml_source = deepcopy(preflight)
+                wrong_xml_source["inputs"]["candidate"]["format"] = "csv"
+                self.assertFalse(validator.is_valid(wrong_xml_source))
 
     def test_projection_rejects_missing_container_and_noncanonical_array_index(self):
         for pointer, message in (

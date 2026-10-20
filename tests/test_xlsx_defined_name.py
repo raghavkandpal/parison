@@ -170,7 +170,11 @@ class XlsxDefinedName(unittest.TestCase):
                     self.assertEqual(compare(self.recipe, self.source, self.source, engine=engine)["outcome"], "PASS")
                 preflight = validate_inputs(self.recipe, self.source, self.source, validate_records=True)
                 self.assertEqual(preflight["schema_version"], schema_version)
-                Draft202012Validator(load_schema(f"preflight-v{schema_version}")).validate(preflight)
+                validator = Draft202012Validator(load_schema(f"preflight-v{schema_version}"))
+                validator.validate(preflight)
+                wrong_projection = deepcopy(preflight)
+                wrong_projection["field_projection"]["baseline"]["kind"] = "json-pointer-v1"
+                self.assertFalse(validator.is_valid(wrong_projection))
 
     def test_rejects_scope_case_reserved_dynamic_relative_external_and_union(self):
         with self.assertRaisesRegex(ParisonError, "does not exist"):
