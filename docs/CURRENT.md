@@ -93,6 +93,11 @@
 - Implemented locally: every Plans edit invalidates its displayed policy
   identity and disables download until a closed, bounded, non-persisting route
   validates the exact current text through the authoritative Python loader
+- Verified: exact edited-plan validation checkpoint
+  `4233c8542b80dbc07546a63dd7697607ac29bfa2` passed the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39400756824)
+  on Python 3.11--3.14 with macOS and Windows smoke, plus the
+  [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39400756800)
 - Next gate: specify and implement bounded Workbench host lifecycle controls
   before exposing any local execution activity
 

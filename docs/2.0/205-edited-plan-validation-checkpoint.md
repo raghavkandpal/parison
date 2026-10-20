@@ -2,7 +2,7 @@
 
 Date: 20 October 2026
 
-Status: **implemented locally; qualification pending**
+Status: **qualified at exact implementation commit `4233c85`**
 
 The unified Plans activity now treats every edit as unvalidated. Editing recipe
 source immediately removes the previously computed policy identity and disables
@@ -27,3 +27,8 @@ Focused tests cover policy-identity changes, invalid edited recipes and the
 closed HTTP response. Browser verification covers dirty, disabled-download and
 authoritatively validated states. The next gate is bounded host lifecycle and
 shutdown behavior before any Run activity is exposed.
+
+Exact commit `4233c8542b80dbc07546a63dd7697607ac29bfa2` passed the complete
+[built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39400756824)
+on Python 3.11--3.14 with macOS and Windows platform smoke, plus the
+[quality gate](https://github.com/raghavkandpal/parison/actions/runs/39400756800).
