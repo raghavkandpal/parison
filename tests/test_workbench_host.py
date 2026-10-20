@@ -6,9 +6,11 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from parison.core import ParisonError, compare, load_recipe, publish
-from parison.workbench_host import create_workbench_server
+from parison.workbench_host import _choose_bundle, create_workbench_server
 
 
 class WorkbenchHostTests(unittest.TestCase):
@@ -37,12 +39,37 @@ class WorkbenchHostTests(unittest.TestCase):
             self.assertIn(b"border:1px solid #ccd3da", page_body)
             self.assertIn(b"No result open", page_body)
             self.assertIn(b"Local only", page_body)
+            self.assertIn(b"Choose folder...", page_body)
+            self.assertIn(b"Clear result", page_body)
             response = self._post(connection, server, "/api/session", {}, Origin="http://attacker.invalid")
             self.assertEqual(response.status, 404)
             response.read()
             response = self._post(connection, server, "/api/session", {})
             self.assertEqual(response.status, 200)
             self.assertIn(b'"plans"', response.read())
+
+            with patch("parison.workbench_host._choose_bundle", return_value="runs/one"):
+                response = self._post(connection, server, "/api/choose-bundle", {})
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read()), {"bundle": "runs/one"})
+
+    def test_native_picker_returns_only_workspace_relative_folder(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            bundle = root / "runs" / "one"
+            bundle.mkdir(parents=True)
+            completed = SimpleNamespace(returncode=0, stdout=f"{bundle}\n")
+            with patch("parison.workbench_host.sys.platform", "darwin"):
+                with patch("parison.workbench_host.subprocess.run", return_value=completed) as run:
+                    self.assertEqual(_choose_bundle(root), "runs/one")
+            self.assertEqual(run.call_args.args[0][0], "/usr/bin/osascript")
+
+            with tempfile.TemporaryDirectory() as outside_directory:
+                completed.stdout = f"{outside_directory}\n"
+                with patch("parison.workbench_host.sys.platform", "darwin"):
+                    with patch("parison.workbench_host.subprocess.run", return_value=completed):
+                        with self.assertRaisesRegex(ParisonError, "inside"):
+                            _choose_bundle(root)
 
     def test_opens_only_verified_summary_safe_workspace_bundle(self):
         with tempfile.TemporaryDirectory() as directory:

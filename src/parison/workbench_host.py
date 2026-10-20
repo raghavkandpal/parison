@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import secrets
+import subprocess
+import sys
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -14,6 +16,51 @@ from .workbench import workbench_projection
 from .workbench_page import PAGE
 
 _MAX_REQUEST_BYTES = 4096
+_MACOS_PICKER = 'POSIX path of (choose folder with prompt "Choose a Parison evidence bundle")'
+_WINDOWS_PICKER = (
+    "Add-Type -AssemblyName System.Windows.Forms; "
+    "$dialog = New-Object System.Windows.Forms.FolderBrowserDialog; "
+    "$dialog.Description = 'Choose a Parison evidence bundle'; "
+    "if ($dialog.ShowDialog() -eq 'OK') { $dialog.SelectedPath }"
+)
+
+
+def _workspace_path(root: Path, value: object) -> Path | None:
+    if not isinstance(value, str) or not value or Path(value).is_absolute():
+        return None
+    parts = Path(value).parts
+    if any(part in {"", ".."} for part in parts):
+        return None
+    candidate = root.joinpath(*parts)
+    current = root
+    for part in parts:
+        current /= part
+        if current.is_symlink():
+            return None
+    return candidate
+
+
+def _choose_bundle(root: Path) -> str | None:
+    if sys.platform == "darwin":
+        command = ["/usr/bin/osascript", "-e", _MACOS_PICKER]
+    elif sys.platform == "win32":
+        command = ["powershell.exe", "-NoProfile", "-STA", "-Command", _WINDOWS_PICKER]
+    else:
+        raise ParisonError("native folder selection is unavailable on this platform")
+    try:
+        selected = subprocess.run(command, capture_output=True, text=True, timeout=300, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ParisonError("native folder selection failed") from exc
+    if selected.returncode or not selected.stdout.strip():
+        return None
+    try:
+        relative = Path(selected.stdout.strip()).absolute().relative_to(root)
+    except ValueError as exc:
+        raise ParisonError("selected folder must be inside the workbench workspace") from exc
+    candidate = _workspace_path(root, str(relative))
+    if candidate is None or not candidate.is_dir():
+        raise ParisonError("selected bundle folder is unsafe")
+    return str(relative)
 
 
 def create_workbench_server(workspace: str | Path, token: str | None = None) -> tuple[ThreadingHTTPServer, str]:
@@ -59,20 +106,6 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 return None
             return value if isinstance(value, dict) else None
 
-        def _bundle(self, value: object) -> Path | None:
-            if not isinstance(value, str) or not value or Path(value).is_absolute():
-                return None
-            parts = Path(value).parts
-            if any(part in {"", ".", ".."} for part in parts):
-                return None
-            candidate = root.joinpath(*parts)
-            current = root
-            for part in parts:
-                current /= part
-                if current.is_symlink():
-                    return None
-            return candidate
-
         def do_GET(self) -> None:
             expected_host = f"127.0.0.1:{self.server.server_port}"
             if self.headers.get("Host") != expected_host:
@@ -95,8 +128,18 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
             path = urlsplit(self.path).path
             if path == "/api/session" and not request:
                 payload = {"activities": ["plans", "run", "results", "history", "investigate", "compare"]}
+            elif path == "/api/choose-bundle" and not request:
+                try:
+                    selected = _choose_bundle(root)
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+                if selected is None:
+                    self._headers(204, "application/json")
+                    return
+                payload = {"bundle": selected}
             elif path == "/api/evidence":
-                bundle = self._bundle(request.get("bundle"))
+                bundle = _workspace_path(root, request.get("bundle"))
                 if bundle is None:
                     self._headers(422, "application/json")
                     return

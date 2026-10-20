@@ -22,6 +22,14 @@ complete bundle folder, and gives empty, verification-failure and verified
 evidence states distinct hierarchy. The shell adds no UI framework or runtime
 dependency; it remains an embedded asset served by the hardened Python host.
 
+On macOS and Windows, **Choose folder** opens a fixed native directory chooser.
+Python accepts the selection only when it is a non-symlink directory inside the
+configured workspace and returns only its relative path to the browser before
+normal verification. There is no arbitrary command or filesystem-listing API.
+Manual relative entry remains available and is the fallback on other platforms.
+**Clear result** removes the rendered projection and entered path from the page;
+it never changes or deletes the source bundle.
+
 All API calls are closed POST routes and require an exact numeric-loopback
 Origin and Host, the per-launch capability, exact JSON content type and a body
 no larger than 4096 bytes. The page clears the capability fragment before

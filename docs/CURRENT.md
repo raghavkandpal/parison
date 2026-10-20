@@ -78,6 +78,9 @@
   workspace-relative, non-symlink bundle path and returns the existing closed
   summary-safe projection only after integrity verification, with exact Origin,
   Host, capability, content-type and request-size enforcement
+- Implemented locally: Results can invoke a fixed native macOS or Windows
+  directory chooser constrained to the workspace, and users can clear the
+  rendered result without changing the verified bundle
 - Next gate: migrate authoritative recipe loading and policy explanation into
   the unified Plans activity without adding execution or generic file access
 

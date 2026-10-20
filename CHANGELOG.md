@@ -23,6 +23,9 @@ All notable changes will be documented in this file.
 - A responsive Workbench application shell with an honest activity roadmap,
   local-session status, guided bundle-folder selection, an explicit empty state
   and outcome-focused verified evidence presentation.
+- Native macOS and Windows bundle-folder selection constrained to the active
+  workspace, plus an explicit action to clear the displayed result and return
+  to the empty state.
 
 ### Compatibility
 
