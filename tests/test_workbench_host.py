@@ -32,6 +32,7 @@ class WorkbenchHostTests(unittest.TestCase):
             connection.request("GET", "/")
             page = connection.getresponse()
             self.assertEqual(page.status, 200)
+            self.assertIn("style-src 'unsafe-inline'", page.getheader("Content-Security-Policy"))
             self.assertIn(b"border:1px solid #ccd3da", page.read())
             response = self._post(connection, server, "/api/session", {}, Origin="http://attacker.invalid")
             self.assertEqual(response.status, 404)

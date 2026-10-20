@@ -27,6 +27,11 @@ All notable changes will be documented in this file.
   interfaces. It does not change recipes, schemas, evidence bundles, canonical
   bytes, comparison semantics, exit codes, or existing CLI JSON.
 
+### Fixed
+
+- Allow the unified Workbench's embedded stylesheet through its restrictive
+  Content Security Policy so the report-aligned interface renders correctly.
+
 ## 1.9.0 - 2026-10-20
 
 ### Added
