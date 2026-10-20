@@ -16,6 +16,12 @@ language: system typography, outcome-first color, bordered tables, compact
 controls and restrained notices. This is the baseline for later activities,
 not a temporary dashboard theme.
 
+The responsive application shell now distinguishes the live Results activity
+from planned activities, exposes local-session state, guides users to select a
+complete bundle folder, and gives empty, verification-failure and verified
+evidence states distinct hierarchy. The shell adds no UI framework or runtime
+dependency; it remains an embedded asset served by the hardened Python host.
+
 All API calls are closed POST routes and require an exact numeric-loopback
 Origin and Host, the per-launch capability, exact JSON content type and a body
 no larger than 4096 bytes. The page clears the capability fragment before

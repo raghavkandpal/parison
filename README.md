@@ -73,7 +73,8 @@ parison workbench --workspace .
 
 Workbench opens one local application. In Results, enter a bundle path relative
 to the selected workspace (for example `runs/orders-example`) to verify and view
-its summary-safe evidence. Opening Workbench never starts a comparison.
+its summary-safe evidence. Select the complete bundle folder, not its individual
+`result.json` file. Opening Workbench never starts a comparison.
 
 `draft-recipe` inspects both inputs and writes a valid starting recipe with suggested keys, data types, scope metadata and exclusion rationales. Review every suggestion, then use `validate-recipe` as the structural gate. See the [recipe draft contract and workflow](docs/0.2/22-recipe-draft-contract.md).
 

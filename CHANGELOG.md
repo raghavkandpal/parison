@@ -20,6 +20,9 @@ All notable changes will be documented in this file.
   workspace-relative bundle only after integrity verification and returns the
   existing closed summary-safe projection behind strict request-origin,
   capability, content-type and body-size checks.
+- A responsive Workbench application shell with an honest activity roadmap,
+  local-session status, guided bundle-folder selection, an explicit empty state
+  and outcome-focused verified evidence presentation.
 
 ### Compatibility
 

@@ -11,9 +11,9 @@ from urllib.parse import urlsplit
 
 from .core import ParisonError
 from .workbench import workbench_projection
+from .workbench_page import PAGE
 
 _MAX_REQUEST_BYTES = 4096
-_PAGE = b"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Parison Workbench</title><style>body{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#18202a}nav{word-spacing:1rem}form{display:flex;gap:.5rem;margin:2rem 0}label{display:grid;gap:.25rem}input,button{font:inherit;padding:.35rem}input{flex:1}table{border-collapse:collapse;width:100%;margin:1rem 0}th,td{border:1px solid #ccd3da;padding:.5rem;text-align:left;vertical-align:top}th{width:34%;background:#f3f5f7}code{overflow-wrap:anywhere}.notice{padding:1rem;border:1px solid #ccd3da}</style></head><body><header><p>Parison Workbench</p><h1 id="heading">Results</h1><nav>Plans Run <strong>Results</strong> History Investigate Compare</nav></header><p id="status" role="status" class="notice">Connecting to local Python host...</p><form id="open"><label for="bundle">Bundle within workspace</label><input id="bundle" required placeholder="runs/example"><button>Verify and open</button></form><table><tbody id="evidence"></tbody></table><footer><p>PASS means agreement under the displayed policy; it is not extraction truth, approval, or cutover authorization.</p><p>No source paths, keys, values, or discrepancy samples are returned.</p></footer><script>const token=location.hash.slice(1);history.replaceState(null,'',location.pathname);const status=document.getElementById('status'),body=document.getElementById('evidence'),heading=document.getElementById('heading');const post=(path,data)=>fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Parison-Session':token},body:JSON.stringify(data)});post('/api/session',{}).then(r=>r.ok?r.json():Promise.reject()).then(()=>status.textContent='Local workspace ready.').catch(()=>status.textContent='Session rejected.');document.getElementById('open').addEventListener('submit',async event=>{event.preventDefault();status.textContent='Verifying bundle...';body.replaceChildren();const response=await post('/api/evidence',{bundle:document.getElementById('bundle').value});if(!response.ok){status.textContent='Bundle could not be verified.';return}const evidence=await response.json();heading.textContent=evidence.outcome||'Results';heading.style.color=evidence.outcome==='PASS'?'#14733b':'#a22';const rows=(value,prefix='')=>{if(value&&typeof value==='object'&&!Array.isArray(value)){Object.keys(value).sort().forEach(key=>rows(value[key],prefix?prefix+'.'+key:key));return}const row=document.createElement('tr'),name=document.createElement('th'),cell=document.createElement('td'),code=document.createElement('code');name.scope='row';name.textContent=prefix;code.textContent=Array.isArray(value)?value.join(', '):JSON.stringify(value);cell.append(code);row.append(name,cell);body.append(row)};rows(evidence);status.textContent='Verified summary-safe evidence.'});</script></body></html>"""
 
 
 def create_workbench_server(workspace: str | Path, token: str | None = None) -> tuple[ThreadingHTTPServer, str]:
@@ -78,10 +78,9 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
             if self.headers.get("Host") != expected_host:
                 self._headers(400, "text/plain; charset=utf-8")
                 return
-            path = urlsplit(self.path).path
-            if path == "/":
+            if urlsplit(self.path).path == "/":
                 self._headers(200, "text/html; charset=utf-8")
-                self.wfile.write(_PAGE)
+                self.wfile.write(PAGE)
                 return
             self._headers(404, "text/plain; charset=utf-8")
 
