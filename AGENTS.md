@@ -21,7 +21,7 @@ Start with `make context`. Read [product direction](docs/0.15/104-product-direct
 5. Test narrowly with `make test TEST=tests.test_<area>`. Add a regression test for each defect and a byte fixture for canonical serialization.
 6. Before a feature commit, pass `make check`.
 7. Document user-visible behavior in the active version folder; update `docs/README.md` and `CHANGELOG.md`.
-8. Build each branch as a coherent chunk of roughly 3–4 conventional commits, then push it and open or update its pull request to `develop`. Verify the exact head commit in CI before integration.
+8. Keep each branch scoped to one coherent change, then push it and open or update its pull request to `develop`. Verify the exact head commit in CI before integration.
 
 Packaging, schema, CLI, or platform changes require a manual full-matrix dispatch on the exact pull-request head before integration: built-wheel CI on Python 3.11–3.14, macOS, and Windows. Optional-Polars skips are valid only when Polars is absent.
 

@@ -37,6 +37,6 @@ Names imported from `parison.core` or documented elsewhere are public compatibil
 
 Keep commits coherent and use conventional prefixes such as `feat:`, `fix:`, `docs:`, `style:`, `refactor:` or `chore:`. Separate formatting and mechanical moves from semantic changes.
 
-Create each change branch from current `develop`, using a purpose prefix such as `feature/`, `fix/`, `docs/` or `ci/`. Group roughly 3–4 coherent conventional commits into the branch, then submit its pull request to `develop`. Direct development on `main` or `develop` is not the project workflow. Pull requests to `main` are reserved for reviewed releases from `develop`.
+Create each change branch from current `develop`, using a purpose prefix such as `feature/`, `fix/`, `docs/` or `ci/`. Keep the branch scoped to one coherent change, then submit its pull request to `develop`. Direct development on `main` or `develop` is not the project workflow. Pull requests to `main` are reserved for reviewed releases from `develop`.
 
 Before a feature commit, run `make check`. Packaging, schema, CLI or platform changes also require a manual full-matrix workflow dispatch on the exact pull-request head, covering built-wheel CI on Python 3.11–3.14, macOS and Windows. Follow [RELEASING.md](RELEASING.md) and the active release checklist for a release; internal formatting or module moves alone do not warrant one.
