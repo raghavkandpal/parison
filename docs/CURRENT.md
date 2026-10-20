@@ -117,8 +117,19 @@
   exposes one capability- and origin-guarded shutdown route, clears its launch
   capability before stopping and gives the browser an explicit Stop workbench
   action. See the [host lifecycle checkpoint](2.0/208-workbench-host-lifecycle-checkpoint.md).
-- Next gate: expose one bounded local recipe execution path, then atomically
-  register its verified output for summary-safe History and same-policy Compare
+- Implemented locally: Run performs authoritative record preflight, in-process
+  comparison, atomic publication, bundle verification and safe catalog
+  registration for one explicit recipe and input pair. It exposes bounded
+  structured phases and cooperative cancellation at the shared input-row
+  boundary; cancellation before publication leaves no bundle or catalog entry.
+- Implemented locally: History preserves catalog insertion order, Compare
+  enforces the existing exact-policy gate, and Investigate returns a stricter
+  Workbench projection of verified discrepancy groups without paths, field
+  names, policy values, record keys or samples. See the
+  [run/history contract](2.0/209-workbench-run-history-contract.md).
+- Next gate: complete fresh interface inspection and combined review, pass
+  local `make check`, then push and qualify the exact feature checkpoint in the
+  complete cross-platform built-wheel and quality workflows
 
 ## Recorded next steps
 

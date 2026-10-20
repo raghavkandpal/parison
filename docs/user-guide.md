@@ -45,8 +45,11 @@ receipts separately.
 
 The active 2.0 interface is one Python-hosted local application. The host binds
 only numeric loopback on an ephemeral port and requires a per-launch capability.
-The application is still under development. Results and Plans are usable; use
-the released CLI for execution until the Run activity is qualified.
+The application is still under development. Plans reviews CLI-native recipes;
+Run preflights and executes one explicit local comparison; Results verifies a
+bundle before display; History, Investigate and Compare operate only on verified
+summary-safe evidence. Continue to use the released CLI for automation and
+suite execution.
 
 ```sh
 parison workbench --workspace .
@@ -57,6 +60,13 @@ terminal. Closing the browser tab alone does not stop the local host. The
 earlier generated evidence and plan applications were
 prototypes and are not the 2.0 interface. Their safety contracts are being
 migrated behind this unified host.
+
+Workbench Run accepts workspace-relative paths for the recipe, baseline,
+candidate and a new output bundle. Only one run can be active. Its progress
+states are bounded, and **Cancel run** stops cooperatively while reading inputs;
+no partial bundle is published. If atomic publication has already started, the
+completed bundle is preserved, verified and registered instead of being
+misreported as cancelled.
 
 ## Compare one dataset
 

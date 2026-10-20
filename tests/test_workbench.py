@@ -10,6 +10,10 @@ from unittest.mock import patch
 
 from parison.core import ParisonError, compare, load_recipe, publish
 from parison.workbench import (
+    compare_projection,
+    execute_run,
+    history_projection,
+    investigate_projection,
     plan_projection,
     plan_text_projection,
     publish_plan_builder,
@@ -138,6 +142,51 @@ class WorkbenchTests(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "recipe_version"):
             publish_plan_builder(invalid, self.root / "invalid-builder")
         self.assertFalse((self.root / "invalid-builder").exists())
+
+    def test_executes_catalogs_and_compares_summary_safe_runs(self):
+        recipe = self.root / "recipe.json"
+        baseline = self.root / "secret-baseline.csv"
+        candidate = self.root / "secret-candidate.csv"
+        first, second = self.root / "runs" / "one", self.root / "runs" / "two"
+        phases = []
+        executed = execute_run(self.root, recipe, baseline, candidate, first, progress=phases.append)
+        self.assertEqual(phases, ["preflight", "comparing", "publishing", "verifying", "cataloging", "complete"])
+        execute_run(self.root, recipe, baseline, candidate, second)
+        self.assertEqual(executed["evidence"]["outcome"], "PASS")
+        self.assertEqual(executed["catalog_status"], "added")
+        history = history_projection(self.root)
+        self.assertEqual([run["bundle"] for run in history], ["runs/one", "runs/two"])
+        comparison = compare_projection(self.root, first, second)
+        self.assertFalse(comparison["changed"])
+        self.assertEqual(comparison["left"]["bundle"], "runs/one")
+        investigation = investigate_projection(first)
+        self.assertTrue(investigation["groups"])
+        self.assertTrue(all(group["count"] == 0 for group in investigation["groups"]))
+        encoded = json.dumps(
+            {"executed": executed, "history": history, "comparison": comparison, "investigation": investigation}
+        )
+        for secret in ("secret-baseline.csv", "secret-candidate.csv", "private_id", "do-not-render", str(self.root)):
+            self.assertNotIn(secret, encoded)
+
+    def test_rejects_symlinked_workbench_catalog(self):
+        with tempfile.TemporaryDirectory() as outside:
+            (self.root / ".parison").symlink_to(outside)
+            with self.assertRaisesRegex(ParisonError, "must not be a symlink"):
+                history_projection(self.root)
+
+    def test_cancelled_run_publishes_nothing(self):
+        output = self.root / "runs" / "cancelled"
+        with self.assertRaisesRegex(ParisonError, "cancelled"):
+            execute_run(
+                self.root,
+                self.root / "recipe.json",
+                self.root / "secret-baseline.csv",
+                self.root / "secret-candidate.csv",
+                output,
+                cancelled=lambda: True,
+            )
+        self.assertFalse(output.exists())
+        self.assertEqual(history_projection(self.root), [])
 
 
 if __name__ == "__main__":

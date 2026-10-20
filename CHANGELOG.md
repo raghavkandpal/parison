@@ -37,6 +37,12 @@ All notable changes will be documented in this file.
   editor controls for resized browser windows.
 - Explicit Workbench shutdown with immediate capability invalidation and a
   fixed eight-handler concurrency bound before local execution is introduced.
+- A bounded Workbench Run activity for one explicit recipe and input pair,
+  including record preflight, in-process comparison, structured progress,
+  cooperative cancellation, atomic evidence publication and safe catalog
+  registration.
+- Verified workspace History, stricter summary-safe discrepancy investigation,
+  and exact-policy rehearsal Compare activities over immutable local evidence.
 
 ### Compatibility
 

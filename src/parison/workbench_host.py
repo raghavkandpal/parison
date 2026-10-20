@@ -13,7 +13,15 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .core import ParisonError
-from .workbench import plan_projection, plan_text_projection, workbench_projection
+from .workbench import (
+    compare_projection,
+    execute_run,
+    history_projection,
+    investigate_projection,
+    plan_projection,
+    plan_text_projection,
+    workbench_projection,
+)
 from .workbench_page import PAGE
 
 _MAX_REQUEST_BYTES = 262_144
@@ -126,6 +134,12 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
     root = root.resolve()
     capability = token or secrets.token_urlsafe(32)
     session = {"capability": capability, "closing": False}
+    run_lock = threading.Lock()
+    run_cancel = threading.Event()
+    run_state = {"phase": "idle"}
+
+    def set_run_phase(phase: str) -> None:
+        run_state["phase"] = phase
 
     class Handler(BaseHTTPRequestHandler):
         def _headers(self, status: int, content_type: str) -> None:
@@ -191,9 +205,15 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
             elif path == "/api/shutdown" and not request:
                 session["closing"] = True
                 session["capability"] = None
+                run_cancel.set()
                 self._headers(200, "application/json")
                 self.wfile.write(b'{"status":"stopping"}')
-                threading.Thread(target=self.server.shutdown, daemon=True).start()
+
+                def shutdown_when_run_stops() -> None:
+                    with run_lock:
+                        self.server.shutdown()
+
+                threading.Thread(target=shutdown_when_run_stops, daemon=True).start()
                 return
             elif path == "/api/choose-bundle" and not request:
                 try:
@@ -242,6 +262,58 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     return
                 try:
                     payload = workbench_projection(bundle)
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/run" and set(request) == {"recipe", "baseline", "candidate", "output"}:
+                paths = [_workspace_path(root, request[name]) for name in ("recipe", "baseline", "candidate", "output")]
+                if any(item is None for item in paths):
+                    self._headers(422, "application/json")
+                    return
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
+                try:
+                    run_cancel.clear()
+                    payload = execute_run(root, *paths, cancelled=run_cancel.is_set, progress=set_run_phase)
+                except ParisonError:
+                    set_run_phase("cancelled" if run_cancel.is_set() else "error")
+                    self._headers(422, "application/json")
+                    return
+                finally:
+                    run_lock.release()
+            elif path == "/api/cancel-run" and not request:
+                if not run_lock.locked():
+                    self._headers(409, "application/json")
+                    return
+                run_cancel.set()
+                set_run_phase("cancelling")
+                payload = {"status": "cancellation-requested"}
+            elif path == "/api/run-status" and not request:
+                payload = dict(run_state)
+            elif path == "/api/history" and not request:
+                try:
+                    payload = history_projection(root)
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/compare" and set(request) == {"left", "right"}:
+                left, right = (_workspace_path(root, request[name]) for name in ("left", "right"))
+                if left is None or right is None:
+                    self._headers(422, "application/json")
+                    return
+                try:
+                    payload = compare_projection(root, left, right)
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/investigate" and set(request) == {"bundle"}:
+                bundle = _workspace_path(root, request["bundle"])
+                if bundle is None:
+                    self._headers(422, "application/json")
+                    return
+                try:
+                    payload = investigate_projection(bundle)
                 except ParisonError:
                     self._headers(422, "application/json")
                     return

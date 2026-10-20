@@ -11,8 +11,14 @@ from pathlib import Path
 from typing import Any
 
 from ._safe_fs import check_output_parent, rename_no_replace
+from .analysis import analyze_bundle
+from .catalog import add as catalog_add
+from .catalog import diff as catalog_diff
+from .catalog import list_runs
+from .comparison import compare
 from .core import ParisonError
-from .evidence import inspect_bundle
+from .evidence import inspect_bundle, publish
+from .inputs import InputCancellation, validate_inputs
 from .policies import explain_recipe, explain_recipe_text, load_recipe
 
 _COMMON_FIELDS = (
@@ -70,6 +76,100 @@ def plan_text_projection(source: str) -> dict[str, Any]:
         "policy_sha256": policy["policy_sha256"],
         "comparison_mode": policy["comparison_mode"],
         "recipe_version": policy["recipe_version"],
+    }
+
+
+def _catalog_path(workspace: str | Path) -> Path:
+    directory = Path(workspace).resolve() / ".parison"
+    if directory.is_symlink():
+        raise ParisonError("workbench catalog directory must not be a symlink")
+    return directory / "catalog.sqlite3"
+
+
+def execute_run(
+    workspace: str | Path,
+    recipe: str | Path,
+    baseline: str | Path,
+    candidate: str | Path,
+    output: str | Path,
+    cancelled=None,
+    progress=None,
+) -> dict[str, Any]:
+    """Preflight, execute, publish, verify and catalog one local comparison."""
+    emit = progress or (lambda phase: None)
+    with InputCancellation(cancelled):
+        emit("preflight")
+        preflight = validate_inputs(recipe, baseline, candidate, validate_records=True)
+        if preflight["status"] != "valid":
+            raise ParisonError("workbench preflight rejected the selected inputs")
+        loaded = load_recipe(recipe)
+        emit("comparing")
+        result = compare(recipe, baseline, candidate, expected_policy_sha256=preflight["policy_sha256"])
+        if cancelled is not None and cancelled():
+            raise ParisonError("workbench run cancelled")
+    emit("publishing")
+    publish(output, result, loaded)
+    emit("verifying")
+    projection = workbench_projection(output)
+    emit("cataloging")
+    indexed = catalog_add(_catalog_path(workspace), output)
+    emit("complete")
+    return {"evidence": projection, "catalog_status": indexed["status"]}
+
+
+def history_projection(workspace: str | Path) -> list[dict[str, Any]]:
+    """Return workspace-relative summary-safe history from the local catalog."""
+    root = Path(workspace).resolve()
+    database = _catalog_path(root)
+    if not database.exists():
+        return []
+    runs = list_runs(database, kind="run", insertion_order=True)
+    projected = []
+    for run in runs:
+        try:
+            bundle = str(Path(run.pop("path")).resolve().relative_to(root))
+        except ValueError as exc:
+            raise ParisonError("workbench catalog contains a bundle outside its workspace") from exc
+        projected.append({"bundle": bundle, **run})
+    return projected
+
+
+def compare_projection(workspace: str | Path, left: str | Path, right: str | Path) -> dict[str, Any]:
+    """Return a same-policy summary-safe catalog comparison with relative bundle names."""
+    root = Path(workspace).resolve()
+    comparison = catalog_diff(_catalog_path(root), left, right)
+    for side in ("left", "right"):
+        comparison[side]["bundle"] = str(Path(comparison[side].pop("path")).resolve().relative_to(root))
+    return comparison
+
+
+def investigate_projection(bundle: str | Path) -> dict[str, Any]:
+    """Return exhaustive summary-safe discrepancy groups for one verified run."""
+    analysis = analyze_bundle(bundle)
+    return {
+        name: analysis[name]
+        for name in (
+            "analysis_version",
+            "kind",
+            "bundle_sha256",
+            "policy_sha256",
+            "comparison_mode",
+            "sensitivity",
+        )
+    } | {
+        "scope_sections": sorted({reference["path"].rsplit("/", 1)[0] for reference in analysis["scope_references"]}),
+        "groups": [
+            {
+                "group_id": group["group_id"],
+                "descriptor": {name: value for name, value in group["descriptor"].items() if name != "logical_name"},
+                "count": group["count"],
+                "reason_codes": group["reason_codes"],
+                "policy_sections": sorted(
+                    {"/" + reference["path"].strip("/").split("/", 1)[0] for reference in group["policy_references"]}
+                ),
+            }
+            for group in analysis["groups"]
+        ],
     }
 
 

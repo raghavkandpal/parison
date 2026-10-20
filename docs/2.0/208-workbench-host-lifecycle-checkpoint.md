@@ -8,7 +8,8 @@ The unified Workbench host now owns an explicit, bounded session lifecycle.
 At most eight request handlers run concurrently; excess local connections wait
 behind the equally bounded listener queue rather than creating unbounded
 threads. Handler threads are daemonized so an abandoned browser connection
-cannot keep the application process alive after shutdown.
+cannot keep the application process alive after shutdown, while the shutdown
+controller waits for the single cooperative Run operation to stop safely.
 
 The authenticated, origin-checked `POST /api/shutdown` route is the only remote
 lifecycle mutation. It accepts only an empty JSON object, immediately clears

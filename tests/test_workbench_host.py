@@ -61,6 +61,42 @@ class WorkbenchHostTests(unittest.TestCase):
                 self.assertEqual(response.status, 200)
                 self.assertEqual(json.loads(response.read()), {"recipe": "recipes/one.json"})
 
+            running = threading.Event()
+
+            def wait_for_cancel(*args, cancelled, progress, **kwargs):
+                progress("comparing")
+                running.set()
+                self.assertTrue(running.wait(1))
+                while not cancelled():
+                    running.wait(0.01)
+                raise ParisonError("workbench run cancelled")
+
+            run_status = []
+
+            def start_run():
+                run_connection = http.client.HTTPConnection(*server.server_address)
+                response = self._post(
+                    run_connection,
+                    server,
+                    "/api/run",
+                    {"recipe": "recipe.json", "baseline": "left.csv", "candidate": "right.csv", "output": "run"},
+                )
+                run_status.append(response.status)
+                response.read()
+                run_connection.close()
+
+            with patch("parison.workbench_host.execute_run", side_effect=wait_for_cancel):
+                run_thread = threading.Thread(target=start_run)
+                run_thread.start()
+                self.assertTrue(running.wait(1))
+                response = self._post(connection, server, "/api/run-status", {})
+                self.assertEqual(json.loads(response.read()), {"phase": "comparing"})
+                response = self._post(connection, server, "/api/cancel-run", {})
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read()), {"status": "cancellation-requested"})
+                run_thread.join(timeout=2)
+            self.assertEqual(run_status, [422])
+
             response = self._post(connection, server, "/api/shutdown", {})
             self.assertEqual(response.status, 200)
             self.assertEqual(json.loads(response.read()), {"status": "stopping"})
@@ -161,6 +197,34 @@ class WorkbenchHostTests(unittest.TestCase):
             self.assertIn(b'"outcome": "PASS"', payload)
             for secret in (b"private_id", b"hidden", b"baseline.csv"):
                 self.assertNotIn(secret, payload)
+
+            run_request = {
+                "recipe": "recipe.json",
+                "baseline": "baseline.csv",
+                "candidate": "candidate.csv",
+                "output": "runs/two",
+            }
+            response = self._post(connection, server, "/api/run", run_request)
+            self.assertEqual(response.status, 200)
+            self.assertEqual(json.loads(response.read())["evidence"]["outcome"], "PASS")
+            run_request["output"] = "runs/three"
+            response = self._post(connection, server, "/api/run", run_request)
+            self.assertEqual(response.status, 200)
+            response.read()
+            response = self._post(connection, server, "/api/history", {})
+            self.assertEqual(response.status, 200)
+            self.assertEqual([run["bundle"] for run in json.loads(response.read())], ["runs/two", "runs/three"])
+            response = self._post(connection, server, "/api/compare", {"left": "runs/two", "right": "runs/three"})
+            self.assertEqual(response.status, 200)
+            comparison = json.loads(response.read())
+            self.assertFalse(comparison["changed"])
+            self.assertNotIn(str(root), json.dumps(comparison))
+            response = self._post(connection, server, "/api/investigate", {"bundle": "runs/two"})
+            self.assertEqual(response.status, 200)
+            investigation = json.loads(response.read())
+            self.assertTrue(investigation["groups"])
+            self.assertTrue(all(group["count"] == 0 for group in investigation["groups"]))
+            self.assertNotIn(str(root), json.dumps(investigation))
 
             response = self._post(connection, server, "/api/evidence", {"bundle": "../outside"})
             self.assertEqual(response.status, 422)

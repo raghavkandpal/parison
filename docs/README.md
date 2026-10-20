@@ -34,6 +34,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Workbench Impeccable UI audit](2.0/206-workbench-impeccable-audit.md)
 - [Workbench UI refinement checkpoint](2.0/207-workbench-ui-refinement-checkpoint.md)
 - [Workbench host lifecycle checkpoint](2.0/208-workbench-host-lifecycle-checkpoint.md)
+- [Workbench run, history and investigation contract](2.0/209-workbench-run-history-contract.md)
 
 ## 1.8 — released
 
