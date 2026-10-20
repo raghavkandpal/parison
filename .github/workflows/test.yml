@@ -117,10 +117,8 @@ jobs:
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke
       - run: parison verify /tmp/parison-smoke
-      - run: parison workbench evidence /tmp/parison-smoke --output /tmp/parison-workbench
-      - run: python -c "from pathlib import Path; page = Path('/tmp/parison-workbench/index.html'); assert page.is_file() and 'Parison Workbench' in page.read_text(encoding='utf-8')"
-      - run: parison workbench plan examples/orders.recipe.json --output /tmp/parison-plan-builder
-      - run: python -c "from pathlib import Path; page = Path('/tmp/parison-plan-builder/index.html'); assert page.is_file() and 'Verification plan builder' in page.read_text(encoding='utf-8')"
+      - run: parison workbench --help
+      - run: python -c "from parison.workbench_host import create_workbench_server; server, url = create_workbench_server('.'); assert server.server_address[0] == '127.0.0.1' and url.startswith('http://127.0.0.1:'); server.server_close()"
       - name: Exercise evidence handoff
         run: |
           parison statement /tmp/parison-smoke --output /tmp/parison-statement.json
@@ -263,10 +261,8 @@ jobs:
       - run: parison schema preflight-v24
       - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output ${{ runner.temp }}/parison-multiset-smoke
       - run: parison inspect ${{ runner.temp }}/parison-multiset-smoke
-      - run: parison workbench evidence ${{ runner.temp }}/parison-multiset-smoke --output ${{ runner.temp }}/parison-workbench
-      - run: python -c "from pathlib import Path; page = Path(r'${{ runner.temp }}') / 'parison-workbench' / 'index.html'; assert page.is_file() and 'Parison Workbench' in page.read_text(encoding='utf-8')"
-      - run: parison workbench plan examples/orders.recipe.json --output ${{ runner.temp }}/parison-plan-builder
-      - run: python -c "from pathlib import Path; page = Path(r'${{ runner.temp }}') / 'parison-plan-builder' / 'index.html'; assert page.is_file() and 'Verification plan builder' in page.read_text(encoding='utf-8')"
+      - run: parison workbench --help
+      - run: python -c "from parison.workbench_host import create_workbench_server; server, url = create_workbench_server('.'); assert server.server_address[0] == '127.0.0.1' and url.startswith('http://127.0.0.1:'); server.server_close()"
       - name: Exercise evidence handoff
         run: |
           parison statement ${{ runner.temp }}/parison-multiset-smoke --output ${{ runner.temp }}/parison-statement.json
