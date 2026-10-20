@@ -41,35 +41,20 @@ Keep extraction, credentials, signing and cutover approval outside Parison.
 Use source-owned jobs to materialize coordinated local inputs and retain their
 receipts separately.
 
-## Open verified evidence in Workbench
+## Start the unified Workbench
 
-The first 2.0 workbench feature is a generated local application. It runs from
-the installed Python package, verifies an existing bundle before display, and
-contains only a closed summary-safe projection. It does not start a server or
-make network requests.
-
-```sh
-parison workbench evidence runs/orders-example --output workbench/orders-example --open
-```
-
-The output directory must not exist. Omit `--open` to generate the application
-without launching a browser, then open `workbench/orders-example/index.html`
-yourself. A workbench PASS remains agreement under the displayed policy; it is
-not approval or cutover authorization. See the
-[verified navigator contract](2.0/197-verified-navigator-contract.md).
-
-To review or revise an existing valid recipe without introducing another plan
-format, generate the local plan builder:
+The active 2.0 interface is one Python-hosted local application. The host binds
+only numeric loopback on an ephemeral port and requires a per-launch capability.
+The application is still under development and currently exposes only its shell;
+use the released CLI for verification work.
 
 ```sh
-parison workbench plan recipe.json --output workbench/plan --open
+parison workbench --workspace .
 ```
 
-The editor preserves the loaded JSON text, shows its effective policy
-fingerprint and downloads an unapproved `plan.json` draft. Its live feedback
-checks JSON syntax only. Run `parison validate-recipe plan.json` before using
-the draft; the browser never approves its policy choices. See the
-[plan-builder contract](2.0/199-plan-builder-contract.md).
+Stop it with Ctrl-C. The earlier generated evidence and plan applications were
+prototypes and are not the 2.0 interface. Their safety contracts are being
+migrated behind this unified host.
 
 ## Compare one dataset
 

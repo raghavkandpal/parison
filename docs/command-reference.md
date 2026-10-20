@@ -512,37 +512,10 @@ options:
 ## `parison workbench`
 
 ```text
-positional arguments:
-  {evidence,plan}
-    evidence       build a verified evidence navigator
-    plan           build an explicit JSON plan editor
-
 options:
-  -h, --help       show this help message and exit
-```
-
-## `parison workbench evidence`
-
-```text
-positional arguments:
-  bundle
-
-options:
-  -h, --help       show this help message and exit
-  --output OUTPUT  new directory for the local application
-  --open           open the application in a browser
-```
-
-## `parison workbench plan`
-
-```text
-positional arguments:
-  recipe
-
-options:
-  -h, --help       show this help message and exit
-  --output OUTPUT  new directory for the local application
-  --open           open the application in a browser
+  -h, --help            show this help message and exit
+  --workspace WORKSPACE
+                        existing local workspace directory
 ```
 
 ## `parison analyze`

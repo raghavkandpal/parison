@@ -13,6 +13,9 @@ All notable changes will be documented in this file.
   the Python engine, shows its effective policy identity and equivalent CLI,
   preserves its JSON text in an escaped local editor, and downloads only an
   unapproved CLI-native draft.
+- A unified `parison workbench` host foundation using numeric loopback, an
+  ephemeral port and per-launch capability, replacing the prototype activity
+  commands before release.
 
 ### Compatibility
 

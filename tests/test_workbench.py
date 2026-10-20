@@ -5,12 +5,9 @@ import json
 import re
 import tempfile
 import unittest
-from contextlib import redirect_stderr, redirect_stdout
-from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from parison.cli import main
 from parison.core import ParisonError, compare, load_recipe, publish
 from parison.workbench import publish_plan_builder, publish_workbench, render_workbench
 
@@ -82,17 +79,6 @@ class WorkbenchTests(unittest.TestCase):
         self.assertFalse(output.exists())
         self.assertEqual(list(self.root.glob(".interrupted-*")), [])
 
-    def test_cli_can_open_the_generated_application(self):
-        output = self.root / "application"
-        with (
-            patch("parison.cli.webbrowser.open", return_value=True) as opened,
-            redirect_stdout(StringIO()) as stdout,
-            redirect_stderr(StringIO()),
-        ):
-            self.assertEqual(main(["workbench", "evidence", str(self.bundle), "--output", str(output), "--open"]), 0)
-        self.assertEqual(json.loads(stdout.getvalue())["verified"], True)
-        opened.assert_called_once_with((output / "index.html").resolve().as_uri())
-
     def test_plan_builder_uses_validated_cli_native_recipe(self):
         recipe = self.root / "recipe.json"
         recipe.write_text(
@@ -128,12 +114,6 @@ class WorkbenchTests(unittest.TestCase):
         embedded = re.search(r'<textarea id="plan"[^>]*>(.*?)</textarea>', page, re.DOTALL)
         self.assertIsNotNone(embedded)
         self.assertEqual(html.unescape(embedded.group(1)), recipe.read_text(encoding="utf-8"))
-
-        cli_output = self.root / "cli-builder"
-        with redirect_stdout(StringIO()) as stdout, redirect_stderr(StringIO()):
-            self.assertEqual(main(["workbench", "plan", str(recipe), "--output", str(cli_output)]), 0)
-        self.assertEqual(json.loads(stdout.getvalue())["view"], "plan")
-        self.assertFalse(json.loads(stdout.getvalue())["verified"])
 
         invalid = self.root / "invalid.json"
         invalid.write_text("{}", encoding="utf-8")

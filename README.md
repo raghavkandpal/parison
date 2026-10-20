@@ -68,8 +68,7 @@ parison compare --recipe examples/orders.recipe.json \
 parison verify runs/orders-example
 parison verify runs/orders-example --json
 parison inspect runs/orders-example
-parison workbench evidence runs/orders-example --output workbench/orders-example --open
-parison workbench plan examples/orders.recipe.json --output workbench/orders-plan --open
+parison workbench --workspace .
 ```
 
 `draft-recipe` inspects both inputs and writes a valid starting recipe with suggested keys, data types, scope metadata and exclusion rationales. Review every suggestion, then use `validate-recipe` as the structural gate. See the [recipe draft contract and workflow](docs/0.2/22-recipe-draft-contract.md).

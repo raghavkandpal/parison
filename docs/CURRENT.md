@@ -70,8 +70,12 @@
   Results, History, Investigate and Compare activities. The current `evidence`
   and `plan` commands are prototypes, not the release interface. See the
   [unified interface decision](2.0/201-unified-workbench-interface-decision.md).
-- Next gate: freeze and implement the hardened unified loopback host, then move
-  the verified navigator and plan-builder seams behind that one application
+- Implemented locally: `parison workbench --workspace DIRECTORY` starts one
+  numeric-loopback Python host on an ephemeral port with a per-launch
+  capability, closed routes, strict Host validation, restrictive browser
+  headers and no filesystem or execution endpoint
+- Next gate: add strict Origin checking and migrate the read-only verified
+  evidence seam behind the unified host before adding any mutation route
 
 ## Recorded next steps
 
