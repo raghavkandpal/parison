@@ -32,6 +32,9 @@ All notable changes will be documented in this file.
 - Closed in-memory validation for edited Workbench plans, which invalidates
   stale policy identity on every edit and enables draft download only after the
   current text passes the authoritative Python recipe loader.
+- A refined desktop Workbench hierarchy with semantic color and spacing tokens,
+  legible planned-activity states, cleaner headings and overflow-safe plan
+  editor controls for resized browser windows.
 
 ### Compatibility
 

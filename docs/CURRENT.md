@@ -102,9 +102,14 @@
   scored the current Workbench 13/20 and identified a bounded responsive,
   touch-target, contrast, token and hierarchy refinement slice. See the
   [Workbench Impeccable UI audit](2.0/206-workbench-impeccable-audit.md).
-- Next gate: complete the recorded UI-only refinement checkpoint, then specify
-  and implement bounded Workbench host lifecycle controls before exposing any
-  local execution activity
+- Implemented locally: the desktop Workbench now uses semantic color and
+  spacing tokens, higher-contrast planned states, direct heading hierarchy and
+  overflow-safe loaded-plan controls. Dedicated mobile navigation and touch
+  interaction remain explicitly out of scope; narrow layouts only protect
+  resized desktop windows and zoom use. See the
+  [Workbench UI refinement checkpoint](2.0/207-workbench-ui-refinement-checkpoint.md).
+- Next gate: specify and implement bounded Workbench host lifecycle controls
+  before exposing any local execution activity
 
 ## Recorded next steps
 

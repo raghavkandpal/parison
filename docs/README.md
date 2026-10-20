@@ -32,6 +32,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Unified Workbench Plans checkpoint](2.0/204-unified-workbench-plans-checkpoint.md)
 - [Edited-plan validation checkpoint](2.0/205-edited-plan-validation-checkpoint.md)
 - [Workbench Impeccable UI audit](2.0/206-workbench-impeccable-audit.md)
+- [Workbench UI refinement checkpoint](2.0/207-workbench-ui-refinement-checkpoint.md)
 
 ## 1.8 — released
 
