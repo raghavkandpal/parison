@@ -33,8 +33,13 @@
   preflight source/projection pairing gap, corrected in all six structured
   schemas and independently cleared. Full `make check` passes 400 tests with
   11 optional skips at exact combined checkpoint `75e5ea0`.
-- Next gate: qualify the exact 1.9.0 candidate from a clean archive, then merge,
-  publish and publicly verify it; stop development after release completion
+- Verified: exact 1.9.0 candidate
+  `6876da905bc795fa49568b80ccf13866cc80f31d` passed complete
+  [built-wheel CI](https://github.com/raghavkandpal/parison/actions/runs/39369300738),
+  [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39369300726),
+  clean-archive artifact inspection and a fresh Python 3.14 wheel smoke
+- Next gate: merge the reviewed candidate, require exact-merge CI, publish and
+  publicly verify 1.9.0, then stop development
 
 ## Recorded next steps
 

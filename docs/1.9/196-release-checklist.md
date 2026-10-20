@@ -2,7 +2,7 @@
 
 Date: 20 October 2026
 
-Status: **candidate preparation**
+Status: **candidate qualified**
 
 ## Capability gate
 
@@ -30,11 +30,19 @@ Status: **candidate preparation**
   `75e5ea03b0fe6d837273379959a9c65dcf4a88d4` passed the complete
   [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39369155164)
   and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39369155085).
-- [ ] Exact candidate commit passes built-wheel and quality CI.
-- [ ] A clean archive of the exact candidate produces inspected wheel and
-  source artifacts with recorded SHA-256 hashes.
-- [ ] A fresh supported-Python environment installs that wheel and passes the
-  primary JSON, XML and XLSX 1.9 workflows with verified bundles.
+- [x] Exact candidate commit
+  `6876da905bc795fa49568b80ccf13866cc80f31d` passed the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39369300738)
+  and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39369300726).
+- [x] A clean `git archive` of that commit produced inspected 1.9.0 artifacts.
+  Wheel SHA-256 is
+  `add915edb3f7c390902f9d3c1e1f54e082eaf7acaa43c4f2b2d149a0b48d560b`;
+  source SHA-256 is
+  `619cec591992bafc217d7eebaea6d2ab99a72ef44334686f234e6495a01b4581`.
+- [x] A fresh Python 3.14 environment installed the clean-archive wheel with
+  declared test/XLSX dependencies, reported version 1.9.0 and passed all 20
+  JSON, XML and XLSX structured-selection workflow tests, including bundle
+  verification.
 
 ## Publication
 
