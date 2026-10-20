@@ -14,6 +14,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [XML field-projection engineering checkpoint](1.9/192-xml-field-projection-engineering-checkpoint.md)
 - [XLSX defined-name projection contract](1.9/193-xlsx-defined-name-contract.md)
 - [XLSX defined-name engineering checkpoint](1.9/194-xlsx-defined-name-engineering-checkpoint.md)
+- [Combined structured-selection qualification](1.9/195-combined-structured-selection-qualification.md)
+- [1.9.0 release checklist](1.9/196-release-checklist.md)
 
 ## 1.8 — released
 

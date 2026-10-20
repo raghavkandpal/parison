@@ -1,6 +1,6 @@
 # Current development state
 
-- Version: **1.8.0 released; 1.9 three-feature train active**
+- Version: **1.8.0 released; 1.9.0 three-feature candidate preparing**
 - Branch: `develop`
 - Theme: explicit JSON, XML and XLSX structured field selection as one three-feature train
 - Released: explicit JSON Pointer, bounded QName XML and exact XLSX named-table record projection across all comparison modes
@@ -29,8 +29,12 @@
   `5a0f8009681ffef327985d9439ffafb84fc1c236` passed the full
   [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39275323739)
   and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39275323852)
-- Next gate: combined 1.9 Standards and Spec review, candidate qualification,
-  exact merge CI and public 1.9.0 release verification; then stop development
+- Verified: combined Standards review passed; combined Spec review found one
+  preflight source/projection pairing gap, corrected in all six structured
+  schemas and independently cleared. Full `make check` passes 400 tests with
+  11 optional skips at exact combined checkpoint `75e5ea0`.
+- Next gate: qualify the exact 1.9.0 candidate from a clean archive, then merge,
+  publish and publicly verify it; stop development after release completion
 
 ## Recorded next steps
 
