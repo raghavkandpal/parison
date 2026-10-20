@@ -51,8 +51,12 @@
   launcher for a deterministic script-free local application. It verifies an
   existing bundle before rendering, applies a closed summary-safe projection,
   and publishes atomically without overwrite or network access.
-- Next gate: complete quality and independent Standards/Spec review, push the
-  exact verified navigator checkpoint, then begin schema-driven plan authoring
+- Verified: exact Workbench checkpoint
+  `fbb6ea5675fee8bd5ed787aafe4291e6349d441c` passed the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39370931644)
+  on Python 3.11--3.14 with direct macOS and Windows Workbench smoke coverage,
+  plus the [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39370931604)
+- Next gate: independent Standards/Spec review, then schema-driven plan authoring
 
 ## Recorded next steps
 
