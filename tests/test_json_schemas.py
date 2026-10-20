@@ -20,6 +20,9 @@ class JsonSchemas(unittest.TestCase):
         cls.recipe_authoring_schema = load_schema("recipe-authoring")
         cls.recipe_v2_schema = load_schema("recipe-v2")
         cls.recipe_v3_schema = load_schema("recipe-v3")
+        cls.recipe_v4_schema = load_schema("recipe-v4")
+        cls.recipe_v5_schema = load_schema("recipe-v5")
+        cls.recipe_v6_schema = load_schema("recipe-v6")
         cls.result_schema = load_schema("result")
         cls.result_v2_schema = load_schema("result-v2")
         cls.result_v3_schema = load_schema("result-v3")
@@ -39,6 +42,15 @@ class JsonSchemas(unittest.TestCase):
         cls.preflight_v13_schema = load_schema("preflight-v13")
         cls.preflight_v14_schema = load_schema("preflight-v14")
         cls.preflight_v15_schema = load_schema("preflight-v15")
+        cls.preflight_v16_schema = load_schema("preflight-v16")
+        cls.preflight_v17_schema = load_schema("preflight-v17")
+        cls.preflight_v18_schema = load_schema("preflight-v18")
+        cls.preflight_v19_schema = load_schema("preflight-v19")
+        cls.preflight_v20_schema = load_schema("preflight-v20")
+        cls.preflight_v21_schema = load_schema("preflight-v21")
+        cls.preflight_v22_schema = load_schema("preflight-v22")
+        cls.preflight_v23_schema = load_schema("preflight-v23")
+        cls.preflight_v24_schema = load_schema("preflight-v24")
         cls.suite_schema = load_schema("suite")
         cls.suite_v2_schema = load_schema("suite-v2")
         cls.suite_authoring_schema = load_schema("suite-authoring")
@@ -55,6 +67,9 @@ class JsonSchemas(unittest.TestCase):
         Draft202012Validator.check_schema(cls.recipe_schema)
         Draft202012Validator.check_schema(cls.recipe_v2_schema)
         Draft202012Validator.check_schema(cls.recipe_v3_schema)
+        Draft202012Validator.check_schema(cls.recipe_v4_schema)
+        Draft202012Validator.check_schema(cls.recipe_v5_schema)
+        Draft202012Validator.check_schema(cls.recipe_v6_schema)
         Draft202012Validator.check_schema(cls.result_schema)
         Draft202012Validator.check_schema(cls.result_v2_schema)
         Draft202012Validator.check_schema(cls.result_v3_schema)
@@ -74,6 +89,15 @@ class JsonSchemas(unittest.TestCase):
         Draft202012Validator.check_schema(cls.preflight_v13_schema)
         Draft202012Validator.check_schema(cls.preflight_v14_schema)
         Draft202012Validator.check_schema(cls.preflight_v15_schema)
+        Draft202012Validator.check_schema(cls.preflight_v16_schema)
+        Draft202012Validator.check_schema(cls.preflight_v17_schema)
+        Draft202012Validator.check_schema(cls.preflight_v18_schema)
+        Draft202012Validator.check_schema(cls.preflight_v19_schema)
+        Draft202012Validator.check_schema(cls.preflight_v20_schema)
+        Draft202012Validator.check_schema(cls.preflight_v21_schema)
+        Draft202012Validator.check_schema(cls.preflight_v22_schema)
+        Draft202012Validator.check_schema(cls.preflight_v23_schema)
+        Draft202012Validator.check_schema(cls.preflight_v24_schema)
         Draft202012Validator.check_schema(cls.recipe_authoring_schema)
         Draft202012Validator.check_schema(cls.suite_authoring_schema)
         Draft202012Validator.check_schema(cls.statement_schema)
@@ -92,6 +116,9 @@ class JsonSchemas(unittest.TestCase):
                 cls.recipe_schema,
                 cls.recipe_v2_schema,
                 cls.recipe_v3_schema,
+                cls.recipe_v4_schema,
+                cls.recipe_v5_schema,
+                cls.recipe_v6_schema,
                 cls.suite_schema,
                 cls.suite_v2_schema,
             )
@@ -182,6 +209,15 @@ class JsonSchemas(unittest.TestCase):
             self.preflight_v13_schema,
             self.preflight_v14_schema,
             self.preflight_v15_schema,
+            self.preflight_v16_schema,
+            self.preflight_v17_schema,
+            self.preflight_v18_schema,
+            self.preflight_v19_schema,
+            self.preflight_v20_schema,
+            self.preflight_v21_schema,
+            self.preflight_v22_schema,
+            self.preflight_v23_schema,
+            self.preflight_v24_schema,
         ):
             definition = schema["$defs"]["input"]
             validator = Draft202012Validator(schema)
@@ -199,7 +235,7 @@ class JsonSchemas(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "schemas"
             exported = export_editor_schemas(output)
-            self.assertEqual(len(exported["files"]), 7)
+            self.assertEqual(len(exported["files"]), 10)
             recipe_schema = json.loads((output / "recipe.schema.json").read_text(encoding="utf-8"))
             suite_schema = json.loads((output / "suite.schema.json").read_text(encoding="utf-8"))
             self.assertNotIn("$id", recipe_schema)
@@ -221,7 +257,7 @@ class JsonSchemas(unittest.TestCase):
             cli_output, stdout = Path(temporary) / "cli-schemas", StringIO()
             with redirect_stdout(stdout):
                 self.assertEqual(main(["export-editor-schemas", "--output", str(cli_output)]), 0)
-            self.assertEqual(len(json.loads(stdout.getvalue())["files"]), 7)
+            self.assertEqual(len(json.loads(stdout.getvalue())["files"]), 10)
 
 
 if __name__ == "__main__":

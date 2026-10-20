@@ -62,6 +62,33 @@ parison draft-recipe \
 Review the generated `semantic-scalar-v1` policy. See the
 [JSON document projection contract](1.8/178-json-document-projection-contract.md).
 
+To select nested scalar fields from each JSON record, write and review a
+recipe-version 4, 5 or 6 policy instead of relying on drafting. Each logical
+field has one explicit RFC 6901 pointer, while a flat side uses an equally
+explicit direct mapping:
+
+```json
+{
+  "field_projection": {
+    "version": 1,
+    "baseline": {
+      "kind": "json-pointer-v1",
+      "fields": {"id": "/identity/id", "amount": "/totals/net"}
+    },
+    "candidate": {
+      "kind": "direct-v1",
+      "fields": {"id": "id", "amount": "amount"}
+    }
+  }
+}
+```
+
+The maps must cover exactly the configured logical fields. Missing paths and
+selected containers are errors; unselected members are outside comparison
+scope. The selectors affect the policy fingerprint but are excluded from
+summary results. See the
+[JSON field-projection contract](1.9/189-json-field-projection-contract.md).
+
 Select XML records with an exact root-to-record QName path and explicit,
 percent-encoded namespace bindings:
 
@@ -76,9 +103,27 @@ Records contain direct, attribute-free text child elements only. Parison
 rejects DTDs, entities, XPath-like selection and undeclared namespaces. See
 the [XML record projection contract](1.8/180-xml-record-projection-contract.md).
 
-Install the XLSX extra, then identify either the workbook, worksheet and
-bounded rectangle or one exact workbook table name. The first row is the
-header:
+To project record attributes or bounded nested XML leaves, write and review a
+recipe-version 4, 5 or 6 policy. The XML side owns a separate namespace map
+and uses exact attribute or child-path selectors:
+
+```json
+{
+  "kind": "xml-field-v1",
+  "namespaces": {"o": "https://example.com/orders/v1"},
+  "fields": {"id": "@id", "amount": "o:totals/o:net"}
+}
+```
+
+Every attribute and branch in each selected record must belong to the declared
+projection; missing, repeated, unselected and mixed-content shapes are errors.
+Unprefixed selectors mean no namespace, including for attributes. Drafting
+does not invent these selectors. See the
+[XML field-projection contract](1.9/191-xml-field-projection-contract.md).
+
+Install the XLSX extra, then identify the workbook and either one bounded
+worksheet rectangle, one exact workbook table name or one exact
+workbook-scoped defined name. The first row is the header:
 
 ```sh
 python -m pip install 'parison[xlsx]'
@@ -89,6 +134,9 @@ parison draft-recipe \
 parison validate-inputs --records --recipe recipe.json \
   --baseline 'xlsx:baseline.xlsx#table=Orders' \
   --candidate 'xlsx:candidate.xlsx#table=Orders'
+parison validate-inputs --records --recipe recipe.json \
+  --baseline 'xlsx:baseline.xlsx#defined-name=OrdersExport' \
+  --candidate 'xlsx:candidate.xlsx#defined-name=OrdersExport'
 ```
 
 Review the generated `semantic-scalar-v1` policy. Formula and error cells are
@@ -97,6 +145,10 @@ evaluate formulas. Named tables use their stored rectangle and reject totals,
 calculated columns and mismatched table/header metadata. See the released
 [XLSX values contract](1.6/170-xlsx-values-projection-contract.md) and the
 [named-table contract](1.8/183-xlsx-named-table-projection-contract.md).
+Defined names must be exact, non-reserved, workbook-scoped static references
+to one local absolute rectangle; local, dynamic, relative, external, union and
+whole-row or whole-column definitions are rejected. See the
+[defined-name contract](1.9/193-xlsx-defined-name-contract.md).
 
 ```sh
 parison draft-recipe --baseline baseline.csv --candidate candidate.csv \

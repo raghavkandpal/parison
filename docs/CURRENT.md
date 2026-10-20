@@ -1,12 +1,45 @@
 # Current development state
 
-- Version: **1.8.0 released; 1.9 three-feature research pending**
+- Version: **1.8.0 released; 1.9.0 three-feature candidate preparing**
 - Branch: `develop`
-- Theme: select the next researched three-feature train while preserving explicit local projection boundaries
+- Theme: explicit JSON, XML and XLSX structured field selection as one three-feature train
 - Released: explicit JSON Pointer, bounded QName XML and exact XLSX named-table record projection across all comparison modes
 - Verified: exact 1.8 merge `511b1bbc9c68a581760939b72690255ec545dbbb` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39230867633) and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39230867642); public assets were checksum-verified and all three projection workflows passed fresh
 - Verified: combined parser-train checkpoint `defb65fac85ac0bc8eac48b2f6f70af3ebb07bcc` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39201282230), [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39201282259), independent Standards and Spec review, and a fresh Python 3.14 named-table wheel smoke
-- Next gate: use primary-source research and repository evidence to freeze one substantial three-feature 1.9 train before implementation
+- Implemented and reviewed: JSON field projection under recipe versions 4--6
+  passed fresh blind Standards and Spec review after correcting preflight
+  source pairing, XML schema coverage and controlled surrogate rejection
+- Verified: exact JSON field-projection checkpoint
+  `c657fb2c3afefa6e2fb495cab59020a0b60bf3b7` passed the full
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39233529242)
+  and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39233529210)
+- Implemented: XML field projection selects exact record attributes or bounded
+  unique child-element paths under policy-owned namespace bindings and a
+  closed record shape; fresh Spec review is clear and the Standards tail-text
+  finding is corrected and independently cleared
+- Verified: exact XML field-projection checkpoint
+  `94078a4ffb6bcc68127f663359f7346e97870b86` passed the full
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39272848506)
+  and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39272848633)
+- Implemented and reviewed: XLSX defined-name projection resolves one exact
+  non-reserved workbook-scoped static name to one local bounded rectangle,
+  with raw metadata auditing, portable suites, summary-safe evidence and
+  strict preflight schemas v19--v24
+- Verified: exact XLSX defined-name checkpoint
+  `5a0f8009681ffef327985d9439ffafb84fc1c236` passed the full
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39275323739)
+  and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39275323852)
+- Verified: combined Standards review passed; combined Spec review found one
+  preflight source/projection pairing gap, corrected in all six structured
+  schemas and independently cleared. Full `make check` passes 400 tests with
+  11 optional skips at exact combined checkpoint `75e5ea0`.
+- Verified: exact 1.9.0 candidate
+  `6876da905bc795fa49568b80ccf13866cc80f31d` passed complete
+  [built-wheel CI](https://github.com/raghavkandpal/parison/actions/runs/39369300738),
+  [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39369300726),
+  clean-archive artifact inspection and a fresh Python 3.14 wheel smoke
+- Next gate: merge the reviewed candidate, require exact-merge CI, publish and
+  publicly verify 1.9.0, then stop development
 
 ## Recorded next steps
 
@@ -35,6 +68,12 @@
   contracts. Release 1.8.0 is complete at exact merge
   `511b1bbc9c68a581760939b72690255ec545dbbb`; the public wheel, source and
   checksums were re-downloaded and all three parser workflows passed fresh.
+
+- Follow the active [1.9 roadmap](1.9/188-roadmap.md) and
+  [structured field-selection research](1.9/187-structured-field-selection-research.md).
+  Keep record/range locators separate from logical-field policy, preserve
+  recipe versions 1--3, and do not begin candidate work until JSON, XML and
+  XLSX feature checkpoints are independently qualified.
 
 - Preserve the released [1.7 roadmap](1.7/172-roadmap.md) and [SQLite aggregate contract](1.7/173-aggregate-sqlite-contract.md). Cross-engine equivalence, controlled failures, cleanup and dual-cardinality benchmarks are qualified; keep engine selection explicit and preserve aggregate-v1 semantics and evidence bytes.
 

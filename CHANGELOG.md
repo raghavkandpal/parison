@@ -2,7 +2,25 @@
 
 All notable changes will be documented in this file.
 
-## Unreleased
+## 1.9.0 - 2026-10-20
+
+### Added
+
+- Explicit per-field RFC 6901 projection from selected JSON records through
+  recipe versions 4--6, with exact direct-side mappings, strict recipe and
+  preflight schemas, policy fingerprinting and all comparison modes.
+- Explicit XML field projection from exact record attributes or bounded unique
+  child-element paths, with policy-owned namespaces, closed record shapes and
+  preserved streaming parser limits across all comparison modes.
+- Explicit XLSX projection through one exact non-reserved workbook-scoped
+  defined name resolving to one local absolute bounded rectangle, with strict
+  metadata auditing, portable suites and all comparison modes.
+
+### Compatibility
+
+- Recipe versions 1--3, released schemas and existing result/bundle formats
+  remain unchanged. Summary comparison results exclude field selectors,
+  defined names, resolved worksheets/ranges and source names.
 
 ## 1.8.0 - 2026-10-19
 

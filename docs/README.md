@@ -4,6 +4,19 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 1.9 — active
+
+- [Structured field-selection research](1.9/187-structured-field-selection-research.md)
+- [1.9 roadmap](1.9/188-roadmap.md)
+- [JSON field-projection contract](1.9/189-json-field-projection-contract.md)
+- [JSON field-projection engineering checkpoint](1.9/190-json-field-projection-engineering-checkpoint.md)
+- [XML field-projection contract](1.9/191-xml-field-projection-contract.md)
+- [XML field-projection engineering checkpoint](1.9/192-xml-field-projection-engineering-checkpoint.md)
+- [XLSX defined-name projection contract](1.9/193-xlsx-defined-name-contract.md)
+- [XLSX defined-name engineering checkpoint](1.9/194-xlsx-defined-name-engineering-checkpoint.md)
+- [Combined structured-selection qualification](1.9/195-combined-structured-selection-qualification.md)
+- [1.9.0 release checklist](1.9/196-release-checklist.md)
+
 ## 1.8 — released
 
 - [Structured record projection research](1.8/176-structured-record-projection-research.md)
@@ -95,6 +108,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 ## Future direction research
 
 - [Post-1.0 product direction](0.20/134-post-1.0-direction-research.md)
+- [Verification workbench product research](2.0/194-verification-workbench-product-research.md)
+- [Verification workbench development direction](2.0/195-verification-workbench-development-direction.md)
 
 ## 0.19 — released
 
