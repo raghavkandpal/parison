@@ -26,6 +26,15 @@ summary-safe disclosure, policy-byte preservation and unapproved draft export.
 They are not the intended 2.0 release interface and may change or disappear
 before release.
 
+## Visual continuity
+
+The canonical generated HTML result is the Workbench's visual baseline. The
+application keeps its outcome-first hierarchy, system typography, restrained
+color, bordered evidence tables, compact controls and plain-language notices.
+Workbench navigation extends that document rather than replacing it with
+generic dashboard chrome. Plans and Run may add task-specific controls, but the
+result should still feel like the same Parison evidence surface.
+
 ## Application model
 
 The installed Parison Python process is the application host. It invokes shared

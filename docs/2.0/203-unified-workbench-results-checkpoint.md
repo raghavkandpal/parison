@@ -11,6 +11,11 @@ verifies the bundle through the released evidence reader, and returns only the
 existing closed `workbench_projection` fields. The browser receives no source
 path, key, value, discrepancy sample or verification error detail.
 
+The screen deliberately follows the canonical generated HTML result's visual
+language: system typography, outcome-first color, bordered tables, compact
+controls and restrained notices. This is the baseline for later activities,
+not a temporary dashboard theme.
+
 All API calls are closed POST routes and require an exact numeric-loopback
 Origin and Host, the per-launch capability, exact JSON content type and a body
 no larger than 4096 bytes. The page clears the capability fragment before
