@@ -2,7 +2,7 @@
 
 Date: 20 October 2026
 
-Status: **implemented locally; exact-commit qualification pending**
+Status: **qualified at exact implementation commit `66bdc42`**
 
 The unified Workbench now carries the non-mobile findings from the first
 Impeccable audit into its existing embedded interface. A compact semantic token
@@ -33,3 +33,9 @@ This refinement changes no routes, filesystem access, execution, recipe or
 bundle semantics, canonical bytes, CLI JSON, or summary-safe evidence rules.
 The next gate remains bounded Workbench host lifecycle and shutdown behavior
 before any Run activity is exposed.
+
+Exact implementation commit
+`66bdc427bf489eb290c387c5e7aa3885002ec856` passed the complete
+[built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39433950485)
+on Python 3.11--3.14 with macOS and Windows smoke, plus the
+[quality gate](https://github.com/raghavkandpal/parison/actions/runs/39433950126).

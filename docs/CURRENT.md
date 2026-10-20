@@ -108,6 +108,11 @@
   interaction remain explicitly out of scope; narrow layouts only protect
   resized desktop windows and zoom use. See the
   [Workbench UI refinement checkpoint](2.0/207-workbench-ui-refinement-checkpoint.md).
+- Verified: exact Workbench UI refinement checkpoint
+  `66bdc427bf489eb290c387c5e7aa3885002ec856` passed the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39433950485)
+  on Python 3.11--3.14 with macOS and Windows smoke, plus the
+  [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39433950126)
 - Next gate: specify and implement bounded Workbench host lifecycle controls
   before exposing any local execution activity
 
