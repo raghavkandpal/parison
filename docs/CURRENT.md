@@ -137,9 +137,14 @@
 - Implemented locally: Workbench Run resolves released structured input
   locators inside the workspace while retaining format selectors; focused host
   tests cover path rejection and a JSON run. Exact-head qualification remains.
-- Next gate: finish exact-head Run locator qualification, then complete the
-  remaining Plans feature contract and fresh interface and combined
-  Standards/Spec review
+- Verified: Run locator fix merged through PR #56 at `a5f2b90`; the exact
+  merge passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39564064545).
+- Implemented locally: schema-derived Plans controls for recipe versions 1--6,
+  explicit omitted settings and effective policy display, exact field edits and
+  workspace-constrained input handoff. See the
+  [Plans controls checkpoint](2.0/212-workbench-plan-controls-checkpoint.md).
+- Next gate: complete Plans interface and unfamiliar-user review, then qualify
+  the exact implementation commit before the combined Workbench review
 
 ## Recorded next steps
 

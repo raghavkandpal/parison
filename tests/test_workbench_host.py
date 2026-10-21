@@ -204,6 +204,36 @@ class WorkbenchHostTests(unittest.TestCase):
             self.assertEqual(plan["comparison_mode"], "keyed")
             self.assertRegex(plan["policy_sha256"], r"^[0-9a-f]{64}$")
             self.assertNotIn(str(recipe), json.dumps(plan))
+            self.assertEqual(plan["controls"]["kind"], "object")
+            self.assertIn('"null_tokens"', plan["effective_policy"])
+
+            response = self._post(connection, server, "/api/plan-controls", {"source": plan["source"]})
+            self.assertEqual(response.status, 200)
+            self.assertEqual(json.loads(response.read())["controls"], plan["controls"])
+            response = self._post(
+                connection,
+                server,
+                "/api/edit-plan",
+                {"source": plan["source"], "path": ["scope", "snapshot"], "operation": "set", "value": '"field-edit"'},
+            )
+            self.assertEqual(response.status, 200)
+            self.assertEqual(json.loads(json.loads(response.read())["source"])["scope"]["snapshot"], "field-edit")
+            self.assertEqual(recipe.read_text(encoding="utf-8"), plan["source"])
+            for path, request in (
+                ("/api/plan-controls", {"source": []}),
+                ("/api/plan-controls", {"source": "[]"}),
+                ("/api/edit-plan", {"source": plan["source"], "path": [], "operation": [], "value": "null"}),
+                ("/api/plan-inputs", {"baseline": "../outside.csv", "candidate": "candidate.csv"}),
+                ("/api/plan-inputs", {"baseline": "missing.csv", "candidate": "candidate.csv"}),
+            ):
+                response = self._post(connection, server, path, request)
+                self.assertEqual(response.status, 422)
+                response.read()
+            response = self._post(
+                connection, server, "/api/plan-inputs", {"baseline": "baseline.csv", "candidate": "candidate.csv"}
+            )
+            self.assertEqual(response.status, 200)
+            self.assertEqual(json.loads(response.read()), {"baseline": "baseline.csv", "candidate": "candidate.csv"})
 
             edited = json.loads(plan["source"])
             edited["scope"]["snapshot"] = "edited"

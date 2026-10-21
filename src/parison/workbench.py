@@ -20,6 +20,7 @@ from .core import ParisonError
 from .evidence import inspect_bundle, publish
 from .inputs import InputCancellation, validate_inputs
 from .policies import explain_recipe, explain_recipe_text, load_recipe
+from .workbench_plans import plan_controls
 
 _COMMON_FIELDS = (
     "kind",
@@ -66,6 +67,8 @@ def plan_projection(recipe: str | Path) -> dict[str, Any]:
         "policy_sha256": policy["policy_sha256"],
         "comparison_mode": loaded["comparison_mode"],
         "recipe_version": loaded["recipe_version"],
+        **_plan_control_projection(source),
+        "effective_policy": json.dumps(policy, indent=2, ensure_ascii=True),
     }
 
 
@@ -76,7 +79,16 @@ def plan_text_projection(source: str) -> dict[str, Any]:
         "policy_sha256": policy["policy_sha256"],
         "comparison_mode": policy["comparison_mode"],
         "recipe_version": policy["recipe_version"],
+        **_plan_control_projection(source),
+        "effective_policy": json.dumps(policy, indent=2, ensure_ascii=True),
     }
+
+
+def _plan_control_projection(source: str) -> dict[str, Any]:
+    try:
+        return {"controls": plan_controls(source), "controls_notice": ""}
+    except ParisonError as exc:
+        return {"controls": None, "controls_notice": str(exc)}
 
 
 def _catalog_path(workspace: str | Path) -> Path:

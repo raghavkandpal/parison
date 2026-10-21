@@ -1,5 +1,112 @@
 """Embedded interface for the local Parison Workbench."""
 
+PLAN_CONTROLS_SCRIPT = r"""
+let planRevision=0,controlBusy=false,pendingControl=false,controlsSource='',lastControls=null;
+const policyControls=document.getElementById('policy-controls'),controlsStatus=document.getElementById('controls-status'),effectivePolicy=document.getElementById('effective-policy'),inputLocations=document.getElementById('plan-inputs');
+function invalidatePlan(){planRevision++;downloadPlan.disabled=true;policySha.textContent='Revalidate to compute';effectivePolicy.textContent='Revalidate the current draft to review its effective policy.';}
+function controlAvailability(disabled){policyControls.querySelectorAll('button,input,select').forEach(control=>control.disabled=disabled);}
+function controlButton(text,action){const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=text;button.addEventListener('click',action);return button;}
+async function editControl(path,operation,value,focusPath){
+  if(controlBusy)return;
+  const focusedPath=focusPath??document.activeElement?.dataset.path;
+  const source=planSource.value;invalidatePlan();const revision=planRevision;
+  controlBusy=true;pendingControl=false;controlAvailability(true);downloadPlan.disabled=true;validatePlan.disabled=true;
+  controlsStatus.textContent='Applying field edit to the JSON draft...';
+  try{
+    const response=await post('/api/edit-plan',{source,path,operation,value});
+    if(revision!==planRevision||source!==planSource.value)return;
+    if(!response.ok)throw Error();
+    const edited=await response.json();
+    if(revision!==planRevision||source!==planSource.value)return;
+    invalidatePlan();planSource.value=edited.source;renderPlanControls(edited.controls);
+    planStatus.textContent='Draft changed. Validate changes before downloading.';
+    controlsStatus.textContent='Field edit applied. The draft remains unapproved.';
+    const target=Array.from(policyControls.querySelectorAll('[data-path]')).find(control=>control.dataset.path===focusedPath);
+    if(target)target.focus();
+  }catch(error){if(revision===planRevision&&lastControls)renderPlanControls(lastControls);controlsStatus.textContent='Edit was not applied. Enter a valid value, or edit the JSON source and refresh controls.';}
+  finally{controlBusy=false;if(token){validatePlan.disabled=pendingControl;if(controlsSource===planSource.value)controlAvailability(false);}}
+}
+function renderPlanControls(root){
+  pendingControl=false;
+  lastControls=root;
+  controlsSource=planSource.value;
+  const expanded=new Set(Array.from(policyControls.querySelectorAll('details[open]')).map(item=>item.dataset.path));
+  const initial=policyControls.childElementCount===0;
+  policyControls.replaceChildren();
+  function render(node){
+    const field=document.createElement('div');field.className='policy-field';
+    const name=node.path.length?String(node.path[node.path.length-1]):'Policy';
+    const fullName=node.path.map(String).join(' / ');
+    const heading=document.createElement('div');heading.className='control-heading';
+    const title=document.createElement('span');title.textContent=name+(node.required?' (required)':'');heading.append(title);
+    if(!node.present){
+      field.classList.add('field-row');const note=document.createElement('span');note.className='control-note';note.textContent='Not set in source';
+      const add=controlButton('Add '+name,()=>editControl(node.path,'set',node.initial));field.append(heading,note,add);return field;
+    }
+    if(node.children){
+      const details=document.createElement('details');details.dataset.path=JSON.stringify(node.path);
+      details.open=expanded.has(details.dataset.path)||(initial&&node.path.length===1&&name==='scope');
+      const summary=document.createElement('summary');summary.textContent=name+(node.required?' (required)':'');details.append(summary);
+      const contents=document.createElement('div');contents.className='control-children';
+      if(node.description){const description=document.createElement('p');description.className='control-note';description.textContent=node.description;contents.append(description);}
+      node.children.forEach(child=>contents.append(render(child)));
+      if(node.kind==='array')contents.append(controlButton('Add item to '+name,()=>editControl([...node.path,node.children.length],'set',node.initial)));
+      if(node.additional){
+        const addRow=document.createElement('div');addRow.className='add-property';
+        const key=document.createElement('input');key.type='text';key.setAttribute('aria-label','New property in '+fullName);key.placeholder='New property name';
+        const add=controlButton('Add property',()=>{if(!key.value){key.focus();return}if(node.children.some(child=>child.path.at(-1)===key.value)){controlsStatus.textContent='That property already exists. Edit its current control.';return}editControl([...node.path,key.value],'set',node.additional_initial);});
+        addRow.append(key,add);contents.append(addRow);
+      }
+      if(!node.required&&node.path.length)contents.append(controlButton('Remove '+name,()=>editControl(node.path,'remove',null)));
+      details.append(contents);field.append(details);return field;
+    }
+    field.classList.add('field-row');
+    const label=document.createElement('label');label.textContent=name+(node.required?' (required)':'');
+    if(node.fixed){const fixed=document.createElement('code');fixed.textContent=node.value;field.append(label,fixed);if(!node.required)field.append(controlButton('Remove '+name,()=>editControl(node.path,'remove',null)));return field;}
+    let input;
+    const options=node.kind==='boolean'?['true','false']:node.choices;
+    if(options.length){
+      input=document.createElement('select');const blank=document.createElement('option');blank.value='';blank.textContent='Choose explicitly';blank.disabled=true;input.append(blank);
+      options.forEach(value=>{const option=document.createElement('option');option.value=value;const decoded=JSON.parse(value);option.textContent=String(decoded);input.append(option);});input.value=options.includes(node.value)?node.value:'';
+    }else{
+      input=document.createElement('input');input.type='text';
+      input.value=node.kind==='string'&&typeof JSON.parse(node.value)==='string'?JSON.parse(node.value):node.value;
+      if(node.kind==='json')input.title='Enter a JSON string or number, keeping any quotes explicit.';
+    }
+    input.setAttribute('aria-label',fullName);input.dataset.path=JSON.stringify(node.path);
+    if(options.length){input.addEventListener('change',()=>editControl(node.path,'set',input.value));}
+    else{
+      let dirty=false;
+      input.addEventListener('input',()=>{dirty=true;pendingControl=true;invalidatePlan();validatePlan.disabled=true;planStatus.textContent='Finish editing the field to apply it to the JSON draft.';});
+      input.addEventListener('blur',event=>{if(!dirty)return;dirty=false;editControl(node.path,'set',node.kind==='string'?JSON.stringify(input.value):input.value,event.relatedTarget?.dataset.path||'');});
+      input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();input.blur();}});
+    }
+    label.append(input);field.append(label);
+    if(node.description){const description=document.createElement('span');description.className='control-note';description.textContent=node.description;field.append(description);}
+    if(!node.required)field.append(controlButton('Remove '+name,()=>editControl(node.path,'remove',null)));
+    return field;
+  }
+  root.children.forEach(node=>policyControls.append(render(node)));
+  controlAvailability(controlBusy);controlsStatus.textContent='Controls follow the released recipe schema. Unset fields stay omitted; review their effective values below.';
+}
+document.getElementById('refresh-controls').addEventListener('click',async()=>{
+  const source=planSource.value,revision=planRevision;controlsStatus.textContent='Reading controls from the JSON draft...';
+  try{const response=await post('/api/plan-controls',{source});if(!response.ok)throw Error();const data=await response.json();if(revision!==planRevision||source!==planSource.value)return;renderPlanControls(data.controls);}
+  catch(error){if(revision===planRevision)controlsStatus.textContent='Controls could not be read. Use a JSON object with recipe_version 1 through 6, then refresh.';}
+});
+document.getElementById('plan-input-form').addEventListener('submit',async event=>{
+  event.preventDefault();const baseline=document.getElementById('plan-baseline').value,candidate=document.getElementById('plan-candidate').value,status=document.getElementById('plan-input-status'),revision=planRevision;
+  status.textContent='Checking the explicit local input locations...';
+  try{
+    const response=await post('/api/plan-inputs',{baseline,candidate});
+    if(revision!==planRevision||baseline!==document.getElementById('plan-baseline').value||candidate!==document.getElementById('plan-candidate').value)return;
+    if(!response.ok)throw Error();
+    document.getElementById('baseline').value=baseline;document.getElementById('candidate').value=candidate;
+    status.textContent='Input locations copied to Run. Choose a saved recipe there; preflight and execution require a separate submission.';
+  }catch(error){status.textContent='Input locations were rejected. Choose existing files or supported partitions inside this workspace and keep structured selectors explicit.';}
+});
+"""
+
 PAGE = """<!doctype html>
 <html lang="en">
 <head>
@@ -31,7 +138,8 @@ button:disabled{cursor:wait;opacity:.6}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}th,td{border:1px solid #ccd3da;padding:.65rem .85rem;text-align:left;vertical-align:top;border-left:0;border-right:0;overflow-wrap:anywhere}tbody th{width:34%}th{background:var(--surface-subtle);color:var(--nav-active)}#history-view table{table-layout:fixed}#history-view th:nth-child(1){width:28%}#history-view th:nth-child(2),#history-view th:nth-child(3){width:14%}#history-view th:nth-child(4){width:44%}code{overflow-wrap:anywhere;color:var(--nav-active)}
 .boundary{margin-top:var(--space-6);padding:var(--space-4) 1.2rem;border-left:3px solid var(--focus);background:var(--info-surface);color:var(--nav-active)}.boundary strong{display:block;margin-bottom:.2rem}
 .editor{margin-top:var(--space-6);overflow:hidden}.editor header{padding:1.25rem 1.4rem;border-bottom:1px solid #e4e7ec;display:flex;justify-content:space-between;align-items:center}.meta{display:flex;flex-wrap:wrap;gap:var(--space-2);padding:var(--space-4) 1.4rem;background:var(--surface-subtle);border-bottom:1px solid #e4e7ec}.meta span{padding:.2rem .55rem;border:1px solid var(--border);border-radius:999px;background:var(--surface);font-size:.78rem}.digest{overflow-wrap:anywhere}.editor-body{padding:1.4rem}.editor-body label{display:block;margin-bottom:.45rem}.editor textarea{display:block;width:100%;min-height:25rem;resize:vertical;padding:.85rem;border:1px solid var(--border-strong);border-radius:.45rem;background:var(--ink-strong);color:#f2f4f7;font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2}.editor-footer{display:flex;justify-content:space-between;gap:var(--space-4);align-items:center;margin-top:var(--space-4)}.editor-footer .status{margin:0;min-width:12rem}.commands{margin-top:var(--space-6);padding:1.2rem 1.4rem}.commands pre{overflow:auto;margin:var(--space-3) 0 0;padding:var(--space-4);border-radius:.45rem;background:var(--ink-strong);color:#f2f4f7}.commands code{color:inherit}
-@media(max-width:760px){.shell{grid-template-columns:1fr}aside{padding:var(--space-4);gap:var(--space-4)}nav{grid-template-columns:repeat(3,1fr)}.nav-item{padding:var(--space-2);font-size:.8rem}.soon{display:none}.local{display:none}.topbar{padding:0 var(--space-4)}main{padding:var(--space-8) var(--space-4)}form,#run-form,#compare-form{grid-template-columns:1fr}.open-card .actions{display:grid;grid-template-columns:1fr 1fr}.editor header,.evidence header{align-items:flex-start;gap:var(--space-3)}.editor-footer{align-items:stretch;flex-direction:column}.editor-footer .status{min-width:0}.editor-footer .actions{display:grid;grid-template-columns:1fr}.editor-footer button{width:100%}.editor-body{padding:var(--space-4)}.empty{padding:var(--space-8) var(--space-4)}}
+h3{margin:0 0 var(--space-2);font-size:1.1rem}.control-note{color:var(--ink-muted);font-size:.87rem;max-width:72ch}.policy-field{min-width:0;border-top:1px solid var(--border);padding:var(--space-3) 0}.control-children{padding:0 0 var(--space-3) var(--space-4)}summary{cursor:pointer;font-weight:650;padding:var(--space-3) 0;min-height:44px;overflow-wrap:anywhere}summary:focus-visible{outline:3px solid var(--focus)}.field-row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3)}.field-row label{flex:1;min-width:10rem;margin:0}.field-row input,.field-row select{margin-top:var(--space-2)}.field-row button{align-self:end}.control-heading{font-weight:650;flex:1;overflow-wrap:anywhere}.add-property{display:flex;gap:var(--space-2);margin:var(--space-4) 0}.add-property input{min-width:0}.add-property button{flex-shrink:0}.source-details{margin-top:var(--space-6);border-top:1px solid var(--border)}.source-details button{margin-top:var(--space-3)}.source-details pre,#plan-inputs pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--ink-muted)}select{font:inherit;max-width:100%;width:100%;padding:.72rem .8rem;border:1px solid var(--border-strong);border-radius:.45rem;background:var(--surface);color:var(--ink-strong)}select:focus{outline:3px solid var(--focus)}#plan-input-form{grid-template-columns:1fr 1fr;margin-top:var(--space-4)}#plan-input-form button{grid-column:1/-1;justify-self:start}.policy-field code{word-break:break-word}.policy-field button{font-size:.85rem;min-height:44px}.editor-body>.editor-footer{border-top:1px solid var(--border);padding-top:var(--space-4)}
+@media(max-width:760px){.shell{grid-template-columns:1fr}aside{padding:var(--space-4);gap:var(--space-4)}nav{grid-template-columns:repeat(3,1fr)}.nav-item{padding:var(--space-2);font-size:.8rem}.soon{display:none}.local{display:none}.topbar{padding:0 var(--space-4)}main{padding:var(--space-8) var(--space-4)}form,#run-form,#compare-form,#plan-input-form{grid-template-columns:1fr}.open-card .actions{display:grid;grid-template-columns:1fr 1fr}.editor header,.evidence header{align-items:flex-start;gap:var(--space-3)}.editor-footer{align-items:stretch;flex-direction:column}.editor-footer .status{min-width:0}.editor-footer .actions{display:grid;grid-template-columns:1fr}.editor-footer button{width:100%}.editor-body{padding:var(--space-4)}.empty{padding:var(--space-8) var(--space-4)}.field-row{align-items:stretch;flex-direction:column}.control-children{padding-left:var(--space-3)}.add-property{flex-wrap:wrap}.add-property input{flex:1;min-width:8rem}}
 </style>
 </head>
 <body><div class="shell">
@@ -50,7 +158,18 @@ table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}th,t
 <p class="lede">Open a CLI-native recipe to review the exact JSON and its effective policy identity before execution.</p>
 <section class="card open-card"><form id="open-plan"><label for="recipe">Recipe file <span>Choose a JSON file or enter its path relative to this workspace.</span><input id="recipe" required placeholder="recipes/example.json" autocomplete="off"></label><div class="actions"><button id="choose-recipe" class="secondary" type="button">Choose file...</button><button>Validate and open</button></div></form><p id="plan-open-status" class="status" role="status">Ready for a local recipe.</p></section>
 <section id="plan-empty" class="card empty"><div class="mark">{ }</div><h2>No plan open</h2><p>Open an existing Parison recipe. The Python engine validates it before the editor displays its exact source.</p></section>
-<section id="plan-editor" class="card editor" hidden><header><h2>Verification plan</h2><button id="clear-plan" class="secondary clear" type="button">Clear plan</button></header><div class="meta"><span id="recipe-version"></span><span id="comparison-mode"></span><span class="digest">Policy <code id="policy-sha"></code></span></div><div class="editor-body"><label for="plan-source">Recipe source</label><textarea id="plan-source" spellcheck="false"></textarea><div class="editor-footer"><p id="plan-status" class="status" role="status"></p><div class="actions"><button id="validate-plan" class="secondary" type="button">Validate changes</button><button id="download-plan" type="button">Download unapproved draft</button></div></div></div></section>
+<section id="plan-editor" class="card editor" hidden><header><h2>Verification plan</h2><button id="clear-plan" class="secondary clear" type="button">Clear plan</button></header>
+<div class="meta"><span>Unapproved draft</span><span id="recipe-version"></span><span id="comparison-mode"></span><span class="digest">Policy <code id="policy-sha"></code></span></div>
+<div class="editor-body"><h3>Policy controls</h3><p id="controls-status" class="control-note" role="status"></p><div id="policy-controls"></div>
+<details class="source-details"><summary>Recipe JSON source</summary><label for="plan-source">Exact recipe source</label><textarea id="plan-source" spellcheck="false"></textarea><button id="refresh-controls" class="secondary" type="button">Refresh controls from JSON</button></details>
+<details class="source-details"><summary>Effective policy, including defaults</summary><p class="control-note">Computed by the Python loader for the last validated draft. Omitted source settings remain visible here.</p><pre id="effective-policy"></pre></details>
+<div class="editor-footer"><p id="plan-status" class="status" role="status"></p><div class="actions"><button id="validate-plan" class="secondary" type="button">Validate changes</button><button id="download-plan" type="button">Download unapproved draft</button></div></div></div></section>
+<section id="plan-inputs" class="card commands" hidden><h2>Local input locations</h2><p class="control-note">Select workspace-relative files or explicit structured locators. These locations stay separate from recipe JSON.</p>
+<form id="plan-input-form"><label for="plan-baseline">Baseline location<input id="plan-baseline" required placeholder="inputs/baseline.csv" autocomplete="off"></label><label for="plan-candidate">Candidate location<input id="plan-candidate" required placeholder="inputs/candidate.csv" autocomplete="off"></label><button>Copy input locations to Run</button></form>
+<details><summary>Structured locator examples</summary><pre>json:inputs/data.json#/rows
+xml:inputs/data.xml#root/record
+xlsx:inputs/data.xlsx#Sheet1!A1:B20
+sqlite:inputs/data.db#records</pre></details><p id="plan-input-status" class="status" role="status">Choose both inputs explicitly. Run performs record preflight when you submit it.</p></section>
 <section id="commands" class="card commands" hidden><h2>Equivalent CLI</h2><pre><code>parison validate-recipe plan.json
 parison compare --recipe plan.json --baseline BASELINE --candidate CANDIDATE --output RUN_DIRECTORY</code></pre></section>
 <aside class="boundary"><strong>Policy review required</strong>This editor never approves keys, tolerances, scope, exclusions, sensitivity, or repairs. A downloaded draft remains unapproved until you review and validate it.</aside></section>
@@ -74,7 +193,7 @@ let token=location.hash.slice(1);history.replaceState(null,'',location.pathname)
 const session=document.getElementById('session'),status=document.getElementById('status'),body=document.getElementById('evidence'),heading=document.getElementById('heading'),result=document.getElementById('result'),empty=document.getElementById('empty'),outcome=document.getElementById('outcome');
 const post=(path,data)=>fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Parison-Session':token},body:JSON.stringify(data)});
 post('/api/session',{}).then(r=>r.ok?r.json():Promise.reject()).then(()=>session.textContent='Local workspace ready').catch(()=>{session.textContent='Session rejected';session.style.color='#b42318'});
-document.getElementById('shutdown').addEventListener('click',async event=>{event.currentTarget.disabled=true;session.textContent='Stopping...';try{const response=await post('/api/shutdown',{});if(!response.ok)throw Error();token='';document.querySelectorAll('button,input,textarea').forEach(control=>control.disabled=true);session.textContent='Workbench stopped';session.style.color='#475467'}catch(error){event.currentTarget.disabled=false;session.textContent='Could not stop workbench'} });
+document.getElementById('shutdown').addEventListener('click',async event=>{event.currentTarget.disabled=true;session.textContent='Stopping...';try{const response=await post('/api/shutdown',{});if(!response.ok)throw Error();token='';planRevision++;document.querySelectorAll('button,input,textarea,select').forEach(control=>control.disabled=true);session.textContent='Workbench stopped';session.style.color='#475467'}catch(error){event.currentTarget.disabled=false;session.textContent='Could not stop workbench'} });
 document.querySelectorAll('[data-view]').forEach(item=>item.addEventListener('click',()=>{document.querySelectorAll('[data-view]').forEach(other=>{other.classList.toggle('active',other===item);other.toggleAttribute('aria-current',other===item)});document.querySelectorAll('main>section[id$="-view"]').forEach(view=>view.hidden=view.id!==item.dataset.view+'-view')}));
 const form=document.getElementById('open'),bundle=document.getElementById('bundle'),choose=document.getElementById('choose');
 choose.addEventListener('click',async()=>{choose.disabled=true;status.textContent='Choose a bundle folder inside this workspace...';try{const response=await post('/api/choose-bundle',{});if(response.status===204){status.textContent='Folder selection cancelled.';return}if(!response.ok){status.textContent='Folder could not be selected. Choose a folder inside this workspace or enter its relative path.';return}bundle.value=(await response.json()).bundle;form.requestSubmit()}catch(error){status.textContent='Folder picker unavailable. Enter a workspace-relative path instead.'}finally{choose.disabled=false}});
@@ -86,16 +205,36 @@ rows(evidence);empty.hidden=true;result.hidden=false;status.textContent='Verifie
 document.getElementById('clear').addEventListener('click',()=>{body.replaceChildren();result.hidden=true;empty.hidden=false;heading.textContent='Results';heading.style.color='';outcome.textContent='';form.reset();status.textContent='Result cleared. Ready for a local bundle.';bundle.focus()});
 const planForm=document.getElementById('open-plan'),recipe=document.getElementById('recipe'),chooseRecipe=document.getElementById('choose-recipe'),planOpenStatus=document.getElementById('plan-open-status'),planEmpty=document.getElementById('plan-empty'),planEditor=document.getElementById('plan-editor'),commands=document.getElementById('commands'),planSource=document.getElementById('plan-source'),planStatus=document.getElementById('plan-status'),validatePlan=document.getElementById('validate-plan'),downloadPlan=document.getElementById('download-plan'),policySha=document.getElementById('policy-sha');
 chooseRecipe.addEventListener('click',async()=>{chooseRecipe.disabled=true;planOpenStatus.textContent='Choose a recipe file inside this workspace...';try{const response=await post('/api/choose-recipe',{});if(response.status===204){planOpenStatus.textContent='File selection cancelled.';return}if(!response.ok){planOpenStatus.textContent='File could not be selected. Choose a file inside this workspace or enter its relative path.';return}recipe.value=(await response.json()).recipe;planForm.requestSubmit()}catch(error){planOpenStatus.textContent='File picker unavailable. Enter a workspace-relative path instead.'}finally{chooseRecipe.disabled=false}});
-const showPolicy=plan=>{document.getElementById('recipe-version').textContent='Recipe v'+plan.recipe_version;document.getElementById('comparison-mode').textContent=plan.comparison_mode;policySha.textContent=plan.policy_sha256};
-planForm.addEventListener('submit',async event=>{event.preventDefault();planOpenStatus.textContent='Validating recipe...';const response=await post('/api/plan',{recipe:recipe.value});if(!response.ok){planOpenStatus.textContent='Recipe could not be validated. Select a Parison recipe within this workspace.';planEditor.hidden=true;commands.hidden=true;planEmpty.hidden=false;return}const plan=await response.json();planSource.value=plan.source;showPolicy(plan);downloadPlan.disabled=false;planStatus.textContent='Loaded plan passed authoritative Python validation.';planEmpty.hidden=true;planEditor.hidden=false;commands.hidden=false;planOpenStatus.textContent='Validated recipe and computed its effective policy identity.'});
-planSource.addEventListener('input',()=>{downloadPlan.disabled=true;policySha.textContent='Revalidate to compute';try{const value=JSON.parse(planSource.value);if(!value||Array.isArray(value)||typeof value!=='object')throw Error('top level must be an object');planStatus.textContent='Valid JSON; authoritative Parison validation is required before download.'}catch(error){planStatus.textContent='Invalid JSON: '+error.message}});
-validatePlan.addEventListener('click',async()=>{const source=planSource.value;validatePlan.disabled=true;planStatus.textContent='Validating changes with Parison...';try{const response=await post('/api/validate-plan',{source});if(planSource.value!==source){planStatus.textContent='Plan changed during validation. Validate the current text again.';return}if(!response.ok){downloadPlan.disabled=true;policySha.textContent='Validation failed';planStatus.textContent='Plan failed authoritative Parison validation.';return}showPolicy(await response.json());downloadPlan.disabled=false;planStatus.textContent='Changes passed authoritative Python validation. Draft download is enabled.'}catch(error){planStatus.textContent='Plan could not be validated.'}finally{validatePlan.disabled=false}});
+const showPolicy=plan=>{
+  document.getElementById('recipe-version').textContent='Recipe v'+plan.recipe_version;document.getElementById('comparison-mode').textContent=plan.comparison_mode;policySha.textContent=plan.policy_sha256;effectivePolicy.textContent=plan.effective_policy;
+  if(plan.controls){renderPlanControls(plan.controls);}else{policyControls.replaceChildren();controlsStatus.textContent=plan.controls_notice;document.querySelector('.source-details').open=true;}
+};
+planForm.addEventListener('submit',async event=>{
+  event.preventDefault();const revision=++planRevision;planOpenStatus.textContent='Validating recipe...';
+  try{
+    const response=await post('/api/plan',{recipe:recipe.value});if(!response.ok)throw Error();const plan=await response.json();if(revision!==planRevision)return;
+    planSource.value=plan.source;policyControls.replaceChildren();showPolicy(plan);downloadPlan.disabled=false;validatePlan.disabled=false;planStatus.textContent='Loaded plan passed Python validation. It remains an unapproved draft.';planEmpty.hidden=true;planEditor.hidden=false;commands.hidden=false;inputLocations.hidden=false;planOpenStatus.textContent='Validated recipe and computed its effective policy identity.';
+  }catch(error){if(revision!==planRevision)return;planOpenStatus.textContent='Recipe could not be validated. Select a Parison recipe within this workspace.';planEditor.hidden=true;commands.hidden=true;inputLocations.hidden=true;planEmpty.hidden=false;}
+});
+planSource.addEventListener('input',()=>{pendingControl=false;invalidatePlan();validatePlan.disabled=controlBusy;controlAvailability(true);controlsStatus.textContent='JSON source changed. Refresh controls from JSON before using them.';try{const value=JSON.parse(planSource.value);if(!value||Array.isArray(value)||typeof value!=='object')throw Error('top level must be an object');planStatus.textContent='Valid JSON; authoritative Parison validation is required before download.'}catch(error){planStatus.textContent='Invalid JSON: '+error.message}});
+validatePlan.addEventListener('click',async()=>{
+  const source=planSource.value,revision=planRevision;validatePlan.disabled=true;planStatus.textContent='Validating changes with Parison...';
+  try{
+    const response=await post('/api/validate-plan',{source});
+    if(planRevision!==revision||planSource.value!==source)return;
+    if(!response.ok){downloadPlan.disabled=true;policySha.textContent='Validation failed';planStatus.textContent='Plan failed authoritative Parison validation. Review the fields or JSON source and try again.';return;}
+    const plan=await response.json();if(planRevision!==revision||planSource.value!==source)return;
+    showPolicy(plan);downloadPlan.disabled=false;planStatus.textContent='Changes passed Python validation. The downloadable draft remains unapproved.';
+  }catch(error){if(planRevision===revision)planStatus.textContent='Plan could not be validated.';}
+  finally{if(token)validatePlan.disabled=controlBusy||pendingControl;}
+});
 downloadPlan.addEventListener('click',()=>{const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([planSource.value.endsWith('\\n')?planSource.value:planSource.value+'\\n'],{type:'application/json'}));link.download='plan.json';link.click();URL.revokeObjectURL(link.href);planStatus.textContent='Downloaded validated, unapproved draft.'});
-document.getElementById('clear-plan').addEventListener('click',()=>{planForm.reset();planSource.value='';downloadPlan.disabled=true;planEditor.hidden=true;commands.hidden=true;planEmpty.hidden=false;planOpenStatus.textContent='Plan cleared. Ready for a local recipe.';recipe.focus()});
+document.getElementById('clear-plan').addEventListener('click',()=>{planRevision++;pendingControl=false;lastControls=null;planForm.reset();planSource.value='';policyControls.replaceChildren();effectivePolicy.textContent='';policySha.textContent='';downloadPlan.disabled=true;planEditor.hidden=true;commands.hidden=true;inputLocations.hidden=true;document.getElementById('plan-input-form').reset();document.getElementById('plan-input-status').textContent='Choose both inputs explicitly. Run performs record preflight when you submit it.';planEmpty.hidden=false;planOpenStatus.textContent='Plan cleared. Ready for a local recipe.';recipe.focus()});
 const runForm=document.getElementById('run-form'),runStatus=document.getElementById('run-status'),runResult=document.getElementById('run-result'),runEvidence=document.getElementById('run-evidence'),runOutcome=document.getElementById('run-outcome'),startRun=document.getElementById('start-run'),cancelRun=document.getElementById('cancel-run');let cancelRequested=false;
 runForm.addEventListener('submit',async event=>{event.preventDefault();cancelRequested=false;startRun.disabled=true;cancelRun.disabled=false;runStatus.textContent='Preflighting inputs...';runEvidence.replaceChildren();const labels={preflight:'Preflighting inputs...',comparing:'Comparing records...',publishing:'Publishing immutable evidence...',verifying:'Verifying the published bundle...',cataloging:'Registering local history...',cancelling:'Stopping safely...'};const progress=setInterval(async()=>{try{const response=await post('/api/run-status',{});if(response.ok){const phase=(await response.json()).phase;if(labels[phase])runStatus.textContent=labels[phase]}}catch(error){}},500);try{const response=await post('/api/run',{recipe:document.getElementById('run-recipe').value,baseline:document.getElementById('baseline').value,candidate:document.getElementById('candidate').value,output:document.getElementById('output').value});if(!response.ok){runStatus.textContent=cancelRequested?'Run cancelled. No partial bundle was published.':response.status===409?'Another run is already active.':'Run was rejected. Check the plan, inputs, output path, and resource limits.';runResult.hidden=true;return}const executed=await response.json(),evidence=executed.evidence;runOutcome.textContent=evidence.outcome;runOutcome.className='outcome '+(evidence.outcome==='PASS'?'pass':'other');rows(evidence,'',runEvidence);runResult.hidden=false;runStatus.textContent='Run completed, published, verified, and registered in local history.'}catch(error){runStatus.textContent='Run connection failed.'}finally{clearInterval(progress);startRun.disabled=false;cancelRun.disabled=true}});
 cancelRun.addEventListener('click',async()=>{cancelRun.disabled=true;cancelRequested=true;runStatus.textContent='Cancellation requested. Waiting for the current input operation to stop safely...';const response=await post('/api/cancel-run',{});if(!response.ok){cancelRequested=false;runStatus.textContent='The run completed before cancellation could be applied.'}});
 const historyBody=document.getElementById('history-body'),historyStatus=document.getElementById('history-status');document.getElementById('refresh-history').addEventListener('click',async()=>{historyStatus.textContent='Verifying cataloged runs...';historyBody.replaceChildren();const response=await post('/api/history',{});if(!response.ok){historyStatus.textContent='History could not be verified.';return}const runs=await response.json();runs.forEach(run=>{const row=document.createElement('tr');[run.bundle,run.outcome,run.state,run.bundle_sha256].forEach(value=>{const cell=document.createElement('td');cell.textContent=value;row.append(cell)});historyBody.append(row)});historyStatus.textContent=runs.length?runs.length+' run(s) loaded.':'No Workbench runs are registered yet.'});
 const investigateForm=document.getElementById('investigate-form'),investigateStatus=document.getElementById('investigate-status'),investigateResult=document.getElementById('investigate-result'),investigateBody=document.getElementById('investigate-body');investigateForm.addEventListener('submit',async event=>{event.preventDefault();investigateStatus.textContent='Verifying evidence and grouping discrepancies...';investigateBody.replaceChildren();const response=await post('/api/investigate',{bundle:document.getElementById('investigate-bundle').value});if(!response.ok){investigateStatus.textContent='Investigation rejected. Select a verified run bundle inside this workspace.';investigateResult.hidden=true;return}const analysis=await response.json(),nonzero=analysis.groups.filter(group=>group.count>0).length;rows(analysis,'',investigateBody);investigateResult.hidden=false;investigateStatus.textContent=nonzero?nonzero+' nonzero discrepancy group(s) loaded.':'The run has no discrepancies.'});
 const compareForm=document.getElementById('compare-form'),compareStatus=document.getElementById('compare-status'),compareResult=document.getElementById('compare-result'),compareBody=document.getElementById('compare-body');compareForm.addEventListener('submit',async event=>{event.preventDefault();compareStatus.textContent='Verifying and comparing cataloged runs...';compareBody.replaceChildren();const response=await post('/api/compare',{left:document.getElementById('left-bundle').value,right:document.getElementById('right-bundle').value});if(!response.ok){compareStatus.textContent='Comparison rejected. Both runs must be current, cataloged, and use the exact same policy.';compareResult.hidden=true;return}const comparison=await response.json();rows(comparison,'',compareBody);compareResult.hidden=false;compareStatus.textContent=comparison.changed?'Rehearsal evidence changed. Review the fields below.':'No summary-safe evidence fields changed.'});
-</script></body></html>""".encode()
+__PLAN_CONTROLS__
+</script></body></html>""".replace("__PLAN_CONTROLS__", PLAN_CONTROLS_SCRIPT).encode()

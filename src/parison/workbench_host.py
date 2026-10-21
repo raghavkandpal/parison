@@ -13,7 +13,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .core import ParisonError
-from .inputs import _source_path
+from .inputs import _source_path, _source_paths
 from .workbench import (
     compare_projection,
     execute_run,
@@ -24,6 +24,7 @@ from .workbench import (
     workbench_projection,
 )
 from .workbench_page import PAGE
+from .workbench_plans import edit_plan, plan_controls
 
 _MAX_REQUEST_BYTES = 262_144
 _MAX_REQUEST_THREADS = 8
@@ -271,6 +272,32 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 try:
                     payload = plan_text_projection(source)
                 except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/plan-controls" and set(request) == {"source"}:
+                try:
+                    if not isinstance(request["source"], str):
+                        raise ParisonError("source must be JSON text")
+                    payload = {"controls": plan_controls(request["source"])}
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/edit-plan" and set(request) == {"source", "path", "operation", "value"}:
+                try:
+                    if not isinstance(request["source"], str):
+                        raise ParisonError("source must be JSON text")
+                    payload = edit_plan(**request)
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/plan-inputs" and set(request) == {"baseline", "candidate"}:
+                try:
+                    for name in ("baseline", "candidate"):
+                        source = _workspace_source(root, request[name])
+                        if source is None or not all(item.is_file() for item in _source_paths(source)):
+                            raise ParisonError("inputs must exist inside the workspace")
+                    payload = dict(request)
+                except (ParisonError, OSError, ValueError):
                     self._headers(422, "application/json")
                     return
             elif path == "/api/evidence" and set(request) == {"bundle"}:
