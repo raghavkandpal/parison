@@ -167,6 +167,10 @@
   for modified or missing cataloged bundles; a scoped current-integrity fix is
   under qualification. See the
   [Compare integrity checkpoint](2.0/216-workbench-compare-integrity.md).
+- Combined Standards review found that stalled local request clients could
+  occupy all handlers and block the accept loop; a scoped bounded-read fix is
+  under qualification. See the
+  [stalled-client checkpoint](2.0/217-workbench-stalled-client-bound.md).
 
 ## Recorded next steps
 

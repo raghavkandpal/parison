@@ -60,6 +60,8 @@ All notable changes will be documented in this file.
 
 ### Fixed
 
+- Bound stalled Workbench request handlers and keep the local accept loop
+  responsive when its eight handler slots are full.
 - Workbench Compare now rejects modified or missing cataloged bundles instead
   of presenting stored summaries as current verified evidence.
 - Workbench Run distinguishes cancellation from a later publication or catalog

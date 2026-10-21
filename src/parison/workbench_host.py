@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import secrets
+import socket
 import subprocess
 import sys
 import threading
@@ -28,6 +29,8 @@ from .workbench_plans import edit_plan, plan_controls
 
 _MAX_REQUEST_BYTES = 262_144
 _MAX_REQUEST_THREADS = 8
+_REQUEST_READ_TIMEOUT_SECONDS = 10
+_REQUEST_INPUT_DEADLINE_SECONDS = 10
 _MACOS_PICKER = 'POSIX path of (choose folder with prompt "Choose a Parison evidence bundle")'
 _MACOS_RECIPE_PICKER = 'POSIX path of (choose file with prompt "Choose a Parison recipe")'
 _WINDOWS_PICKER = (
@@ -132,7 +135,9 @@ class _WorkbenchServer(ThreadingHTTPServer):
         super().__init__(*args, **kwargs)
 
     def process_request(self, request: object, client_address: object) -> None:
-        self._request_slots.acquire()
+        if not self._request_slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
         try:
             super().process_request(request, client_address)
         except BaseException:
@@ -141,6 +146,7 @@ class _WorkbenchServer(ThreadingHTTPServer):
 
     def process_request_thread(self, request: object, client_address: object) -> None:
         try:
+            request.settimeout(_REQUEST_READ_TIMEOUT_SECONDS)
             super().process_request_thread(request, client_address)
         finally:
             self._request_slots.release()
@@ -161,6 +167,24 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
         run_state["phase"] = phase
 
     class Handler(BaseHTTPRequestHandler):
+        def setup(self) -> None:
+            super().setup()
+            self._input_expired = False
+            self._input_deadline = threading.Timer(_REQUEST_INPUT_DEADLINE_SECONDS, self._expire_input)
+            self._input_deadline.daemon = True
+            self._input_deadline.start()
+
+        def finish(self) -> None:
+            self._input_deadline.cancel()
+            super().finish()
+
+        def _expire_input(self) -> None:
+            self._input_expired = True
+            try:
+                self.connection.shutdown(socket.SHUT_RD)
+            except OSError:
+                pass
+
         def _headers(self, status: int, content_type: str) -> None:
             self.send_response(status)
             self.send_header("Content-Type", content_type)
@@ -194,12 +218,18 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
             if not 0 <= size <= _MAX_REQUEST_BYTES:
                 return None
             try:
-                value = json.loads(self.rfile.read(size))
-            except (UnicodeDecodeError, json.JSONDecodeError):
+                body = self.rfile.read(size)
+                if self._input_expired or len(body) != size:
+                    return None
+                value = json.loads(body)
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
                 return None
             return value if isinstance(value, dict) else None
 
         def do_GET(self) -> None:
+            self._input_deadline.cancel()
+            if self._input_expired:
+                return
             expected_host = f"127.0.0.1:{self.server.server_port}"
             if self.headers.get("Host") != expected_host:
                 self._headers(400, "text/plain; charset=utf-8")
@@ -211,10 +241,15 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
             self._headers(404, "text/plain; charset=utf-8")
 
         def do_POST(self) -> None:
+            if self._input_expired:
+                return
             if not self._api_authorized():
                 self._headers(404, "text/plain; charset=utf-8")
                 return
             request = self._request_json()
+            self._input_deadline.cancel()
+            if self._input_expired:
+                return
             if request is None:
                 self._headers(415, "application/json")
                 return
