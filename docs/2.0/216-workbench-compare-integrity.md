@@ -2,7 +2,7 @@
 
 Date: 21 October 2026
 
-Status: **fix under qualification**
+Status: **integrated; independent Spec re-review clear**
 
 The released catalog diff may compare stored summary-safe projections after a
 bundle becomes modified or missing. Workbench Compare promises a current
@@ -13,3 +13,6 @@ open a current bundle in Results for verification.
 
 Regression coverage exercises a modified manifest member and a missing bundle
 after two exact-policy runs have been cataloged. The Workbench rejects both.
+The fix merged through PR #61 at `caf1e6d`; its exact merge passed the
+[quality gate](https://github.com/raghavkandpal/parison/actions/runs/39610651284)
+and [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39610651251).

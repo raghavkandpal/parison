@@ -43,6 +43,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Workbench integration checkpoint](2.0/215-workbench-integration-checkpoint.md)
 - [Workbench Compare integrity gate](2.0/216-workbench-compare-integrity.md)
 - [Workbench stalled-client bound](2.0/217-workbench-stalled-client-bound.md)
+- [Combined Workbench review and usability qualification](2.0/218-workbench-combined-review.md)
 
 ## 1.8 — released
 
