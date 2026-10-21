@@ -161,16 +161,20 @@
 - Combined local `make check` passes 422 tests; fresh rendered inspection
   covered rejected Run inputs, validated Plans controls and explicit shutdown.
   See the [integration checkpoint](2.0/215-workbench-integration-checkpoint.md).
-- Next gate: informed human Plans usability review and fresh independent
-  combined Standards/Spec review before candidate consideration
-- Combined Spec review found that Workbench Compare accepted stored summaries
-  for modified or missing cataloged bundles; a scoped current-integrity fix is
-  under qualification. See the
-  [Compare integrity checkpoint](2.0/216-workbench-compare-integrity.md).
-- Combined Standards review found that stalled local request clients could
-  occupy all handlers and block the accept loop; a scoped bounded-read fix is
-  under qualification. See the
-  [stalled-client checkpoint](2.0/217-workbench-stalled-client-bound.md).
+- Reviewed: an informed participant completed the synthetic Plans usability
+  task, reported no confusing or misleading steps, and confirmed that
+  validation/download do not approve a policy and input handoff does not run
+  it. See the [trial record](../studies/workbench-plans-01/human-trial-01-report.md).
+- Reviewed: independent combined Standards and Spec reviews each found one
+  defect. Compare now rejects modified or missing cataloged bundles (PR #61,
+  merged at `caf1e6d`), and stalled Workbench clients cannot block the accept
+  loop (PR #62, merged at `5bcedf7`). Both reviewers cleared their findings
+  after regression fixes. See the [combined review](2.0/218-workbench-combined-review.md).
+- Verified: exact PR #62 head `2d4b788` passed the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39611398493)
+  on Linux, macOS and Windows with Python 3.11--3.14; combined local
+  `make check` passed 424 tests.
+- Next gate: qualify the exact 2.0 candidate head before release consideration.
 
 ## Recorded next steps
 
