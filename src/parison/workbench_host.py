@@ -282,7 +282,7 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 except ParisonError:
                     self._headers(422, "application/json")
                     return
-            elif path == "/api/edit-plan" and set(request) == {"source", "path", "operation", "value"}:
+            elif path == "/api/edit-plan" and set(request) == {"source", "edits"}:
                 try:
                     if not isinstance(request["source"], str):
                         raise ParisonError("source must be JSON text")

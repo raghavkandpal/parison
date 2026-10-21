@@ -143,8 +143,10 @@
   explicit omitted settings and effective policy display, exact field edits and
   workspace-constrained input handoff. See the
   [Plans controls checkpoint](2.0/212-workbench-plan-controls-checkpoint.md).
-- Next gate: complete Plans interface and unfamiliar-user review, then qualify
-  the exact implementation commit before the combined Workbench review
+- Reviewed: Plans passed independent Standards/Spec source review and a
+  labeled unfamiliar-agent proxy trial with informed in-app browser followup.
+- Next gate: qualify the exact Plans implementation commit, then complete the
+  human usability and combined Workbench release reviews
 
 ## Recorded next steps
 

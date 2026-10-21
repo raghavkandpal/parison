@@ -134,9 +134,7 @@ def plan_controls(source: str) -> dict[str, Any]:
         raise ParisonError("plan controls require bounded finite JSON") from exc
 
 
-def edit_plan(source: str, path: object, operation: object, value: object) -> dict[str, Any]:
-    """Apply one explicit field edit without validating, persisting or executing a draft."""
-    document = _document(source)
+def _edit_field(document: dict, path: object, operation: object, value: object) -> None:
     if (
         not isinstance(path, list)
         or not 1 <= len(path) <= 32
@@ -169,7 +167,21 @@ def edit_plan(source: str, path: object, operation: object, value: object) -> di
                 parent.append(replacement)
             else:
                 parent[key] = replacement
-        edited = json.dumps(document, indent=2, ensure_ascii=True, allow_nan=False) + "\n"
-        return {"source": edited, "controls": plan_controls(edited)}
     except (KeyError, IndexError, TypeError, ValueError, RecursionError) as exc:
         raise ParisonError("invalid plan field edit") from exc
+
+
+def edit_plan(source: str, edits: object) -> dict[str, Any]:
+    """Apply explicit field edits atomically in memory, without validation or persistence."""
+    document = _document(source)
+    if not isinstance(edits, list) or not 1 <= len(edits) <= 128:
+        raise ParisonError("plan edits require 1 to 128 field operations")
+    for edit in edits:
+        if not isinstance(edit, dict) or set(edit) != {"path", "operation", "value"}:
+            raise ParisonError("invalid plan field operation")
+        _edit_field(document, **edit)
+    try:
+        edited = json.dumps(document, indent=2, ensure_ascii=True, allow_nan=False) + "\n"
+    except (ValueError, RecursionError) as exc:
+        raise ParisonError("plan edits require bounded finite JSON") from exc
+    return {"source": edited, "controls": plan_controls(edited)}

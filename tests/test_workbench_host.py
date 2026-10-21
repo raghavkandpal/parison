@@ -214,7 +214,10 @@ class WorkbenchHostTests(unittest.TestCase):
                 connection,
                 server,
                 "/api/edit-plan",
-                {"source": plan["source"], "path": ["scope", "snapshot"], "operation": "set", "value": '"field-edit"'},
+                {
+                    "source": plan["source"],
+                    "edits": [{"path": ["scope", "snapshot"], "operation": "set", "value": '"field-edit"'}],
+                },
             )
             self.assertEqual(response.status, 200)
             self.assertEqual(json.loads(json.loads(response.read())["source"])["scope"]["snapshot"], "field-edit")
@@ -222,7 +225,10 @@ class WorkbenchHostTests(unittest.TestCase):
             for path, request in (
                 ("/api/plan-controls", {"source": []}),
                 ("/api/plan-controls", {"source": "[]"}),
-                ("/api/edit-plan", {"source": plan["source"], "path": [], "operation": [], "value": "null"}),
+                (
+                    "/api/edit-plan",
+                    {"source": plan["source"], "edits": [{"path": [], "operation": [], "value": "null"}]},
+                ),
                 ("/api/plan-inputs", {"baseline": "../outside.csv", "candidate": "candidate.csv"}),
                 ("/api/plan-inputs", {"baseline": "missing.csv", "candidate": "candidate.csv"}),
             ):

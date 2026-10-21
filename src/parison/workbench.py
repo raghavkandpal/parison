@@ -19,7 +19,7 @@ from .comparison import compare
 from .core import ParisonError
 from .evidence import inspect_bundle, publish
 from .inputs import InputCancellation, validate_inputs
-from .policies import explain_recipe, explain_recipe_text, load_recipe
+from .policies import explain_recipe_text, load_recipe
 from .workbench_plans import plan_controls
 
 _COMMON_FIELDS = (
@@ -56,20 +56,11 @@ def workbench_projection(bundle: str | Path) -> dict[str, Any]:
 def plan_projection(recipe: str | Path) -> dict[str, Any]:
     """Validate a recipe and return its exact source plus policy identity."""
     path = Path(recipe)
-    loaded = load_recipe(path)
     try:
         source = path.read_text(encoding="utf-8")
     except OSError as exc:
         raise ParisonError(f"cannot read recipe: {exc}") from exc
-    policy = explain_recipe(path)
-    return {
-        "source": source,
-        "policy_sha256": policy["policy_sha256"],
-        "comparison_mode": loaded["comparison_mode"],
-        "recipe_version": loaded["recipe_version"],
-        **_plan_control_projection(source),
-        "effective_policy": json.dumps(policy, indent=2, ensure_ascii=True),
-    }
+    return {"source": source, **plan_text_projection(source)}
 
 
 def plan_text_projection(source: str) -> dict[str, Any]:
