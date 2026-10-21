@@ -2,18 +2,47 @@ from __future__ import annotations
 
 import http.client
 import json
+import sqlite3
 import tempfile
 import threading
 import unittest
+from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from parison.core import ParisonError, compare, load_recipe, publish
-from parison.workbench_host import _choose_bundle, _choose_recipe, create_workbench_server
+from parison.workbench_host import _choose_bundle, _choose_recipe, _workspace_source, create_workbench_server
+
+try:
+    from openpyxl import Workbook
+except ImportError:
+    Workbook = None
 
 
 class WorkbenchHostTests(unittest.TestCase):
+    def test_structured_sources_preserve_selection_inside_workspace(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            selections = (
+                ("json:data.json#/rows", "json"),
+                ("xml:data.xml#root/row?ns=p,urn%3Atest", "xml"),
+                ("xlsx:data.xlsx#Sheet1!A1:B2", "xlsx"),
+                ("sqlite:data.db#records", "sqlite"),
+            )
+            for locator, prefix in selections:
+                with self.subTest(locator=locator):
+                    self.assertEqual(
+                        _workspace_source(root, locator),
+                        f"{prefix}:{root / locator.split(':', 1)[1].split('#', 1)[0]}#{locator.split('#', 1)[1]}",
+                    )
+                    self.assertIsNone(_workspace_source(root, locator.replace("data.", "../data.")))
+            self.assertEqual(_workspace_source(root, "data.csv"), root / "data.csv")
+            self.assertIsNone(_workspace_source(root, "json:data.json#bad-pointer"))
+            self.assertIsNone(_workspace_source(root, f"sqlite:{root / 'data.db'}#records"))
+            (root / "link.json").symlink_to(root / "data.json")
+            self.assertIsNone(_workspace_source(root, "json:link.json#/rows"))
+
     def _post(self, connection, server, path, body, **headers):
         headers.setdefault("Content-Type", "application/json")
         headers.setdefault("Origin", f"http://127.0.0.1:{server.server_port}")
@@ -211,9 +240,102 @@ class WorkbenchHostTests(unittest.TestCase):
             response = self._post(connection, server, "/api/run", run_request)
             self.assertEqual(response.status, 200)
             response.read()
+            for name in ("baseline", "candidate"):
+                (root / f"{name}.json").write_text(
+                    json.dumps({"rows": [{"private_id": "1", "secret": "hidden"}]}), encoding="utf-8"
+                )
+            json_recipe = json.loads(recipe.read_text(encoding="utf-8"))
+            json_recipe["recipe_version"] = 4
+            json_recipe["input_projection"] = "semantic-scalar-v1"
+            json_recipe["field_projection"] = {"version": 1}
+            for side in ("baseline", "candidate"):
+                json_recipe["field_projection"][side] = {
+                    "kind": "json-pointer-v1",
+                    "fields": {"private_id": "/private_id", "secret": "/secret"},
+                }
+            (root / "json-recipe.json").write_text(json.dumps(json_recipe), encoding="utf-8")
+            json_request = {
+                "recipe": "json-recipe.json",
+                "baseline": "json:baseline.json#/rows",
+                "candidate": "json:candidate.json#/rows",
+                "output": "runs/json",
+            }
+            response = self._post(connection, server, "/api/run", json_request)
+            self.assertEqual(response.status, 200)
+            self.assertEqual(json.loads(response.read())["evidence"]["outcome"], "PASS")
+            direct = compare(
+                root / "json-recipe.json",
+                f"json:{root / 'baseline.json'}#/rows",
+                f"json:{root / 'candidate.json'}#/rows",
+            )
+            self.assertEqual(direct["outcome"], "PASS")
+            publish(root / "runs" / "cli-json", direct, load_recipe(root / "json-recipe.json"))
+            for file in (root / "runs" / "json").iterdir():
+                self.assertEqual(file.read_bytes(), (root / "runs" / "cli-json" / file.name).read_bytes())
+            formats = [
+                ("sqlite", "db", "records"),
+                ("xml", "xml", "root/row"),
+            ]
+            if Workbook:
+                formats.append(("xlsx", "xlsx", "Sheet1!A1:B2"))
+            for kind, suffix, selector in formats:
+                with self.subTest(kind=kind):
+                    for side in ("baseline", "candidate"):
+                        source = root / f"{side}-{kind}.{suffix}"
+                        if kind == "sqlite":
+                            with closing(sqlite3.connect(source)) as database:
+                                database.execute("CREATE TABLE records (private_id TEXT, secret TEXT)")
+                                database.execute("INSERT INTO records VALUES ('1', 'hidden')")
+                                database.commit()
+                        elif kind == "xml":
+                            source.write_text('<root><row private_id="1"><secret>hidden</secret></row></root>')
+                        else:
+                            workbook = Workbook()
+                            workbook.active.title = "Sheet1"
+                            workbook.active.append(["private_id", "secret"])
+                            workbook.active.append(["1", "hidden"])
+                            workbook.save(source)
+                            workbook.close()
+                    format_recipe = json.loads(recipe.read_text(encoding="utf-8"))
+                    if kind in {"xml", "xlsx"}:
+                        format_recipe["input_projection"] = "semantic-scalar-v1"
+                    if kind == "xml":
+                        format_recipe["recipe_version"] = 4
+                        format_recipe["field_projection"] = {"version": 1}
+                        for side in ("baseline", "candidate"):
+                            format_recipe["field_projection"][side] = {
+                                "kind": "xml-field-v1",
+                                "namespaces": {},
+                                "fields": {"private_id": "@private_id", "secret": "secret"},
+                            }
+                    format_recipe_path = root / f"{kind}-recipe.json"
+                    format_recipe_path.write_text(json.dumps(format_recipe), encoding="utf-8")
+                    sources = {side: f"{kind}:{side}-{kind}.{suffix}#{selector}" for side in ("baseline", "candidate")}
+                    direct = compare(
+                        format_recipe_path,
+                        *(
+                            f"{kind}:{root / f'{side}-{kind}.{suffix}'}#{selector}"
+                            for side in ("baseline", "candidate")
+                        ),
+                    )
+                    response = self._post(
+                        connection,
+                        server,
+                        "/api/run",
+                        {"recipe": format_recipe_path.name, **sources, "output": f"runs/{kind}"},
+                    )
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(json.loads(response.read())["evidence"]["outcome"], "PASS")
+                    self.assertEqual(direct["outcome"], "PASS")
+                    publish(root / "runs" / f"cli-{kind}", direct, load_recipe(format_recipe_path))
+                    for file in (root / "runs" / kind).iterdir():
+                        self.assertEqual(file.read_bytes(), (root / "runs" / f"cli-{kind}" / file.name).read_bytes())
             response = self._post(connection, server, "/api/history", {})
             self.assertEqual(response.status, 200)
-            self.assertEqual([run["bundle"] for run in json.loads(response.read())], ["runs/two", "runs/three"])
+            expected = ["runs/two", "runs/three", "runs/json", "runs/sqlite", "runs/xml"]
+            if Workbook:
+                expected.append("runs/xlsx")
+            self.assertEqual([run["bundle"] for run in json.loads(response.read())], expected)
             response = self._post(connection, server, "/api/compare", {"left": "runs/two", "right": "runs/three"})
             self.assertEqual(response.status, 200)
             comparison = json.loads(response.read())

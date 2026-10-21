@@ -13,6 +13,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .core import ParisonError
+from .inputs import _source_path
 from .workbench import (
     compare_projection,
     execute_run,
@@ -56,6 +57,23 @@ def _workspace_path(root: Path, value: object) -> Path | None:
         if current.is_symlink():
             return None
     return candidate
+
+
+def _workspace_source(root: Path, value: object) -> str | Path | None:
+    if not isinstance(value, str):
+        return None
+    prefix, separator, locator = value.partition(":")
+    if separator and prefix in {"sqlite", "xlsx", "json", "xml"}:
+        try:
+            source = _source_path(value)
+        except ParisonError:
+            return None
+        path = _workspace_path(root, str(source))
+        if path is None:
+            return None
+        split = locator.split if prefix == "json" else locator.rsplit
+        return f"{prefix}:{path}#{split('#', 1)[1]}"
+    return _workspace_path(root, value)
 
 
 def _choose_bundle(root: Path) -> str | None:
@@ -266,7 +284,12 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     self._headers(422, "application/json")
                     return
             elif path == "/api/run" and set(request) == {"recipe", "baseline", "candidate", "output"}:
-                paths = [_workspace_path(root, request[name]) for name in ("recipe", "baseline", "candidate", "output")]
+                paths = [
+                    _workspace_path(root, request["recipe"]),
+                    _workspace_source(root, request["baseline"]),
+                    _workspace_source(root, request["candidate"]),
+                    _workspace_path(root, request["output"]),
+                ]
                 if any(item is None for item in paths):
                     self._headers(422, "application/json")
                     return

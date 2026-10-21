@@ -36,6 +36,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Workbench host lifecycle checkpoint](2.0/208-workbench-host-lifecycle-checkpoint.md)
 - [Workbench run, history and investigation contract](2.0/209-workbench-run-history-contract.md)
 - [Workbench state review and next plan](2.0/210-workbench-state-review-and-next-plan.md)
+- [Workbench structured locator fix checkpoint](2.0/211-workbench-structured-locator-fix.md)
 
 ## 1.8 — released
 

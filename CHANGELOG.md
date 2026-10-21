@@ -57,6 +57,8 @@ All notable changes will be documented in this file.
 
 ### Fixed
 
+- Workbench Run now preserves released JSON, XML, XLSX and SQLite source
+  selectors while constraining their file paths to the workspace.
 - Allow the unified Workbench's embedded stylesheet through its restrictive
   Content Security Policy so the report-aligned interface renders correctly.
 - Mark empty Workbench HTTP responses with zero content length so rejected

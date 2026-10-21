@@ -134,9 +134,12 @@
   The [2.0 state review and next plan](2.0/210-workbench-state-review-and-next-plan.md)
   records the Run locator mismatch, remaining Plans gate and current-guide
   drift without treating this evidence as release qualification.
-- Next gate: correct Workbench handling of released structured input locators,
-  complete the remaining Plans feature contract, then finish fresh interface
-  inspection and combined Standards/Spec review before exact-head qualification
+- Implemented locally: Workbench Run resolves released structured input
+  locators inside the workspace while retaining format selectors; focused host
+  tests cover path rejection and a JSON run. Exact-head qualification remains.
+- Next gate: finish exact-head Run locator qualification, then complete the
+  remaining Plans feature contract and fresh interface and combined
+  Standards/Spec review
 
 ## Recorded next steps
 
