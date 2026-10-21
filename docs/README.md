@@ -17,7 +17,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Combined structured-selection qualification](1.9/195-combined-structured-selection-qualification.md)
 - [1.9.0 release checklist](1.9/196-release-checklist.md)
 
-## 2.0 — active workbench development
+## 2.0 — Workbench
 
 - [Verification workbench product research](2.0/194-verification-workbench-product-research.md)
 - [Verification workbench development direction](2.0/195-verification-workbench-development-direction.md)
@@ -44,6 +44,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Workbench Compare integrity gate](2.0/216-workbench-compare-integrity.md)
 - [Workbench stalled-client bound](2.0/217-workbench-stalled-client-bound.md)
 - [Combined Workbench review and usability qualification](2.0/218-workbench-combined-review.md)
+- [2.0.0 release checklist](2.0/219-release-checklist.md)
 
 ## 1.8 — released
 
