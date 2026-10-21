@@ -60,6 +60,8 @@ All notable changes will be documented in this file.
 
 ### Fixed
 
+- Workbench Compare now rejects modified or missing cataloged bundles instead
+  of presenting stored summaries as current verified evidence.
 - Workbench Run distinguishes cancellation from a later publication or catalog
   failure and directs users to verify any output before reusing its path.
 - Separate the released 1.9 installation guide from the unreleased 2.0
