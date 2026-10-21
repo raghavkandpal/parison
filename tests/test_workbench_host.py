@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import http.client
 import json
+import socket
 import sqlite3
 import tempfile
 import threading
+import time
 import unittest
 from contextlib import closing
 from pathlib import Path
@@ -21,6 +23,85 @@ except ImportError:
 
 
 class WorkbenchHostTests(unittest.TestCase):
+    def test_stalled_clients_cannot_hold_accept_loop_or_slots_forever(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch("parison.workbench_host._REQUEST_READ_TIMEOUT_SECONDS", 1),
+            patch("parison.workbench_host._REQUEST_INPUT_DEADLINE_SECONDS", 1),
+        ):
+            server, _ = create_workbench_server(directory, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            clients = []
+            try:
+                for _ in range(8):
+                    client = socket.create_connection(server.server_address)
+                    client.sendall(b"POST /api/session HTTP/1.1\r\n")
+                    clients.append(client)
+                deadline = time.monotonic() + 1
+                while server._request_slots._value and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertEqual(server._request_slots._value, 0)
+
+                extra = socket.create_connection(server.server_address, timeout=0.5)
+                try:
+                    extra.sendall(b"GET / HTTP/1.1\r\n\r\n")
+                    try:
+                        self.assertEqual(extra.recv(1), b"")
+                    except ConnectionResetError:
+                        pass
+                finally:
+                    extra.close()
+
+                for _ in range(12):
+                    for client in clients:
+                        try:
+                            client.sendall(b"x")
+                        except OSError:
+                            pass
+                    time.sleep(0.12)
+                deadline = time.monotonic() + 1
+                while server._request_slots._value != 8 and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertEqual(server._request_slots._value, 8)
+            finally:
+                for client in clients:
+                    client.close()
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
+    def test_input_deadline_does_not_interrupt_accepted_run(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch("parison.workbench_host._REQUEST_INPUT_DEADLINE_SECONDS", 0.1),
+        ):
+            server, _ = create_workbench_server(directory, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with patch("parison.workbench_host.execute_run") as execute:
+
+                    def complete_run(*args, **kwargs):
+                        time.sleep(0.2)
+                        return {"evidence": {"outcome": "PASS"}, "catalog_status": "added"}
+
+                    execute.side_effect = complete_run
+                    connection = http.client.HTTPConnection(*server.server_address)
+                    response = self._post(
+                        connection,
+                        server,
+                        "/api/run",
+                        {"recipe": "recipe.json", "baseline": "left.csv", "candidate": "right.csv", "output": "run"},
+                    )
+                    self.assertEqual(response.status, 200)
+                    response.read()
+                    connection.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
     def test_structured_sources_preserve_selection_inside_workspace(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
