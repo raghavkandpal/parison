@@ -137,9 +137,9 @@
 - Implemented locally: Workbench Run resolves released structured input
   locators inside the workspace while retaining format selectors; focused host
   tests cover path rejection and a JSON run. Exact-head qualification remains.
-- Next gate: finish cross-format Run locator execution and exact-head
-  qualification, then complete the remaining Plans feature contract and fresh
-  interface and combined Standards/Spec review
+- Next gate: finish exact-head Run locator qualification, then complete the
+  remaining Plans feature contract and fresh interface and combined
+  Standards/Spec review
 
 ## Recorded next steps
 

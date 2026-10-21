@@ -2,15 +2,22 @@ from __future__ import annotations
 
 import http.client
 import json
+import sqlite3
 import tempfile
 import threading
 import unittest
+from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from parison.core import ParisonError, compare, load_recipe, publish
 from parison.workbench_host import _choose_bundle, _choose_recipe, _workspace_source, create_workbench_server
+
+try:
+    from openpyxl import Workbook
+except ImportError:
+    Workbook = None
 
 
 class WorkbenchHostTests(unittest.TestCase):
@@ -265,11 +272,69 @@ class WorkbenchHostTests(unittest.TestCase):
             publish(root / "runs" / "cli-json", direct, load_recipe(root / "json-recipe.json"))
             for file in (root / "runs" / "json").iterdir():
                 self.assertEqual(file.read_bytes(), (root / "runs" / "cli-json" / file.name).read_bytes())
+            formats = [
+                ("sqlite", "db", "records"),
+                ("xml", "xml", "root/row"),
+            ]
+            if Workbook:
+                formats.append(("xlsx", "xlsx", "Sheet1!A1:B2"))
+            for kind, suffix, selector in formats:
+                with self.subTest(kind=kind):
+                    for side in ("baseline", "candidate"):
+                        source = root / f"{side}-{kind}.{suffix}"
+                        if kind == "sqlite":
+                            with closing(sqlite3.connect(source)) as database:
+                                database.execute("CREATE TABLE records (private_id TEXT, secret TEXT)")
+                                database.execute("INSERT INTO records VALUES ('1', 'hidden')")
+                                database.commit()
+                        elif kind == "xml":
+                            source.write_text('<root><row private_id="1"><secret>hidden</secret></row></root>')
+                        else:
+                            workbook = Workbook()
+                            workbook.active.append(["private_id", "secret"])
+                            workbook.active.append(["1", "hidden"])
+                            workbook.save(source)
+                            workbook.close()
+                    format_recipe = json.loads(recipe.read_text(encoding="utf-8"))
+                    if kind in {"xml", "xlsx"}:
+                        format_recipe["input_projection"] = "semantic-scalar-v1"
+                    if kind == "xml":
+                        format_recipe["recipe_version"] = 4
+                        format_recipe["field_projection"] = {"version": 1}
+                        for side in ("baseline", "candidate"):
+                            format_recipe["field_projection"][side] = {
+                                "kind": "xml-field-v1",
+                                "namespaces": {},
+                                "fields": {"private_id": "@private_id", "secret": "secret"},
+                            }
+                    format_recipe_path = root / f"{kind}-recipe.json"
+                    format_recipe_path.write_text(json.dumps(format_recipe), encoding="utf-8")
+                    sources = {side: f"{kind}:{side}-{kind}.{suffix}#{selector}" for side in ("baseline", "candidate")}
+                    response = self._post(
+                        connection,
+                        server,
+                        "/api/run",
+                        {"recipe": format_recipe_path.name, **sources, "output": f"runs/{kind}"},
+                    )
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(json.loads(response.read())["evidence"]["outcome"], "PASS")
+                    direct = compare(
+                        format_recipe_path,
+                        *(
+                            f"{kind}:{root / f'{side}-{kind}.{suffix}'}#{selector}"
+                            for side in ("baseline", "candidate")
+                        ),
+                    )
+                    self.assertEqual(direct["outcome"], "PASS")
+                    publish(root / "runs" / f"cli-{kind}", direct, load_recipe(format_recipe_path))
+                    for file in (root / "runs" / kind).iterdir():
+                        self.assertEqual(file.read_bytes(), (root / "runs" / f"cli-{kind}" / file.name).read_bytes())
             response = self._post(connection, server, "/api/history", {})
             self.assertEqual(response.status, 200)
-            self.assertEqual(
-                [run["bundle"] for run in json.loads(response.read())], ["runs/two", "runs/three", "runs/json"]
-            )
+            expected = ["runs/two", "runs/three", "runs/json", "runs/sqlite", "runs/xml"]
+            if Workbook:
+                expected.append("runs/xlsx")
+            self.assertEqual([run["bundle"] for run in json.loads(response.read())], expected)
             response = self._post(connection, server, "/api/compare", {"left": "runs/two", "right": "runs/three"})
             self.assertEqual(response.status, 200)
             comparison = json.loads(response.read())
