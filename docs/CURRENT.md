@@ -154,6 +154,10 @@
   and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39605728982).
 - Next gate: complete human usability and combined Workbench release reviews;
   reconcile the development guide before candidate consideration
+- Found in combined review: Run could label a post-publication failure as
+  cancellation after a late cancellation request and claim no bundle existed.
+  The scoped fix is in qualification; see the
+  [post-publication status checkpoint](2.0/214-workbench-postpublication-status.md).
 
 ## Recorded next steps
 

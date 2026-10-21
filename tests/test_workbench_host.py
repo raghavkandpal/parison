@@ -125,6 +125,30 @@ class WorkbenchHostTests(unittest.TestCase):
                 self.assertEqual(json.loads(response.read()), {"status": "cancellation-requested"})
                 run_thread.join(timeout=2)
             self.assertEqual(run_status, [422])
+            response = self._post(connection, server, "/api/run-status", {})
+            self.assertEqual(json.loads(response.read()), {"phase": "cancelled"})
+
+            running.clear()
+            run_status.clear()
+
+            def fail_catalog(*args, cancelled, progress, **kwargs):
+                progress("cataloging")
+                running.set()
+                while not cancelled():
+                    running.wait(0.01)
+                raise ParisonError("catalog unavailable")
+
+            with patch("parison.workbench_host.execute_run", side_effect=fail_catalog):
+                run_thread = threading.Thread(target=start_run)
+                run_thread.start()
+                self.assertTrue(running.wait(1))
+                response = self._post(connection, server, "/api/cancel-run", {})
+                self.assertEqual(response.status, 200)
+                response.read()
+                run_thread.join(timeout=2)
+            self.assertEqual(run_status, [422])
+            response = self._post(connection, server, "/api/run-status", {})
+            self.assertEqual(json.loads(response.read()), {"phase": "error"})
 
             response = self._post(connection, server, "/api/shutdown", {})
             self.assertEqual(response.status, 200)

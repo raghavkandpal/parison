@@ -60,6 +60,8 @@ All notable changes will be documented in this file.
 
 ### Fixed
 
+- Workbench Run distinguishes cancellation from a later publication or catalog
+  failure and directs users to verify any output before reusing its path.
 - Separate the released 1.9 installation guide from the unreleased 2.0
   Workbench source-checkout workflow, and describe the unified activities.
 - Workbench Run now preserves released JSON, XML, XLSX and SQLite source
