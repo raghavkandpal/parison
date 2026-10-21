@@ -19,6 +19,7 @@ from parison.workbench import (
     publish_plan_builder,
     publish_workbench,
     render_workbench,
+    workbench_projection,
 )
 
 
@@ -186,6 +187,23 @@ class WorkbenchTests(unittest.TestCase):
                 cancelled=lambda: True,
             )
         self.assertFalse(output.exists())
+
+    def test_catalog_failure_preserves_verified_bundle_for_results(self):
+        output = self.root / "runs" / "uncataloged"
+        phases = []
+        with patch("parison.workbench.catalog_add", side_effect=ParisonError("catalog unavailable")):
+            with self.assertRaisesRegex(ParisonError, "catalog unavailable"):
+                execute_run(
+                    self.root,
+                    self.root / "recipe.json",
+                    self.root / "secret-baseline.csv",
+                    self.root / "secret-candidate.csv",
+                    output,
+                    progress=phases.append,
+                )
+        self.assertEqual(phases[-2:], ["verifying", "cataloging"])
+        self.assertEqual(workbench_projection(output)["outcome"], "PASS")
+        self.assertEqual(history_projection(self.root), [])
         self.assertEqual(history_projection(self.root), [])
 
 

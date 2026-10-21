@@ -13,5 +13,6 @@ exception receives the `cancelled` phase. The output remains immutable and
 is not silently removed or registered after a failure.
 
 The regression gate covers cancellation during comparison, cancellation
-requested during a simulated catalog failure, and the browser's failure copy.
+requested during a simulated catalog failure, an actual published and verified
+bundle left outside history when cataloging fails, and the browser's failure copy.
 It leaves recipe, bundle, exit-code and CLI contracts unchanged.
