@@ -326,8 +326,8 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 try:
                     run_cancel.clear()
                     payload = execute_run(root, *paths, cancelled=run_cancel.is_set, progress=set_run_phase)
-                except ParisonError:
-                    set_run_phase("cancelled" if run_cancel.is_set() else "error")
+                except ParisonError as exc:
+                    set_run_phase("cancelled" if str(exc) == "workbench run cancelled" else "error")
                     self._headers(422, "application/json")
                     return
                 finally:

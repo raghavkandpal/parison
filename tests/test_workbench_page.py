@@ -54,6 +54,8 @@ async function scenario(change,stage){
         self.assertIn("tbody th{width:34%}", page)
         self.assertIn("#history-view table{table-layout:fixed}", page)
         self.assertNotIn("}th{width:34%", page)
+        self.assertNotIn("No partial bundle was published", page)
+        self.assertIn("Check the output location in Results before reusing it", page)
         for activity in ("run", "history", "investigate", "compare"):
             self.assertIn(f'data-view="{activity}"', page)
             self.assertIn(f'id="{activity}-view"', page)
