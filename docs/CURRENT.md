@@ -163,6 +163,10 @@
   See the [integration checkpoint](2.0/215-workbench-integration-checkpoint.md).
 - Next gate: informed human Plans usability review and fresh independent
   combined Standards/Spec review before candidate consideration
+- Combined Spec review found that Workbench Compare accepted stored summaries
+  for modified or missing cataloged bundles; a scoped current-integrity fix is
+  under qualification. See the
+  [Compare integrity checkpoint](2.0/216-workbench-compare-integrity.md).
 
 ## Recorded next steps
 

@@ -141,6 +141,8 @@ def compare_projection(workspace: str | Path, left: str | Path, right: str | Pat
     """Return a same-policy summary-safe catalog comparison with relative bundle names."""
     root = Path(workspace).resolve()
     comparison = catalog_diff(_catalog_path(root), left, right)
+    if any(comparison[side]["state"] != "current" for side in ("left", "right")):
+        raise ParisonError("workbench comparison requires current bundle integrity")
     for side in ("left", "right"):
         comparison[side]["bundle"] = str(Path(comparison[side].pop("path")).resolve().relative_to(root))
     return comparison

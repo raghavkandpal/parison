@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import json
 import re
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -168,6 +169,12 @@ class WorkbenchTests(unittest.TestCase):
         )
         for secret in ("secret-baseline.csv", "secret-candidate.csv", "private_id", "do-not-render", str(self.root)):
             self.assertNotIn(secret, encoded)
+        (second / "result.json").write_text("{}", encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "requires current bundle integrity"):
+            compare_projection(self.root, first, second)
+        shutil.rmtree(second)
+        with self.assertRaisesRegex(ParisonError, "requires current bundle integrity"):
+            compare_projection(self.root, first, second)
 
     def test_rejects_symlinked_workbench_catalog(self):
         with tempfile.TemporaryDirectory() as outside:

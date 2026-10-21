@@ -41,6 +41,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Workbench guide reconciliation](2.0/213-workbench-guide-reconciliation.md)
 - [Workbench post-publication status](2.0/214-workbench-postpublication-status.md)
 - [Workbench integration checkpoint](2.0/215-workbench-integration-checkpoint.md)
+- [Workbench Compare integrity gate](2.0/216-workbench-compare-integrity.md)
 
 ## 1.8 — released
 
