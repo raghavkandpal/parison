@@ -38,6 +38,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Workbench state review and next plan](2.0/210-workbench-state-review-and-next-plan.md)
 - [Workbench structured locator fix checkpoint](2.0/211-workbench-structured-locator-fix.md)
 - [Workbench schema controls and input handoff](2.0/212-workbench-plan-controls-checkpoint.md)
+- [Workbench guide reconciliation](2.0/213-workbench-guide-reconciliation.md)
 
 ## 1.8 — released
 

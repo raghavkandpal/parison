@@ -60,6 +60,8 @@ All notable changes will be documented in this file.
 
 ### Fixed
 
+- Separate the released 1.9 installation guide from the unreleased 2.0
+  Workbench source-checkout workflow, and describe the unified activities.
 - Workbench Run now preserves released JSON, XML, XLSX and SQLite source
   selectors while constraining their file paths to the workspace.
 - Allow the unified Workbench's embedded stylesheet through its restrictive

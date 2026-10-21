@@ -32,7 +32,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **1.8.0 released.** Explicit RFC 6901 JSON document projection, bounded QName XML record projection and exact XLSX named-table projection feed the released semantic-scalar boundary without changing comparison or evidence semantics.
 
-**1.9.0 released; 2.0 development active.** Structured JSON, XML and XLSX field selection is released. Parison Workbench now generates deterministic local evidence and plan-review applications directly from the Python package; plans remain explicit CLI-native JSON and drafts remain unapproved.
+**1.9.0 released; 2.0 development active.** Structured JSON, XML and XLSX field selection is released. The source checkout contains one local Workbench with Plans, Run, Results, History, Investigate and Compare activities. Workbench is not in the 1.9.0 wheel; plans remain explicit CLI-native JSON and drafts remain unapproved.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 
@@ -56,7 +56,7 @@ Start a new local migration check with `parison init migration-check`. The comma
 
 ```sh
 python -m pip install \
-  https://github.com/raghavkandpal/parison/releases/download/1.8.0/parison-1.8.0-py3-none-any.whl
+  https://github.com/raghavkandpal/parison/releases/download/1.9.0/parison-1.9.0-py3-none-any.whl
 parison --version
 parison validate-recipe examples/orders.recipe.json
 parison validate-inputs --recipe examples/orders.recipe.json \
@@ -68,16 +68,24 @@ parison compare --recipe examples/orders.recipe.json \
 parison verify runs/orders-example
 parison verify runs/orders-example --json
 parison inspect runs/orders-example
+```
+
+To try the unreleased 2.0 Workbench from a source checkout, install that
+checkout and launch it against an explicit local workspace:
+
+```sh
+python3.11 -m pip install -e .
 parison workbench --workspace .
 ```
 
-Workbench opens one local application. In **Plans**, open an existing recipe by
-workspace-relative path or with **Choose file** on macOS or Windows to review
-its exact JSON and effective policy identity. Edited text must pass
-authoritative Python validation before it can be downloaded as an explicitly
-unapproved draft. In **Results**, open a complete bundle folder—not
-its individual `result.json` file—to verify and view summary-safe evidence.
-Opening Workbench never starts a comparison.
+Workbench opens one local application. **Plans** loads an existing recipe,
+shows schema-derived controls and the effective policy, and exports validated
+edits as an explicitly unapproved JSON draft. **Run** requires an explicit
+recipe, baseline, candidate and new output location; it preflights, compares,
+verifies and catalogs one run. **Results** verifies a complete bundle folder
+before displaying summary-safe evidence. **History**, **Investigate** and
+**Compare** use verified runs and require an exact policy match for comparison.
+Opening Workbench never starts a run. See the [2.0 Workbench contracts](docs/README.md#20--active-workbench-development) for the development interface and limits.
 
 `draft-recipe` inspects both inputs and writes a valid starting recipe with suggested keys, data types, scope metadata and exclusion rationales. Review every suggestion, then use `validate-recipe` as the structural gate. See the [recipe draft contract and workflow](docs/0.2/22-recipe-draft-contract.md).
 
@@ -87,7 +95,7 @@ Recipes can map renamed source columns to one canonical field. Keys, policies, c
 
 A generated PASS bundle is checked in under [`examples/output`](examples/output), containing [`result.json`](examples/output/result.json), [`effective-recipe.json`](examples/output/effective-recipe.json), [`report.html`](examples/output/report.html), and [`manifest.json`](examples/output/manifest.json). It is summary-only and contains no source keys or raw values.
 
-To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/1.8.0/parison-1.8.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md), explicit [JSON document record arrays](docs/1.8/178-json-document-projection-contract.md), bounded [XML record paths](docs/1.8/180-xml-record-projection-contract.md), and read-only [SQLite tables](docs/0.2/24-sqlite-contract.md) are supported, including mixed-format comparisons. Install `"parison[xlsx] @ https://github.com/raghavkandpal/parison/releases/download/1.8.0/parison-1.8.0-py3-none-any.whl"` and use an explicit rectangle such as `'xlsx:export.xlsx#Sheet1!A1:F1000'` or exact table selector such as `'xlsx:export.xlsx#table=Orders'`; formulas, implicit selection and partitioned workbook directories are rejected by the [XLSX values](docs/1.6/170-xlsx-values-projection-contract.md) and [named-table](docs/1.8/183-xlsx-named-table-projection-contract.md) contracts. Recipes are strict JSON; YAML and a local UI are intentionally deferred. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars version without recording hostnames.
+To compare Parquet files, install `"parison[parquet] @ https://github.com/raghavkandpal/parison/releases/download/1.9.0/parison-1.9.0-py3-none-any.whl"`. Local [JSON Lines](docs/0.2/23-json-lines-contract.md), explicit [JSON document record arrays](docs/1.8/178-json-document-projection-contract.md), bounded [XML record paths](docs/1.8/180-xml-record-projection-contract.md), and read-only [SQLite tables](docs/0.2/24-sqlite-contract.md) are supported, including mixed-format comparisons. Install `"parison[xlsx] @ https://github.com/raghavkandpal/parison/releases/download/1.9.0/parison-1.9.0-py3-none-any.whl"` and use an explicit rectangle such as `'xlsx:export.xlsx#Sheet1!A1:F1000'` or exact table selector such as `'xlsx:export.xlsx#table=Orders'`; formulas, implicit selection and partitioned workbook directories are rejected by the [XLSX values](docs/1.6/170-xlsx-values-projection-contract.md) and [named-table](docs/1.8/183-xlsx-named-table-projection-contract.md) contracts. Recipes are strict JSON; YAML is intentionally deferred. The unreleased 2.0 source checkout includes a local Workbench. Exit codes are `0` PASS, `1` FAIL, `2` ERROR, `3` INCONCLUSIVE and `130` interrupted. A completed run directory contains the effective recipe, canonical result JSON, self-contained HTML report and integrity manifest. Results record the semantic contract plus Python, platform, package and optional Polars version without recording hostnames.
 
 A baseline or candidate may also be a directory of same-format CSV, TSV, JSON Lines or Parquet files. Parison treats its immediate files as one logical input and enforces limits, schemas and identity across partitions. See the [partitioned-input contract](docs/0.3/30-partitioned-input-contract.md).
 
