@@ -145,8 +145,12 @@
   [Plans controls checkpoint](2.0/212-workbench-plan-controls-checkpoint.md).
 - Reviewed: Plans passed independent Standards/Spec source review and a
   labeled unfamiliar-agent proxy trial with informed in-app browser followup.
-- Next gate: qualify the exact Plans implementation commit, then complete the
-  human usability and combined Workbench release reviews
+- Verified: exact Plans implementation `77b05ab` passed the full
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39570203040)
+  and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39570191438).
+  [PR #57](https://github.com/raghavkandpal/parison/pull/57) awaits integration.
+- Next gate: integrate the reviewed Plans feature, then complete the human
+  usability and combined Workbench release reviews
 
 ## Recorded next steps
 

@@ -2,7 +2,7 @@
 
 Date: 21 October 2026
 
-Status: **implemented and source-reviewed; exact-commit CI pending**
+Status: **implementation qualified at `77b05ab`; human and combined release reviews remain**
 
 Plans derives controls from the installed recipe schemas for versions 1--6.
 Objects, named policy maps, ordered arrays, booleans, constrained choices,
@@ -57,6 +57,11 @@ horizontal overflow. An explicitly labeled
 [unfamiliar-agent proxy trial](../../studies/workbench-plans-01/agent-trial-01-report.md)
 completed the task and identified picker, wording and interaction corrections.
 Independent Standards/Spec review cleared the implementation after those
-corrections. Exact-commit built-wheel CI remains to qualify the final head.
+corrections. Exact implementation commit
+`77b05abbe16e87ef55d114f272f4b9906883a01b` passed the complete
+[built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39570203040)
+on Python 3.11--3.14 with macOS and Windows smoke, and the
+[quality gate](https://github.com/raghavkandpal/parison/actions/runs/39570191438).
+Integration is tracked in [PR #57](https://github.com/raghavkandpal/parison/pull/57).
 Proxy evidence does not establish human usability or policy approval; a human
 review of the full Plans workflow remains part of the release gate.
