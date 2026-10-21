@@ -291,6 +291,7 @@ class WorkbenchHostTests(unittest.TestCase):
                             source.write_text('<root><row private_id="1"><secret>hidden</secret></row></root>')
                         else:
                             workbook = Workbook()
+                            workbook.active.title = "Sheet1"
                             workbook.active.append(["private_id", "secret"])
                             workbook.active.append(["1", "hidden"])
                             workbook.save(source)
@@ -310,6 +311,13 @@ class WorkbenchHostTests(unittest.TestCase):
                     format_recipe_path = root / f"{kind}-recipe.json"
                     format_recipe_path.write_text(json.dumps(format_recipe), encoding="utf-8")
                     sources = {side: f"{kind}:{side}-{kind}.{suffix}#{selector}" for side in ("baseline", "candidate")}
+                    direct = compare(
+                        format_recipe_path,
+                        *(
+                            f"{kind}:{root / f'{side}-{kind}.{suffix}'}#{selector}"
+                            for side in ("baseline", "candidate")
+                        ),
+                    )
                     response = self._post(
                         connection,
                         server,
@@ -318,13 +326,6 @@ class WorkbenchHostTests(unittest.TestCase):
                     )
                     self.assertEqual(response.status, 200)
                     self.assertEqual(json.loads(response.read())["evidence"]["outcome"], "PASS")
-                    direct = compare(
-                        format_recipe_path,
-                        *(
-                            f"{kind}:{root / f'{side}-{kind}.{suffix}'}#{selector}"
-                            for side in ("baseline", "candidate")
-                        ),
-                    )
                     self.assertEqual(direct["outcome"], "PASS")
                     publish(root / "runs" / f"cli-{kind}", direct, load_recipe(format_recipe_path))
                     for file in (root / "runs" / kind).iterdir():
