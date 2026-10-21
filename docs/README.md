@@ -35,6 +35,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Workbench UI refinement checkpoint](2.0/207-workbench-ui-refinement-checkpoint.md)
 - [Workbench host lifecycle checkpoint](2.0/208-workbench-host-lifecycle-checkpoint.md)
 - [Workbench run, history and investigation contract](2.0/209-workbench-run-history-contract.md)
+- [Workbench state review and next plan](2.0/210-workbench-state-review-and-next-plan.md)
 
 ## 1.8 — released
 
