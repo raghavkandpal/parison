@@ -40,6 +40,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Workbench schema controls and input handoff](2.0/212-workbench-plan-controls-checkpoint.md)
 - [Workbench guide reconciliation](2.0/213-workbench-guide-reconciliation.md)
 - [Workbench post-publication status](2.0/214-workbench-postpublication-status.md)
+- [Workbench integration checkpoint](2.0/215-workbench-integration-checkpoint.md)
 
 ## 1.8 — released
 

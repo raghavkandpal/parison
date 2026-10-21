@@ -152,12 +152,17 @@
   `be1b872`; its exact merge passed the full
   [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39605729250)
   and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39605728982).
-- Next gate: complete human usability and combined Workbench release reviews;
-  reconcile the development guide before candidate consideration
-- Found in combined review: Run could label a post-publication failure as
-  cancellation after a late cancellation request and claim no bundle existed.
-  The scoped fix is in qualification; see the
-  [post-publication status checkpoint](2.0/214-workbench-postpublication-status.md).
+- Verified: README now separates the released 1.9 wheel quickstart from the
+  unreleased source-checkout Workbench, merged through PR #58 at `af16cd5`.
+- Verified: Run now reports post-publication and catalog failures honestly,
+  preserving any verified output for explicit Results inspection. The fix
+  merged through PR #59 at `8d9272e` after exact head `57224cb` passed the
+  complete [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39607547089).
+- Combined local `make check` passes 422 tests; fresh rendered inspection
+  covered rejected Run inputs, validated Plans controls and explicit shutdown.
+  See the [integration checkpoint](2.0/215-workbench-integration-checkpoint.md).
+- Next gate: informed human Plans usability review and fresh independent
+  combined Standards/Spec review before candidate consideration
 
 ## Recorded next steps
 
