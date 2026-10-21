@@ -6,6 +6,9 @@ All notable changes will be documented in this file.
 
 ### Added
 
+- Schema-derived Workbench Plans controls for recipe versions 1--6, including
+  explicit optional settings, effective defaults and workspace-constrained
+  input locations that can be copied to Run without execution.
 - A zero-dependency `parison workbench` command that verifies an existing
   evidence bundle and atomically publishes a deterministic, script-free,
   summary-safe local application, with optional explicit browser launch.
