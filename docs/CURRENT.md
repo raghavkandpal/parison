@@ -127,9 +127,16 @@
   Workbench projection of verified discrepancy groups without paths, field
   names, policy values, record keys or samples. See the
   [run/history contract](2.0/209-workbench-run-history-contract.md).
-- Next gate: complete fresh interface inspection and combined review, pass
-  local `make check`, then push and qualify the exact feature checkpoint in the
-  complete cross-platform built-wheel and quality workflows
+- Reviewed: the unified Workbench code checkpoint `d1ba0a4` passed the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39440174683);
+  the later reviewed head `a37a15d` passed the
+  [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39440995964).
+  The [2.0 state review and next plan](2.0/210-workbench-state-review-and-next-plan.md)
+  records the Run locator mismatch, remaining Plans gate and current-guide
+  drift without treating this evidence as release qualification.
+- Next gate: correct Workbench handling of released structured input locators,
+  complete the remaining Plans feature contract, then finish fresh interface
+  inspection and combined Standards/Spec review before exact-head qualification
 
 ## Recorded next steps
 
