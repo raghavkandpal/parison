@@ -148,9 +148,12 @@
 - Verified: exact Plans implementation `77b05ab` passed the full
   [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39570203040)
   and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39570191438).
-  [PR #57](https://github.com/raghavkandpal/parison/pull/57) awaits integration.
-- Next gate: integrate the reviewed Plans feature, then complete the human
-  usability and combined Workbench release reviews
+  [PR #57](https://github.com/raghavkandpal/parison/pull/57) was integrated at
+  `be1b872`; its exact merge passed the full
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39605729250)
+  and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39605728982).
+- Next gate: complete human usability and combined Workbench release reviews;
+  reconcile the development guide before candidate consideration
 
 ## Recorded next steps
 
