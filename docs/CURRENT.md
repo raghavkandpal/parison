@@ -1,6 +1,6 @@
 # Current development state
 
-- Version: **2.0.0 released**
+- Version: **2.1 Workbench suite train active after 2.0.0**
 - Branch: `develop`
 - Theme: local-first Workbench — verified navigation, explicit plan authoring,
   and bounded local execution as one three-feature train
@@ -180,8 +180,8 @@
   The [public release](https://github.com/raghavkandpal/parison/releases/tag/2.0.0)
   was checksum-verified and its wheel passed a fresh local Workbench smoke;
   see the [release checklist](2.0/219-release-checklist.md).
-- Next gate: review the [proposed 2.1 suite train](2.1/220-workbench-release-train-research-and-plan.md)
-  and begin its first separately qualified feature slice.
+- Next gate: qualify the complete [2.1 Workbench suite train](2.1/220-workbench-release-train-research-and-plan.md)
+  through full tests, rendered review, independent review and exact-head CI.
 
 ## Recorded next steps
 

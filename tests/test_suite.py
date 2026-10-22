@@ -100,6 +100,20 @@ class SuiteTests(unittest.TestCase):
     def case(self, identifier="orders"):
         return {"id": identifier, "recipe": "recipe.json", "baseline": "baseline.csv", "candidate": "candidate.csv"}
 
+    def test_workbench_cancellation_cleans_unpublished_suite(self):
+        self.write_plan_v2([self.case("first"), self.case("second")])
+        output = self.root / "cancelled-run"
+        seen = []
+
+        def progress(completed, total):
+            seen.append((completed, total))
+
+        with self.assertRaisesRegex(ParisonError, "workbench suite cancelled"):
+            run_suite(self.plan, output, cancelled=lambda: bool(seen) and seen[-1][0] >= 1, progress=progress)
+        self.assertEqual(seen, [(0, 2), (1, 2)])
+        self.assertFalse(output.exists())
+        self.assertFalse(list(self.root.glob(".cancelled-run-*")))
+
     def test_schema_and_loader_resolve_references(self):
         schema = load_schema("suite")
         Draft202012Validator.check_schema(schema)

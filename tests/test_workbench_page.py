@@ -53,6 +53,8 @@ async function scenario(change,stage){
         self.assertNotIn("@media(pointer:coarse)", page)
         self.assertIn("tbody th{width:34%}", page)
         self.assertIn("#history-view table{table-layout:fixed}", page)
+        self.assertIn('id="suite-plan-form"', page)
+        self.assertIn("/api/suite-plan", page)
         self.assertNotIn("}th{width:34%", page)
         self.assertNotIn("No partial bundle was published", page)
         self.assertIn("Check the output location in Results before reusing it", page)

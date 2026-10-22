@@ -20,6 +20,7 @@ from .core import ParisonError
 from .evidence import inspect_bundle, publish
 from .inputs import InputCancellation, validate_inputs
 from .policies import explain_recipe_text, load_recipe
+from .suites import run_suite
 from .workbench_plans import plan_controls
 
 _COMMON_FIELDS = (
@@ -120,13 +121,43 @@ def execute_run(
     return {"evidence": projection, "catalog_status": indexed["status"]}
 
 
+def execute_suite_run(
+    workspace: str | Path,
+    plan: str | Path,
+    output: str | Path,
+    case_ids: list[str],
+    tags: list[str],
+    shard_index: int | None,
+    shard_count: int | None,
+    cancelled=None,
+    progress=None,
+) -> dict[str, Any]:
+    """Execute one selected local suite, then verify and catalog its bundle."""
+    run_suite(
+        plan,
+        output,
+        case_ids=case_ids,
+        tags=tags,
+        shard_index=shard_index,
+        shard_count=shard_count,
+        jobs=1,
+        cancelled=cancelled,
+        progress=progress,
+    )
+    projection = workbench_projection(output)
+    indexed = catalog_add(_catalog_path(workspace), output)
+    return {"evidence": projection, "catalog_status": indexed["status"]}
+
+
 def history_projection(workspace: str | Path) -> list[dict[str, Any]]:
     """Return workspace-relative summary-safe history from the local catalog."""
     root = Path(workspace).resolve()
     database = _catalog_path(root)
     if not database.exists():
         return []
-    runs = list_runs(database, kind="run", insertion_order=True)
+    runs = [
+        run for run in list_runs(database, insertion_order=True) if run.get("kind") in {"run", "suite", "suite-shard"}
+    ]
     projected = []
     for run in runs:
         try:
