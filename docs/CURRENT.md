@@ -2,8 +2,8 @@
 
 - Version: **2.1 release train in development after 2.0.0**
 - Branch: `develop`
-- Theme: local-first verification — the Workbench suite workflow is complete;
-  further substantial capabilities are being selected for the 2.1 train
+- Theme: local-first verification — the Workbench suite workflow and repeated
+  suite comparison are complete; failed-member investigation is in progress
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
   record projection and the 1.9 JSON/XML/XLSX structured field-selection train
   across all comparison modes
@@ -188,14 +188,17 @@
   reviewed plans to their selected bytes. [PR #69](https://github.com/raghavkandpal/parison/pull/69)
   merged at `b3c5c69` after its exact head passed the
   [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39780279353).
-- Implemented locally: repeated suite comparison verifies both bundles,
-  enforces identical policy and scope, and presents case-level outcome,
-  completeness, counts and input identity through CLI and Workbench. Exact-head
-  CI and independent review remain before integration.
-- Next gate: qualify [repeated suite comparison](2.1/227-suite-comparison-contract.md)
-  through exact-head CI and independent review, then implement
-  [failed-member investigation](2.1/228-suite-investigation-contract.md)
-  as distinct 2.1 capabilities before restarting candidate qualification.
+- Integrated: repeated suite comparison verifies both bundles, enforces
+  identical policy and scope, and presents case-level outcome, completeness,
+  counts and input identity through CLI and Workbench. [PR #72](https://github.com/raghavkandpal/parison/pull/72)
+  merged at `074c512` after independent reviews and its exact head passed the
+  [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39783092724).
+- In progress: [failed-member investigation](2.1/228-suite-investigation-contract.md)
+  on `feature/suite-member-investigation`. The first implementation commit is
+  `4defcc3`; local `make check` passed 430 tests with 11 optional skips.
+- Next gate: complete hostile-input coverage and independent review for
+  failed-member investigation, push its exact head through full built-wheel
+  CI, and merge its PR to `develop` before restarting 2.1 candidate qualification.
 
 ## Recorded next steps
 

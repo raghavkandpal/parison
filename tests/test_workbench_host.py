@@ -83,10 +83,26 @@ class WorkbenchHostTests(unittest.TestCase):
                     {**request, "output": "raw.json"},
                     {**request, "limit": 101},
                     {**request, "output": "../escape.json"},
+                    {
+                        **request,
+                        "group_id": next(group["group_id"] for group in view["groups"] if not group["count"]),
+                        "output": "empty.json",
+                    },
+                    {**request, "group_id": "0" * 64, "output": "unknown.json"},
+                    {**request, "suite_sha256": "0" * 64, "output": "stale.json"},
                 ):
                     response = self._post(connection, server, "/api/investigate-export", bad)
                     self.assertEqual(response.status, 422)
                     response.read()
+                self.assertFalse((root / "unknown.json").exists())
+                self.assertFalse((root / "empty.json").exists())
+                self.assertFalse((root / "stale.json").exists())
+                (root / "linked.json").symlink_to(root / "raw.json")
+                response = self._post(
+                    connection, server, "/api/investigate-export", {**request, "output": "linked.json"}
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
                 (root / "suite-run" / "cases" / "first" / "result.json").write_text("{}", encoding="utf-8")
                 response = self._post(connection, server, "/api/investigate-suite", select)
                 self.assertEqual(response.status, 422)
