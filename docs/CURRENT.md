@@ -1,9 +1,9 @@
 # Current development state
 
-- Version: **2.1.0 release candidate in qualification**
+- Version: **2.1 release train in development after 2.0.0**
 - Branch: `develop`
-- Theme: local-first Workbench — verified navigation, explicit plan authoring,
-  and bounded local execution as one three-feature train
+- Theme: local-first verification — the Workbench suite workflow is complete;
+  further substantial capabilities are being selected for the 2.1 train
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
   record projection and the 1.9 JSON/XML/XLSX structured field-selection train
   across all comparison modes
@@ -188,8 +188,9 @@
   reviewed plans to their selected bytes. [PR #69](https://github.com/raghavkandpal/parison/pull/69)
   merged at `b3c5c69` after its exact head passed the
   [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39780279353).
-- Next gate: qualify the exact [2.1.0 release candidate](2.1/225-release-checklist.md)
-  through built-wheel CI, clean-archive smoke and release review.
+- Next gate: expand the [2.1 release train](2.1/220-workbench-release-train-research-and-plan.md)
+  into at least three substantial, separately reviewable capabilities before
+  restarting candidate qualification.
 
 ## Recorded next steps
 
