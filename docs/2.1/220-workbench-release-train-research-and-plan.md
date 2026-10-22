@@ -1,7 +1,7 @@
 # 2.1 Workbench release train: suite rehearsal and evidence handoff
 
 Date and source access: 22 October 2026  
-Status: proposed 2.1 contract for review
+Status: revised 2.1 plan; release candidate deferred
 
 ## Decision and evidence
 
@@ -9,7 +9,14 @@ The accepted direction asks each post-1.7 minor release to contain three substan
 
 This selection builds on released semantics. It does not add a new policy engine, alter bundle bytes, or infer extraction truth. PASS continues to mean agreement under an explicit policy. The UI should call shared application services, with the CLI remaining the reproducible automation peer. [Unified interface decision](../2.0/201-unified-workbench-interface-decision.md), [agent contract](../../AGENTS.md).
 
-## Three feature slices
+## Completed integrated capability: suite rehearsal and handoff
+
+The three slices below form one substantial capability for release-cadence
+purposes: a single suite plan flows through execution to portable evidence.
+They were independently testable steps, but are not three distinct release
+features. The [expansion research](226-release-train-expansion-research.md)
+records the scope correction and two further capabilities needed before a
+2.1.0 candidate.
 
 | Slice | User capability | Completion gate |
 | --- | --- | --- |
@@ -17,7 +24,18 @@ This selection builds on released semantics. It does not add a new policy engine
 | **2. Bounded suite rehearsal** | Run the selected suite locally, expose bounded per-member and overall progress, cancel cooperatively, verify the immutable suite bundle, and register a safe history entry. Keep jobs explicit and within reviewed limits. | Exact CLI/Workbench semantic and canonical-byte parity for equivalent suite inputs; failure and cancellation leave no partial published bundle or sensitive staging. Cross-platform tests cover concurrency, interrupted children and resume eligibility if resume is exposed. |
 | **3. Verified handoff** | From a verified suite result, create the existing deterministic unsigned statement and concise cutover report, show their scope and verification state, and export them through explicit local paths. The receiver workflow must still authenticate any external signature and decide whether policy, outcome and completeness suffice. | Workbench-created statement bytes match CLI output; report matches CLI semantics; tampered or missing bundle members block display/export; no signing, approval or cutover action appears. |
 
-Slices 1 and 2 close the Workbench gap identified in the [2.0 guide](../user-guide.md#start-the-unified-workbench), which directs suite users to the CLI. Slice 3 completes the same rehearsal's portable handoff using the already released [statement and report workflow](../0.17/116-evidence-handoff-guide.md). Each slice can be reviewed and pushed independently; one release candidate waits for all three.
+Slices 1 and 2 close the Workbench gap identified in the [2.0 guide](../user-guide.md#start-the-unified-workbench), which directs suite users to the CLI. Slice 3 completes the same rehearsal's portable handoff using the already released [statement and report workflow](../0.17/116-evidence-handoff-guide.md).
+
+## Remaining substantial capabilities
+
+| Feature | User capability | Contract and gate |
+| --- | --- | --- |
+| **2. Repeated suite comparison** | Compare two recursively verified, same-policy suite rehearsals case by case, including outcome and input-identity changes. | [Comparison contract](227-suite-comparison-contract.md): strict scope and policy gate, summary-safe deterministic projection, tamper rejection and CLI/Workbench parity. |
+| **3. Failed-member investigation** | Move from a failed suite to one exact member's verified discrepancy reasons, with an explicit bounded raw-evidence action. | [Investigation contract](228-suite-investigation-contract.md): safe default projection, exact member selection, fresh recursive verification, bounded export and hostile-input tests. |
+
+Each new feature needs its own green pushed checkpoint, independent review,
+full `make check` and user-visible documentation. Candidate qualification
+starts only after all three capabilities are integrated on `develop`.
 
 ## Design consequences
 
@@ -40,4 +58,4 @@ Slices 1 and 2 close the Workbench gap identified in the [2.0 guide](../user-gui
 
 No hosted dashboard, credentials, remote orchestration, scheduling, automatic repairs, signing keys, cutover authorization, statistical drift or new result semantics. Do not count defect fixes or UI polish as one of the three features. [Product direction](../0.15/104-product-direction-and-release-arc.md), [agent contract](../../AGENTS.md).
 
-For each slice: freeze a small user-visible contract, add narrow behavioral and hostile-input tests, pass `make check`, document the capability, push a green feature checkpoint and obtain independent review. Before 2.1 integration, qualify the exact candidate head with the required built-wheel Python 3.11–3.14 Linux/macOS/Windows matrix, then follow the release checklist. These internal gates support product development; they do not approve a user's operational policy or migration. [Agent contract](../../AGENTS.md), [release process](../../RELEASING.md).
+For each capability: freeze a small user-visible contract, add narrow behavioral and hostile-input tests, pass `make check`, document the capability, push a green feature checkpoint and obtain independent review. Before 2.1 release integration, qualify the exact candidate head with the required built-wheel Python 3.11–3.14 Linux/macOS/Windows matrix, then follow the release checklist. These internal gates support product development; they do not approve a user's operational policy or migration. [Agent contract](../../AGENTS.md), [release process](../../RELEASING.md).

@@ -1,9 +1,10 @@
 # Parison 2.1.0 release checklist
 
 Date: 22 October 2026  
-Status: candidate preparation; no 2.1.0 release has been published
+Status: candidate deferred; the suite workflow is one integrated capability
+and the train needs further substantial features before publication
 
-## Capability gate
+## Completed suite workflow
 
 - [x] Workbench validates and displays explicit local suite plans and member
   bindings through the released suite loader. Contract: [suite plan review](221-workbench-suite-plan-contract.md).
@@ -26,7 +27,23 @@ Status: candidate preparation; no 2.1.0 release has been published
 - [x] Fix PR #69 merged to `develop` at `b3c5c69`. Its exact head `52e6744`
   passed the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39780279353).
 
+## Train scope gate
+
+- [ ] Complete at least two more substantial, separately reviewable
+  capabilities. The three Workbench suite slices above form one integrated
+  workflow for this gate; defects, UI polish and release records do not count.
+- [ ] Qualify [repeated suite comparison](227-suite-comparison-contract.md)
+  on a green pushed checkpoint after independent review.
+- [ ] Qualify [failed-member investigation](228-suite-investigation-contract.md)
+  on a green pushed checkpoint after independent review.
+- [ ] Update the train research, contracts, changelog and guide for the full
+  set of capabilities before restoring 2.1.0 candidate status.
+
 ## Candidate qualification
+
+The earlier `1bdef8b` checkpoint passed clean-archive wheel smoke and full CI.
+It is engineering evidence for the suite workflow, not the final 2.1 release
+candidate. Repeat candidate gates on the complete train.
 
 - [x] Local `make check` on the corrected source passed 427 tests, with 11
   optional skips, plus Ruff, generated documentation and diff checks on

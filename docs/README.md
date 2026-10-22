@@ -54,6 +54,9 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Workbench verified suite handoff contract](2.1/223-workbench-handoff-contract.md)
 - [2.1 release qualification research](2.1/224-release-qualification-research.md)
 - [2.1.0 release checklist](2.1/225-release-checklist.md)
+- [2.1 train expansion research](2.1/226-release-train-expansion-research.md)
+- [Repeated suite comparison contract](2.1/227-suite-comparison-contract.md)
+- [Failed suite member investigation contract](2.1/228-suite-investigation-contract.md)
 
 ## 1.8 — released
 
