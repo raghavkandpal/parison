@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import secrets
 import socket
 import subprocess
@@ -82,7 +83,7 @@ def _workspace_source(root: Path, value: object) -> str | Path | None:
 
 
 def _suite_plan(
-    root: Path, value: object, case_ids: object, tags: object, shard_index: object, shard_count: object
+    root: Path, value: object, case_ids: object, tags: object, shard_index: object, shard_count: object, output: object
 ) -> dict:
     """List a suite only after every referenced path is confined to the workspace."""
     plan = _workspace_path(root, value)
@@ -92,6 +93,11 @@ def _suite_plan(
         raise ParisonError("invalid suite selection")
     if any(item is not None and (type(item) is not int) for item in (shard_index, shard_count)):
         raise ParisonError("invalid suite shard selection")
+    if not isinstance(output, str):
+        raise ParisonError("invalid suite output")
+    output_path = _workspace_path(root, output) if output else None
+    if output and (output_path is None or output_path.exists() or output_path.is_symlink()):
+        raise ParisonError("suite output must be a new workspace path")
     try:
         document = json.loads(plan.read_text(encoding="utf-8"))
         cases = document["cases"]
@@ -102,18 +108,24 @@ def _suite_plan(
             for name in ("recipe", "baseline", "candidate"):
                 reference = case[name]
                 path = Path(reference) if name == "recipe" else _source_path(reference)
-                if _workspace_path(root, str(base / path)) is None:
+                absolute = Path(os.path.abspath(root / base / path))
+                relative = absolute.relative_to(root)
+                if _workspace_path(root, str(relative)) is None:
                     raise ValueError
     except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError, ParisonError) as exc:
         raise ParisonError("suite references must stay inside the workspace") from exc
     listed = list_suite(plan, case_ids, tags, shard_index, shard_count)
+    by_id = {case["id"]: case for case in cases}
     return {
         "suite_version": listed["suite_version"],
         "suite_policy_sha256": listed["suite_policy_sha256"],
         "total_cases": listed["total_cases"],
         "selected_cases": listed["selected_cases"],
+        "output": output,
         "cases": [
-            {name: case[name] for name in ("id", "comparison_mode", "tags") if name in case} for case in listed["cases"]
+            {name: case[name] for name in ("id", "comparison_mode", "tags") if name in case}
+            | {name: by_id[case["id"]][name] for name in ("recipe", "baseline", "candidate")}
+            for case in listed["cases"]
         ],
     }
 
@@ -343,6 +355,7 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 "tags",
                 "shard_index",
                 "shard_count",
+                "output",
             }:
                 try:
                     payload = _suite_plan(
@@ -352,6 +365,7 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                         request["tags"],
                         request["shard_index"],
                         request["shard_count"],
+                        request["output"],
                     )
                 except ParisonError:
                     self._headers(422, "application/json")

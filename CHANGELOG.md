@@ -7,8 +7,8 @@ All notable changes will be documented in this file.
 ### Added
 
 - Workbench Plans can validate an existing local suite and review its exact
-  case, tag and shard selection without executing inputs or exposing source
-  paths and values in the browser.
+  case, tag and shard selection, member input references and planned output
+  without executing inputs or exposing record values in the browser.
 
 ## 2.0.0 - 2026-10-22
 

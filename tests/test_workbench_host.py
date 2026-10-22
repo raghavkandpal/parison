@@ -337,18 +337,63 @@ class WorkbenchHostTests(unittest.TestCase):
                     "tags": ["migration"],
                     "shard_index": 0,
                     "shard_count": 1,
+                    "output": "suite-run",
                 },
             )
             self.assertEqual(response.status, 200)
             listed = json.loads(response.read())
-            self.assertEqual(listed["cases"], [{"id": "orders", "comparison_mode": "keyed", "tags": ["migration"]}])
+            self.assertEqual(
+                listed["cases"],
+                [
+                    {
+                        "id": "orders",
+                        "comparison_mode": "keyed",
+                        "tags": ["migration"],
+                        "recipe": "recipe.json",
+                        "baseline": "baseline.csv",
+                        "candidate": "candidate.csv",
+                    }
+                ],
+            )
+            self.assertEqual(listed["output"], "suite-run")
             self.assertNotIn("secret-value-must-not-leak", json.dumps(listed))
             self.assertRegex(listed["suite_policy_sha256"], r"^[0-9a-f]{64}$")
+            (root / "suites").mkdir()
+            nested = root / "suites" / "nested.json"
+            nested.write_text(
+                suite.read_text()
+                .replace('"recipe.json"', '"../recipe.json"')
+                .replace('"baseline.csv"', '"../baseline.csv"')
+                .replace('"candidate.csv"', '"../candidate.csv"'),
+                encoding="utf-8",
+            )
             response = self._post(
                 connection,
                 server,
                 "/api/suite-plan",
-                {"plan": "suite.json", "case_ids": ["missing"], "tags": [], "shard_index": None, "shard_count": None},
+                {
+                    "plan": "suites/nested.json",
+                    "case_ids": [],
+                    "tags": [],
+                    "shard_index": None,
+                    "shard_count": None,
+                    "output": "",
+                },
+            )
+            self.assertEqual(response.status, 200)
+            self.assertEqual(json.loads(response.read())["cases"][0]["recipe"], "../recipe.json")
+            response = self._post(
+                connection,
+                server,
+                "/api/suite-plan",
+                {
+                    "plan": "suite.json",
+                    "case_ids": ["missing"],
+                    "tags": [],
+                    "shard_index": None,
+                    "shard_count": None,
+                    "output": "",
+                },
             )
             self.assertEqual(response.status, 422)
             response.read()
@@ -358,7 +403,14 @@ class WorkbenchHostTests(unittest.TestCase):
                 connection,
                 server,
                 "/api/suite-plan",
-                {"plan": "suite.json", "case_ids": [], "tags": [], "shard_index": None, "shard_count": None},
+                {
+                    "plan": "suite.json",
+                    "case_ids": [],
+                    "tags": [],
+                    "shard_index": None,
+                    "shard_count": None,
+                    "output": "",
+                },
             )
             self.assertEqual(response.status, 422)
             response.read()
@@ -367,7 +419,14 @@ class WorkbenchHostTests(unittest.TestCase):
                 connection,
                 server,
                 "/api/suite-plan",
-                {"plan": "suite.json", "case_ids": [], "tags": [], "shard_index": None, "shard_count": None},
+                {
+                    "plan": "suite.json",
+                    "case_ids": [],
+                    "tags": [],
+                    "shard_index": None,
+                    "shard_count": None,
+                    "output": "",
+                },
             )
             self.assertEqual(response.status, 422)
             response.read()
