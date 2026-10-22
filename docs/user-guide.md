@@ -5,7 +5,8 @@ then produces deterministic evidence that can be verified elsewhere. A `PASS`
 means agreement under that policy. It does not prove extraction truth, approve
 the policy or authorize a cutover.
 
-This is the maintained guide for the current 1.x release line. The
+This is the maintained guide for the released 1.x line and active 2.0
+workbench development. The
 [generated command reference](command-reference.md) lists every option; frozen
 version contracts remain the normative record for artifact semantics.
 
@@ -39,6 +40,33 @@ approve it.
 Keep extraction, credentials, signing and cutover approval outside Parison.
 Use source-owned jobs to materialize coordinated local inputs and retain their
 receipts separately.
+
+## Start the unified Workbench
+
+The active 2.0 interface is one Python-hosted local application. The host binds
+only numeric loopback on an ephemeral port and requires a per-launch capability.
+The application is still under development. Plans reviews CLI-native recipes;
+Run preflights and executes one explicit local comparison; Results verifies a
+bundle before display; History, Investigate and Compare operate only on verified
+summary-safe evidence. Continue to use the released CLI for automation and
+suite execution.
+
+```sh
+parison workbench --workspace .
+```
+
+Stop it with **Stop workbench** in the application or Ctrl-C in the launching
+terminal. Closing the browser tab alone does not stop the local host. The
+earlier generated evidence and plan applications were
+prototypes and are not the 2.0 interface. Their safety contracts are being
+migrated behind this unified host.
+
+Workbench Run accepts workspace-relative paths for the recipe, baseline,
+candidate and a new output bundle. Only one run can be active. Its progress
+states are bounded, and **Cancel run** stops cooperatively while reading inputs;
+no partial bundle is published. If atomic publication has already started, the
+completed bundle is preserved, verified and registered instead of being
+misreported as cancelled.
 
 ## Compare one dataset
 

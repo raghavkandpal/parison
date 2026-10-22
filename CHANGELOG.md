@@ -2,6 +2,79 @@
 
 All notable changes will be documented in this file.
 
+## 2.0.0 - 2026-10-21
+
+### Added
+
+- Schema-derived Workbench Plans controls for recipe versions 1--6, including
+  explicit optional settings, effective defaults and workspace-constrained
+  input locations that can be copied to Run without execution.
+- A zero-dependency `parison workbench` command that verifies an existing
+  evidence bundle and atomically publishes a deterministic, script-free,
+  summary-safe local application, with optional explicit browser launch.
+- An explicit Workbench plan activity that validates an existing recipe with
+  the Python engine, shows its effective policy identity and equivalent CLI,
+  preserves its JSON text in an escaped local editor, and downloads only an
+  unapproved CLI-native draft.
+- A unified `parison workbench` host foundation using numeric loopback, an
+  ephemeral port and per-launch capability, replacing the prototype activity
+  commands before release.
+- A first unified Results activity that opens an explicitly entered,
+  workspace-relative bundle only after integrity verification and returns the
+  existing closed summary-safe projection behind strict request-origin,
+  capability, content-type and body-size checks.
+- A responsive Workbench application shell with an honest activity roadmap,
+  local-session status, guided bundle-folder selection, an explicit empty state
+  and outcome-focused verified evidence presentation.
+- Native macOS and Windows bundle-folder selection constrained to the active
+  workspace, plus an explicit action to clear the displayed result and return
+  to the empty state.
+- A live unified Plans activity with authoritative recipe loading, exact source
+  editing, effective policy identity, native macOS and Windows file selection,
+  explicit clear state and local download of unapproved JSON drafts.
+- Closed in-memory validation for edited Workbench plans, which invalidates
+  stale policy identity on every edit and enables draft download only after the
+  current text passes the authoritative Python recipe loader.
+- A refined desktop Workbench hierarchy with semantic color and spacing tokens,
+  legible planned-activity states, cleaner headings and overflow-safe plan
+  editor controls for resized browser windows.
+- Explicit Workbench shutdown with immediate capability invalidation and a
+  fixed eight-handler concurrency bound before local execution is introduced.
+- A bounded Workbench Run activity for one explicit recipe and input pair,
+  including record preflight, in-process comparison, structured progress,
+  cooperative cancellation, atomic evidence publication and safe catalog
+  registration.
+- Verified workspace History, stricter summary-safe discrepancy investigation,
+  and exact-policy rehearsal Compare activities over immutable local evidence.
+- A tiered repository CI policy: pull requests run quality and the complete
+  Linux Python matrix, while direct `develop`/`main` checkpoints and manual
+  runs retain the full built-wheel Windows and macOS compatibility matrix.
+- A coherent change-branch workflow from `develop` that returns work through
+  pull requests and reserves `main` pull requests for releases.
+
+### Compatibility
+
+- The workbench is a derived view over released verification and inspection
+  interfaces. It does not change recipes, schemas, evidence bundles, canonical
+  bytes, comparison semantics, exit codes, or existing CLI JSON.
+
+### Fixed
+
+- Bound stalled Workbench request handlers and keep the local accept loop
+  responsive when its eight handler slots are full.
+- Workbench Compare now rejects modified or missing cataloged bundles instead
+  of presenting stored summaries as current verified evidence.
+- Workbench Run distinguishes cancellation from a later publication or catalog
+  failure and directs users to verify any output before reusing its path.
+- Separate the released 1.9 installation guide from the unreleased 2.0
+  Workbench source-checkout workflow, and describe the unified activities.
+- Workbench Run now preserves released JSON, XML, XLSX and SQLite source
+  selectors while constraining their file paths to the workspace.
+- Allow the unified Workbench's embedded stylesheet through its restrictive
+  Content Security Policy so the report-aligned interface renders correctly.
+- Mark empty Workbench HTTP responses with zero content length so rejected
+  requests close cleanly instead of intermittently resetting local clients.
+
 ## 1.9.0 - 2026-10-20
 
 ### Added

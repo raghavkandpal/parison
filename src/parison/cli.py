@@ -82,6 +82,7 @@ from .reconciliation import (
     summarize_reconciliation_result,
     verify_reconciliation_bundle,
 )
+from .workbench_host import serve_workbench
 
 
 def _shell_command(parts: list[str]) -> str:
@@ -471,6 +472,9 @@ operator and null policy. Suggestions are starting points, not approved policy."
     verify.add_argument("--json", action="store_true", help="print verified manifest metadata as JSON")
     inspect = commands.add_parser("inspect", help="inspect safe metadata from a verified run bundle")
     inspect.add_argument("run_directory")
+    workbench = commands.add_parser("workbench", help="build a local verification workbench")
+    workbench.add_argument("--workspace", default=".", help="existing local workspace directory")
+    workbench.add_argument("--no-open", action="store_true", help=argparse.SUPPRESS)
     analysis = commands.add_parser("analyze", help="publish summary-safe discrepancy groups from verified runs")
     analysis.add_argument("bundle", nargs="*")
     analysis.add_argument("--catalog")
@@ -602,6 +606,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "inspect":
             print(json.dumps(inspect_bundle(args.run_directory), indent=2, sort_keys=True))
+            return 0
+        if args.command == "workbench":
+            serve_workbench(args.workspace, not args.no_open)
             return 0
         if args.command == "analyze":
             if args.catalog:

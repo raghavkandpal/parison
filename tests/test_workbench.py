@@ -1,0 +1,218 @@
+from __future__ import annotations
+
+import html
+import json
+import re
+import shutil
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from parison.core import ParisonError, compare, load_recipe, publish
+from parison.workbench import (
+    compare_projection,
+    execute_run,
+    history_projection,
+    investigate_projection,
+    plan_projection,
+    plan_text_projection,
+    publish_plan_builder,
+    publish_workbench,
+    render_workbench,
+    workbench_projection,
+)
+
+
+class WorkbenchTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        recipe = self.root / "recipe.json"
+        baseline = self.root / "secret-baseline.csv"
+        candidate = self.root / "secret-candidate.csv"
+        recipe.write_text(
+            json.dumps(
+                {
+                    "recipe_version": 1,
+                    "comparison_mode": "keyed",
+                    "keys": ["private_id"],
+                    "scope": {
+                        "snapshot": "fixture",
+                        "cutoff": "2026-10-20T00:00:00Z",
+                        "filters": [],
+                        "completeness": "full",
+                        "expected_empty": False,
+                    },
+                    "identity": {"null_keys": "reject", "duplicates": "reject"},
+                    "nulls_equal": True,
+                    "columns": {
+                        "private_id": {"type": "string", "comparison": "exact"},
+                        "secret_value": {"type": "string", "comparison": "exact"},
+                    },
+                    "output": {"sensitivity": "raw"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        baseline.write_text("private_id,secret_value\n1,do-not-render\n", encoding="utf-8")
+        candidate.write_text("private_id,secret_value\n1,do-not-render\n", encoding="utf-8")
+        result, effective = compare(recipe, baseline, candidate), load_recipe(recipe)
+        self.bundle = self.root / "bundle"
+        publish(self.bundle, result, effective)
+
+    def test_publishes_deterministic_summary_safe_application(self):
+        first = publish_workbench(self.bundle, self.root / "first").read_text(encoding="utf-8")
+        second = publish_workbench(self.bundle, self.root / "second").read_text(encoding="utf-8")
+        self.assertEqual(first, second)
+        self.assertIn("Parison Workbench", first)
+        self.assertIn("PASS means agreement", first)
+        for secret in ("secret-baseline.csv", "private_id", "secret_value", "do-not-render"):
+            self.assertNotIn(secret, first)
+
+    def test_refuses_tampering_and_existing_output(self):
+        output = self.root / "application"
+        publish_workbench(self.bundle, output)
+        with self.assertRaisesRegex(ParisonError, "already exists"):
+            publish_workbench(self.bundle, output)
+        (self.bundle / "result.json").write_text("{}", encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "integrity"):
+            publish_workbench(self.bundle, self.root / "tampered")
+
+    def test_escapes_hostile_text_and_cleans_interrupted_staging(self):
+        page = render_workbench({"outcome": '<script>alert("x")</script>'})
+        self.assertNotIn("<script>", page)
+        self.assertIn("&lt;script&gt;", page)
+        output = self.root / "interrupted"
+        with patch("parison.workbench.rename_no_replace", side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                publish_workbench(self.bundle, output)
+        self.assertFalse(output.exists())
+        self.assertEqual(list(self.root.glob(".interrupted-*")), [])
+
+    def test_plan_builder_uses_validated_cli_native_recipe(self):
+        recipe = self.root / "recipe.json"
+        recipe.write_text(
+            json.dumps(
+                {
+                    "recipe_version": 1,
+                    "comparison_mode": "keyed",
+                    "keys": ["id"],
+                    "scope": {
+                        "snapshot": "<reviewed>",
+                        "cutoff": "2026-10-20T00:00:00Z",
+                        "filters": [],
+                        "completeness": "full",
+                        "expected_empty": False,
+                    },
+                    "identity": {"null_keys": "reject", "duplicates": "reject"},
+                    "nulls_equal": True,
+                    "columns": {"id": {"type": "string", "comparison": "exact"}},
+                    "output": {"sensitivity": "summary"},
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        page = publish_plan_builder(recipe, self.root / "builder").read_text(encoding="utf-8")
+        plan = plan_projection(recipe)
+        self.assertEqual(plan["source"], recipe.read_text(encoding="utf-8"))
+        self.assertEqual(plan["recipe_version"], 1)
+        self.assertEqual(plan["comparison_mode"], "keyed")
+        self.assertRegex(plan["policy_sha256"], r"^[0-9a-f]{64}$")
+        edited = json.loads(plan["source"])
+        edited["scope"]["snapshot"] = "edited"
+        validated = plan_text_projection(json.dumps(edited))
+        self.assertNotEqual(validated["policy_sha256"], plan["policy_sha256"])
+        self.assertEqual(validated["comparison_mode"], "keyed")
+        with self.assertRaisesRegex(ParisonError, "recipe_version"):
+            plan_text_projection("{}")
+        self.assertIn("Verification plan builder", page)
+        self.assertIn("Download unapproved draft", page)
+        self.assertIn("parison validate-recipe plan.json", page)
+        self.assertIn("endsWith('\\n')", page)
+        self.assertIn("&lt;reviewed&gt;", page)
+        self.assertNotIn(str(recipe), page)
+        embedded = re.search(r'<textarea id="plan"[^>]*>(.*?)</textarea>', page, re.DOTALL)
+        self.assertIsNotNone(embedded)
+        self.assertEqual(html.unescape(embedded.group(1)), recipe.read_text(encoding="utf-8"))
+
+        invalid = self.root / "invalid.json"
+        invalid.write_text("{}", encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "recipe_version"):
+            publish_plan_builder(invalid, self.root / "invalid-builder")
+        self.assertFalse((self.root / "invalid-builder").exists())
+
+    def test_executes_catalogs_and_compares_summary_safe_runs(self):
+        recipe = self.root / "recipe.json"
+        baseline = self.root / "secret-baseline.csv"
+        candidate = self.root / "secret-candidate.csv"
+        first, second = self.root / "runs" / "one", self.root / "runs" / "two"
+        phases = []
+        executed = execute_run(self.root, recipe, baseline, candidate, first, progress=phases.append)
+        self.assertEqual(phases, ["preflight", "comparing", "publishing", "verifying", "cataloging", "complete"])
+        execute_run(self.root, recipe, baseline, candidate, second)
+        self.assertEqual(executed["evidence"]["outcome"], "PASS")
+        self.assertEqual(executed["catalog_status"], "added")
+        history = history_projection(self.root)
+        self.assertEqual([run["bundle"] for run in history], ["runs/one", "runs/two"])
+        comparison = compare_projection(self.root, first, second)
+        self.assertFalse(comparison["changed"])
+        self.assertEqual(comparison["left"]["bundle"], "runs/one")
+        investigation = investigate_projection(first)
+        self.assertTrue(investigation["groups"])
+        self.assertTrue(all(group["count"] == 0 for group in investigation["groups"]))
+        encoded = json.dumps(
+            {"executed": executed, "history": history, "comparison": comparison, "investigation": investigation}
+        )
+        for secret in ("secret-baseline.csv", "secret-candidate.csv", "private_id", "do-not-render", str(self.root)):
+            self.assertNotIn(secret, encoded)
+        (second / "result.json").write_text("{}", encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "requires current bundle integrity"):
+            compare_projection(self.root, first, second)
+        shutil.rmtree(second)
+        with self.assertRaisesRegex(ParisonError, "requires current bundle integrity"):
+            compare_projection(self.root, first, second)
+
+    def test_rejects_symlinked_workbench_catalog(self):
+        with tempfile.TemporaryDirectory() as outside:
+            (self.root / ".parison").symlink_to(outside)
+            with self.assertRaisesRegex(ParisonError, "must not be a symlink"):
+                history_projection(self.root)
+
+    def test_cancelled_run_publishes_nothing(self):
+        output = self.root / "runs" / "cancelled"
+        with self.assertRaisesRegex(ParisonError, "cancelled"):
+            execute_run(
+                self.root,
+                self.root / "recipe.json",
+                self.root / "secret-baseline.csv",
+                self.root / "secret-candidate.csv",
+                output,
+                cancelled=lambda: True,
+            )
+        self.assertFalse(output.exists())
+
+    def test_catalog_failure_preserves_verified_bundle_for_results(self):
+        output = self.root / "runs" / "uncataloged"
+        phases = []
+        with patch("parison.workbench.catalog_add", side_effect=ParisonError("catalog unavailable")):
+            with self.assertRaisesRegex(ParisonError, "catalog unavailable"):
+                execute_run(
+                    self.root,
+                    self.root / "recipe.json",
+                    self.root / "secret-baseline.csv",
+                    self.root / "secret-candidate.csv",
+                    output,
+                    progress=phases.append,
+                )
+        self.assertEqual(phases[-2:], ["verifying", "cataloging"])
+        self.assertEqual(workbench_projection(output)["outcome"], "PASS")
+        self.assertEqual(history_projection(self.root), [])
+        self.assertEqual(history_projection(self.root), [])
+
+
+if __name__ == "__main__":
+    unittest.main()

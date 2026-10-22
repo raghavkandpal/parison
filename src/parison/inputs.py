@@ -9,6 +9,7 @@ import io
 import json
 import re
 import sqlite3
+import threading
 import xml.etree.ElementTree as ET
 import zipfile
 from collections import Counter
@@ -28,6 +29,27 @@ from .core import (
     _source_name,
     load_recipe,
 )
+
+_CANCELLATION = threading.local()
+
+
+class InputCancellation:
+    """Install a thread-local cooperative cancellation check for input scans."""
+
+    def __init__(self, cancelled):
+        self.cancelled = cancelled
+
+    def __enter__(self):
+        _CANCELLATION.check = self.cancelled
+
+    def __exit__(self, *args):
+        _CANCELLATION.check = None
+
+
+def _raise_if_cancelled() -> None:
+    check = getattr(_CANCELLATION, "check", None)
+    if check is not None and check():
+        raise ParisonError("workbench run cancelled")
 
 
 def _file_format(path: Path) -> str | None:
@@ -1610,6 +1632,7 @@ def draft_recipe(
 def _iter_input_rows(
     path: str | Path, recipe: dict[str, Any], max_rows: int, side: str, decoded_sizes: dict[Path, int] | None = None
 ):
+    _raise_if_cancelled()
     decoded_sizes = decoded_sizes or {}
     source_path = _source_path(path)
     field_projection = recipe.get("field_projection", {}).get(side)
@@ -1618,6 +1641,7 @@ def _iter_input_rows(
         row_count = 0
         for partition in _source_paths(path):
             for row in _iter_input_rows(partition, recipe, max_rows, side, decoded_sizes):
+                _raise_if_cancelled()
                 if row_count >= max_rows:
                     raise ParisonError(f"row count in {source_path} exceeds limit {max_rows}")
                 row_count += 1
@@ -1628,6 +1652,7 @@ def _iter_input_rows(
         headers, _ = next(stream)
         _validate_headers(Path(str(path)), headers, recipe, side)
         for _, row in stream:
+            _raise_if_cancelled()
             yield row
         return
     if _xlsx_source(path):
@@ -1637,6 +1662,7 @@ def _iter_input_rows(
         headers, _ = next(stream)
         _validate_headers(_source_path(path), headers, recipe, side)
         for _, row in stream:
+            _raise_if_cancelled()
             yield row
         return
     if _json_source(path):
@@ -1649,6 +1675,7 @@ def _iter_input_rows(
         headers, _ = next(stream)
         _validate_headers(_source_path(path), headers, recipe, side)
         for _, row in stream:
+            _raise_if_cancelled()
             yield row
         return
     if _xml_source(path):
@@ -1658,6 +1685,7 @@ def _iter_input_rows(
         headers, _ = next(stream)
         _validate_headers(_source_path(path), headers, recipe, side)
         for _, row in stream:
+            _raise_if_cancelled()
             yield row
         return
     path = Path(path)
@@ -1677,6 +1705,7 @@ def _iter_input_rows(
                 _validate_headers(path, reader.fieldnames or [], recipe, side)
                 null_tokens = set(recipe.get("null_tokens", {}).get(side, []))
                 for row_count, raw in enumerate(reader):
+                    _raise_if_cancelled()
                     if row_count >= max_rows:
                         raise ParisonError(f"row count in {path} exceeds limit {max_rows}")
                     if None in raw or any(value is None for value in raw.values()):
@@ -1701,7 +1730,9 @@ def _iter_input_rows(
         except Exception as exc:
             raise ParisonError(f"cannot read {path}: {exc}") from exc
         _validate_headers(path, frame.columns, recipe, side)
-        yield from frame.iter_rows(named=True)
+        for row in frame.iter_rows(named=True):
+            _raise_if_cancelled()
+            yield row
     elif format_name == "jsonl":
         rows = _iter_jsonl(path, max_rows, decoded_sizes)
         try:
@@ -1709,8 +1740,11 @@ def _iter_input_rows(
         except StopIteration:
             return
         _validate_headers(path, list(first), recipe, side)
+        _raise_if_cancelled()
         yield first
-        yield from rows
+        for row in rows:
+            _raise_if_cancelled()
+            yield row
     else:
         raise ParisonError(
             f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet, a JSON, XML, or XLSX locator, "

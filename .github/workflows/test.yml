@@ -1,11 +1,14 @@
 name: test
 
 on:
+  workflow_dispatch:
   push:
+    branches: [develop, main]
     paths-ignore:
       - "**/*.md"
       - "docs/**"
   pull_request:
+    branches: [develop]
     paths-ignore:
       - "**/*.md"
       - "docs/**"
@@ -117,6 +120,8 @@ jobs:
       - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
       - run: parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke
       - run: parison verify /tmp/parison-smoke
+      - run: parison workbench --help
+      - run: python -c "from parison.workbench_host import create_workbench_server; server, url = create_workbench_server('.'); assert server.server_address[0] == '127.0.0.1' and url.startswith('http://127.0.0.1:'); server.server_close()"
       - name: Exercise evidence handoff
         run: |
           parison statement /tmp/parison-smoke --output /tmp/parison-statement.json
@@ -212,6 +217,7 @@ jobs:
           python benchmarks/run_spill_cases.py --repeats 1 /tmp/parison-spill-bench/keyed-1000
 
   platform-smoke:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ${{ matrix.os }}
     strategy:
@@ -259,6 +265,8 @@ jobs:
       - run: parison schema preflight-v24
       - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output ${{ runner.temp }}/parison-multiset-smoke
       - run: parison inspect ${{ runner.temp }}/parison-multiset-smoke
+      - run: parison workbench --help
+      - run: python -c "from parison.workbench_host import create_workbench_server; server, url = create_workbench_server('.'); assert server.server_address[0] == '127.0.0.1' and url.startswith('http://127.0.0.1:'); server.server_close()"
       - name: Exercise evidence handoff
         run: |
           parison statement ${{ runner.temp }}/parison-multiset-smoke --output ${{ runner.temp }}/parison-statement.json

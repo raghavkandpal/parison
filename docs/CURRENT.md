@@ -1,8 +1,9 @@
 # Current development state
 
-- Version: **1.9.0 released; development stopped**
+- Version: **2.0 workbench development active after 1.9.0**
 - Branch: `develop`
-- Theme: explicit JSON, XML and XLSX structured field selection as one three-feature train
+- Theme: local-first Workbench — verified navigation, explicit plan authoring,
+  and bounded local execution as one three-feature train
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
   record projection and the 1.9 JSON/XML/XLSX structured field-selection train
   across all comparison modes
@@ -46,15 +47,141 @@
   annotated tag and [GitHub release 1.9.0](https://github.com/raghavkandpal/parison/releases/tag/1.9.0)
   publish checksum-verified artifacts whose public wheel passed all 20 fresh
   JSON, XML and XLSX structured-selection workflow tests
-- Next gate: none. Development stopped after verified 1.9.0 publication by
-  user direction; future workbench documents remain research only
+- Implemented: first 2.0 slice adds `parison workbench`, a Python-native
+  launcher for a deterministic script-free local application. It verifies an
+  existing bundle before rendering, applies a closed summary-safe projection,
+  and publishes atomically without overwrite or network access.
+- Verified: exact Workbench checkpoint
+  `fbb6ea5675fee8bd5ed787aafe4291e6349d441c` passed the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39370931644)
+  on Python 3.11--3.14 with direct macOS and Windows Workbench smoke coverage,
+  plus the [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39370931604)
+- Implemented locally: the first plan-builder slice adds an explicit
+  `workbench plan` activity with authoritative initial validation, exact JSON
+  import, policy identity, local draft export and equivalent CLI commands;
+  drafts remain visibly unapproved and execute nothing
+- Verified: exact plan-builder checkpoint
+  `c9628d250ab112e830f1ce613678806453205b3f` passed the
+  [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39371521497)
+  and complete [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39371521251)
+  on Python 3.11--3.14, including direct evidence and plan application smoke
+  checks across every macOS and Windows entry
+- Decided: 2.0 exposes one `parison workbench` application with Plans, Run,
+  Results, History, Investigate and Compare activities. The current `evidence`
+  and `plan` commands are prototypes, not the release interface. See the
+  [unified interface decision](2.0/201-unified-workbench-interface-decision.md).
+- Implemented: `parison workbench --workspace DIRECTORY` starts one
+  numeric-loopback Python host on an ephemeral port with a per-launch
+  capability, closed routes, strict Host validation, restrictive browser
+  headers and no filesystem or execution endpoint
+- Implemented locally: the unified Results activity accepts one explicit
+  workspace-relative, non-symlink bundle path and returns the existing closed
+  summary-safe projection only after integrity verification, with exact Origin,
+  Host, capability, content-type and request-size enforcement
+- Implemented locally: Results can invoke a fixed native macOS or Windows
+  directory chooser constrained to the workspace, and users can clear the
+  rendered result without changing the verified bundle
+- Implemented locally: unified Plans opens an existing workspace recipe through
+  authoritative validation, shows exact source and effective policy identity,
+  supports constrained native file selection, clears browser state on request,
+  and downloads edits only as explicitly unapproved local drafts
+- Verified: exact unified Plans checkpoint
+  `462eeac3b9e21b641df2070a4cdff8bfbde91c94` passed the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39398735075)
+  on Python 3.11--3.14 with macOS and Windows smoke, plus the
+  [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39398735044)
+- Implemented locally: every Plans edit invalidates its displayed policy
+  identity and disables download until a closed, bounded, non-persisting route
+  validates the exact current text through the authoritative Python loader
+- Verified: exact edited-plan validation checkpoint
+  `4233c8542b80dbc07546a63dd7697607ac29bfa2` passed the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39400756824)
+  on Python 3.11--3.14 with macOS and Windows smoke, plus the
+  [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39400756800)
+- Recorded: the first reproducible Impeccable source and rendered-browser audit
+  scored the current Workbench 13/20 and identified a bounded responsive,
+  touch-target, contrast, token and hierarchy refinement slice. See the
+  [Workbench Impeccable UI audit](2.0/206-workbench-impeccable-audit.md).
+- Implemented locally: the desktop Workbench now uses semantic color and
+  spacing tokens, higher-contrast planned states, direct heading hierarchy and
+  overflow-safe loaded-plan controls. Dedicated mobile navigation and touch
+  interaction remain explicitly out of scope; narrow layouts only protect
+  resized desktop windows and zoom use. See the
+  [Workbench UI refinement checkpoint](2.0/207-workbench-ui-refinement-checkpoint.md).
+- Verified: exact Workbench UI refinement checkpoint
+  `66bdc427bf489eb290c387c5e7aa3885002ec856` passed the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39433950485)
+  on Python 3.11--3.14 with macOS and Windows smoke, plus the
+  [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39433950126)
+- Implemented locally: the unified host limits concurrent request handlers,
+  exposes one capability- and origin-guarded shutdown route, clears its launch
+  capability before stopping and gives the browser an explicit Stop workbench
+  action. See the [host lifecycle checkpoint](2.0/208-workbench-host-lifecycle-checkpoint.md).
+- Implemented locally: Run performs authoritative record preflight, in-process
+  comparison, atomic publication, bundle verification and safe catalog
+  registration for one explicit recipe and input pair. It exposes bounded
+  structured phases and cooperative cancellation at the shared input-row
+  boundary; cancellation before publication leaves no bundle or catalog entry.
+- Implemented locally: History preserves catalog insertion order, Compare
+  enforces the existing exact-policy gate, and Investigate returns a stricter
+  Workbench projection of verified discrepancy groups without paths, field
+  names, policy values, record keys or samples. See the
+  [run/history contract](2.0/209-workbench-run-history-contract.md).
+- Reviewed: the unified Workbench code checkpoint `d1ba0a4` passed the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39440174683);
+  the later reviewed head `a37a15d` passed the
+  [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39440995964).
+  The [2.0 state review and next plan](2.0/210-workbench-state-review-and-next-plan.md)
+  records the Run locator mismatch, remaining Plans gate and current-guide
+  drift without treating this evidence as release qualification.
+- Implemented locally: Workbench Run resolves released structured input
+  locators inside the workspace while retaining format selectors; focused host
+  tests cover path rejection and a JSON run. Exact-head qualification remains.
+- Verified: Run locator fix merged through PR #56 at `a5f2b90`; the exact
+  merge passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39564064545).
+- Implemented locally: schema-derived Plans controls for recipe versions 1--6,
+  explicit omitted settings and effective policy display, exact field edits and
+  workspace-constrained input handoff. See the
+  [Plans controls checkpoint](2.0/212-workbench-plan-controls-checkpoint.md).
+- Reviewed: Plans passed independent Standards/Spec source review and a
+  labeled unfamiliar-agent proxy trial with informed in-app browser followup.
+- Verified: exact Plans implementation `77b05ab` passed the full
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39570203040)
+  and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39570191438).
+  [PR #57](https://github.com/raghavkandpal/parison/pull/57) was integrated at
+  `be1b872`; its exact merge passed the full
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39605729250)
+  and [quality gate](https://github.com/raghavkandpal/parison/actions/runs/39605728982).
+- Verified: README now separates the released 1.9 wheel quickstart from the
+  unreleased source-checkout Workbench, merged through PR #58 at `af16cd5`.
+- Verified: Run now reports post-publication and catalog failures honestly,
+  preserving any verified output for explicit Results inspection. The fix
+  merged through PR #59 at `8d9272e` after exact head `57224cb` passed the
+  complete [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39607547089).
+- Combined local `make check` passes 422 tests; fresh rendered inspection
+  covered rejected Run inputs, validated Plans controls and explicit shutdown.
+  See the [integration checkpoint](2.0/215-workbench-integration-checkpoint.md).
+- Reviewed: an informed participant completed the synthetic Plans usability
+  task, reported no confusing or misleading steps, and confirmed that
+  validation/download do not approve a policy and input handoff does not run
+  it. See the [trial record](../studies/workbench-plans-01/human-trial-01-report.md).
+- Reviewed: independent combined Standards and Spec reviews each found one
+  defect. Compare now rejects modified or missing cataloged bundles (PR #61,
+  merged at `caf1e6d`), and stalled Workbench clients cannot block the accept
+  loop (PR #62, merged at `5bcedf7`). Both reviewers cleared their findings
+  after regression fixes. See the [combined review](2.0/218-workbench-combined-review.md).
+- Verified: exact PR #62 head `2d4b788` passed the complete
+  [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39611398493)
+  on Linux, macOS and Windows with Python 3.11--3.14; combined local
+  `make check` passed 424 tests.
+- Next gate: qualify the exact 2.0 candidate head before release consideration.
 
 ## Recorded next steps
 
-- Development stopped after the verified 1.9.0 release by explicit user
-  direction. Preserve later research as non-active context; do not begin a 2.0
-  train unless a future user explicitly resumes development. Internal review
-  and test evidence never establishes operational policy or cutover approval.
+- Development resumed by explicit user direction after the verified 1.9.0
+  release. Follow the active 2.0 research, contract and checkpoint documents;
+  internal review and test evidence never establishes operational policy or
+  cutover approval.
 
 - When an autonomous session stops near its usage limit, return a copy-ready
   next-session goal prompt. Include the exact branch and commits, green CI and

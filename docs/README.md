@@ -17,10 +17,34 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Combined structured-selection qualification](1.9/195-combined-structured-selection-qualification.md)
 - [1.9.0 release checklist](1.9/196-release-checklist.md)
 
-## Future research — development stopped after 1.9
+## 2.0 — Workbench
 
 - [Verification workbench product research](2.0/194-verification-workbench-product-research.md)
 - [Verification workbench development direction](2.0/195-verification-workbench-development-direction.md)
+- [Workbench delivery research](2.0/196-workbench-delivery-research.md)
+- [Verified navigator contract](2.0/197-verified-navigator-contract.md)
+- [Verified navigator engineering checkpoint](2.0/198-verified-navigator-engineering-checkpoint.md)
+- [Workbench plan-builder contract](2.0/199-plan-builder-contract.md)
+- [Workbench plan-builder engineering checkpoint](2.0/200-plan-builder-engineering-checkpoint.md)
+- [Unified Workbench interface decision](2.0/201-unified-workbench-interface-decision.md)
+- [Unified Workbench host checkpoint](2.0/202-unified-workbench-host-checkpoint.md)
+- [Unified Workbench verified Results checkpoint](2.0/203-unified-workbench-results-checkpoint.md)
+- [Unified Workbench Plans checkpoint](2.0/204-unified-workbench-plans-checkpoint.md)
+- [Edited-plan validation checkpoint](2.0/205-edited-plan-validation-checkpoint.md)
+- [Workbench Impeccable UI audit](2.0/206-workbench-impeccable-audit.md)
+- [Workbench UI refinement checkpoint](2.0/207-workbench-ui-refinement-checkpoint.md)
+- [Workbench host lifecycle checkpoint](2.0/208-workbench-host-lifecycle-checkpoint.md)
+- [Workbench run, history and investigation contract](2.0/209-workbench-run-history-contract.md)
+- [Workbench state review and next plan](2.0/210-workbench-state-review-and-next-plan.md)
+- [Workbench structured locator fix checkpoint](2.0/211-workbench-structured-locator-fix.md)
+- [Workbench schema controls and input handoff](2.0/212-workbench-plan-controls-checkpoint.md)
+- [Workbench guide reconciliation](2.0/213-workbench-guide-reconciliation.md)
+- [Workbench post-publication status](2.0/214-workbench-postpublication-status.md)
+- [Workbench integration checkpoint](2.0/215-workbench-integration-checkpoint.md)
+- [Workbench Compare integrity gate](2.0/216-workbench-compare-integrity.md)
+- [Workbench stalled-client bound](2.0/217-workbench-stalled-client-bound.md)
+- [Combined Workbench review and usability qualification](2.0/218-workbench-combined-review.md)
+- [2.0.0 release checklist](2.0/219-release-checklist.md)
 
 ## 1.8 — released
 

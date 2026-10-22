@@ -213,13 +213,14 @@ def list_runs(
     *,
     policy_sha256: str | None = None,
     state: str | None = None,
+    insertion_order: bool = False,
 ) -> list[dict[str, Any]]:
     """Return compact path-ordered entries with a live deterministic state."""
     if policy_sha256 is not None:
         _validate_policy_sha256(policy_sha256)
     if state is not None and state not in {"current", "modified", "missing"}:
         raise ParisonError("catalog state filter must be current, modified or missing")
-    entries = _entries(database, outcome, kind)
+    entries = _entries(database, outcome, kind, insertion_order=insertion_order)
     if policy_sha256 is not None:
         entries = [entry for entry in entries if _policy_matches(entry["metadata"], policy_sha256)]
     if state is not None:

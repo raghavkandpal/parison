@@ -15,14 +15,15 @@ Start with `make context`. Read [product direction](docs/0.15/104-product-direct
 ## Workflow
 
 1. Preserve unrelated work reported by `make context`.
-2. Define the smallest coherent slice and a checkable completion gate.
-3. Read/search only files needed for that gate. Keep command output bounded; expand it only to diagnose failure.
-4. Test narrowly with `make test TEST=tests.test_<area>`. Add a regression test for each defect and a byte fixture for canonical serialization.
-5. Before a feature commit, pass `make check`.
-6. Document user-visible behavior in the active version folder; update `docs/README.md` and `CHANGELOG.md`.
-7. Commit coherent slices on `develop` with conventional prefixes; push checkpoints for exact-commit CI.
+2. Start each change branch from current `develop`, using a purpose prefix such as `feature/`, `fix/`, `docs/`, or `ci/`; reserve `develop` for reviewed integration and `main` for releases.
+3. Define the smallest coherent slice and a checkable completion gate.
+4. Read/search only files needed for that gate. Keep command output bounded; expand it only to diagnose failure.
+5. Test narrowly with `make test TEST=tests.test_<area>`. Add a regression test for each defect and a byte fixture for canonical serialization.
+6. Before a feature commit, pass `make check`.
+7. Document user-visible behavior in the active version folder; update `docs/README.md` and `CHANGELOG.md`.
+8. Keep each branch scoped to one coherent change, then push it and open or update its pull request to `develop`. Verify the exact head commit in CI before integration.
 
-Packaging, schema, CLI, or platform changes require built-wheel CI on Python 3.11–3.14, macOS, and Windows. Optional-Polars skips are valid only when Polars is absent.
+Packaging, schema, CLI, or platform changes require a manual full-matrix dispatch on the exact pull-request head before integration: built-wheel CI on Python 3.11–3.14, macOS, and Windows. Optional-Polars skips are valid only when Polars is absent.
 
 Targeted tests: core semantics `test_parison`/`test_semantics`; formats `test_jsonl`/`test_parquet`/`test_sqlite`; suites `test_suite`; catalog `test_catalog`; schemas `test_json_schemas`; integrations `test_github_actions`/`test_integrations`; evidence handoff `test_statement`.
 
@@ -30,5 +31,5 @@ Targeted tests: core semantics `test_parison`/`test_semantics`; formats `test_js
 
 - Research: use primary sources; record design consequences, threats, non-goals, and access date. Keep confidential work only in ignored `local-research/`.
 - Benchmarks: report machine-specific evidence, never universal capacity.
-- Releases: follow the active checklist and [RELEASING.md](RELEASING.md). Merge reviewed candidates to `main`, tag the exact merge, publish wheel/source/checksums, re-download and smoke-test public assets, then reconcile every release record.
+- Releases: follow the active checklist and [RELEASING.md](RELEASING.md). Open pull requests to `main` only for releases from `develop`; tag the exact merge, publish wheel/source/checksums, re-download and smoke-test public assets, then reconcile every release record.
 - Handoffs: replace changing state in `docs/CURRENT.md`; keep session history in version documents.

@@ -79,6 +79,7 @@ target/
 runs/
 benchmarks/generated/
 local-research/
+.agents/skills/impeccable/
 
 # Jupyter Notebook
 .ipynb_checkpoints
