@@ -1,7 +1,7 @@
 # Workbench suite plan review
 
 Date: 22 October 2026  
-Status: implemented on the first 2.1 feature branch; qualification pending
+Status: implemented on `develop`; release qualification pending
 
 The Plans activity can review an existing suite version 1 or 2. The operator
 enters a workspace-relative suite file and optional exact case IDs, tags and

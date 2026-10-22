@@ -46,12 +46,14 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Combined Workbench review and usability qualification](2.0/218-workbench-combined-review.md)
 - [2.0.0 release checklist](2.0/219-release-checklist.md)
 
-## 2.1 — Proposed Workbench suite train
+## 2.1 — Workbench suite train
 
 - [Suite rehearsal and evidence handoff research and plan](2.1/220-workbench-release-train-research-and-plan.md)
 - [Workbench suite plan review contract](2.1/221-workbench-suite-plan-contract.md)
 - [Workbench bounded suite rehearsal contract](2.1/222-workbench-suite-rehearsal-contract.md)
 - [Workbench verified suite handoff contract](2.1/223-workbench-handoff-contract.md)
+- [2.1 release qualification research](2.1/224-release-qualification-research.md)
+- [2.1.0 release checklist](2.1/225-release-checklist.md)
 
 ## 1.8 — released
 

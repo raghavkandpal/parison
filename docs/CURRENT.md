@@ -1,6 +1,6 @@
 # Current development state
 
-- Version: **2.1 Workbench suite train active after 2.0.0**
+- Version: **2.1.0 release candidate in qualification**
 - Branch: `develop`
 - Theme: local-first Workbench — verified navigation, explicit plan authoring,
   and bounded local execution as one three-feature train
@@ -180,8 +180,16 @@
   The [public release](https://github.com/raghavkandpal/parison/releases/tag/2.0.0)
   was checksum-verified and its wheel passed a fresh local Workbench smoke;
   see the [release checklist](2.0/219-release-checklist.md).
-- Next gate: qualify the complete [2.1 Workbench suite train](2.1/220-workbench-release-train-research-and-plan.md)
-  through full tests, rendered review, independent review and exact-head CI.
+- Implemented: 2.1 Workbench suite plan review, bounded local suite rehearsal
+  and verified unsigned handoff merged through [PR #68](https://github.com/raghavkandpal/parison/pull/68)
+  at `40288e4`. Its exact merge passed [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39737204435)
+  and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39737204420).
+- Corrected: Workbench accepts released partitioned suite inputs and binds
+  reviewed plans to their selected bytes. [PR #69](https://github.com/raghavkandpal/parison/pull/69)
+  merged at `b3c5c69` after its exact head passed the
+  [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39780279353).
+- Next gate: qualify the exact [2.1.0 release candidate](2.1/225-release-checklist.md)
+  through built-wheel CI, clean-archive smoke and release review.
 
 ## Recorded next steps
 

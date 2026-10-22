@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+## 2.1.0 - 2026-10-22
+
 ### Added
 
 - Workbench Plans can validate an existing local suite and review its exact

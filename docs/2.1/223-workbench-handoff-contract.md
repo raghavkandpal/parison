@@ -1,7 +1,7 @@
 # Workbench verified suite handoff
 
 Date: 22 October 2026  
-Status: implemented on the 2.1 feature branch; qualification pending
+Status: implemented on `develop`; release qualification pending
 
 Handoff opens a workspace-relative suite or suite-shard bundle only after
 recursive integrity verification. It shows the released unsigned Statement's
