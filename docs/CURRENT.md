@@ -180,8 +180,8 @@
   The [public release](https://github.com/raghavkandpal/parison/releases/tag/2.0.0)
   was checksum-verified and its wheel passed a fresh local Workbench smoke;
   see the [release checklist](2.0/219-release-checklist.md).
-- Next gate: qualify the first [2.1 suite-plan review slice](2.1/221-workbench-suite-plan-contract.md)
-  with full checks, exact-head CI and independent review.
+- Next gate: qualify the complete [2.1 Workbench suite train](2.1/220-workbench-release-train-research-and-plan.md)
+  through full tests, rendered review, independent review and exact-head CI.
 
 ## Recorded next steps
 

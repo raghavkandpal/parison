@@ -9,6 +9,11 @@ All notable changes will be documented in this file.
 - Workbench Plans can validate an existing local suite and review its exact
   case, tag and shard selection, member input references and planned output
   without executing inputs or exposing record values in the browser.
+- Workbench Run can execute the validated local suite selection with one job,
+  report bounded progress and cooperative cancellation, then verify and
+  register the immutable suite bundle in History.
+- Workbench Handoff can preview a verified suite claim and export the released
+  deterministic unsigned Statement and cutover report to explicit local paths.
 
 ## 2.0.0 - 2026-10-22
 

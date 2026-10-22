@@ -34,6 +34,7 @@ from .evidence import (
     terminal_result,
     verify_bundle,
 )
+from .inputs import InputCancellation
 
 
 def _suite_report(result: dict[str, Any]) -> str:
@@ -266,6 +267,8 @@ def _execute_suite_case(
             destination.parent if case.get("execution") else None,
         )
     except ParisonError as exc:
+        if str(exc) == "workbench run cancelled":
+            raise
         execution = case.get("execution", {})
         result = error_result(
             str(exc),
@@ -341,12 +344,16 @@ def run_suite(
     workspace: str | Path | None = None,
     resume: bool = False,
     jobs: int = 1,
+    cancelled=None,
+    progress=None,
 ) -> dict[str, Any]:
     """Run a validated ordered suite and atomically publish its child bundles."""
     suite = load_suite(plan)
     selected = select_suite_cases(suite, case_ids, tags, shard_index, shard_count)
     if not 1 <= jobs <= _MAX_SUITE_JOBS:
         raise ParisonError(f"jobs must be between 1 and {_MAX_SUITE_JOBS}")
+    if cancelled is not None and jobs != 1:
+        raise ParisonError("cooperative suite cancellation requires one job")
     if (workspace is not None or resume) and suite["suite_version"] != 2:
         raise ParisonError("suite workspaces require suite_version 2")
     if resume and workspace is None:
@@ -445,9 +452,18 @@ def run_suite(
 
         interrupted = False
         if jobs == 1:
-            for case, child, workspace_child, checkpoint, limits in pending:
+            if progress is not None:
+                progress(0, len(selected))
+            for index, (case, child, workspace_child, checkpoint, limits) in enumerate(pending):
+                if cancelled is not None and cancelled():
+                    raise ParisonError("workbench suite cancelled")
                 try:
-                    result = _execute_suite_case(case, workspace_child or child, sample_limit, limits)
+                    with InputCancellation(cancelled):
+                        result = _execute_suite_case(case, workspace_child or child, sample_limit, limits)
+                except ParisonError as exc:
+                    if str(exc) == "workbench run cancelled":
+                        raise ParisonError("workbench suite cancelled") from exc
+                    raise
                 except KeyboardInterrupt:
                     recipe = load_recipe(case["recipe"])
                     execution = case.get("execution", {})
@@ -461,8 +477,12 @@ def run_suite(
                     publish(workspace_child or child, result, recipe)
                     interrupted = True
                 finish(case, child, workspace_child, checkpoint, limits, result)
+                if progress is not None:
+                    progress(index + 1, len(selected))
                 if interrupted:
                     break
+            if cancelled is not None and cancelled():
+                raise ParisonError("workbench suite cancelled")
         else:
             context = multiprocessing.get_context("spawn")
             waiting = iter(pending)

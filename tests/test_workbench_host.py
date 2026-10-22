@@ -14,6 +14,9 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from parison.core import ParisonError, compare, load_recipe, publish
+from parison.evidence import export_statement, report_cutover
+from parison.project import init_project
+from parison.suites import run_suite
 from parison.workbench_host import _choose_bundle, _choose_recipe, _workspace_source, create_workbench_server
 
 try:
@@ -23,6 +26,141 @@ except ImportError:
 
 
 class WorkbenchHostTests(unittest.TestCase):
+    def test_suite_rehearsal_verifies_and_registers_local_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "project"
+            init_project(root)
+            (root / "suite.json").write_text(
+                json.dumps(
+                    {
+                        "suite_version": 2,
+                        "cases": [
+                            {
+                                "id": "orders",
+                                "recipe": "recipe.json",
+                                "baseline": "baseline.csv",
+                                "candidate": "candidate.csv",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+                request = {
+                    "plan": "suite.json",
+                    "case_ids": [],
+                    "tags": [],
+                    "shard_index": None,
+                    "shard_count": None,
+                    "output": "suite-run",
+                }
+                response = self._post(connection, server, "/api/suite-plan", request)
+                self.assertEqual(response.status, 200)
+                preview = json.loads(response.read())
+                response = self._post(
+                    connection,
+                    server,
+                    "/api/suite-run",
+                    {
+                        **request,
+                        "plan_sha256": "0" * 64,
+                    },
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "suite-run").exists())
+                response = self._post(
+                    connection,
+                    server,
+                    "/api/suite-run",
+                    {
+                        **request,
+                        "plan_sha256": preview["plan_sha256"],
+                    },
+                )
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read())["evidence"]["outcome"], "PASS")
+                run_suite(root / "suite.json", root / "cli-suite")
+                for file in (root / "suite-run").rglob("*"):
+                    if file.is_file():
+                        self.assertEqual(
+                            file.read_bytes(), (root / "cli-suite" / file.relative_to(root / "suite-run")).read_bytes()
+                        )
+                response = self._post(connection, server, "/api/handoff-preview", {"bundle": "suite-run"})
+                self.assertEqual(response.status, 200)
+                claim = json.loads(response.read())
+                self.assertEqual(claim["predicate"]["bundleKind"], "suite")
+                self.assertTrue(claim["predicate"]["scopeComplete"])
+                for format_name, name, direct in (
+                    ("statement", "statement.json", export_statement),
+                    ("report", "report.md", report_cutover),
+                ):
+                    response = self._post(
+                        connection,
+                        server,
+                        "/api/handoff-export",
+                        {
+                            "bundle": "suite-run",
+                            "output": name,
+                            "format": format_name,
+                            "manifest_sha256": claim["manifest_sha256"],
+                        },
+                    )
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(json.loads(response.read())["output"], name)
+                    direct(root / "suite-run", root / f"cli-{name}")
+                    self.assertEqual((root / name).read_bytes(), (root / f"cli-{name}").read_bytes())
+                response = self._post(
+                    connection,
+                    server,
+                    "/api/handoff-export",
+                    {
+                        "bundle": "suite-run",
+                        "output": "stale.json",
+                        "format": "statement",
+                        "manifest_sha256": "0" * 64,
+                    },
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "stale.json").exists())
+                response = self._post(
+                    connection,
+                    server,
+                    "/api/handoff-export",
+                    {
+                        "bundle": "suite-run",
+                        "output": "suite-run/statement.json",
+                        "format": "statement",
+                        "manifest_sha256": claim["manifest_sha256"],
+                    },
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "suite-run" / "statement.json").exists())
+                response = self._post(connection, server, "/api/history", {})
+                self.assertEqual(response.status, 200)
+                history = json.loads(response.read())
+                self.assertEqual([(item["bundle"], item["kind"]) for item in history], [("suite-run", "suite")])
+                response = self._post(connection, server, "/api/suite-run-status", {})
+                self.assertEqual(
+                    json.loads(response.read()), {"phase": "complete", "completed_cases": 1, "selected_cases": 1}
+                )
+                (root / "cli-suite" / "cases" / "orders" / "result.json").write_text("{}", encoding="utf-8")
+                response = self._post(connection, server, "/api/handoff-preview", {"bundle": "cli-suite"})
+                self.assertEqual(response.status, 422)
+                response.read()
+                connection.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
     def test_stalled_clients_cannot_hold_accept_loop_or_slots_forever(self):
         with (
             tempfile.TemporaryDirectory() as directory,

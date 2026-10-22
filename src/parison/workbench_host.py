@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import secrets
@@ -15,11 +16,13 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .core import ParisonError
+from .evidence import evidence_statement, export_statement, report_cutover
 from .inputs import _source_path, _source_paths
 from .policies import list_suite
 from .workbench import (
     compare_projection,
     execute_run,
+    execute_suite_run,
     history_projection,
     investigate_projection,
     plan_projection,
@@ -119,6 +122,7 @@ def _suite_plan(
     return {
         "suite_version": listed["suite_version"],
         "suite_policy_sha256": listed["suite_policy_sha256"],
+        "plan_sha256": hashlib.sha256(plan.read_bytes()).hexdigest(),
         "total_cases": listed["total_cases"],
         "selected_cases": listed["selected_cases"],
         "output": output,
@@ -212,9 +216,14 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
     run_lock = threading.Lock()
     run_cancel = threading.Event()
     run_state = {"phase": "idle"}
+    suite_state = {"phase": "idle", "completed_cases": 0, "selected_cases": 0}
+    active_kind = {"value": None}
 
     def set_run_phase(phase: str) -> None:
         run_state["phase"] = phase
+
+    def set_suite_progress(completed: int, total: int) -> None:
+        suite_state.update(phase="comparing", completed_cases=completed, selected_cases=total)
 
     class Handler(BaseHTTPRequestHandler):
         def setup(self) -> None:
@@ -431,15 +440,71 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     return
                 try:
                     run_cancel.clear()
+                    active_kind["value"] = "run"
                     payload = execute_run(root, *paths, cancelled=run_cancel.is_set, progress=set_run_phase)
                 except ParisonError as exc:
                     set_run_phase("cancelled" if str(exc) == "workbench run cancelled" else "error")
                     self._headers(422, "application/json")
                     return
                 finally:
+                    active_kind["value"] = None
+                    run_lock.release()
+            elif path == "/api/suite-run" and set(request) == {
+                "plan",
+                "case_ids",
+                "tags",
+                "shard_index",
+                "shard_count",
+                "output",
+                "plan_sha256",
+            }:
+                try:
+                    preview = _suite_plan(
+                        root,
+                        request["plan"],
+                        request["case_ids"],
+                        request["tags"],
+                        request["shard_index"],
+                        request["shard_count"],
+                        request["output"],
+                    )
+                    if not request["output"] or request["plan_sha256"] != preview["plan_sha256"]:
+                        raise ParisonError("suite plan changed or output missing")
+                    plan = _workspace_path(root, request["plan"])
+                    output = _workspace_path(root, request["output"])
+                    if plan is None or output is None:
+                        raise ParisonError("unsafe suite path")
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
+                try:
+                    run_cancel.clear()
+                    active_kind["value"] = "suite"
+                    suite_state.update(phase="preflight", completed_cases=0, selected_cases=preview["selected_cases"])
+                    payload = execute_suite_run(
+                        root,
+                        plan,
+                        output,
+                        request["case_ids"],
+                        request["tags"],
+                        request["shard_index"],
+                        request["shard_count"],
+                        cancelled=run_cancel.is_set,
+                        progress=set_suite_progress,
+                    )
+                    suite_state["phase"] = "complete"
+                except ParisonError as exc:
+                    suite_state["phase"] = "cancelled" if str(exc) == "workbench suite cancelled" else "error"
+                    self._headers(422, "application/json")
+                    return
+                finally:
+                    active_kind["value"] = None
                     run_lock.release()
             elif path == "/api/cancel-run" and not request:
-                if not run_lock.locked():
+                if active_kind["value"] != "run":
                     self._headers(409, "application/json")
                     return
                 run_cancel.set()
@@ -447,6 +512,59 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 payload = {"status": "cancellation-requested"}
             elif path == "/api/run-status" and not request:
                 payload = dict(run_state)
+            elif path == "/api/cancel-suite" and not request:
+                if active_kind["value"] != "suite":
+                    self._headers(409, "application/json")
+                    return
+                run_cancel.set()
+                suite_state["phase"] = "cancelling"
+                payload = {"status": "cancellation-requested"}
+            elif path == "/api/suite-run-status" and not request:
+                payload = dict(suite_state)
+            elif path == "/api/handoff-preview" and set(request) == {"bundle"}:
+                bundle = _workspace_path(root, request["bundle"])
+                if bundle is None:
+                    self._headers(422, "application/json")
+                    return
+                try:
+                    statement = evidence_statement(bundle)
+                    if statement["predicate"]["bundleKind"] not in {"suite", "suite-shard"}:
+                        raise ParisonError("handoff requires a suite bundle")
+                    payload = {
+                        "manifest_sha256": statement["subject"][0]["digest"]["sha256"],
+                        "predicate": statement["predicate"],
+                    }
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/handoff-export" and set(request) == {"bundle", "output", "format", "manifest_sha256"}:
+                bundle = _workspace_path(root, request["bundle"])
+                output = _workspace_path(root, request["output"])
+                if bundle is None or output is None or request["format"] not in {"statement", "report"}:
+                    self._headers(422, "application/json")
+                    return
+                if any(
+                    (parent / "manifest.json").exists()
+                    for parent in (output.parent, *output.parents)
+                    if parent == root or parent.is_relative_to(root)
+                ):
+                    self._headers(422, "application/json")
+                    return
+                try:
+                    statement = evidence_statement(bundle)
+                    if statement["predicate"]["bundleKind"] not in {"suite", "suite-shard"}:
+                        raise ParisonError("handoff requires a suite bundle")
+                    if statement["subject"][0]["digest"]["sha256"] != request["manifest_sha256"]:
+                        raise ParisonError("suite changed since handoff preview")
+                    result = (
+                        export_statement(bundle, output)
+                        if request["format"] == "statement"
+                        else report_cutover(bundle, output)
+                    )
+                    payload = {"output": request["output"], "manifest_sha256": result["bundle_sha256"]}
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
             elif path == "/api/history" and not request:
                 try:
                     payload = history_projection(root)
