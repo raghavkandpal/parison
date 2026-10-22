@@ -32,7 +32,7 @@ Parison is an independent data-engineering side project. The proposed product co
 
 **1.8.0 released.** Explicit RFC 6901 JSON document projection, bounded QName XML record projection and exact XLSX named-table projection feed the released semantic-scalar boundary without changing comparison or evidence semantics.
 
-**2.0.0 release candidate.** The local Workbench adds Plans, Run, Results, History, Investigate and Compare over the released verification engine. Plans remain explicit CLI-native JSON and drafts remain unapproved.
+**2.0.0 released.** The local Workbench adds Plans, Run, Results, History, Investigate and Compare over the released verification engine. Plans remain explicit CLI-native JSON and drafts remain unapproved.
 
 Parison is an open-source, zero-custody tool. Comparisons run in the user's environment; Parison will not receive or store customer production data. Monetization and commercial packaging are outside the current roadmap.
 

@@ -1,6 +1,6 @@
 # Current development state
 
-- Version: **2.0 workbench development active after 1.9.0**
+- Version: **2.0.0 released**
 - Branch: `develop`
 - Theme: local-first Workbench — verified navigation, explicit plan authoring,
   and bounded local execution as one three-feature train
@@ -174,7 +174,14 @@
   [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39611398493)
   on Linux, macOS and Windows with Python 3.11--3.14; combined local
   `make check` passed 424 tests.
-- Next gate: qualify the exact 2.0 candidate head before release consideration.
+- Released: exact 2.0.0 merge `9f4846a45bac5f0c5e8e20e8cb4d56d7de725edc`
+  passed [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39733155869)
+  and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39733155795).
+  The [public release](https://github.com/raghavkandpal/parison/releases/tag/2.0.0)
+  was checksum-verified and its wheel passed a fresh local Workbench smoke;
+  see the [release checklist](2.0/219-release-checklist.md).
+- Next gate: review the [proposed 2.1 suite train](2.1/220-workbench-release-train-research-and-plan.md)
+  and begin its first separately qualified feature slice.
 
 ## Recorded next steps
 

@@ -5,8 +5,7 @@ then produces deterministic evidence that can be verified elsewhere. A `PASS`
 means agreement under that policy. It does not prove extraction truth, approve
 the policy or authorize a cutover.
 
-This is the maintained guide for the released 1.x line and active 2.0
-workbench development. The
+This is the maintained guide for the released 2.0 line. The
 [generated command reference](command-reference.md) lists every option; frozen
 version contracts remain the normative record for artifact semantics.
 
@@ -15,7 +14,7 @@ version contracts remain the normative record for artifact semantics.
 Python 3.11 or newer is required.
 
 ```sh
-python -m pip install /path/to/parison-1.5.0-py3-none-any.whl
+python -m pip install /path/to/parison-2.0.0-py3-none-any.whl
 parison --version
 parison init migration-check
 cd migration-check
@@ -43,9 +42,9 @@ receipts separately.
 
 ## Start the unified Workbench
 
-The active 2.0 interface is one Python-hosted local application. The host binds
+The 2.0 interface is one Python-hosted local application. The host binds
 only numeric loopback on an ephemeral port and requires a per-launch capability.
-The application is still under development. Plans reviews CLI-native recipes;
+Plans reviews CLI-native recipes;
 Run preflights and executes one explicit local comparison; Results verifies a
 bundle before display; History, Investigate and Compare operate only on verified
 summary-safe evidence. Continue to use the released CLI for automation and
@@ -58,8 +57,7 @@ parison workbench --workspace .
 Stop it with **Stop workbench** in the application or Ctrl-C in the launching
 terminal. Closing the browser tab alone does not stop the local host. The
 earlier generated evidence and plan applications were
-prototypes and are not the 2.0 interface. Their safety contracts are being
-migrated behind this unified host.
+prototypes and are not the 2.0 interface.
 
 Workbench Run accepts workspace-relative paths for the recipe, baseline,
 candidate and a new output bundle. Only one run can be active. Its progress
