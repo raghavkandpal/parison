@@ -26,6 +26,59 @@ except ImportError:
 
 
 class WorkbenchHostTests(unittest.TestCase):
+    def test_partitioned_suite_inputs_revalidate_member_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "project"
+            init_project(root)
+            for side in ("baseline", "candidate"):
+                partition = root / side
+                partition.mkdir()
+                (root / f"{side}.csv").rename(partition / "part.csv")
+            (root / "suite.json").write_text(
+                json.dumps(
+                    {
+                        "suite_version": 1,
+                        "cases": [
+                            {"id": "orders", "recipe": "recipe.json", "baseline": "baseline", "candidate": "candidate"}
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+                request = {
+                    "plan": "suite.json",
+                    "case_ids": [],
+                    "tags": [],
+                    "shard_index": None,
+                    "shard_count": None,
+                    "output": "suite-run",
+                }
+                response = self._post(connection, server, "/api/suite-plan", request)
+                self.assertEqual(response.status, 200)
+                preview = json.loads(response.read())
+                member = root / "candidate" / "part.csv"
+                original = member.read_bytes()
+                member.write_bytes(original + b"\n")
+                run = {**request, "plan_sha256": preview["plan_sha256"], "members_sha256": preview["members_sha256"]}
+                response = self._post(connection, server, "/api/suite-run", run)
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "suite-run").exists())
+                member.write_bytes(original)
+                response = self._post(connection, server, "/api/suite-run", run)
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read())["evidence"]["outcome"], "PASS")
+                connection.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
     def test_suite_rehearsal_verifies_and_registers_local_bundle(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "project"
