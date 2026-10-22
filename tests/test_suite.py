@@ -29,6 +29,8 @@ from parison.core import (
     run_suite,
     verify_bundle,
 )
+from parison.suites import compare_suites
+from parison.workbench import compare_projection
 
 
 def _crashing_suite_worker(case, *args):
@@ -99,6 +101,65 @@ class SuiteTests(unittest.TestCase):
 
     def case(self, identifier="orders"):
         return {"id": identifier, "recipe": "recipe.json", "baseline": "baseline.csv", "candidate": "candidate.csv"}
+
+    def test_compare_repeated_suites_requires_same_verified_scope_and_policy(self):
+        self.write_plan_v2([self.case()])
+        first, second = self.root / "first", self.root / "second"
+        run_suite(self.plan, first)
+        (self.root / "candidate.csv").write_text("id,value\na,2\n", encoding="utf-8")
+        run_suite(self.plan, second)
+        comparison = compare_suites(first, second)
+        self.assertEqual(comparison["outcome"], {"before": "PASS", "after": "FAIL"})
+        self.assertEqual(comparison["transitions"], {"PASS->FAIL": 1})
+        self.assertTrue(comparison["cases"][0]["changed"])
+        self.assertTrue(comparison["cases"][0]["inputs_changed"])
+        self.assertNotIn("input_sha256", json.dumps(comparison))
+        self.assertNotIn("candidate.csv", json.dumps(comparison))
+        output = StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(main(["compare-suites", str(first), str(second)]), 0)
+        self.assertEqual(json.loads(output.getvalue()), comparison)
+        self.assertEqual(compare_projection(self.root, first, second), comparison)
+        (self.root / "baseline.csv").write_text("id,value\na,3\n", encoding="utf-8")
+        (self.root / "candidate.csv").write_text("id,value\na,3\n", encoding="utf-8")
+        same_outcome = self.root / "same-outcome-new-inputs"
+        run_suite(self.plan, same_outcome)
+        repeated = compare_suites(first, same_outcome)
+        self.assertEqual(repeated["outcome"], {"before": "PASS", "after": "PASS"})
+        self.assertTrue(repeated["changed"])
+        self.assertEqual(repeated["transitions"], {"PASS->PASS": 1})
+        (self.root / "recipe.json").write_text(json.dumps({**RECIPE, "nulls_equal": False}), encoding="utf-8")
+        third = self.root / "third"
+        run_suite(self.plan, third)
+        with self.assertRaisesRegex(ParisonError, "matching scope and policy"):
+            compare_suites(first, third)
+        (second / "cases" / "orders" / "result.json").write_text("{}", encoding="utf-8")
+        with self.assertRaises(ParisonError):
+            compare_suites(first, second)
+
+    def test_compare_suites_supports_v1_and_rejects_changed_v2_selection(self):
+        self.write_plan([self.case()])
+        first, second = self.root / "v1-first", self.root / "v1-second"
+        run_suite(self.plan, first)
+        run_suite(self.plan, second)
+        self.assertFalse(compare_suites(first, second)["changed"])
+
+        self.write_plan_v2([self.case("first"), self.case("second")])
+        selected, full = self.root / "selected", self.root / "full"
+        run_suite(self.plan, selected, case_ids=["first"])
+        run_suite(self.plan, full)
+        with self.assertRaisesRegex(ParisonError, "matching scope and policy"):
+            compare_suites(selected, full)
+        shard_0, shard_1 = self.root / "shard-0", self.root / "shard-1"
+        run_suite(self.plan, shard_0, shard_index=0, shard_count=2)
+        run_suite(self.plan, shard_1, shard_index=1, shard_count=2)
+        with self.assertRaisesRegex(ParisonError, "matching scope and policy"):
+            compare_suites(shard_0, shard_1)
+        self.write_plan_v2([self.case("second"), self.case("first")])
+        reordered = self.root / "reordered"
+        run_suite(self.plan, reordered)
+        with self.assertRaisesRegex(ParisonError, "matching scope and policy"):
+            compare_suites(full, reordered)
 
     def test_workbench_cancellation_cleans_unpublished_suite(self):
         self.write_plan_v2([self.case("first"), self.case("second")])

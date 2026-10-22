@@ -157,6 +157,11 @@ class WorkbenchHostTests(unittest.TestCase):
                         self.assertEqual(
                             file.read_bytes(), (root / "cli-suite" / file.relative_to(root / "suite-run")).read_bytes()
                         )
+                response = self._post(connection, server, "/api/compare", {"left": "suite-run", "right": "cli-suite"})
+                self.assertEqual(response.status, 200)
+                comparison = json.loads(response.read())
+                self.assertFalse(comparison["changed"])
+                self.assertEqual(comparison["cases"][0]["id"], "orders")
                 response = self._post(connection, server, "/api/handoff-preview", {"bundle": "suite-run"})
                 self.assertEqual(response.status, 200)
                 claim = json.loads(response.read())

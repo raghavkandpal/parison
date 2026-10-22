@@ -188,8 +188,13 @@
   reviewed plans to their selected bytes. [PR #69](https://github.com/raghavkandpal/parison/pull/69)
   merged at `b3c5c69` after its exact head passed the
   [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39780279353).
-- Next gate: implement and qualify [repeated suite comparison](2.1/227-suite-comparison-contract.md),
-  then [failed-member investigation](2.1/228-suite-investigation-contract.md)
+- Implemented locally: repeated suite comparison verifies both bundles,
+  enforces identical policy and scope, and presents case-level outcome,
+  completeness, counts and input identity through CLI and Workbench. Exact-head
+  CI and independent review remain before integration.
+- Next gate: qualify [repeated suite comparison](2.1/227-suite-comparison-contract.md)
+  through exact-head CI and independent review, then implement
+  [failed-member investigation](2.1/228-suite-investigation-contract.md)
   as distinct 2.1 capabilities before restarting candidate qualification.
 
 ## Recorded next steps

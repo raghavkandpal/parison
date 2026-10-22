@@ -30,11 +30,65 @@ from .core import (
 from .evidence import (
     _read_bundle_result,
     error_result,
+    inspect_bundle,
     publish,
     terminal_result,
     verify_bundle,
 )
 from .inputs import InputCancellation
+
+
+def compare_suites(left: str | Path, right: str | Path) -> dict[str, Any]:
+    """Compare complete, recursively verified suite rehearsals under one policy and scope."""
+    bundles = [Path(left), Path(right)]
+    inspected = [inspect_bundle(path) for path in bundles]
+    if any(item.get("kind") not in {"suite", "suite-shard"} for item in inspected):
+        raise ParisonError("suite comparison requires suite bundles")
+    results = [json.loads((path / "suite-result.json").read_text(encoding="utf-8")) for path in bundles]
+    if any(not result.get("execution_complete", result.get("complete")) for result in results):
+        raise ParisonError("suite comparison requires completed executions")
+    policy_field = "suite_policy_sha256" if results[0]["suite_version"] == 2 else "suite_sha256"
+    identities = [
+        (
+            item["kind"],
+            item["suite_version"],
+            item["total_cases"],
+            result.get(policy_field),
+            result.get("selection"),
+            tuple((case["id"], case["policy_sha256"], case["contract"]) for case in item["cases"]),
+        )
+        for item, result in zip(inspected, results, strict=True)
+    ]
+    if identities[0] != identities[1]:
+        raise ParisonError("suite comparison requires matching scope and policy")
+    cases = []
+    for before, after in zip(inspected[0]["cases"], inspected[1]["cases"], strict=True):
+        child = [inspect_bundle(path / case["bundle"]) for path, case in zip(bundles, (before, after), strict=True)]
+        fields = ("outcome", "complete", "counts", "discrepancy_count")
+        prior, later = ({name: value.get(name) for name in fields} for value in child)
+        inputs_changed = child[0].get("input_sha256") != child[1].get("input_sha256")
+        cases.append(
+            {
+                "id": before["id"],
+                "changed": prior != later or inputs_changed,
+                "inputs_changed": inputs_changed,
+                "before": prior,
+                "after": later,
+            }
+        )
+    transitions: dict[str, int] = {}
+    for case in cases:
+        transition = f"{case['before']['outcome']}->{case['after']['outcome']}"
+        transitions[transition] = transitions.get(transition, 0) + 1
+    return {
+        "suite_version": inspected[0]["suite_version"],
+        policy_field: results[0][policy_field],
+        "selection": results[0].get("selection"),
+        "changed": any(case["changed"] for case in cases) or inspected[0]["outcome"] != inspected[1]["outcome"],
+        "outcome": {"before": inspected[0]["outcome"], "after": inspected[1]["outcome"]},
+        "transitions": dict(sorted(transitions.items())),
+        "cases": cases,
+    }
 
 
 def _suite_report(result: dict[str, Any]) -> str:
