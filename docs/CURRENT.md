@@ -188,9 +188,9 @@
   reviewed plans to their selected bytes. [PR #69](https://github.com/raghavkandpal/parison/pull/69)
   merged at `b3c5c69` after its exact head passed the
   [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39780279353).
-- Next gate: expand the [2.1 release train](2.1/220-workbench-release-train-research-and-plan.md)
-  into at least three substantial, separately reviewable capabilities before
-  restarting candidate qualification.
+- Next gate: implement and qualify [repeated suite comparison](2.1/227-suite-comparison-contract.md),
+  then [failed-member investigation](2.1/228-suite-investigation-contract.md)
+  as distinct 2.1 capabilities before restarting candidate qualification.
 
 ## Recorded next steps
 
