@@ -5,7 +5,7 @@ Status: implemented on the 2.1 feature branch; qualification pending
 
 After validating a suite in Plans, the operator can bring that exact selection
 to Run and choose a new workspace-relative output folder. The host checks the
-plan source digest and validates all suite references again at submission. It
+plan source digest and the bytes of every referenced recipe and input at submission. It
 executes one suite locally with one job, bounded by the released suite limits.
 The UI reports the number of selected cases completed, can request cooperative
 cancellation during input scans, and does not publish a partial suite on that
@@ -23,6 +23,6 @@ This slice does not add scheduling, remote workers, automatic resume, approval,
 or a new suite format. Parallel jobs remain a CLI choice; Workbench uses one
 job so cooperative cancellation has one bounded path.
 
-Completion gate: focused tests cover plan-digest rejection, local PASS suite
+Completion gate: focused tests cover stale plan and member rejection, local PASS suite
 publication, byte parity with CLI, verified history, and cancellation cleanup.
 The full `make check` gate and exact-head CI must pass before integration.

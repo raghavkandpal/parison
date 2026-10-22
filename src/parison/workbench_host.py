@@ -101,6 +101,7 @@ def _suite_plan(
     output_path = _workspace_path(root, output) if output else None
     if output and (output_path is None or output_path.exists() or output_path.is_symlink()):
         raise ParisonError("suite output must be a new workspace path")
+    members = hashlib.sha256()
     try:
         document = json.loads(plan.read_text(encoding="utf-8"))
         cases = document["cases"]
@@ -115,6 +116,15 @@ def _suite_plan(
                 relative = absolute.relative_to(root)
                 if _workspace_path(root, str(relative)) is None:
                     raise ValueError
+                if not absolute.is_file():
+                    raise ValueError
+                member = hashlib.sha256()
+                with absolute.open("rb") as handle:
+                    for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                        member.update(chunk)
+                members.update(str(relative).encode("utf-8"))
+                members.update(b"\0")
+                members.update(member.digest())
     except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError, ParisonError) as exc:
         raise ParisonError("suite references must stay inside the workspace") from exc
     listed = list_suite(plan, case_ids, tags, shard_index, shard_count)
@@ -123,6 +133,7 @@ def _suite_plan(
         "suite_version": listed["suite_version"],
         "suite_policy_sha256": listed["suite_policy_sha256"],
         "plan_sha256": hashlib.sha256(plan.read_bytes()).hexdigest(),
+        "members_sha256": members.hexdigest(),
         "total_cases": listed["total_cases"],
         "selected_cases": listed["selected_cases"],
         "output": output,
@@ -457,6 +468,7 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 "shard_count",
                 "output",
                 "plan_sha256",
+                "members_sha256",
             }:
                 try:
                     preview = _suite_plan(
@@ -468,7 +480,11 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                         request["shard_count"],
                         request["output"],
                     )
-                    if not request["output"] or request["plan_sha256"] != preview["plan_sha256"]:
+                    if (
+                        not request["output"]
+                        or request["plan_sha256"] != preview["plan_sha256"]
+                        or request["members_sha256"] != preview["members_sha256"]
+                    ):
                         raise ParisonError("suite plan changed or output missing")
                     plan = _workspace_path(root, request["plan"])
                     output = _workspace_path(root, request["output"])
@@ -557,9 +573,9 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     if statement["subject"][0]["digest"]["sha256"] != request["manifest_sha256"]:
                         raise ParisonError("suite changed since handoff preview")
                     result = (
-                        export_statement(bundle, output)
+                        export_statement(bundle, output, expected_manifest_sha256=request["manifest_sha256"])
                         if request["format"] == "statement"
-                        else report_cutover(bundle, output)
+                        else report_cutover(bundle, output, expected_manifest_sha256=request["manifest_sha256"])
                     )
                     payload = {"output": request["output"], "manifest_sha256": result["bundle_sha256"]}
                 except ParisonError:

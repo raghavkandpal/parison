@@ -69,11 +69,23 @@ class WorkbenchHostTests(unittest.TestCase):
                     {
                         **request,
                         "plan_sha256": "0" * 64,
+                        "members_sha256": preview["members_sha256"],
                     },
                 )
                 self.assertEqual(response.status, 422)
                 response.read()
                 self.assertFalse((root / "suite-run").exists())
+                original_candidate = (root / "candidate.csv").read_bytes()
+                (root / "candidate.csv").write_bytes(original_candidate + b"\n")
+                response = self._post(
+                    connection,
+                    server,
+                    "/api/suite-run",
+                    {**request, "plan_sha256": preview["plan_sha256"], "members_sha256": preview["members_sha256"]},
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                (root / "candidate.csv").write_bytes(original_candidate)
                 response = self._post(
                     connection,
                     server,
@@ -81,6 +93,7 @@ class WorkbenchHostTests(unittest.TestCase):
                     {
                         **request,
                         "plan_sha256": preview["plan_sha256"],
+                        "members_sha256": preview["members_sha256"],
                     },
                 )
                 self.assertEqual(response.status, 200)
@@ -96,6 +109,10 @@ class WorkbenchHostTests(unittest.TestCase):
                 claim = json.loads(response.read())
                 self.assertEqual(claim["predicate"]["bundleKind"], "suite")
                 self.assertTrue(claim["predicate"]["scopeComplete"])
+                for writer, name in ((export_statement, "changed.json"), (report_cutover, "changed.md")):
+                    with self.assertRaisesRegex(ParisonError, "changed since handoff preview"):
+                        writer(root / "suite-run", root / name, expected_manifest_sha256="0" * 64)
+                    self.assertFalse((root / name).exists())
                 for format_name, name, direct in (
                     ("statement", "statement.json", export_statement),
                     ("report", "report.md", report_cutover),
