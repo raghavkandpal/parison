@@ -46,6 +46,10 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Combined Workbench review and usability qualification](2.0/218-workbench-combined-review.md)
 - [2.0.0 release checklist](2.0/219-release-checklist.md)
 
+## 2.1 — Proposed Workbench suite train
+
+- [Suite rehearsal and evidence handoff research and plan](2.1/220-workbench-release-train-research-and-plan.md)
+
 ## 1.8 — released
 
 - [Structured record projection research](1.8/176-structured-record-projection-research.md)
