@@ -308,6 +308,69 @@ class WorkbenchHostTests(unittest.TestCase):
             self.assertEqual(plan["source"], recipe.read_text(encoding="utf-8"))
             self.assertEqual(plan["comparison_mode"], "keyed")
             self.assertRegex(plan["policy_sha256"], r"^[0-9a-f]{64}$")
+            suite = root / "suite.json"
+            suite.write_text(
+                json.dumps(
+                    {
+                        "suite_version": 2,
+                        "cases": [
+                            {
+                                "id": "orders",
+                                "recipe": "recipe.json",
+                                "baseline": "baseline.csv",
+                                "candidate": "candidate.csv",
+                                "tags": ["migration"],
+                                "description": "secret-value-must-not-leak",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            response = self._post(
+                connection,
+                server,
+                "/api/suite-plan",
+                {
+                    "plan": "suite.json",
+                    "case_ids": ["orders"],
+                    "tags": ["migration"],
+                    "shard_index": 0,
+                    "shard_count": 1,
+                },
+            )
+            self.assertEqual(response.status, 200)
+            listed = json.loads(response.read())
+            self.assertEqual(listed["cases"], [{"id": "orders", "comparison_mode": "keyed", "tags": ["migration"]}])
+            self.assertNotIn("secret-value-must-not-leak", json.dumps(listed))
+            self.assertRegex(listed["suite_policy_sha256"], r"^[0-9a-f]{64}$")
+            response = self._post(
+                connection,
+                server,
+                "/api/suite-plan",
+                {"plan": "suite.json", "case_ids": ["missing"], "tags": [], "shard_index": None, "shard_count": None},
+            )
+            self.assertEqual(response.status, 422)
+            response.read()
+            (root / "linked.csv").symlink_to(root / "baseline.csv")
+            suite.write_text(suite.read_text().replace('"baseline.csv"', '"linked.csv"'), encoding="utf-8")
+            response = self._post(
+                connection,
+                server,
+                "/api/suite-plan",
+                {"plan": "suite.json", "case_ids": [], "tags": [], "shard_index": None, "shard_count": None},
+            )
+            self.assertEqual(response.status, 422)
+            response.read()
+            suite.write_text(suite.read_text().replace('"linked.csv"', '"../outside.csv"'), encoding="utf-8")
+            response = self._post(
+                connection,
+                server,
+                "/api/suite-plan",
+                {"plan": "suite.json", "case_ids": [], "tags": [], "shard_index": None, "shard_count": None},
+            )
+            self.assertEqual(response.status, 422)
+            response.read()
             self.assertNotIn(str(recipe), json.dumps(plan))
             self.assertEqual(plan["controls"]["kind"], "object")
             self.assertIn('"null_tokens"', plan["effective_policy"])

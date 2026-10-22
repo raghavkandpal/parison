@@ -49,6 +49,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 ## 2.1 — Proposed Workbench suite train
 
 - [Suite rehearsal and evidence handoff research and plan](2.1/220-workbench-release-train-research-and-plan.md)
+- [Workbench suite plan review contract](2.1/221-workbench-suite-plan-contract.md)
 
 ## 1.8 — released
 

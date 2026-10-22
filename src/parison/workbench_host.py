@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 
 from .core import ParisonError
 from .inputs import _source_path, _source_paths
+from .policies import list_suite
 from .workbench import (
     compare_projection,
     execute_run,
@@ -78,6 +79,43 @@ def _workspace_source(root: Path, value: object) -> str | Path | None:
         split = locator.split if prefix == "json" else locator.rsplit
         return f"{prefix}:{path}#{split('#', 1)[1]}"
     return _workspace_path(root, value)
+
+
+def _suite_plan(
+    root: Path, value: object, case_ids: object, tags: object, shard_index: object, shard_count: object
+) -> dict:
+    """List a suite only after every referenced path is confined to the workspace."""
+    plan = _workspace_path(root, value)
+    if plan is None or not plan.is_file() or not isinstance(case_ids, list) or not isinstance(tags, list):
+        raise ParisonError("invalid suite plan or selection")
+    if not all(isinstance(item, str) for item in case_ids + tags):
+        raise ParisonError("invalid suite selection")
+    if any(item is not None and (type(item) is not int) for item in (shard_index, shard_count)):
+        raise ParisonError("invalid suite shard selection")
+    try:
+        document = json.loads(plan.read_text(encoding="utf-8"))
+        cases = document["cases"]
+        if not isinstance(cases, list):
+            raise ValueError
+        base = plan.parent.relative_to(root)
+        for case in cases:
+            for name in ("recipe", "baseline", "candidate"):
+                reference = case[name]
+                path = Path(reference) if name == "recipe" else _source_path(reference)
+                if _workspace_path(root, str(base / path)) is None:
+                    raise ValueError
+    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError, ParisonError) as exc:
+        raise ParisonError("suite references must stay inside the workspace") from exc
+    listed = list_suite(plan, case_ids, tags, shard_index, shard_count)
+    return {
+        "suite_version": listed["suite_version"],
+        "suite_policy_sha256": listed["suite_policy_sha256"],
+        "total_cases": listed["total_cases"],
+        "selected_cases": listed["selected_cases"],
+        "cases": [
+            {name: case[name] for name in ("id", "comparison_mode", "tags") if name in case} for case in listed["cases"]
+        ],
+    }
 
 
 def _choose_bundle(root: Path) -> str | None:
@@ -296,6 +334,25 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     return
                 try:
                     payload = plan_projection(recipe)
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/suite-plan" and set(request) == {
+                "plan",
+                "case_ids",
+                "tags",
+                "shard_index",
+                "shard_count",
+            }:
+                try:
+                    payload = _suite_plan(
+                        root,
+                        request["plan"],
+                        request["case_ids"],
+                        request["tags"],
+                        request["shard_index"],
+                        request["shard_count"],
+                    )
                 except ParisonError:
                     self._headers(422, "application/json")
                     return
