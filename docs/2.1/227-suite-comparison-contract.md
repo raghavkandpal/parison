@@ -1,7 +1,7 @@
 # Repeated suite comparison contract
 
 Date: 22 October 2026  
-Status: proposed second substantial 2.1 capability; implementation pending
+Status: implemented on the second 2.1 feature branch; qualification pending
 
 Compare two explicit local suite bundles after recursively verifying both.
 The comparison has a closed, deterministic, summary-safe projection and makes

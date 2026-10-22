@@ -343,6 +343,18 @@ parison analyze runs/rehearsal-01 runs/rehearsal-02 \
 parison verify-analysis evidence/analysis
 ```
 
+For two complete, verified suite rehearsals with the same case selection and
+policy, the unreleased 2.1 source checkout can compare each case's outcome,
+counts, completeness and input digest identity without reading source inputs:
+
+```sh
+parison compare-suites evidence/suite-before evidence/suite-after
+```
+
+The Workbench Compare activity accepts the same two workspace-relative suite
+bundles. It rejects changed scope, policy or tampered evidence. This is a
+summary-safe comparison, not a determination that a migration is safe.
+
 For a selected group, raw drill-down is available only when the source run
 already contains raw samples:
 

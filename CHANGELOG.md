@@ -6,6 +6,9 @@ All notable changes will be documented in this file.
 
 ### Added
 
+- Repeated suite comparison in CLI and Workbench verifies both bundles,
+  requires the same explicit scope and policies, and shows per-case outcome,
+  completeness, counts and input identity without source values.
 - Workbench Plans can validate an existing local suite and review its exact
   case, tag and shard selection, member input references and planned output
   without executing inputs or exposing record values in the browser.
