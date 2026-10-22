@@ -15,6 +15,11 @@ All notable changes will be documented in this file.
 - Workbench Handoff can preview a verified suite claim and export the released
   deterministic unsigned Statement and cutover report to explicit local paths.
 
+### Fixed
+
+- Workbench suite review accepts released partitioned input directories and
+  detects changes to their selected files before execution.
+
 ## 2.0.0 - 2026-10-22
 
 ### Added

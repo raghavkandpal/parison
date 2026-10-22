@@ -11,6 +11,8 @@ The UI reports the number of selected cases completed, can request cooperative
 cancellation during input scans, and does not publish a partial suite on that
 cancellation path. The released suite runner publishes the immutable bundle;
 the Workbench then verifies it before registering a summary-safe catalog entry.
+Partitioned input directories use the released source selection and digest
+rules, so changed partition contents invalidate a reviewed plan before Run.
 
 History includes verified run, suite and suite-shard bundles in insertion order.
 Results verifies any completed suite bundle before showing its closed

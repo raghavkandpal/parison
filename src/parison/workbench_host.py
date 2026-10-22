@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 
 from .core import ParisonError
 from .evidence import evidence_statement, export_statement, report_cutover
-from .inputs import _source_path, _source_paths
+from .inputs import _source_digest, _source_path, _source_paths
 from .policies import list_suite
 from .workbench import (
     compare_projection,
@@ -116,15 +116,13 @@ def _suite_plan(
                 relative = absolute.relative_to(root)
                 if _workspace_path(root, str(relative)) is None:
                     raise ValueError
-                if not absolute.is_file():
+                if name == "recipe" and not absolute.is_file():
                     raise ValueError
-                member = hashlib.sha256()
-                with absolute.open("rb") as handle:
-                    for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                        member.update(chunk)
+                if name != "recipe" and not (absolute.is_file() or absolute.is_dir()):
+                    raise ValueError
                 members.update(str(relative).encode("utf-8"))
                 members.update(b"\0")
-                members.update(member.digest())
+                members.update(bytes.fromhex(_source_digest(absolute)))
     except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError, ParisonError) as exc:
         raise ParisonError("suite references must stay inside the workspace") from exc
     listed = list_suite(plan, case_ids, tags, shard_index, shard_count)
