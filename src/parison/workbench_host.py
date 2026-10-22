@@ -15,8 +15,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from .analysis import drill_down, export_drilldown
 from .core import ParisonError
-from .evidence import evidence_statement, export_statement, report_cutover
+from .evidence import evidence_statement, export_statement, inspect_bundle, report_cutover
 from .inputs import _source_digest, _source_path, _source_paths
 from .policies import list_suite
 from .workbench import (
@@ -25,6 +26,7 @@ from .workbench import (
     execute_suite_run,
     history_projection,
     investigate_projection,
+    investigate_suite_member,
     plan_projection,
     plan_text_projection,
     workbench_projection,
@@ -602,6 +604,60 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     return
                 try:
                     payload = investigate_projection(bundle)
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/investigate-suite" and set(request) == {"bundle", "case_id"}:
+                bundle = _workspace_path(root, request["bundle"])
+                if bundle is None or not isinstance(request["case_id"], str):
+                    self._headers(422, "application/json")
+                    return
+                try:
+                    payload = investigate_suite_member(bundle, request["case_id"])
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/investigate-export" and set(request) == {
+                "bundle",
+                "case_id",
+                "suite_sha256",
+                "group_id",
+                "limit",
+                "per_run_limit",
+                "output",
+            }:
+                bundle = _workspace_path(root, request["bundle"])
+                output = _workspace_path(root, request["output"])
+                limit, per_run_limit = request["limit"], request["per_run_limit"]
+                if (
+                    bundle is None
+                    or output is None
+                    or not isinstance(request["case_id"], str)
+                    or not isinstance(request["group_id"], str)
+                    or type(limit) is not int
+                    or not 1 <= limit <= 100
+                    or type(per_run_limit) is not int
+                    or not 1 <= per_run_limit <= 25
+                    or any(
+                        (parent / "manifest.json").exists()
+                        for parent in (output.parent, *output.parents)
+                        if parent == root or parent.is_relative_to(root)
+                    )
+                ):
+                    self._headers(422, "application/json")
+                    return
+                try:
+                    selected = investigate_suite_member(bundle, request["case_id"])
+                    if selected["suite_sha256"] != request["suite_sha256"] or not any(
+                        group["group_id"] == request["group_id"] and group["count"] > 0 for group in selected["groups"]
+                    ):
+                        raise ParisonError("suite or discrepancy group changed")
+                    child = bundle / "cases" / request["case_id"]
+                    raw = drill_down([child], request["group_id"], limit, per_run_limit)
+                    if inspect_bundle(bundle)["bundle_sha256"] != selected["suite_sha256"]:
+                        raise ParisonError("suite changed during drill-down")
+                    written = export_drilldown(output, raw)
+                    payload = {"output": request["output"], "sha256": written["sha256"]}
                 except ParisonError:
                     self._headers(422, "application/json")
                     return

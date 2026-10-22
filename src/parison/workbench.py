@@ -215,6 +215,23 @@ def investigate_projection(bundle: str | Path) -> dict[str, Any]:
     }
 
 
+def investigate_suite_member(bundle: str | Path, case_id: str) -> dict[str, Any]:
+    """Select one failed run only through a freshly verified suite case list."""
+    from .evidence import inspect_bundle
+
+    suite = inspect_bundle(bundle)
+    if suite.get("kind") not in {"suite", "suite-shard"}:
+        raise ParisonError("investigation requires a suite bundle")
+    case = next((item for item in suite["cases"] if item["id"] == case_id), None)
+    if case is None or case["outcome"] != "FAIL":
+        raise ParisonError("case is not a failed suite member")
+    child = Path(bundle) / "cases" / case_id
+    analysis = investigate_projection(child)
+    if analysis["bundle_sha256"] != case["manifest_sha256"]:
+        raise ParisonError("suite member changed during investigation")
+    return {"case_id": case_id, "suite_sha256": suite["bundle_sha256"], **analysis}
+
+
 def _rows(value: Any, prefix: str = "") -> list[tuple[str, str]]:
     if isinstance(value, dict):
         rows = []
