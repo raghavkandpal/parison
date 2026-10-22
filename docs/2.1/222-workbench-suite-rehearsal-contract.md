@@ -1,7 +1,7 @@
 # Workbench bounded suite rehearsal
 
 Date: 22 October 2026  
-Status: implemented on the 2.1 feature branch; qualification pending
+Status: implemented on `develop`; release qualification pending
 
 After validating a suite in Plans, the operator can bring that exact selection
 to Run and choose a new workspace-relative output folder. The host checks the
