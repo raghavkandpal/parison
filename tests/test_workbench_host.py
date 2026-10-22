@@ -34,6 +34,7 @@ class WorkbenchHostTests(unittest.TestCase):
             recipe["output"]["sensitivity"] = "raw"
             (root / "recipe.json").write_text(json.dumps(recipe), encoding="utf-8")
             (root / "candidate.csv").write_text("id,value\nexample,private-789\n", encoding="utf-8")
+            (root / "same.csv").write_text("id,value\nexample,same\n", encoding="utf-8")
             (root / "suite.json").write_text(
                 json.dumps(
                     {
@@ -46,6 +47,14 @@ class WorkbenchHostTests(unittest.TestCase):
                                 "candidate": "candidate.csv",
                             }
                             for identifier in ("first", "second")
+                        ]
+                        + [
+                            {
+                                "id": "passing",
+                                "recipe": "recipe.json",
+                                "baseline": "baseline.csv",
+                                "candidate": "same.csv",
+                            }
                         ],
                     }
                 ),
@@ -58,6 +67,9 @@ class WorkbenchHostTests(unittest.TestCase):
             try:
                 connection = http.client.HTTPConnection(*server.server_address)
                 select = {"bundle": "suite-run", "case_id": "second"}
+                response = self._post(connection, server, "/api/investigate-suite-cases", {"bundle": "suite-run"})
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read())["case_ids"], ["first", "second"])
                 response = self._post(connection, server, "/api/investigate-suite", select)
                 self.assertEqual(response.status, 200)
                 view = json.loads(response.read())
@@ -75,7 +87,12 @@ class WorkbenchHostTests(unittest.TestCase):
                 self.assertEqual(response.status, 200)
                 self.assertNotIn("private-789", response.read().decode())
                 self.assertIn("private-789", (root / "raw.json").read_text(encoding="utf-8"))
-                for bad in ({**select, "case_id": "missing"}, {**select, "bundle": "../outside"}):
+                exported_bytes = (root / "raw.json").read_bytes()
+                for bad in (
+                    {**select, "case_id": "missing"},
+                    {**select, "case_id": "passing"},
+                    {**select, "bundle": "../outside"},
+                ):
                     response = self._post(connection, server, "/api/investigate-suite", bad)
                     self.assertEqual(response.status, 422)
                     response.read()
@@ -97,9 +114,19 @@ class WorkbenchHostTests(unittest.TestCase):
                 self.assertFalse((root / "unknown.json").exists())
                 self.assertFalse((root / "empty.json").exists())
                 self.assertFalse((root / "stale.json").exists())
+                self.assertEqual((root / "raw.json").read_bytes(), exported_bytes)
                 (root / "linked.json").symlink_to(root / "raw.json")
                 response = self._post(
                     connection, server, "/api/investigate-export", {**request, "output": "linked.json"}
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                renamed_plan = json.loads((root / "suite.json").read_text(encoding="utf-8"))
+                renamed_plan["cases"][1]["id"] = "renamed"
+                (root / "renamed.json").write_text(json.dumps(renamed_plan), encoding="utf-8")
+                run_suite(root / "renamed.json", root / "renamed-suite")
+                response = self._post(
+                    connection, server, "/api/investigate-suite", {"bundle": "renamed-suite", "case_id": "second"}
                 )
                 self.assertEqual(response.status, 422)
                 response.read()

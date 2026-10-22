@@ -617,6 +617,22 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 except ParisonError:
                     self._headers(422, "application/json")
                     return
+            elif path == "/api/investigate-suite-cases" and set(request) == {"bundle"}:
+                bundle = _workspace_path(root, request["bundle"])
+                if bundle is None:
+                    self._headers(422, "application/json")
+                    return
+                try:
+                    suite = inspect_bundle(bundle)
+                    if suite.get("kind") not in {"suite", "suite-shard"}:
+                        raise ParisonError("investigation requires a suite bundle")
+                    payload = {
+                        "suite_sha256": suite["bundle_sha256"],
+                        "case_ids": [case["id"] for case in suite["cases"] if case["outcome"] == "FAIL"],
+                    }
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
             elif path == "/api/investigate-export" and set(request) == {
                 "bundle",
                 "case_id",

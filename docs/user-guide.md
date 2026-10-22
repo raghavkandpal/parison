@@ -363,6 +363,8 @@ published sample to a new workspace-relative path. Enter the exact group ID;
 the Workbench caps output at 100 items overall and 25 per run, verifies the
 suite again, and never sends raw items to the browser. The local export is
 sensitive. Summary-sensitivity runs have no raw sample to export.
+Load the verified failed-case list in Investigate, select one member, then
+analyze it before choosing a group for export.
 
 For a selected group, raw drill-down is available only when the source run
 already contains raw samples:
