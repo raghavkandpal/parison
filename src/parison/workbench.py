@@ -20,7 +20,7 @@ from .core import ParisonError
 from .evidence import inspect_bundle, publish
 from .inputs import InputCancellation, validate_inputs
 from .policies import explain_recipe_text, load_recipe
-from .suites import run_suite
+from .suites import compare_suites, run_suite
 from .workbench_plans import plan_controls
 
 _COMMON_FIELDS = (
@@ -171,7 +171,16 @@ def history_projection(workspace: str | Path) -> list[dict[str, Any]]:
 def compare_projection(workspace: str | Path, left: str | Path, right: str | Path) -> dict[str, Any]:
     """Return a same-policy summary-safe catalog comparison with relative bundle names."""
     root = Path(workspace).resolve()
-    comparison = catalog_diff(_catalog_path(root), left, right)
+    try:
+        comparison = catalog_diff(_catalog_path(root), left, right)
+    except ParisonError as catalog_error:
+        try:
+            kinds = {inspect_bundle(path).get("kind") for path in (left, right)}
+        except ParisonError:
+            raise catalog_error from None
+        if kinds & {"suite", "suite-shard"}:
+            return compare_suites(left, right)
+        raise
     if any(comparison[side]["state"] != "current" for side in ("left", "right")):
         raise ParisonError("workbench comparison requires current bundle integrity")
     for side in ("left", "right"):
