@@ -64,15 +64,29 @@ def compare_suites(left: str | Path, right: str | Path) -> dict[str, Any]:
     cases = []
     for before, after in zip(inspected[0]["cases"], inspected[1]["cases"], strict=True):
         child = [inspect_bundle(path / case["bundle"]) for path, case in zip(bundles, (before, after), strict=True)]
-        fields = ("outcome", "complete", "counts", "discrepancy_count", "input_sha256")
+        fields = ("outcome", "complete", "counts", "discrepancy_count")
         prior, later = ({name: value.get(name) for name in fields} for value in child)
-        cases.append({"id": before["id"], "changed": prior != later, "before": prior, "after": later})
+        inputs_changed = child[0].get("input_sha256") != child[1].get("input_sha256")
+        cases.append(
+            {
+                "id": before["id"],
+                "changed": prior != later or inputs_changed,
+                "inputs_changed": inputs_changed,
+                "before": prior,
+                "after": later,
+            }
+        )
+    transitions: dict[str, int] = {}
+    for case in cases:
+        transition = f"{case['before']['outcome']}->{case['after']['outcome']}"
+        transitions[transition] = transitions.get(transition, 0) + 1
     return {
         "suite_version": inspected[0]["suite_version"],
-        "suite_policy_sha256": results[0][policy_field],
+        policy_field: results[0][policy_field],
         "selection": results[0].get("selection"),
         "changed": any(case["changed"] for case in cases) or inspected[0]["outcome"] != inspected[1]["outcome"],
         "outcome": {"before": inspected[0]["outcome"], "after": inspected[1]["outcome"]},
+        "transitions": dict(sorted(transitions.items())),
         "cases": cases,
     }
 

@@ -192,8 +192,9 @@
   enforces identical policy and scope, and presents case-level outcome,
   completeness, counts and input identity through CLI and Workbench. Exact-head
   CI and independent review remain before integration.
-- Next gate: implement and qualify [repeated suite comparison](2.1/227-suite-comparison-contract.md),
-  then [failed-member investigation](2.1/228-suite-investigation-contract.md)
+- Next gate: qualify [repeated suite comparison](2.1/227-suite-comparison-contract.md)
+  through exact-head CI and independent review, then implement
+  [failed-member investigation](2.1/228-suite-investigation-contract.md)
   as distinct 2.1 capabilities before restarting candidate qualification.
 
 ## Recorded next steps

@@ -17,7 +17,7 @@ from .catalog import diff as catalog_diff
 from .catalog import list_runs
 from .comparison import compare
 from .core import ParisonError
-from .evidence import inspect_bundle, publish
+from .evidence import inspect_bundle, publish, verify_bundle
 from .inputs import InputCancellation, validate_inputs
 from .policies import explain_recipe_text, load_recipe
 from .suites import compare_suites, run_suite
@@ -172,15 +172,12 @@ def compare_projection(workspace: str | Path, left: str | Path, right: str | Pat
     """Return a same-policy summary-safe catalog comparison with relative bundle names."""
     root = Path(workspace).resolve()
     try:
-        comparison = catalog_diff(_catalog_path(root), left, right)
-    except ParisonError as catalog_error:
-        try:
-            kinds = {inspect_bundle(path).get("kind") for path in (left, right)}
-        except ParisonError:
-            raise catalog_error from None
-        if kinds & {"suite", "suite-shard"}:
-            return compare_suites(left, right)
-        raise
+        left_kind = verify_bundle(left).get("kind")
+    except ParisonError as exc:
+        raise ParisonError("workbench comparison requires current bundle integrity") from exc
+    if left_kind in {"suite", "suite-shard"}:
+        return compare_suites(left, right)
+    comparison = catalog_diff(_catalog_path(root), left, right)
     if any(comparison[side]["state"] != "current" for side in ("left", "right")):
         raise ParisonError("workbench comparison requires current bundle integrity")
     for side in ("left", "right"):

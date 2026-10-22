@@ -110,11 +110,10 @@ class SuiteTests(unittest.TestCase):
         run_suite(self.plan, second)
         comparison = compare_suites(first, second)
         self.assertEqual(comparison["outcome"], {"before": "PASS", "after": "FAIL"})
+        self.assertEqual(comparison["transitions"], {"PASS->FAIL": 1})
         self.assertTrue(comparison["cases"][0]["changed"])
-        self.assertNotEqual(
-            comparison["cases"][0]["before"]["input_sha256"],
-            comparison["cases"][0]["after"]["input_sha256"],
-        )
+        self.assertTrue(comparison["cases"][0]["inputs_changed"])
+        self.assertNotIn("input_sha256", json.dumps(comparison))
         self.assertNotIn("candidate.csv", json.dumps(comparison))
         output = StringIO()
         with redirect_stdout(output):
@@ -128,6 +127,7 @@ class SuiteTests(unittest.TestCase):
         repeated = compare_suites(first, same_outcome)
         self.assertEqual(repeated["outcome"], {"before": "PASS", "after": "PASS"})
         self.assertTrue(repeated["changed"])
+        self.assertEqual(repeated["transitions"], {"PASS->PASS": 1})
         (self.root / "recipe.json").write_text(json.dumps({**RECIPE, "nulls_equal": False}), encoding="utf-8")
         third = self.root / "third"
         run_suite(self.plan, third)
@@ -150,6 +150,16 @@ class SuiteTests(unittest.TestCase):
         run_suite(self.plan, full)
         with self.assertRaisesRegex(ParisonError, "matching scope and policy"):
             compare_suites(selected, full)
+        shard_0, shard_1 = self.root / "shard-0", self.root / "shard-1"
+        run_suite(self.plan, shard_0, shard_index=0, shard_count=2)
+        run_suite(self.plan, shard_1, shard_index=1, shard_count=2)
+        with self.assertRaisesRegex(ParisonError, "matching scope and policy"):
+            compare_suites(shard_0, shard_1)
+        self.write_plan_v2([self.case("second"), self.case("first")])
+        reordered = self.root / "reordered"
+        run_suite(self.plan, reordered)
+        with self.assertRaisesRegex(ParisonError, "matching scope and policy"):
+            compare_suites(full, reordered)
 
     def test_workbench_cancellation_cleans_unpublished_suite(self):
         self.write_plan_v2([self.case("first"), self.case("second")])
