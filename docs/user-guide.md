@@ -14,7 +14,7 @@ version contracts remain the normative record for artifact semantics.
 Python 3.11 or newer is required.
 
 ```sh
-python -m pip install /path/to/parison-2.0.0-py3-none-any.whl
+python -m pip install /path/to/parison-2.1.0-py3-none-any.whl
 parison --version
 parison init migration-check
 cd migration-check
@@ -344,7 +344,7 @@ parison verify-analysis evidence/analysis
 ```
 
 For two complete, verified suite rehearsals with the same case selection and
-policy, the unreleased 2.1 source checkout can compare each case's outcome,
+policy, Parison 2.1 can compare each case's outcome,
 counts, completeness and input digest identity without reading source inputs:
 
 ```sh
@@ -355,7 +355,7 @@ The Workbench Compare activity accepts the same two workspace-relative suite
 bundles. It rejects changed scope, policy or tampered evidence. This is a
 summary-safe comparison, not a determination that a migration is safe.
 
-The unreleased 2.1 Workbench Investigate activity also accepts a verified
+The 2.1 Workbench Investigate activity also accepts a verified
 suite bundle plus one exact failed case ID. It shows that member's discrepancy
 groups without record keys or values. For a nonzero group from a raw-sensitivity
 run, a separate **Export sensitive raw sample** action writes the already

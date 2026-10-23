@@ -46,7 +46,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Combined Workbench review and usability qualification](2.0/218-workbench-combined-review.md)
 - [2.0.0 release checklist](2.0/219-release-checklist.md)
 
-## 2.1 — Workbench suite train
+## 2.1 — Workbench suite train — released
 
 - [Suite rehearsal and evidence handoff research and plan](2.1/220-workbench-release-train-research-and-plan.md)
 - [Workbench suite plan review contract](2.1/221-workbench-suite-plan-contract.md)
@@ -80,7 +80,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [1.7.0 release checklist](1.7/174-release-checklist.md)
 - [1.7 engineering checkpoint](1.7/175-engineering-checkpoint.md)
 
-## Current 1.x documentation
+## User guide
 
 - [Task-oriented user guide](user-guide.md)
 - [Generated CLI command reference](command-reference.md)
