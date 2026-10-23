@@ -58,9 +58,10 @@ candidate. Repeat candidate gates on the complete train.
   CI on Python 3.11–3.14 across Linux, macOS and Windows.
 - [ ] Build wheel and source archive from a clean `git archive` of that exact
   candidate. Inspect contents, metadata and SHA-256 hashes.
-- [ ] Install the candidate wheel in a fresh supported-Python environment and
-  smoke-test suite plan review, run, recursive verification, History, Statement
-  export and report export against synthetic local inputs.
+- [ ] Install the exact candidate wheel in a fresh supported-Python environment
+  and smoke-test suite plan review, run, recursive verification, History,
+  repeated comparison, failed-member investigation, bounded raw export,
+  Statement export and report export against synthetic local inputs.
 
 ## Publication
 
