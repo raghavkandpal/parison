@@ -1,9 +1,9 @@
 # Current development state
 
-- Version: **2.1.0 release candidate in qualification**
+- Version: **2.1.0 released; next train not yet scoped**
 - Branch: `develop`
 - Theme: local-first verification — the Workbench suite workflow, repeated
-  suite comparison and failed-member investigation are integrated
+  suite comparison and failed-member investigation are released
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
   record projection and the 1.9 JSON/XML/XLSX structured field-selection train
   across all comparison modes
@@ -202,16 +202,20 @@
   the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39915435281),
   clean-archive inspection and a fresh Python 3.14 wheel smoke across all
   three 2.1 capabilities.
-- Next gate: integrate the [qualification record](2.1/225-release-checklist.md)
-  to `develop`, verify its exact head, then open the 2.1.0 release PR from
-  `develop` to `main`.
+- Released: exact merge `9a6e9e93b709331bb6bf1503b78f26d9fd5e6ac5`
+  passed [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39916541177)
+  and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39916541313).
+  Annotated tag and [GitHub release 2.1.0](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
+  publish checksum-verified assets; a fresh install of the public wheel passed
+  the full suite, comparison, investigation and handoff smoke.
+- Next gate: research and plan the next three-feature train from the
+  [product direction](0.15/104-product-direction-and-release-arc.md), keeping
+  2.1.0 release records stable.
 
 ## Recorded next steps
 
-- Development resumed by explicit user direction after the verified 1.9.0
-  release. Follow the active 2.0 research, contract and checkpoint documents;
-  internal review and test evidence never establishes operational policy or
-  cutover approval.
+- Parison 2.1.0 is published. Internal review and test evidence never
+  establishes operational policy or cutover approval.
 
 - When an autonomous session stops near its usage limit, return a copy-ready
   next-session goal prompt. Include the exact branch and commits, green CI and

@@ -6,6 +6,8 @@ All notable changes will be documented in this file.
 
 ## 2.1.0 - 2026-10-23
 
+[Release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.1.0).
+
 ### Added
 
 - Workbench Investigate selects one exact failed case from a recursively

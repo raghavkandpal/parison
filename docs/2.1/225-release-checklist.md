@@ -96,8 +96,9 @@ workflow only. Complete-train qualification follows.
   passed plan/run, recursive verification, History, repeated suite comparison,
   failed-member investigation, bounded raw export, Statement byte parity with
   CLI and report export.
-- [ ] Reconcile this checklist, changelog, documentation index and current
-  state against the exact tested release commit.
+- [x] Reconcile this checklist, changelog, documentation index, user guide,
+  README and current state against the exact tested release commit and public
+  assets in the post-release records pull request to `develop`.
 
 Internal qualification does not establish extraction truth, policy approval,
 signer identity, migration approval or cutover authorization.
