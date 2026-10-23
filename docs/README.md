@@ -6,6 +6,9 @@ Start with [the current development state](CURRENT.md) for the active version an
 
 ## 2.2 — accepted six-feature train
 
+- [Six-feature contracts and acceptance gates](2.2/233-contracts-and-acceptance.md)
+- [Initial repository and verifier qualification](2.2/234-initial-qualification.md)
+
 - [Original five-feature research and plan](2.2/229-five-feature-research-and-plan.md)
 - [Five additional capabilities: expanded ten-feature proposal](2.2/230-additional-five-feature-research.md)
 - [Independent blind feature review](2.2/231-independent-feature-review.md)

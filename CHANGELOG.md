@@ -6,6 +6,9 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Begin six-feature 2.2 contract and acceptance freeze; record verified baseline
+  CI and a reproduced reconciliation count-vocabulary validation gap.
+
 - Accept the reviewed six-capability 2.2 roadmap; defer assertions, archives
   and reconciliation comparison and combine reconciliation diagnosis/handoff.
 
