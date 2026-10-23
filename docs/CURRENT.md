@@ -1,7 +1,7 @@
 # Current development state
 
-- Version: **2.1.0 released; ten-feature 2.2 train proposed**
-- Branch: `docs/2.2-feature-research` (research proposal based on `develop`)
+- Version: **2.1.0 released; six-feature 2.2 train accepted**
+- Branch: `develop` (accepted plan integrated through PR #78)
 - Theme: local-first verification — the Workbench suite workflow, repeated
   suite comparison and failed-member investigation are released
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
@@ -208,10 +208,7 @@
   Annotated tag and [GitHub release 2.1.0](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
   publish checksum-verified assets; a fresh install of the public wheel passed
   the full suite, comparison, investigation and handoff smoke.
-- Next gate: reconcile the ten-feature proposal with the [independent blind review](2.2/231-independent-feature-review.md),
-  which recommends five committed capabilities and reshaped reconciliation work;
-  freeze selected contracts and feasibility fixtures before implementation;
-  keep 2.1.0 release records stable.
+- Next gate: freeze contracts and acceptance fixtures for the [accepted six-feature 2.2 roadmap](2.2/232-accepted-roadmap.md), beginning with modern dataset evidence and reconciliation verifier qualification. Keep 2.1.0 release records stable.
 
 ## Recorded next steps
 

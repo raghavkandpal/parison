@@ -6,6 +6,9 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Accept the reviewed six-capability 2.2 roadmap; defer assertions, archives
+  and reconciliation comparison and combine reconciliation diagnosis/handoff.
+
 - Record an independent blind review of all ten proposed 2.2 features,
   including scope replacements and reconciliation trust prerequisites.
 
