@@ -68,3 +68,9 @@ A fourth dataset feasibility test pins ordered partition hashing independently
 of file creation order, and detects changed member contents and added members.
 The branch must contain multiple substantive commits before integration, per the
 updated user instruction. No checkpoint authorizes publication.
+
+PR #79 merged at `378c17c` after independent Standards/Spec review of both
+commits and the exact-head [full matrix](https://github.com/raghavkandpal/parison/actions/runs/39956536233)
+passed for `96b90618dcbe1888fad7fd521c700ba4154c46a1`. Local checks passed
+434 tests with 11 Polars-absent skips. This completes the initial acceptance
+checkpoint, not the full wire-contract freeze or any feature.
