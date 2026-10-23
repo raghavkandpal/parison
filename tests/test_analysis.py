@@ -5,6 +5,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
@@ -338,6 +339,12 @@ class DiscrepancyAnalysisTests(unittest.TestCase):
         export_drilldown(output, result)
         self.assertEqual(json.loads(output.read_text(encoding="utf-8")), result)
         self.assertEqual(verify_drilldown(output)["returned_size"], 1)
+        failed_output = self.root / "failed-drilldown.json"
+        with patch("parison.evidence.os.link", side_effect=OSError("injected publication failure")):
+            with self.assertRaisesRegex(ParisonError, "cannot export discrepancy drill-down"):
+                export_drilldown(failed_output, result)
+        self.assertFalse(failed_output.exists())
+        self.assertEqual(list(self.root.glob(".failed-drilldown.json-*")), [])
         with self.assertRaisesRegex(ParisonError, "already exists"):
             export_drilldown(output, result)
         attributed = copy.deepcopy(result)

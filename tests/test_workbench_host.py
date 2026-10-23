@@ -14,6 +14,9 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from parison.core import ParisonError, compare, load_recipe, publish
+from parison.evidence import export_statement, report_cutover
+from parison.project import init_project
+from parison.suites import run_suite
 from parison.workbench_host import _choose_bundle, _choose_recipe, _workspace_source, create_workbench_server
 
 try:
@@ -23,6 +26,330 @@ except ImportError:
 
 
 class WorkbenchHostTests(unittest.TestCase):
+    def test_failed_suite_member_investigation_exports_bounded_raw_sample(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            init_project(root)
+            recipe = json.loads((root / "recipe.json").read_text(encoding="utf-8"))
+            recipe["output"]["sensitivity"] = "raw"
+            (root / "recipe.json").write_text(json.dumps(recipe), encoding="utf-8")
+            (root / "candidate.csv").write_text("id,value\nexample,private-789\n", encoding="utf-8")
+            (root / "same.csv").write_text("id,value\nexample,same\n", encoding="utf-8")
+            (root / "suite.json").write_text(
+                json.dumps(
+                    {
+                        "suite_version": 1,
+                        "cases": [
+                            {
+                                "id": identifier,
+                                "recipe": "recipe.json",
+                                "baseline": "baseline.csv",
+                                "candidate": "candidate.csv",
+                            }
+                            for identifier in ("first", "second")
+                        ]
+                        + [
+                            {
+                                "id": "passing",
+                                "recipe": "recipe.json",
+                                "baseline": "baseline.csv",
+                                "candidate": "same.csv",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            run_suite(root / "suite.json", root / "suite-run")
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+                select = {"bundle": "suite-run", "case_id": "second"}
+                response = self._post(connection, server, "/api/investigate-suite-cases", {"bundle": "suite-run"})
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read())["case_ids"], ["first", "second"])
+                response = self._post(connection, server, "/api/investigate-suite", select)
+                self.assertEqual(response.status, 200)
+                view = json.loads(response.read())
+                self.assertNotIn("private-789", json.dumps(view))
+                self.assertTrue(any(group["count"] for group in view["groups"]))
+                request = {
+                    **select,
+                    "suite_sha256": view["suite_sha256"],
+                    "group_id": next(group["group_id"] for group in view["groups"] if group["count"]),
+                    "limit": 1,
+                    "per_run_limit": 1,
+                    "output": "raw.json",
+                }
+                response = self._post(connection, server, "/api/investigate-export", request)
+                self.assertEqual(response.status, 200)
+                self.assertNotIn("private-789", response.read().decode())
+                self.assertIn("private-789", (root / "raw.json").read_text(encoding="utf-8"))
+                exported_bytes = (root / "raw.json").read_bytes()
+                for bad in (
+                    {**select, "case_id": "missing"},
+                    {**select, "case_id": "passing"},
+                    {**select, "bundle": "../outside"},
+                ):
+                    response = self._post(connection, server, "/api/investigate-suite", bad)
+                    self.assertEqual(response.status, 422)
+                    response.read()
+                for bad in (
+                    {**request, "output": "raw.json"},
+                    {**request, "limit": 101},
+                    {**request, "output": "../escape.json"},
+                    {
+                        **request,
+                        "group_id": next(group["group_id"] for group in view["groups"] if not group["count"]),
+                        "output": "empty.json",
+                    },
+                    {**request, "group_id": "0" * 64, "output": "unknown.json"},
+                    {**request, "suite_sha256": "0" * 64, "output": "stale.json"},
+                ):
+                    response = self._post(connection, server, "/api/investigate-export", bad)
+                    self.assertEqual(response.status, 422)
+                    response.read()
+                self.assertFalse((root / "unknown.json").exists())
+                self.assertFalse((root / "empty.json").exists())
+                self.assertFalse((root / "stale.json").exists())
+                self.assertEqual((root / "raw.json").read_bytes(), exported_bytes)
+                (root / "linked.json").symlink_to(root / "raw.json")
+                response = self._post(
+                    connection, server, "/api/investigate-export", {**request, "output": "linked.json"}
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                renamed_plan = json.loads((root / "suite.json").read_text(encoding="utf-8"))
+                renamed_plan["cases"][1]["id"] = "renamed"
+                (root / "renamed.json").write_text(json.dumps(renamed_plan), encoding="utf-8")
+                run_suite(root / "renamed.json", root / "renamed-suite")
+                response = self._post(
+                    connection, server, "/api/investigate-suite", {"bundle": "renamed-suite", "case_id": "second"}
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                (root / "suite-run" / "cases" / "first" / "result.json").write_text("{}", encoding="utf-8")
+                response = self._post(connection, server, "/api/investigate-suite", select)
+                self.assertEqual(response.status, 422)
+                response.read()
+                connection.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
+    def test_partitioned_suite_inputs_revalidate_member_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "project"
+            init_project(root)
+            for side in ("baseline", "candidate"):
+                partition = root / side
+                partition.mkdir()
+                (root / f"{side}.csv").rename(partition / "part.csv")
+            (root / "suite.json").write_text(
+                json.dumps(
+                    {
+                        "suite_version": 1,
+                        "cases": [
+                            {"id": "orders", "recipe": "recipe.json", "baseline": "baseline", "candidate": "candidate"}
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+                request = {
+                    "plan": "suite.json",
+                    "case_ids": [],
+                    "tags": [],
+                    "shard_index": None,
+                    "shard_count": None,
+                    "output": "suite-run",
+                }
+                response = self._post(connection, server, "/api/suite-plan", request)
+                self.assertEqual(response.status, 200)
+                preview = json.loads(response.read())
+                member = root / "candidate" / "part.csv"
+                original = member.read_bytes()
+                member.write_bytes(original + b"\n")
+                run = {**request, "plan_sha256": preview["plan_sha256"], "members_sha256": preview["members_sha256"]}
+                response = self._post(connection, server, "/api/suite-run", run)
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "suite-run").exists())
+                member.write_bytes(original)
+                response = self._post(connection, server, "/api/suite-run", run)
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read())["evidence"]["outcome"], "PASS")
+                connection.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
+    def test_suite_rehearsal_verifies_and_registers_local_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "project"
+            init_project(root)
+            (root / "suite.json").write_text(
+                json.dumps(
+                    {
+                        "suite_version": 2,
+                        "cases": [
+                            {
+                                "id": "orders",
+                                "recipe": "recipe.json",
+                                "baseline": "baseline.csv",
+                                "candidate": "candidate.csv",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+                request = {
+                    "plan": "suite.json",
+                    "case_ids": [],
+                    "tags": [],
+                    "shard_index": None,
+                    "shard_count": None,
+                    "output": "suite-run",
+                }
+                response = self._post(connection, server, "/api/suite-plan", request)
+                self.assertEqual(response.status, 200)
+                preview = json.loads(response.read())
+                response = self._post(
+                    connection,
+                    server,
+                    "/api/suite-run",
+                    {
+                        **request,
+                        "plan_sha256": "0" * 64,
+                        "members_sha256": preview["members_sha256"],
+                    },
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "suite-run").exists())
+                original_candidate = (root / "candidate.csv").read_bytes()
+                (root / "candidate.csv").write_bytes(original_candidate + b"\n")
+                response = self._post(
+                    connection,
+                    server,
+                    "/api/suite-run",
+                    {**request, "plan_sha256": preview["plan_sha256"], "members_sha256": preview["members_sha256"]},
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                (root / "candidate.csv").write_bytes(original_candidate)
+                response = self._post(
+                    connection,
+                    server,
+                    "/api/suite-run",
+                    {
+                        **request,
+                        "plan_sha256": preview["plan_sha256"],
+                        "members_sha256": preview["members_sha256"],
+                    },
+                )
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read())["evidence"]["outcome"], "PASS")
+                run_suite(root / "suite.json", root / "cli-suite")
+                for file in (root / "suite-run").rglob("*"):
+                    if file.is_file():
+                        self.assertEqual(
+                            file.read_bytes(), (root / "cli-suite" / file.relative_to(root / "suite-run")).read_bytes()
+                        )
+                response = self._post(connection, server, "/api/compare", {"left": "suite-run", "right": "cli-suite"})
+                self.assertEqual(response.status, 200)
+                comparison = json.loads(response.read())
+                self.assertFalse(comparison["changed"])
+                self.assertEqual(comparison["cases"][0]["id"], "orders")
+                response = self._post(connection, server, "/api/handoff-preview", {"bundle": "suite-run"})
+                self.assertEqual(response.status, 200)
+                claim = json.loads(response.read())
+                self.assertEqual(claim["predicate"]["bundleKind"], "suite")
+                self.assertTrue(claim["predicate"]["scopeComplete"])
+                for writer, name in ((export_statement, "changed.json"), (report_cutover, "changed.md")):
+                    with self.assertRaisesRegex(ParisonError, "changed since handoff preview"):
+                        writer(root / "suite-run", root / name, expected_manifest_sha256="0" * 64)
+                    self.assertFalse((root / name).exists())
+                for format_name, name, direct in (
+                    ("statement", "statement.json", export_statement),
+                    ("report", "report.md", report_cutover),
+                ):
+                    response = self._post(
+                        connection,
+                        server,
+                        "/api/handoff-export",
+                        {
+                            "bundle": "suite-run",
+                            "output": name,
+                            "format": format_name,
+                            "manifest_sha256": claim["manifest_sha256"],
+                        },
+                    )
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(json.loads(response.read())["output"], name)
+                    direct(root / "suite-run", root / f"cli-{name}")
+                    self.assertEqual((root / name).read_bytes(), (root / f"cli-{name}").read_bytes())
+                response = self._post(
+                    connection,
+                    server,
+                    "/api/handoff-export",
+                    {
+                        "bundle": "suite-run",
+                        "output": "stale.json",
+                        "format": "statement",
+                        "manifest_sha256": "0" * 64,
+                    },
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "stale.json").exists())
+                response = self._post(
+                    connection,
+                    server,
+                    "/api/handoff-export",
+                    {
+                        "bundle": "suite-run",
+                        "output": "suite-run/statement.json",
+                        "format": "statement",
+                        "manifest_sha256": claim["manifest_sha256"],
+                    },
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "suite-run" / "statement.json").exists())
+                response = self._post(connection, server, "/api/history", {})
+                self.assertEqual(response.status, 200)
+                history = json.loads(response.read())
+                self.assertEqual([(item["bundle"], item["kind"]) for item in history], [("suite-run", "suite")])
+                response = self._post(connection, server, "/api/suite-run-status", {})
+                self.assertEqual(
+                    json.loads(response.read()), {"phase": "complete", "completed_cases": 1, "selected_cases": 1}
+                )
+                (root / "cli-suite" / "cases" / "orders" / "result.json").write_text("{}", encoding="utf-8")
+                response = self._post(connection, server, "/api/handoff-preview", {"bundle": "cli-suite"})
+                self.assertEqual(response.status, 422)
+                response.read()
+                connection.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
     def test_stalled_clients_cannot_hold_accept_loop_or_slots_forever(self):
         with (
             tempfile.TemporaryDirectory() as directory,
@@ -308,6 +635,128 @@ class WorkbenchHostTests(unittest.TestCase):
             self.assertEqual(plan["source"], recipe.read_text(encoding="utf-8"))
             self.assertEqual(plan["comparison_mode"], "keyed")
             self.assertRegex(plan["policy_sha256"], r"^[0-9a-f]{64}$")
+            suite = root / "suite.json"
+            suite.write_text(
+                json.dumps(
+                    {
+                        "suite_version": 2,
+                        "cases": [
+                            {
+                                "id": "orders",
+                                "recipe": "recipe.json",
+                                "baseline": "baseline.csv",
+                                "candidate": "candidate.csv",
+                                "tags": ["migration"],
+                                "description": "secret-value-must-not-leak",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            response = self._post(
+                connection,
+                server,
+                "/api/suite-plan",
+                {
+                    "plan": "suite.json",
+                    "case_ids": ["orders"],
+                    "tags": ["migration"],
+                    "shard_index": 0,
+                    "shard_count": 1,
+                    "output": "suite-run",
+                },
+            )
+            self.assertEqual(response.status, 200)
+            listed = json.loads(response.read())
+            self.assertEqual(
+                listed["cases"],
+                [
+                    {
+                        "id": "orders",
+                        "comparison_mode": "keyed",
+                        "tags": ["migration"],
+                        "recipe": "recipe.json",
+                        "baseline": "baseline.csv",
+                        "candidate": "candidate.csv",
+                    }
+                ],
+            )
+            self.assertEqual(listed["output"], "suite-run")
+            self.assertNotIn("secret-value-must-not-leak", json.dumps(listed))
+            self.assertRegex(listed["suite_policy_sha256"], r"^[0-9a-f]{64}$")
+            (root / "suites").mkdir()
+            nested = root / "suites" / "nested.json"
+            nested.write_text(
+                suite.read_text()
+                .replace('"recipe.json"', '"../recipe.json"')
+                .replace('"baseline.csv"', '"../baseline.csv"')
+                .replace('"candidate.csv"', '"../candidate.csv"'),
+                encoding="utf-8",
+            )
+            response = self._post(
+                connection,
+                server,
+                "/api/suite-plan",
+                {
+                    "plan": "suites/nested.json",
+                    "case_ids": [],
+                    "tags": [],
+                    "shard_index": None,
+                    "shard_count": None,
+                    "output": "",
+                },
+            )
+            self.assertEqual(response.status, 200)
+            self.assertEqual(json.loads(response.read())["cases"][0]["recipe"], "../recipe.json")
+            response = self._post(
+                connection,
+                server,
+                "/api/suite-plan",
+                {
+                    "plan": "suite.json",
+                    "case_ids": ["missing"],
+                    "tags": [],
+                    "shard_index": None,
+                    "shard_count": None,
+                    "output": "",
+                },
+            )
+            self.assertEqual(response.status, 422)
+            response.read()
+            (root / "linked.csv").symlink_to(root / "baseline.csv")
+            suite.write_text(suite.read_text().replace('"baseline.csv"', '"linked.csv"'), encoding="utf-8")
+            response = self._post(
+                connection,
+                server,
+                "/api/suite-plan",
+                {
+                    "plan": "suite.json",
+                    "case_ids": [],
+                    "tags": [],
+                    "shard_index": None,
+                    "shard_count": None,
+                    "output": "",
+                },
+            )
+            self.assertEqual(response.status, 422)
+            response.read()
+            suite.write_text(suite.read_text().replace('"linked.csv"', '"../outside.csv"'), encoding="utf-8")
+            response = self._post(
+                connection,
+                server,
+                "/api/suite-plan",
+                {
+                    "plan": "suite.json",
+                    "case_ids": [],
+                    "tags": [],
+                    "shard_index": None,
+                    "shard_count": None,
+                    "output": "",
+                },
+            )
+            self.assertEqual(response.status, 422)
+            response.read()
             self.assertNotIn(str(recipe), json.dumps(plan))
             self.assertEqual(plan["controls"]["kind"], "object")
             self.assertIn('"null_tokens"', plan["effective_policy"])

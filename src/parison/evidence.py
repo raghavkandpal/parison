@@ -690,9 +690,13 @@ def _write_once(target: Path, content: str, error: str) -> None:
                 pass
 
 
-def export_statement(directory: str | Path, output: str | Path) -> dict[str, Any]:
+def export_statement(
+    directory: str | Path, output: str | Path, *, expected_manifest_sha256: str | None = None
+) -> dict[str, Any]:
     """Atomically export the canonical unsigned Statement for a verified bundle."""
     statement = evidence_statement(directory)
+    if expected_manifest_sha256 is not None and statement["subject"][0]["digest"]["sha256"] != expected_manifest_sha256:
+        raise ParisonError("bundle changed since handoff preview")
     target = Path(output)
     _write_once(
         target,
@@ -736,9 +740,13 @@ def verify_statement(directory: str | Path, statement_path: str | Path) -> dict[
     return {"status": "valid", "bundle_sha256": expected["subject"][0]["digest"]["sha256"]}
 
 
-def report_cutover(directory: str | Path, output: str | Path) -> dict[str, Any]:
+def report_cutover(
+    directory: str | Path, output: str | Path, *, expected_manifest_sha256: str | None = None
+) -> dict[str, Any]:
     """Write a deterministic safe Markdown cover sheet for verified evidence."""
     statement, result = _evidence_snapshot(directory)
+    if expected_manifest_sha256 is not None and statement["subject"][0]["digest"]["sha256"] != expected_manifest_sha256:
+        raise ParisonError("bundle changed since handoff preview")
     predicate = statement["predicate"]
     rows = [
         ("Bundle kind", predicate["bundleKind"]),

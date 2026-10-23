@@ -82,6 +82,7 @@ from .reconciliation import (
     summarize_reconciliation_result,
     verify_reconciliation_bundle,
 )
+from .suites import compare_suites
 from .workbench_host import serve_workbench
 
 
@@ -472,6 +473,9 @@ operator and null policy. Suggestions are starting points, not approved policy."
     verify.add_argument("--json", action="store_true", help="print verified manifest metadata as JSON")
     inspect = commands.add_parser("inspect", help="inspect safe metadata from a verified run bundle")
     inspect.add_argument("run_directory")
+    compare_suite = commands.add_parser("compare-suites", help="compare two verified suite rehearsals under one policy")
+    compare_suite.add_argument("left")
+    compare_suite.add_argument("right")
     workbench = commands.add_parser("workbench", help="build a local verification workbench")
     workbench.add_argument("--workspace", default=".", help="existing local workspace directory")
     workbench.add_argument("--no-open", action="store_true", help=argparse.SUPPRESS)
@@ -606,6 +610,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "inspect":
             print(json.dumps(inspect_bundle(args.run_directory), indent=2, sort_keys=True))
+            return 0
+        if args.command == "compare-suites":
+            print(json.dumps(compare_suites(args.left, args.right), sort_keys=True))
             return 0
         if args.command == "workbench":
             serve_workbench(args.workspace, not args.no_open)

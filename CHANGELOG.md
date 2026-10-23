@@ -2,7 +2,33 @@
 
 All notable changes will be documented in this file.
 
-## 2.0.0 - 2026-10-21
+## Unreleased
+
+## 2.1.0 - 2026-10-23
+
+### Added
+
+- Workbench Investigate selects one exact failed case from a recursively
+  verified suite, shows summary-safe discrepancy groups, and offers a separate
+  bounded export of already-published raw samples to a new local file.
+- Repeated suite comparison in CLI and Workbench verifies both bundles,
+  requires the same explicit scope and policies, and shows per-case outcome,
+  completeness, counts and input identity without source values.
+- Workbench Plans can validate an existing local suite and review its exact
+  case, tag and shard selection, member input references and planned output
+  without executing inputs or exposing record values in the browser.
+- Workbench Run can execute the validated local suite selection with one job,
+  report bounded progress and cooperative cancellation, then verify and
+  register the immutable suite bundle in History.
+- Workbench Handoff can preview a verified suite claim and export the released
+  deterministic unsigned Statement and cutover report to explicit local paths.
+
+### Fixed
+
+- Workbench suite review accepts released partitioned input directories and
+  detects changes to their selected files before execution.
+
+## 2.0.0 - 2026-10-22
 
 ### Added
 

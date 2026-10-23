@@ -1,9 +1,9 @@
 # Current development state
 
-- Version: **2.0 workbench development active after 1.9.0**
+- Version: **2.1.0 release candidate in qualification**
 - Branch: `develop`
-- Theme: local-first Workbench — verified navigation, explicit plan authoring,
-  and bounded local execution as one three-feature train
+- Theme: local-first verification — the Workbench suite workflow, repeated
+  suite comparison and failed-member investigation are integrated
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
   record projection and the 1.9 JSON/XML/XLSX structured field-selection train
   across all comparison modes
@@ -174,7 +174,37 @@
   [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39611398493)
   on Linux, macOS and Windows with Python 3.11--3.14; combined local
   `make check` passed 424 tests.
-- Next gate: qualify the exact 2.0 candidate head before release consideration.
+- Released: exact 2.0.0 merge `9f4846a45bac5f0c5e8e20e8cb4d56d7de725edc`
+  passed [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39733155869)
+  and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39733155795).
+  The [public release](https://github.com/raghavkandpal/parison/releases/tag/2.0.0)
+  was checksum-verified and its wheel passed a fresh local Workbench smoke;
+  see the [release checklist](2.0/219-release-checklist.md).
+- Implemented: 2.1 Workbench suite plan review, bounded local suite rehearsal
+  and verified unsigned handoff merged through [PR #68](https://github.com/raghavkandpal/parison/pull/68)
+  at `40288e4`. Its exact merge passed [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39737204435)
+  and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39737204420).
+- Corrected: Workbench accepts released partitioned suite inputs and binds
+  reviewed plans to their selected bytes. [PR #69](https://github.com/raghavkandpal/parison/pull/69)
+  merged at `b3c5c69` after its exact head passed the
+  [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39780279353).
+- Integrated: repeated suite comparison verifies both bundles, enforces
+  identical policy and scope, and presents case-level outcome, completeness,
+  counts and input identity through CLI and Workbench. [PR #72](https://github.com/raghavkandpal/parison/pull/72)
+  merged at `074c512` after independent reviews and its exact head passed the
+  [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39783092724).
+- Integrated: [failed-member investigation](2.1/228-suite-investigation-contract.md)
+  through [PR #73](https://github.com/raghavkandpal/parison/pull/73) at
+  `a9e387b`. Its exact head `c7c13dd` passed independent Standards and Spec
+  review and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39914308237).
+- Qualified candidate source checkpoint: `fe9be1d` passed independent
+  combined review, [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39915435312),
+  the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39915435281),
+  clean-archive inspection and a fresh Python 3.14 wheel smoke across all
+  three 2.1 capabilities.
+- Next gate: integrate the [qualification record](2.1/225-release-checklist.md)
+  to `develop`, verify its exact head, then open the 2.1.0 release PR from
+  `develop` to `main`.
 
 ## Recorded next steps
 

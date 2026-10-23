@@ -1,8 +1,8 @@
 # Parison 2.0.0 release checklist
 
-Date: 21 October 2026
+Date: 22 October 2026
 
-Status: **candidate qualified; publication pending**
+Status: **released**
 
 ## Capability gate
 
@@ -45,15 +45,26 @@ Status: **candidate qualified; publication pending**
 
 ## Publication
 
-- [ ] Release PR from `develop` to `main` merges after review, and CI passes
-  on the exact merge commit.
-- [ ] Build and inspect new artifacts from an archive of that merge commit.
-- [ ] Complete any release-specific external gates.
-- [ ] Push annotated `2.0.0` tag on the tested merge commit and publish the
-  wheel, source archive and `SHA256SUMS` as a GitHub release.
-- [ ] Re-download public assets, verify checksums, install the wheel fresh and
-  repeat the Workbench smoke workflow.
-- [ ] Reconcile release records to the exact tested commit and assets.
+- [x] [Release PR #66](https://github.com/raghavkandpal/parison/pull/66)
+  merged `develop` to `main` at exact commit
+  `9f4846a45bac5f0c5e8e20e8cb4d56d7de725edc`. Its head `a326ec4` passed
+  the manually dispatched [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39732962036).
+  The merge passed [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39733155869)
+  and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39733155795).
+- [x] A clean `git archive` of that merge commit rebuilt and inspected the
+  2.0.0 wheel and source archive. The wheel contains all four Workbench modules.
+  Wheel SHA-256: `215d7e4e22ecc4d75b7e0faa9f900d0b64ec0ca89ffb89db7893a6ff249d82ea`.
+  Source SHA-256: `cfc256e6256332e5059a0689bd502ec5fde16e508dfbb38992dc62a3fdafce18`.
+- [x] No release-specific external gate was required.
+- [x] Annotated tag `2.0.0` points to the tested merge. The
+  [GitHub release](https://github.com/raghavkandpal/parison/releases/tag/2.0.0)
+  publishes the wheel, source archive and `SHA256SUMS`.
+- [x] All public assets were re-downloaded; both archives passed the published
+  checksum file. A fresh Python 3.14 environment installed the public wheel,
+  reported `parison 2.0.0`, and passed synthetic local Workbench Plans, Results
+  and History smoke after a PASS comparison.
+- [x] Release code, tag, public assets and records identify the same tested
+  merge commit.
 
 Internal qualification does not establish extraction truth, policy approval,
 migration approval or cutover authorization.

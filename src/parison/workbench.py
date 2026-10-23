@@ -17,9 +17,10 @@ from .catalog import diff as catalog_diff
 from .catalog import list_runs
 from .comparison import compare
 from .core import ParisonError
-from .evidence import inspect_bundle, publish
+from .evidence import inspect_bundle, publish, verify_bundle
 from .inputs import InputCancellation, validate_inputs
 from .policies import explain_recipe_text, load_recipe
+from .suites import compare_suites, run_suite
 from .workbench_plans import plan_controls
 
 _COMMON_FIELDS = (
@@ -120,13 +121,43 @@ def execute_run(
     return {"evidence": projection, "catalog_status": indexed["status"]}
 
 
+def execute_suite_run(
+    workspace: str | Path,
+    plan: str | Path,
+    output: str | Path,
+    case_ids: list[str],
+    tags: list[str],
+    shard_index: int | None,
+    shard_count: int | None,
+    cancelled=None,
+    progress=None,
+) -> dict[str, Any]:
+    """Execute one selected local suite, then verify and catalog its bundle."""
+    run_suite(
+        plan,
+        output,
+        case_ids=case_ids,
+        tags=tags,
+        shard_index=shard_index,
+        shard_count=shard_count,
+        jobs=1,
+        cancelled=cancelled,
+        progress=progress,
+    )
+    projection = workbench_projection(output)
+    indexed = catalog_add(_catalog_path(workspace), output)
+    return {"evidence": projection, "catalog_status": indexed["status"]}
+
+
 def history_projection(workspace: str | Path) -> list[dict[str, Any]]:
     """Return workspace-relative summary-safe history from the local catalog."""
     root = Path(workspace).resolve()
     database = _catalog_path(root)
     if not database.exists():
         return []
-    runs = list_runs(database, kind="run", insertion_order=True)
+    runs = [
+        run for run in list_runs(database, insertion_order=True) if run.get("kind") in {"run", "suite", "suite-shard"}
+    ]
     projected = []
     for run in runs:
         try:
@@ -140,6 +171,12 @@ def history_projection(workspace: str | Path) -> list[dict[str, Any]]:
 def compare_projection(workspace: str | Path, left: str | Path, right: str | Path) -> dict[str, Any]:
     """Return a same-policy summary-safe catalog comparison with relative bundle names."""
     root = Path(workspace).resolve()
+    try:
+        left_kind = verify_bundle(left).get("kind")
+    except ParisonError as exc:
+        raise ParisonError("workbench comparison requires current bundle integrity") from exc
+    if left_kind in {"suite", "suite-shard"}:
+        return compare_suites(left, right)
     comparison = catalog_diff(_catalog_path(root), left, right)
     if any(comparison[side]["state"] != "current" for side in ("left", "right")):
         raise ParisonError("workbench comparison requires current bundle integrity")
@@ -176,6 +213,23 @@ def investigate_projection(bundle: str | Path) -> dict[str, Any]:
             for group in analysis["groups"]
         ],
     }
+
+
+def investigate_suite_member(bundle: str | Path, case_id: str) -> dict[str, Any]:
+    """Select one failed run only through a freshly verified suite case list."""
+    from .evidence import inspect_bundle
+
+    suite = inspect_bundle(bundle)
+    if suite.get("kind") not in {"suite", "suite-shard"}:
+        raise ParisonError("investigation requires a suite bundle")
+    case = next((item for item in suite["cases"] if item["id"] == case_id), None)
+    if case is None or case["outcome"] != "FAIL":
+        raise ParisonError("case is not a failed suite member")
+    child = Path(bundle) / "cases" / case_id
+    analysis = investigate_projection(child)
+    if analysis["bundle_sha256"] != case["manifest_sha256"]:
+        raise ParisonError("suite member changed during investigation")
+    return {"case_id": case_id, "suite_sha256": suite["bundle_sha256"], **analysis}
 
 
 def _rows(value: Any, prefix: str = "") -> list[tuple[str, str]]:
