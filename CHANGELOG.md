@@ -4,6 +4,22 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Documentation
+
+- Accept the reviewed six-capability 2.2 roadmap; defer assertions, archives
+  and reconciliation comparison and combine reconciliation diagnosis/handoff.
+
+- Record an independent blind review of all ten proposed 2.2 features,
+  including scope replacements and reconciliation trust prerequisites.
+
+- Expand the proposed 2.2 train to ten capabilities with reconciliation
+  comparison and investigation, explicit assertions, evidence archives and
+  Workbench suite authoring.
+
+- Research a proposed five-feature 2.2 train: Workbench reconciliation,
+  structured and partitioned dataset evidence, policy-change review,
+  recoverable suites, and suite rehearsal series. No new runtime behavior.
+
 ## 2.1.0 - 2026-10-23
 
 [Release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.1.0).

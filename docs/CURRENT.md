@@ -1,7 +1,7 @@
 # Current development state
 
-- Version: **2.1.0 released; next train not yet scoped**
-- Branch: `develop`
+- Version: **2.1.0 released; six-feature 2.2 train accepted**
+- Branch: `develop` (accepted plan integrated through PR #78)
 - Theme: local-first verification — the Workbench suite workflow, repeated
   suite comparison and failed-member investigation are released
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
@@ -208,9 +208,7 @@
   Annotated tag and [GitHub release 2.1.0](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
   publish checksum-verified assets; a fresh install of the public wheel passed
   the full suite, comparison, investigation and handoff smoke.
-- Next gate: research and plan the next three-feature train from the
-  [product direction](0.15/104-product-direction-and-release-arc.md), keeping
-  2.1.0 release records stable.
+- Next gate: freeze contracts and acceptance fixtures for the [accepted six-feature 2.2 roadmap](2.2/232-accepted-roadmap.md), beginning with modern dataset evidence and reconciliation verifier qualification. Keep 2.1.0 release records stable.
 
 ## Recorded next steps
 
