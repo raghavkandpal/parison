@@ -4,6 +4,8 @@ Date and source access: 23 October 2026
 Status: proposed scope; not an implementation contract or release approval  
 Repository baseline: `97d9bb0d72aeb6d4967a497d05b166126b540d38` on `develop`, after 2.1.0 release reconciliation
 
+The user subsequently requested five more features. The [expansion proposal](230-additional-five-feature-research.md) retains these five and adds five more, for ten total. Its expanded scope supersedes the five-feature target below.
+
 ## Recommendation
 
 Build 2.2 around **reviewing, recovering and explaining a complete local migration rehearsal**. Select five independently useful capabilities: cross-dataset reconciliation in Workbench, modern dataset-evidence binding, policy-change review, recoverable suite execution, and suite rehearsal series. Two extend core evidence capabilities; three complete substantial human workflows over released engines. Do not count individual screens, routes, bug fixes or exports as additional features.

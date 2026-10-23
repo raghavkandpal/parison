@@ -6,6 +6,10 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Expand the proposed 2.2 train to ten capabilities with reconciliation
+  comparison and investigation, explicit assertions, evidence archives and
+  Workbench suite authoring.
+
 - Research a proposed five-feature 2.2 train: Workbench reconciliation,
   structured and partitioned dataset evidence, policy-change review,
   recoverable suites, and suite rehearsal series. No new runtime behavior.

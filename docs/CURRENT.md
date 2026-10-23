@@ -1,6 +1,6 @@
 # Current development state
 
-- Version: **2.1.0 released; five-feature 2.2 train proposed**
+- Version: **2.1.0 released; ten-feature 2.2 train proposed**
 - Branch: `docs/2.2-feature-research` (research proposal based on `develop`)
 - Theme: local-first verification — the Workbench suite workflow, repeated
   suite comparison and failed-member investigation are released
@@ -208,7 +208,7 @@
   Annotated tag and [GitHub release 2.1.0](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
   publish checksum-verified assets; a fresh install of the public wheel passed
   the full suite, comparison, investigation and handoff smoke.
-- Next gate: review the [five-feature 2.2 proposal](2.2/229-five-feature-research-and-plan.md)
+- Next gate: review the [expanded ten-feature 2.2 proposal](2.2/230-additional-five-feature-research.md)
   and freeze per-feature contracts and feasibility fixtures before implementation;
   keep 2.1.0 release records stable.
 
