@@ -197,9 +197,14 @@
   through [PR #73](https://github.com/raghavkandpal/parison/pull/73) at
   `a9e387b`. Its exact head `c7c13dd` passed independent Standards and Spec
   review and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39914308237).
-- Next gate: qualify the exact [2.1.0 candidate](2.1/225-release-checklist.md)
-  through combined review, built-wheel CI, clean-archive artifacts and fresh
-  installation smoke before a release PR from `develop` to `main`.
+- Qualified candidate source checkpoint: `fe9be1d` passed independent
+  combined review, [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39915435312),
+  the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39915435281),
+  clean-archive inspection and a fresh Python 3.14 wheel smoke across all
+  three 2.1 capabilities.
+- Next gate: integrate the [qualification record](2.1/225-release-checklist.md)
+  to `develop`, verify its exact head, then open the 2.1.0 release PR from
+  `develop` to `main`.
 
 ## Recorded next steps
 

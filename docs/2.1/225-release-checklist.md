@@ -52,10 +52,15 @@ candidate. Repeat candidate gates on the complete train.
 - [x] Local `make check` on the integrated source passed 430 tests, with 11
   optional skips, plus Ruff, generated documentation and diff checks on
   Python 3.12.
-- [ ] Review `origin/main...develop` against the 2.1 contracts and repository
-  invariants after the candidate documentation and version are integrated.
-- [ ] Record exact candidate commit and successful quality and full built-wheel
-  CI on Python 3.11–3.14 across Linux, macOS and Windows.
+- [x] Independent Standards and Spec reviews of `origin/main...develop` at
+  integrated candidate `fe9be1d` found no release blocker against the 2.1
+  contracts and repository invariants. The last candidate change after initial
+  review corrected only qualification documentation; both axes rechecked it.
+- [x] Exact integrated candidate `fe9be1d` passed
+  [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39915435312)
+  and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39915435281)
+  on Python 3.11–3.14 across Linux, macOS and Windows. Qualification-record
+  changes after this checkpoint also require exact-head CI before the release PR.
 - [x] A clean `git archive` of integrated candidate `fe9be1d` built and
   inspected `parison-2.1.0-py3-none-any.whl` (SHA-256
   `50c43c7ed7dd17372942698cad04705cf8519660327938a935a3d134a0ef5f81`)
