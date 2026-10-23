@@ -355,6 +355,17 @@ The Workbench Compare activity accepts the same two workspace-relative suite
 bundles. It rejects changed scope, policy or tampered evidence. This is a
 summary-safe comparison, not a determination that a migration is safe.
 
+The unreleased 2.1 Workbench Investigate activity also accepts a verified
+suite bundle plus one exact failed case ID. It shows that member's discrepancy
+groups without record keys or values. For a nonzero group from a raw-sensitivity
+run, a separate **Export sensitive raw sample** action writes the already
+published sample to a new workspace-relative path. Enter the exact group ID;
+the Workbench caps output at 100 items overall and 25 per run, verifies the
+suite again, and never sends raw items to the browser. The local export is
+sensitive. Summary-sensitivity runs have no raw sample to export.
+Load the verified failed-case list in Investigate, select one member, then
+analyze it before choosing a group for export.
+
 For a selected group, raw drill-down is available only when the source run
 already contains raw samples:
 

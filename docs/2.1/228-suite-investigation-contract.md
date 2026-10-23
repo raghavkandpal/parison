@@ -1,7 +1,11 @@
 # Failed suite member investigation contract
 
 Date: 22 October 2026  
-Status: proposed third substantial 2.1 capability; implementation pending
+Status: implementation on `feature/suite-member-investigation`; qualification pending
+
+The Workbench implementation accepts the exact case ID from the verified case
+list. Raw export uses a global limit of 1–100 and a per-run limit of 1–25.
+Only already-published samples from a raw-sensitivity child are eligible.
 
 Open a verified failed suite, select one exact member ID from its verified
 case list, and inspect that member's existing discrepancy reason groups. The

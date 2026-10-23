@@ -32,8 +32,10 @@ and the train needs further substantial features before publication
 - [ ] Complete at least two more substantial, separately reviewable
   capabilities. The three Workbench suite slices above form one integrated
   workflow for this gate; defects, UI polish and release records do not count.
-- [ ] Qualify [repeated suite comparison](227-suite-comparison-contract.md)
-  on a green pushed checkpoint after independent review.
+- [x] Qualify [repeated suite comparison](227-suite-comparison-contract.md)
+  on a green pushed checkpoint after independent review. PR #72 merged to
+  `develop` at `074c512`; exact head `2cc485a` passed the
+  [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39783092724).
 - [ ] Qualify [failed-member investigation](228-suite-investigation-contract.md)
   on a green pushed checkpoint after independent review.
 - [ ] Update the train research, contracts, changelog and guide for the full

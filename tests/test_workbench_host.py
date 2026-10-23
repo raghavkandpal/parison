@@ -26,6 +26,120 @@ except ImportError:
 
 
 class WorkbenchHostTests(unittest.TestCase):
+    def test_failed_suite_member_investigation_exports_bounded_raw_sample(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            init_project(root)
+            recipe = json.loads((root / "recipe.json").read_text(encoding="utf-8"))
+            recipe["output"]["sensitivity"] = "raw"
+            (root / "recipe.json").write_text(json.dumps(recipe), encoding="utf-8")
+            (root / "candidate.csv").write_text("id,value\nexample,private-789\n", encoding="utf-8")
+            (root / "same.csv").write_text("id,value\nexample,same\n", encoding="utf-8")
+            (root / "suite.json").write_text(
+                json.dumps(
+                    {
+                        "suite_version": 1,
+                        "cases": [
+                            {
+                                "id": identifier,
+                                "recipe": "recipe.json",
+                                "baseline": "baseline.csv",
+                                "candidate": "candidate.csv",
+                            }
+                            for identifier in ("first", "second")
+                        ]
+                        + [
+                            {
+                                "id": "passing",
+                                "recipe": "recipe.json",
+                                "baseline": "baseline.csv",
+                                "candidate": "same.csv",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            run_suite(root / "suite.json", root / "suite-run")
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+                select = {"bundle": "suite-run", "case_id": "second"}
+                response = self._post(connection, server, "/api/investigate-suite-cases", {"bundle": "suite-run"})
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read())["case_ids"], ["first", "second"])
+                response = self._post(connection, server, "/api/investigate-suite", select)
+                self.assertEqual(response.status, 200)
+                view = json.loads(response.read())
+                self.assertNotIn("private-789", json.dumps(view))
+                self.assertTrue(any(group["count"] for group in view["groups"]))
+                request = {
+                    **select,
+                    "suite_sha256": view["suite_sha256"],
+                    "group_id": next(group["group_id"] for group in view["groups"] if group["count"]),
+                    "limit": 1,
+                    "per_run_limit": 1,
+                    "output": "raw.json",
+                }
+                response = self._post(connection, server, "/api/investigate-export", request)
+                self.assertEqual(response.status, 200)
+                self.assertNotIn("private-789", response.read().decode())
+                self.assertIn("private-789", (root / "raw.json").read_text(encoding="utf-8"))
+                exported_bytes = (root / "raw.json").read_bytes()
+                for bad in (
+                    {**select, "case_id": "missing"},
+                    {**select, "case_id": "passing"},
+                    {**select, "bundle": "../outside"},
+                ):
+                    response = self._post(connection, server, "/api/investigate-suite", bad)
+                    self.assertEqual(response.status, 422)
+                    response.read()
+                for bad in (
+                    {**request, "output": "raw.json"},
+                    {**request, "limit": 101},
+                    {**request, "output": "../escape.json"},
+                    {
+                        **request,
+                        "group_id": next(group["group_id"] for group in view["groups"] if not group["count"]),
+                        "output": "empty.json",
+                    },
+                    {**request, "group_id": "0" * 64, "output": "unknown.json"},
+                    {**request, "suite_sha256": "0" * 64, "output": "stale.json"},
+                ):
+                    response = self._post(connection, server, "/api/investigate-export", bad)
+                    self.assertEqual(response.status, 422)
+                    response.read()
+                self.assertFalse((root / "unknown.json").exists())
+                self.assertFalse((root / "empty.json").exists())
+                self.assertFalse((root / "stale.json").exists())
+                self.assertEqual((root / "raw.json").read_bytes(), exported_bytes)
+                (root / "linked.json").symlink_to(root / "raw.json")
+                response = self._post(
+                    connection, server, "/api/investigate-export", {**request, "output": "linked.json"}
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                renamed_plan = json.loads((root / "suite.json").read_text(encoding="utf-8"))
+                renamed_plan["cases"][1]["id"] = "renamed"
+                (root / "renamed.json").write_text(json.dumps(renamed_plan), encoding="utf-8")
+                run_suite(root / "renamed.json", root / "renamed-suite")
+                response = self._post(
+                    connection, server, "/api/investigate-suite", {"bundle": "renamed-suite", "case_id": "second"}
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                (root / "suite-run" / "cases" / "first" / "result.json").write_text("{}", encoding="utf-8")
+                response = self._post(connection, server, "/api/investigate-suite", select)
+                self.assertEqual(response.status, 422)
+                response.read()
+                connection.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
     def test_partitioned_suite_inputs_revalidate_member_bytes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "project"

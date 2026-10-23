@@ -6,6 +6,9 @@ All notable changes will be documented in this file.
 
 ### Added
 
+- Workbench Investigate selects one exact failed case from a recursively
+  verified suite, shows summary-safe discrepancy groups, and offers a separate
+  bounded export of already-published raw samples to a new local file.
 - Repeated suite comparison in CLI and Workbench verifies both bundles,
   requires the same explicit scope and policies, and shows per-case outcome,
   completeness, counts and input identity without source values.
