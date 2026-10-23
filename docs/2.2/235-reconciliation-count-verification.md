@@ -1,7 +1,7 @@
 # Reconciliation count verification contract
 
 Date: 23 October 2026
-Status: frozen for prerequisite hardening; implementation pending
+Status: frozen for prerequisite hardening; initial implementation local; qualification pending
 
 The next hardening slice preserves all released producer bytes and rejects only
 internally inconsistent evidence. It does not rerun source data or authenticate
@@ -49,3 +49,14 @@ PASS/FAIL, same-size inconsistent counts, empty sides, null identity matching,
 all-null exemptions, exact/tolerant conservation, child-only and duplicate-parent
 cases, and valid parent-without-children. Recompute outer digests and summaries
 when mutating to isolate semantic verification rather than file integrity.
+
+## Implementation checkpoint
+
+The shared preserved-bundle verifier now closes count shapes, checks arithmetic
+and dataset row consistency, derives alignment/component outcomes and checks
+reference feasibility against parent identity counts. All 27 reconciliation tests
+pass, including eight frozen hostile mutations, alignment/conservation arithmetic
+mutations and a valid composed bundle. Broader null/tolerance/empty-input producer
+edge cases, independent Standards/Spec review and exact-head full-platform CI
+remain required before integration. This is prerequisite hardening, not feature
+6 completion. No released producer serialization is changed.

@@ -4,6 +4,11 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+- Harden reconciliation evidence count shapes, arithmetic and derived outcomes
+  against internally inconsistent preserved results (qualification pending).
+
 ### Documentation
 
 - Begin six-feature 2.2 contract and acceptance freeze; record verified baseline

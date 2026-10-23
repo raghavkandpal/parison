@@ -768,6 +768,45 @@ class ReconciliationContracts(unittest.TestCase):
             with self.assertRaisesRegex(ParisonError, "metadata is inconsistent"):
                 verify_reconciliation_bundle(bundle)
 
+    def test_verifier_rejects_inconsistent_counts_with_valid_file_digests(self):
+        mutations = json.loads(
+            (ROOT / "tests/fixtures/2.2/reconciliation-count-mutations.json").read_text(encoding="utf-8")
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            declaration = json.loads(files[1].read_text(encoding="utf-8"))
+            declaration["checks"] = reconciliation()["checks"]
+            files[1].write_text(json.dumps(declaration), encoding="utf-8")
+            original = run_reconciliation(*files)
+            for mutation in mutations:
+                with self.subTest(mutation=mutation["id"]):
+                    result = copy.deepcopy(original)
+                    item = next(
+                        item for item in result["relationships"]["baseline"] if item["kind"] == mutation["kind"]
+                    )
+                    item["counts"].update(mutation["changes"])
+                    for key in mutation["remove"]:
+                        del item["counts"][key]
+                    bundle = root / mutation["id"]
+                    publish_reconciliation_bundle(bundle, result, files[0], files[1])
+                    with self.assertRaises(ParisonError):
+                        verify_reconciliation_bundle(bundle)
+            for label in ("conservation", "alignment"):
+                with self.subTest(component=label):
+                    result = copy.deepcopy(original)
+                    if label == "conservation":
+                        result[label]["baseline"][0]["counts"]["groups"] += 1
+                    else:
+                        result[label]["datasets"][0]["sides"]["baseline"]["rows"] += 1
+                    bundle = root / label
+                    publish_reconciliation_bundle(bundle, result, files[0], files[1])
+                    with self.assertRaises(ParisonError):
+                        verify_reconciliation_bundle(bundle)
+            valid = root / "valid"
+            publish_reconciliation_bundle(valid, original, files[0], files[1])
+            self.assertEqual(verify_reconciliation_bundle(valid)["outcome"], "PASS")
+
     def test_reconcile_cli_publishes_and_verifies_bundle(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

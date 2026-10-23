@@ -208,7 +208,7 @@
   Annotated tag and [GitHub release 2.1.0](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
   publish checksum-verified assets; a fresh install of the public wheel passed
   the full suite, comparison, investigation and handoff smoke.
-- Next gate: implement the [reconciliation verifier prerequisite](2.2/235-reconciliation-count-verification.md), then complete the [six-feature contract freeze](2.2/233-contracts-and-acceptance.md), executable acceptance fixtures and independent review. The [initial qualification](2.2/234-initial-qualification.md) reproduces the reconciliation count-vocabulary gap; no feature checkpoint is complete. Keep 2.1.0 release records stable.
+- Next gate: qualify the locally implemented [reconciliation verifier prerequisite](2.2/235-reconciliation-count-verification.md): broaden producer edge-case regressions, obtain independent reviews and exact-head full CI before integration; then complete the [six-feature contract freeze](2.2/233-contracts-and-acceptance.md), executable acceptance fixtures and independent review. The [initial qualification](2.2/234-initial-qualification.md) reproduces the reconciliation count-vocabulary gap; no feature checkpoint is complete. Keep 2.1.0 release records stable.
 
 ## Recorded next steps
 

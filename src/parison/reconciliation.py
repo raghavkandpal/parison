@@ -1123,6 +1123,106 @@ def publish_reconciliation_bundle(
             shutil.rmtree(stage, ignore_errors=True)
 
 
+def _verified_counts(value: Any, fields: str) -> dict[str, int]:
+    if (
+        not isinstance(value, dict)
+        or set(value) != set(fields.split())
+        or any(type(count) is not int or count < 0 for count in value.values())
+    ):
+        raise ParisonError("reconciliation result has invalid count shape")
+    return value
+
+
+def _verify_component_counts(item: dict[str, Any], check: dict[str, Any], rows: dict[str, int]) -> None:
+    kind = check["kind"]
+    if kind == "identity":
+        c = _verified_counts(item["counts"], "rows distinct_keys null_key_rows duplicate_keys")
+        valid = (
+            c["rows"] == rows[check["dataset"]]
+            and c["null_key_rows"] <= c["rows"]
+            and c["duplicate_keys"] <= c["distinct_keys"] <= c["rows"]
+            and c["distinct_keys"] + c["duplicate_keys"] <= c["rows"]
+            and (c["rows"] == 0) == (c["distinct_keys"] == 0)
+            and (c["duplicate_keys"] == 0) == (c["distinct_keys"] == c["rows"])
+        )
+        failed = c["duplicate_keys"] > 0 or (check["nulls"] == "forbid" and c["null_key_rows"] > 0)
+    elif kind == "reference":
+        c = _verified_counts(
+            item["counts"], "child_rows exempt_rows matched_rows orphan_rows ambiguous_parent_rows null_failure_rows"
+        )
+        valid = (
+            c["child_rows"] == rows[check["child_dataset"]]
+            and c["child_rows"] == sum(value for name, value in c.items() if name != "child_rows")
+            and (check["nulls"] == "all-null-exempt" or c["exempt_rows"] == 0)
+            and (check["nulls"] != "match-null" or c["null_failure_rows"] == 0)
+        )
+        failed = any(c[name] for name in ("orphan_rows", "ambiguous_parent_rows", "null_failure_rows"))
+    else:
+        c = _verified_counts(
+            item["counts"],
+            "parent_rows child_rows groups compared_groups exact_groups within_tolerance_groups different_groups "
+            "child_only_groups parent_without_children_groups duplicate_parent_groups null_measure_rows",
+        )
+        valid = (
+            c["parent_rows"] == rows[check["parent_dataset"]]
+            and c["child_rows"] == rows[check["child_dataset"]]
+            and c["groups"] == c["compared_groups"] + c["child_only_groups"] + c["duplicate_parent_groups"]
+            and c["compared_groups"] == c["exact_groups"] + c["within_tolerance_groups"] + c["different_groups"]
+            and c["parent_without_children_groups"] <= c["compared_groups"]
+            and c["parent_rows"] >= c["compared_groups"] + 2 * c["duplicate_parent_groups"]
+            and c["child_rows"] >= c["child_only_groups"] + c["compared_groups"] - c["parent_without_children_groups"]
+            and c["groups"] <= c["parent_rows"] + c["child_rows"]
+            and (c["duplicate_parent_groups"] > 0 or c["parent_rows"] == c["compared_groups"])
+            and c["null_measure_rows"] <= c["parent_rows"] + c["child_rows"]
+            and (check["nulls"] != "zero" or c["null_measure_rows"] == 0)
+            and (check["comparison"] != "exact" or c["within_tolerance_groups"] == 0)
+        )
+        failed = any(
+            c[name]
+            for name in ("different_groups", "child_only_groups", "duplicate_parent_groups", "null_measure_rows")
+        )
+    if not valid or item["outcome"] != ("FAIL" if failed else "PASS"):
+        raise ParisonError("reconciliation result counts or derived outcome are inconsistent")
+
+
+def _verify_alignment_counts(value: Any, declaration: dict[str, Any]) -> dict[str, dict[str, int]]:
+    _exact(value, {"outcome", "status", "reason_codes", "datasets"}, "alignment result")
+    datasets = value["datasets"]
+    if not isinstance(datasets, list) or len(datasets) != len(declaration["datasets"]):
+        raise ParisonError("alignment result datasets do not match declaration")
+    rows = {"baseline": {}, "candidate": {}}
+    failed = False
+    for observed, declared in zip(datasets, declaration["datasets"], strict=True):
+        _exact(observed, {"id", "sides"}, "alignment dataset")
+        if observed["id"] != declared["id"]:
+            raise ParisonError("alignment result datasets do not match declaration")
+        _exact(observed["sides"], {"baseline", "candidate"}, "alignment sides")
+        for side in rows:
+            c = _verified_counts(
+                observed["sides"][side],
+                "rows in_window before_window at_or_after_end null_event_time invalid_event_time",
+            )
+            if c["rows"] != sum(count for name, count in c.items() if name != "rows"):
+                raise ParisonError("alignment result counts are inconsistent")
+            failed |= c["rows"] != c["in_window"]
+            rows[side][observed["id"]] = c["rows"]
+    coordination = declaration["coordination"]
+    status, reasons = "PASS", []
+    if coordination["mode"] == "watermark":
+        if any(item["watermark"] < declaration["event_window"]["end"] for item in declaration["datasets"]):
+            status, reasons = "FAIL", ["watermark-before-window-end"]
+        elif coordination["watermark_kind"] == "heuristic":
+            status, reasons = "INCONCLUSIVE", ["heuristic-watermark"]
+    elif coordination["mode"] == "declared-cutoff":
+        status, reasons = "INCONCLUSIVE", ["coordination-not-machine-established"]
+    if failed:
+        status = "FAIL"
+        reasons.append("event-time-scope-failed")
+    if value["outcome"] != status or value["status"] != status or value["reason_codes"] != sorted(reasons):
+        raise ParisonError("alignment result derived outcome is inconsistent")
+    return rows
+
+
 def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
     root = Path(directory)
     manifest_path = root / "manifest.json"
@@ -1202,10 +1302,8 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
         result.get("datasets", [])
     ) != len(dataset_ids):
         raise ParisonError("reconciliation result datasets do not match declaration")
-    if [
-        item.get("id") for item in result.get("alignment", {}).get("datasets", []) if isinstance(item, dict)
-    ] != dataset_ids:
-        raise ParisonError("alignment result datasets do not match declaration")
+    rows = _verify_alignment_counts(result["alignment"], normalized_alignment)
+    checks = {check["id"]: check for check in normalized_declaration["checks"]}
     component_outcomes = [result.get("alignment", {}).get("outcome")]
     for field, expected_checks in (("relationships", relationship_checks), ("conservation", conservation_checks)):
         sides = result.get(field)
@@ -1227,7 +1325,19 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
                     or any(type(value) is not int or value < 0 for value in item["counts"].values())
                 ):
                     raise ParisonError(f"reconciliation result has invalid {field} counts")
+                _verify_component_counts(item, checks[item["id"]], rows[side])
                 component_outcomes.append(item["outcome"])
+        if field == "relationships":
+            for side in sides:
+                identities = {item["id"]: item["counts"] for item in sides[side] if item["kind"] == "identity"}
+                for item in sides[side]:
+                    if item["kind"] != "reference":
+                        continue
+                    parent = identities[checks[item["id"]]["parent_identity"]]
+                    if (item["counts"]["matched_rows"] > 0 and parent["distinct_keys"] == parent["duplicate_keys"]) or (
+                        item["counts"]["ambiguous_parent_rows"] > 0 and parent["duplicate_keys"] == 0
+                    ):
+                        raise ParisonError("reference counts conflict with parent identity")
     for item in result["datasets"]:
         if set(item) != {
             "id",
