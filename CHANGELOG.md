@@ -4,6 +4,12 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Documentation
+
+- Research a proposed five-feature 2.2 train: Workbench reconciliation,
+  structured and partitioned dataset evidence, policy-change review,
+  recoverable suites, and suite rehearsal series. No new runtime behavior.
+
 ## 2.1.0 - 2026-10-23
 
 [Release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.1.0).

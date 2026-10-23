@@ -4,6 +4,10 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 2.2 — proposed five-feature train
+
+- [Five-feature research and plan](2.2/229-five-feature-research-and-plan.md)
+
 ## 1.9 — released
 
 - [Structured field-selection research](1.9/187-structured-field-selection-research.md)
