@@ -208,8 +208,9 @@
   Annotated tag and [GitHub release 2.1.0](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
   publish checksum-verified assets; a fresh install of the public wheel passed
   the full suite, comparison, investigation and handoff smoke.
-- Next gate: review the [expanded ten-feature 2.2 proposal](2.2/230-additional-five-feature-research.md)
-  and freeze per-feature contracts and feasibility fixtures before implementation;
+- Next gate: reconcile the ten-feature proposal with the [independent blind review](2.2/231-independent-feature-review.md),
+  which recommends five committed capabilities and reshaped reconciliation work;
+  freeze selected contracts and feasibility fixtures before implementation;
   keep 2.1.0 release records stable.
 
 ## Recorded next steps

@@ -6,6 +6,9 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Record an independent blind review of all ten proposed 2.2 features,
+  including scope replacements and reconciliation trust prerequisites.
+
 - Expand the proposed 2.2 train to ten capabilities with reconciliation
   comparison and investigation, explicit assertions, evidence archives and
   Workbench suite authoring.

@@ -8,6 +8,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 
 - [Original five-feature research and plan](2.2/229-five-feature-research-and-plan.md)
 - [Five additional capabilities: expanded ten-feature proposal](2.2/230-additional-five-feature-research.md)
+- [Independent blind feature review](2.2/231-independent-feature-review.md)
 
 ## 1.9 — released
 
