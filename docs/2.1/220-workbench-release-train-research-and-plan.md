@@ -1,7 +1,7 @@
 # 2.1 Workbench release train: suite rehearsal and evidence handoff
 
 Date and source access: 22 October 2026  
-Status: three capabilities integrated on `develop`; release candidate in qualification
+Status: released as 2.1.0
 
 ## Decision and evidence
 

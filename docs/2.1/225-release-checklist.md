@@ -1,7 +1,7 @@
 # Parison 2.1.0 release checklist
 
 Date: 23 October 2026
-Status: three substantial capabilities integrated; 2.1.0 candidate in qualification
+Status: **released** at exact tested merge `9a6e9e9`
 
 ## Completed suite workflow
 
@@ -45,9 +45,8 @@ Status: three substantial capabilities integrated; 2.1.0 candidate in qualificat
 
 ## Candidate qualification
 
-The earlier `1bdef8b` checkpoint passed clean-archive wheel smoke and full CI.
-It is engineering evidence for the suite workflow, not the final 2.1 release
-candidate. Repeat candidate gates on the complete train.
+The earlier `1bdef8b` checkpoint was engineering evidence for the first suite
+workflow only. Complete-train qualification follows.
 
 - [x] Local `make check` on the integrated source passed 430 tests, with 11
   optional skips, plus Ruff, generated documentation and diff checks on
@@ -76,14 +75,27 @@ candidate. Repeat candidate gates on the complete train.
 
 ## Publication
 
-- [ ] Open the release PR from `develop` to `main`; review, merge and require
-  quality and full built-wheel CI on the exact merge commit.
-- [ ] Rebuild wheel and source archive from the exact merge's clean archive,
-  inspect metadata and hashes, and complete any release-specific external gate.
-- [ ] Tag that tested merge with annotated `2.1.0` and publish the wheel,
-  source archive and `SHA256SUMS` in a GitHub release. PyPI is opt-in.
-- [ ] Re-download public assets, verify checksums, install the public wheel
-  fresh and repeat the primary Workbench suite-to-handoff smoke.
+- [x] [Release PR #76](https://github.com/raghavkandpal/parison/pull/76)
+  merged `develop` to `main` at exact commit
+  `9a6e9e93b709331bb6bf1503b78f26d9fd5e6ac5`. It passed
+  [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39916541177)
+  and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39916541313)
+  on Python 3.11–3.14 across Linux, macOS and Windows.
+- [x] A clean `git archive` of that exact merge built and inspected
+  `parison-2.1.0-py3-none-any.whl` (SHA-256
+  `4173b75e605c5c3d7cffe112db72ff229d1b48ab4be7f3d525ccd10aba69ef71`)
+  and `parison-2.1.0.tar.gz` (SHA-256
+  `d21f31d906209d23459a98175c854dae469990a34699106ad3ad2b433598edad`).
+  A fresh Python 3.14 wheel install passed the complete three-capability smoke.
+  No release-specific external gate was required.
+- [x] Annotated tag [`2.1.0`](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
+  peels to that tested merge. The public GitHub release contains the wheel,
+  source archive and `SHA256SUMS`. PyPI was not requested.
+- [x] All three public assets were re-downloaded; both archives matched the
+  published checksum file. A fresh Python 3.14 install of the public wheel
+  passed plan/run, recursive verification, History, repeated suite comparison,
+  failed-member investigation, bounded raw export, Statement byte parity with
+  CLI and report export.
 - [ ] Reconcile this checklist, changelog, documentation index and current
   state against the exact tested release commit.
 
