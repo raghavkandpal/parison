@@ -1,7 +1,7 @@
 # Failed suite member investigation contract
 
 Date: 22 October 2026  
-Status: implementation on `feature/suite-member-investigation`; qualification pending
+Status: integrated on `develop` through PR #73; exact-head full matrix passed
 
 The Workbench implementation accepts the exact case ID from the verified case
 list. Raw export uses a global limit of 1–100 and a per-run limit of 1–25.

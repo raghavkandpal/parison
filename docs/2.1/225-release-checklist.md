@@ -1,8 +1,7 @@
 # Parison 2.1.0 release checklist
 
-Date: 22 October 2026  
-Status: candidate deferred; the suite workflow is one integrated capability
-and the train needs further substantial features before publication
+Date: 23 October 2026
+Status: three substantial capabilities integrated; 2.1.0 candidate in qualification
 
 ## Completed suite workflow
 
@@ -29,16 +28,19 @@ and the train needs further substantial features before publication
 
 ## Train scope gate
 
-- [ ] Complete at least two more substantial, separately reviewable
+- [x] Complete at least two more substantial, separately reviewable
   capabilities. The three Workbench suite slices above form one integrated
   workflow for this gate; defects, UI polish and release records do not count.
 - [x] Qualify [repeated suite comparison](227-suite-comparison-contract.md)
   on a green pushed checkpoint after independent review. PR #72 merged to
   `develop` at `074c512`; exact head `2cc485a` passed the
   [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39783092724).
-- [ ] Qualify [failed-member investigation](228-suite-investigation-contract.md)
-  on a green pushed checkpoint after independent review.
-- [ ] Update the train research, contracts, changelog and guide for the full
+- [x] Qualify [failed-member investigation](228-suite-investigation-contract.md)
+  on a green pushed checkpoint after independent review. PR #73 merged to
+  `develop` at `a9e387b`; exact head `c7c13dd` passed the
+  [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39914308237)
+  and independent Standards and Spec review.
+- [x] Update the train research, contracts, changelog and guide for the full
   set of capabilities before restoring 2.1.0 candidate status.
 
 ## Candidate qualification
@@ -47,7 +49,7 @@ The earlier `1bdef8b` checkpoint passed clean-archive wheel smoke and full CI.
 It is engineering evidence for the suite workflow, not the final 2.1 release
 candidate. Repeat candidate gates on the complete train.
 
-- [x] Local `make check` on the corrected source passed 427 tests, with 11
+- [x] Local `make check` on the integrated source passed 430 tests, with 11
   optional skips, plus Ruff, generated documentation and diff checks on
   Python 3.12.
 - [ ] Review `origin/main...develop` against the 2.1 contracts and repository
