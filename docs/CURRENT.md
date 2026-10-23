@@ -1,7 +1,7 @@
 # Current development state
 
 - Version: **2.1.0 released; six-feature 2.2 train accepted**
-- Branch: `develop` (accepted plan integrated through PR #78)
+- Branch: `docs/2.2-contract-freeze` (from verified PR #78 merge)
 - Theme: local-first verification — the Workbench suite workflow, repeated
   suite comparison and failed-member investigation are released
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
@@ -208,7 +208,7 @@
   Annotated tag and [GitHub release 2.1.0](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
   publish checksum-verified assets; a fresh install of the public wheel passed
   the full suite, comparison, investigation and handoff smoke.
-- Next gate: freeze contracts and acceptance fixtures for the [accepted six-feature 2.2 roadmap](2.2/232-accepted-roadmap.md), beginning with modern dataset evidence and reconciliation verifier qualification. Keep 2.1.0 release records stable.
+- Next gate: complete the [six-feature contract freeze](2.2/233-contracts-and-acceptance.md), executable acceptance fixtures and independent review. The [initial qualification](2.2/234-initial-qualification.md) reproduces the reconciliation count-vocabulary gap; no feature checkpoint is complete. Keep 2.1.0 release records stable.
 
 ## Recorded next steps
 
