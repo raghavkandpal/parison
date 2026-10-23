@@ -45,3 +45,26 @@ Python 3.14 `make check` passed 433 tests with 11 optional-Polars skips
 (Polars absent), lint, formatting, generated command-reference validation and
 whitespace checks. The first sandboxed attempt could not bind loopback sockets;
 the permitted rerun passed all Workbench host tests. This is local evidence only.
+
+## Follow-up qualification
+
+Independent Standards and Spec reviews found no actionable findings at
+`1b4cb73d959141cf284d037f3b466aadc3b1954d`. Its manually dispatched
+[full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39956126851)
+passed Linux Python 3.11–3.14 and all macOS/Windows Python 3.11–3.14 lanes.
+This evidence applies to that exact checkpoint, not later edits.
+
+Additional synthetic probes reproduced acceptance of an unknown extra count,
+`distinct_keys > rows`, and a PASS identity with `duplicate_keys = 1`.
+These probes use a generated valid result with modified counts and publication
+through the released publisher; all three verified PASS. The frozen mutation
+inputs in `tests/fixtures/2.2/reconciliation-count-mutations.json` specify rejection
+cases for the forthcoming verifier regression, including missing, boolean,
+negative and inconsistent reference counts. They are acceptance inputs, not
+passing rejection tests yet. The baseline identity/reference outcomes are PASS;
+mutations must leave those outcomes unchanged to test independent derivation.
+
+A fourth dataset feasibility test pins ordered partition hashing independently
+of file creation order, and detects changed member contents and added members.
+The branch must contain multiple substantive commits before integration, per the
+updated user instruction. No checkpoint authorizes publication.

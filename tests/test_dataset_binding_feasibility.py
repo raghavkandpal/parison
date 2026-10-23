@@ -46,3 +46,19 @@ class DatasetBindingFeasibility(unittest.TestCase):
             path = Path(temporary) / "shared.json"
             path.write_bytes(b'{"left":[{"id":1}],"right":[{"id":2}]}')
             self.assertEqual(_source_digest(f"json:{path}#/left"), _source_digest(f"json:{path}#/right"))
+
+    def test_partition_identity_binds_content_and_membership_in_name_order(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            # Create in reverse order to distinguish enumeration from creation order.
+            (root / "b.csv").write_bytes(b"id\n2\n")
+            (root / "a.csv").write_bytes(b"id\n1\n")
+            expected = hashlib.sha256(
+                b"a.csv\0" + hashlib.sha256(b"id\n1\n").digest() + b"b.csv\0" + hashlib.sha256(b"id\n2\n").digest()
+            ).hexdigest()
+            self.assertEqual(_source_digest(root), expected)
+            (root / "b.csv").write_bytes(b"id\n3\n")
+            changed = _source_digest(root)
+            self.assertNotEqual(changed, expected)
+            (root / "c.csv").write_bytes(b"id\n4\n")
+            self.assertNotEqual(_source_digest(root), changed)
