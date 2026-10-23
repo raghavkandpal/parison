@@ -1,9 +1,9 @@
 # Current development state
 
-- Version: **2.1 release train in development after 2.0.0**
+- Version: **2.1.0 release candidate in qualification**
 - Branch: `develop`
-- Theme: local-first verification — the Workbench suite workflow and repeated
-  suite comparison are complete; failed-member investigation is in progress
+- Theme: local-first verification — the Workbench suite workflow, repeated
+  suite comparison and failed-member investigation are integrated
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
   record projection and the 1.9 JSON/XML/XLSX structured field-selection train
   across all comparison modes
@@ -193,12 +193,13 @@
   counts and input identity through CLI and Workbench. [PR #72](https://github.com/raghavkandpal/parison/pull/72)
   merged at `074c512` after independent reviews and its exact head passed the
   [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39783092724).
-- In progress: [failed-member investigation](2.1/228-suite-investigation-contract.md)
-  on `feature/suite-member-investigation`. The first implementation commit is
-  `4defcc3`; local `make check` passed 430 tests with 11 optional skips.
-- Next gate: complete hostile-input coverage and independent review for
-  failed-member investigation, push its exact head through full built-wheel
-  CI, and merge its PR to `develop` before restarting 2.1 candidate qualification.
+- Integrated: [failed-member investigation](2.1/228-suite-investigation-contract.md)
+  through [PR #73](https://github.com/raghavkandpal/parison/pull/73) at
+  `a9e387b`. Its exact head `c7c13dd` passed independent Standards and Spec
+  review and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39914308237).
+- Next gate: qualify the exact [2.1.0 candidate](2.1/225-release-checklist.md)
+  through combined review, built-wheel CI, clean-archive artifacts and fresh
+  installation smoke before a release PR from `develop` to `main`.
 
 ## Recorded next steps
 

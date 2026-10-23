@@ -1,20 +1,24 @@
 # 2.1 release qualification research
 
-Date and source access: 22 October 2026  
-Status: repository-source baseline before candidate qualification
+Date and repository-source access: 22–23 October 2026
+Status: updated for the complete three-capability train; candidate qualification active
 
 ## Finding
 
-The 2.1 train has three separately reviewable capabilities: suite plan review,
-bounded local suite rehearsal, and verified unsigned evidence handoff. Their
-contracts describe implementations on the current feature branch, while each
-still names `make check` and exact-head CI as pending. The release candidate
-must wait for all three green pushed checkpoints and independent review; fixes
-or documentation alone do not count toward the three-feature minimum.
+The 2.1 train has three separately reviewable capabilities: the integrated
+suite plan/rehearsal/unsigned-handoff workflow, repeated suite comparison,
+and failed-member investigation. The initial research treated the three steps
+of the first workflow as separate features; the [expansion research](226-release-train-expansion-research.md)
+corrected that count. All three capabilities now have green pushed checkpoints
+and independent review. Candidate artifact, exact-head CI and publication
+gates remain separate; fixes or documentation alone do not count toward the
+three-feature minimum.
 [Train plan](220-workbench-release-train-research-and-plan.md),
 [plan contract](221-workbench-suite-plan-contract.md),
 [rehearsal contract](222-workbench-suite-rehearsal-contract.md),
 [handoff contract](223-workbench-handoff-contract.md),
+[comparison contract](227-suite-comparison-contract.md),
+[investigation contract](228-suite-investigation-contract.md),
 [release procedure](../../RELEASING.md).
 
 ## Exact gates
@@ -56,8 +60,9 @@ or documentation alone do not count toward the three-feature minimum.
 
 - Candidate smoke should cover one explicit local suite selection through
   execution, recursive bundle verification, History, Statement export and
-  report export; compare exported bytes with the CLI where the feature
-  contracts require parity. This is an inference from the three 2.1 completion
+  report export, plus repeated suite comparison and failed-member
+  investigation with bounded raw export. Compare exported bytes with the CLI
+  where the contracts require parity. This follows the three 2.1 completion
   gates. [Train plan](220-workbench-release-train-research-and-plan.md),
   [rehearsal contract](222-workbench-suite-rehearsal-contract.md),
   [handoff contract](223-workbench-handoff-contract.md).
@@ -75,12 +80,12 @@ or documentation alone do not count toward the three-feature minimum.
   [train plan](220-workbench-release-train-research-and-plan.md),
   [handoff contract](223-workbench-handoff-contract.md).
 
-## Blocker at research time
+## Historical blocker
 
-The three contracts marked qualification pending, and there was no 2.1
-release checklist recording exact CI, candidate, merge or public-asset
-evidence. The [active checklist](225-release-checklist.md) now tracks those
-gates. [Contracts](221-workbench-suite-plan-contract.md),
+At the original research checkpoint, the suite workflow still needed
+qualification and there was no 2.1 release checklist recording exact CI,
+candidate, merge or public-asset evidence. The [active checklist](225-release-checklist.md)
+now tracks the complete train and those gates. [Contracts](221-workbench-suite-plan-contract.md),
 [rehearsal](222-workbench-suite-rehearsal-contract.md),
 [handoff](223-workbench-handoff-contract.md),
 [documentation index](../README.md).

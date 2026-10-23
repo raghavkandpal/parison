@@ -1,7 +1,7 @@
 # 2.1 Workbench release train: suite rehearsal and evidence handoff
 
 Date and source access: 22 October 2026  
-Status: revised 2.1 plan; release candidate deferred
+Status: three capabilities integrated on `develop`; release candidate in qualification
 
 ## Decision and evidence
 
@@ -26,16 +26,16 @@ records the scope correction and two further capabilities needed before a
 
 Slices 1 and 2 close the Workbench gap identified in the [2.0 guide](../user-guide.md#start-the-unified-workbench), which directs suite users to the CLI. Slice 3 completes the same rehearsal's portable handoff using the already released [statement and report workflow](../0.17/116-evidence-handoff-guide.md).
 
-## Remaining substantial capabilities
+## Completed substantial capabilities
 
 | Feature | User capability | Contract and gate |
 | --- | --- | --- |
 | **2. Repeated suite comparison** | Compare two recursively verified, same-policy suite rehearsals case by case, including outcome and input-identity changes. | [Comparison contract](227-suite-comparison-contract.md): strict scope and policy gate, summary-safe deterministic projection, tamper rejection and CLI/Workbench parity. |
 | **3. Failed-member investigation** | Move from a failed suite to one exact member's verified discrepancy reasons, with an explicit bounded raw-evidence action. | [Investigation contract](228-suite-investigation-contract.md): safe default projection, exact member selection, fresh recursive verification, bounded export and hostile-input tests. |
 
-Each new feature needs its own green pushed checkpoint, independent review,
-full `make check` and user-visible documentation. Candidate qualification
-starts only after all three capabilities are integrated on `develop`.
+Each feature has its own green pushed checkpoint, independent review,
+full `make check` and user-visible documentation. All three capabilities are
+integrated on `develop`; candidate qualification is now the active gate.
 
 ## Design consequences
 
