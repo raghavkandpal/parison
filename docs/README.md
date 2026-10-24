@@ -6,7 +6,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 
 ## 2.2 — accepted six-feature train
 
-- [Dataset evidence v2 wire-contract draft](2.2/236-dataset-evidence-v2-contract.md)
+- [Dataset evidence v2 implementation contract](2.2/236-dataset-evidence-v2-contract.md)
 
 - [Reconciliation count verification contract](2.2/235-reconciliation-count-verification.md)
 

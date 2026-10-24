@@ -1,7 +1,7 @@
 # Dataset evidence v2 contract
 
 Date: 24 October 2026
-Status: wire-contract draft; freeze requires acceptance fixtures and review
+Status: frozen for implementation; runtime qualification pending
 
 ## Physical and logical identity
 
@@ -245,3 +245,13 @@ file digests and require controlled rejection by authoritative normalization or
 cross-member verification. The same-file selector fixture deliberately retains
 physical inventory bytes and SHA-256. These are frozen test inputs; runtime
 rejection is not yet implemented or qualified.
+
+## Contract freeze checkpoint
+
+24 October 2026: independent Standards and Spec reviews found no unresolved
+invariant or semantic decision preventing runtime implementation. Schemas,
+canonical declaration/record/artifact inputs and seven hostile transformations
+freeze the implementation target. This is a specification milestone only.
+Runtime validators, producer-backed semantic bundles, controlled cross-member
+rejection, source-free verification, publication safety, unchanged v1 bytes,
+Workbench workflow and exact-head full-platform qualification remain required.
