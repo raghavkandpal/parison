@@ -25,6 +25,8 @@ record and direct child-policy regressions. Fresh reconciliation capture now
 records the declared datasets' actual selectors, source digests, per-dataset
 recipe policies and enclosing reconciliation fingerprint; its envelope and
 publication path remain to be wired.
+The seven frozen v2/v3 schema names are available through the offline schema
+loader and CLI schema command; this does not qualify dataset publication.
 
 ## Physical and logical identity
 

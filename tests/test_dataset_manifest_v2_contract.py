@@ -8,7 +8,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from parison.core import ParisonError
+from parison.core import ParisonError, load_schema
 from parison.manifesting import (
     canonical_dataset_manifest_v2_bytes,
     canonical_input_bindings_bytes,
@@ -21,6 +21,19 @@ ROOT = Path(__file__).parents[1]
 
 
 class DatasetManifestV2Contract(unittest.TestCase):
+    def test_versioned_schemas_are_available_through_public_loader(self):
+        for name in (
+            "dataset-manifest-v2",
+            "input-bindings-v1",
+            "manifest-result-v2",
+            "dataset-evidence-v2",
+            "reproducibility-diagnostic-v2",
+            "suite-manifest-v3",
+            "reconciliation-manifest-v2",
+        ):
+            with self.subTest(name=name):
+                Draft202012Validator.check_schema(load_schema(name))
+
     def test_canonical_inputs_and_closed_structure(self):
         schema = json.loads((ROOT / "src/parison/schemas/dataset-manifest-v2.schema.json").read_text())
         Draft202012Validator.check_schema(schema)

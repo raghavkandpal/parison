@@ -9,6 +9,8 @@ All notable changes will be documented in this file.
 - Add an opt-in suite service envelope with a versioned input-binding record,
   captured from selected local sources and checked against completed children.
   CLI and dataset publication support remain under development.
+- Expose frozen dataset v2 and semantic-envelope schemas through the offline
+  schema loader and CLI schema command.
 
 ### Fixed
 
