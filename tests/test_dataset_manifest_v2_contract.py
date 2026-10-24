@@ -33,3 +33,28 @@ class DatasetManifestV2Contract(unittest.TestCase):
                     else:
                         invalid["bindings"][0]["source_kind"] = "automatic"
                     self.assertFalse(validator.is_valid(invalid), mutation)
+
+    def test_semantic_binding_record_selection_is_closed(self):
+        schema = json.loads((ROOT / "src/parison/schemas/input-bindings-v1.schema.json").read_text())
+        Draft202012Validator.check_schema(schema)
+        validator = Draft202012Validator(schema)
+        fixtures = list((ROOT / "tests/fixtures/2.2").glob("input-bindings-v1.*.canonical.json"))
+        self.assertEqual(len(fixtures), 4)
+        for fixture in fixtures:
+            record = json.loads(fixture.read_bytes())
+            validator.validate(record)
+            self.assertEqual(fixture.read_bytes(), json.dumps(record, sort_keys=True, separators=(",", ":")).encode())
+        path = ROOT / "tests/fixtures/2.2/input-bindings-v1.shared-workbook.canonical.json"
+        value = json.loads(path.read_bytes())
+        validator.validate(value)
+        self.assertEqual(path.read_bytes(), json.dumps(value, sort_keys=True, separators=(",", ":")).encode())
+        for mutation in ("path", "kind", "partition"):
+            invalid = copy.deepcopy(value)
+            binding = invalid["bindings"][0]
+            if mutation == "path":
+                binding["selection"]["path"] = "sensitive/source.xlsx"
+            elif mutation == "kind":
+                binding["selection"]["kind"] = "inferred"
+            else:
+                binding["source_kind"] = "partition"
+            self.assertFalse(validator.is_valid(invalid), mutation)

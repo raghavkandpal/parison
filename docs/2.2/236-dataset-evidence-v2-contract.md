@@ -180,3 +180,26 @@ four canonical declarations and rejects unknown binding fields, missing source
 kind, boolean sizes and unknown source kinds. These checks do not prove path
 safety, exact membership, canonical normalization or semantic cross-bindings;
 those remain authoritative runtime acceptance gates.
+
+Freeze clarifications from independent review: a binding observation's
+`source_sha256` is the expected declared identity. File observations carry the
+observed bytes/digests; missing or changed members make binding status
+member-mismatch. No missing member receives a synthesized observed digest.
+Partition reconstruction uses the declared ordered membership and expected
+physical digests; source checking separately rejects additions/removals in the
+selected directory, even outside closed scopes. A missing directory or changed
+membership is a logical-member-mismatch. Preserved verification recomputes the
+expected digest and verifies the recorded mismatch derivation.
+
+For reconciliation, the normalized alignment receipt digest must match exactly
+one physical inventory entry. No match or multiple entries with that digest
+are rejected for publication; the semantic child's receipt digest must equal it.
+The entry must not participate as baseline/candidate logical input. This explicit
+association introduces no inferred receipt content or authenticity claim.
+
+Artifact wire examples now pin canonical outer, manifest-result and diagnostic
+v2 JSON. Manifest/diagnostic/member digests are computed from their fixture
+bytes; semantic-child and effective-policy digests remain synthetic placeholders.
+They are shape examples, not a verified bundle. Semantic bundle schemas,
+artifact validators, hostile cross-member cases and source-free publication
+qualification remain freeze/implementation gates.

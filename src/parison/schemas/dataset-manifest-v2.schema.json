@@ -129,7 +129,25 @@
             "type": "string",
             "pattern": "^[0-9a-f]{64}$"
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "source_kind": {
+                  "const": "file"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "members": {
+                  "maxItems": 1
+                }
+              }
+            }
+          }
+        ]
       }
     }
   },

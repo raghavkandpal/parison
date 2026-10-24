@@ -1,0 +1,1 @@
+{"diagnostic_version":2,"manifest_sha256":"b7be316850e21e59c4e2898b15a2f4f10a06930c056da8f58eec01efc36c2b1c","observations":[],"runtime":{"architecture":"x86_64","os_family":"linux","parison_version":"2.2.0","parquet_reader":null,"python_implementation":"cpython","python_version":"3.14.0","sqlite_version":"3.50.4"}}
