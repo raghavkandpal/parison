@@ -85,3 +85,28 @@ class DatasetManifestV2Contract(unittest.TestCase):
         self.assertEqual(members["manifest-result.json"]["manifest_sha256"], manifest_digest)
         self.assertEqual(members["reproducibility-diagnostic.json"]["manifest_sha256"], manifest_digest)
         self.assertEqual(members["manifest-result.json"]["diagnostic_sha256"], diagnostic_digest)
+
+    def test_artifact_schemas_are_closed(self):
+        for name, fixture in (
+            ("dataset-evidence-v2", "dataset-evidence-v2.outer.canonical.json"),
+            ("manifest-result-v2", "manifest-result-v2.canonical.json"),
+            ("manifest-result-v2", "manifest-result-v2.standalone-fail.canonical.json"),
+            ("reproducibility-diagnostic-v2", "reproducibility-diagnostic-v2.canonical.json"),
+        ):
+            with self.subTest(schema=name):
+                schema = json.loads((ROOT / f"src/parison/schemas/{name}.schema.json").read_text())
+                Draft202012Validator.check_schema(schema)
+                validator = Draft202012Validator(schema)
+                value = json.loads((ROOT / "tests/fixtures/2.2" / fixture).read_bytes())
+                validator.validate(value)
+                if name == "manifest-result-v2" and value["semantic_result"] is not None:
+                    for field in ("semantic_result", "diagnostic_sha256"):
+                        mixed = copy.deepcopy(value)
+                        mixed[field] = None
+                        self.assertFalse(validator.is_valid(mixed), field)
+                invalid = copy.deepcopy(value)
+                invalid["approved"] = True
+                self.assertFalse(validator.is_valid(invalid))
+                invalid = copy.deepcopy(value)
+                del invalid["manifest_sha256"]
+                self.assertFalse(validator.is_valid(invalid))

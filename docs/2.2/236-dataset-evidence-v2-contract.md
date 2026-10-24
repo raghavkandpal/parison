@@ -208,3 +208,11 @@ The artifact-example test now checks canonical member bytes, outer member-file
 hashes, the domain-separated manifest/diagnostic fingerprints and their repeated
 cross-member bindings. The semantic child and effective policy remain explicit
 placeholders; complete verified-bundle qualification is still pending.
+
+Standalone source-check results require `semantic_result: null` and
+`diagnostic_sha256: null`; those artifacts are not available at that stage.
+Publication fills both fields only after verifying the semantic child and
+capturing the diagnostic. The outer dataset-evidence schema always requires
+both bindings to be present and non-null, and its verifier rejects nulls in the
+published manifest-result member. A standalone FAIL canonical example pins
+missing-resource and logical-member-mismatch with null observed file fields.
