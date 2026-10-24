@@ -18,6 +18,14 @@ The preserved verifier checks the record against selected effective-plan
 selectors, policy fingerprints and completed child digests. CLI/Workbench
 exposure, reconciliation envelope and dataset publication remain pending.
 
+Review checkpoint: independent Standards and Spec reviews identified a
+duplicate-key gap in the new JSON member and a missing child-policy crosscheck.
+Both are corrected in the preserved suite verifier, with digest-valid hostile
+record and direct child-policy regressions. Fresh reconciliation capture now
+records the declared datasets' actual selectors, source digests, per-dataset
+recipe policies and enclosing reconciliation fingerprint; its envelope and
+publication path remain to be wired.
+
 ## Physical and logical identity
 
 An opt-in manifest contains exactly `manifest_version: 2`, `collection_id`,

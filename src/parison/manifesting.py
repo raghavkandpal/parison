@@ -465,6 +465,39 @@ def capture_suite_input_bindings(suite: dict[str, Any], selected: list[dict[str,
     )
 
 
+def capture_reconciliation_input_bindings(
+    declaration: dict[str, Any], inputs: dict[str, dict[str, str | Path]]
+) -> dict[str, Any]:
+    """Capture the declared reconciliation's actual local source selections."""
+    from .inputs import _source_digest, _source_path, _source_selection
+
+    datasets = declaration.get("datasets")
+    if not isinstance(datasets, list) or set(inputs) != {item["id"] for item in datasets}:
+        raise ParisonError("reconciliation inputs do not match declared datasets")
+    bindings = []
+    for dataset in datasets:
+        for role in ("baseline", "candidate"):
+            source = inputs[dataset["id"]][role]
+            kind = "partition" if _source_path(source).is_dir() else "file"
+            bindings.append(
+                {
+                    "id": dataset["id"],
+                    "role": role,
+                    "source_kind": kind,
+                    "selection": _source_selection(source, kind),
+                    "source_sha256": _source_digest(source),
+                    "policy_sha256": dataset["policy_sha256"],
+                }
+            )
+    return normalize_input_bindings(
+        {
+            "binding_version": 1,
+            "policy": {"kind": "reconciliation", "sha256": declaration["reconciliation_sha256"]},
+            "bindings": bindings,
+        }
+    )
+
+
 def verify_dataset_input_bindings(manifest: Any, record: Any) -> None:
     """Check preserved declarations against a separately verified semantic record."""
     manifest, record = normalize_dataset_manifest_v2(manifest), normalize_input_bindings(record)

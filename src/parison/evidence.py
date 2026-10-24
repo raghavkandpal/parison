@@ -435,13 +435,9 @@ def _verify_suite_bundle_v2(directory: Path, manifest: dict[str, Any]) -> dict[s
 
 
 def _verify_suite_input_bindings(directory: Path, result: dict[str, Any], selected: list[dict[str, Any]]) -> None:
-    from .manifesting import _portable_binding_source, normalize_input_bindings
+    from .manifesting import _portable_binding_source, _read_json, normalize_input_bindings
 
-    try:
-        record = json.loads((directory / "input-bindings.json").read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise ParisonError(f"cannot read suite input bindings: {exc}") from exc
-    record = normalize_input_bindings(record)
+    record = normalize_input_bindings(_read_json(directory / "input-bindings.json", "suite input bindings"))
     if record["policy"] != {"kind": "suite", "sha256": result["suite_policy_sha256"]}:
         raise ParisonError("suite input binding policy does not match effective plan")
     by_pair = {(item["id"], item["role"]): item for item in record["bindings"]}
@@ -461,6 +457,8 @@ def _verify_suite_input_bindings(directory: Path, result: dict[str, Any], select
             item = by_pair[(case["id"], role)]
             if child_result.get("inputs", {}).get(role, {}).get("sha256") != item["source_sha256"]:
                 raise ParisonError("suite input binding digest does not match child execution")
+            if child_result.get("policy_sha256") != item["policy_sha256"]:
+                raise ParisonError("suite input binding policy does not match child execution")
 
 
 def _verify_suite_child(directory: Path, case: Any, case_digests: dict[str, Any]) -> None:

@@ -27,8 +27,10 @@ from parison.core import (
     load_suite,
     report_ci,
     run_suite,
+    select_suite_cases,
     verify_bundle,
 )
+from parison.evidence import _verify_suite_input_bindings
 from parison.suites import compare_suites
 from parison.workbench import compare_projection
 
@@ -109,8 +111,16 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(result["outcome"], "PASS")
         self.assertEqual(verify_bundle(output)["schema_version"], 3)
         record = json.loads((output / "input-bindings.json").read_text())
+        original_record = (output / "input-bindings.json").read_text()
         self.assertEqual([item["role"] for item in record["bindings"]], ["baseline", "candidate"])
         self.assertNotIn("baseline.csv", json.dumps(record))
+        child_result = json.loads((output / "cases/orders/result.json").read_text())
+        child_result["policy_sha256"] = "0" * 64
+        parent_result = json.loads((output / "suite-result.json").read_text())
+        selected = select_suite_cases(json.loads((output / "effective-suite.json").read_text()), None, None, None, None)
+        with patch("parison.evidence._read_bundle_result", return_value=child_result):
+            with self.assertRaisesRegex(ParisonError, "policy does not match child execution"):
+                _verify_suite_input_bindings(output, parent_result, selected)
         record["bindings"][0]["policy_sha256"] = "0" * 64
         member = output / "input-bindings.json"
         member.write_text(json.dumps(record), encoding="utf-8")
@@ -119,6 +129,11 @@ class SuiteTests(unittest.TestCase):
         manifest["files"]["input-bindings.json"] = hashlib.sha256(member.read_bytes()).hexdigest()
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
         with self.assertRaises(ParisonError):
+            verify_bundle(output)
+        member.write_text(original_record.replace('"binding_version":1', '"binding_version":1,"binding_version":1'))
+        manifest["files"]["input-bindings.json"] = hashlib.sha256(member.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "duplicate JSON key"):
             verify_bundle(output)
 
     def test_compare_repeated_suites_requires_same_verified_scope_and_policy(self):

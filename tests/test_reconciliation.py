@@ -12,11 +12,13 @@ from jsonschema import Draft202012Validator
 
 from parison.cli import main
 from parison.core import ParisonError, explain_recipe, inspect_bundle, load_schema, verify_bundle
+from parison.manifesting import capture_reconciliation_input_bindings
 from parison.reconciliation import (
     canonical_reconciliation_bytes,
     canonical_time_alignment_bytes,
     check_conservation,
     check_identity_references,
+    explain_reconciliation,
     explain_time_alignment,
     file_digest,
     inspect_reconciliation_bundle,
@@ -188,6 +190,22 @@ class ReconciliationContracts(unittest.TestCase):
                 sides[side] = path
             sources[dataset_id] = {"recipe": recipe_path, **sides}
         return alignment_path, reconciliation_path, receipt, sources
+
+    def test_fresh_reconciliation_input_capture_binds_sources_and_policy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary))
+            declaration = explain_reconciliation(files[1])
+            captured = capture_reconciliation_input_bindings(declaration, files[3])
+            self.assertEqual(
+                captured["policy"], {"kind": "reconciliation", "sha256": declaration["reconciliation_sha256"]}
+            )
+            self.assertEqual(len(captured["bindings"]), 4)
+            self.assertEqual(captured["bindings"][0]["selection"], {"kind": "file"})
+            Draft202012Validator(
+                json.loads((ROOT / "src/parison/schemas/input-bindings-v1.schema.json").read_text())
+            ).validate(captured)
+            files[3]["payments"]["baseline"].write_text("changed", encoding="utf-8")
+            self.assertNotEqual(captured, capture_reconciliation_input_bindings(declaration, files[3]))
 
     def test_installed_schemas_accept_contracts_and_reject_unknown_fields(self):
         for name, value in (("time-alignment", alignment()), ("reconciliation", reconciliation())):
