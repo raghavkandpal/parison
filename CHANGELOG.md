@@ -11,6 +11,9 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Draft explicit dataset evidence v2 physical/logical bindings and versioned
+  semantic selector records with canonical declaration acceptance inputs.
+
 - Begin six-feature 2.2 contract and acceptance freeze; record verified baseline
   CI and a reproduced reconciliation count-vocabulary validation gap.
 
