@@ -273,3 +273,31 @@ semantic record production inside versioned bundles, source-free bundle checking
 Workbench publication and platform qualification remain pending. The pair checker
 expects a separately verified semantic record; it does not authenticate issuers
 or establish source truth by itself.
+
+## Local source-check checkpoint
+
+The v2-specific source checker now uses the existing descriptor-safe hash and
+scope services with explicit aggregate physical-byte bounds. It hashes each
+physical inventory entry once, checks exact visible partition membership before
+and after reading, distinguishes hidden logical members from closed physical
+scope membership, and emits standalone result-v2 observations or a closed safe
+summary. SQLite locators retain journal-state rejection. Missing files and
+missing directory parents produce FAIL; unsafe links, aliases, nonregular
+partition children and mutations remain controlled errors.
+
+For v2 source checking, an absent closed scope enumerates as empty membership;
+missing declared files then derive missing-resource FAIL. This fixes the
+reviewed missing-partition/closed-scope inconsistency without changing v1's
+behavior. Empty physical scopes do not assert that a directory exists.
+Standalone PASS binds only declared physical bytes and membership under the
+explicit enclosing policy fingerprint. Per-binding recipe/selector/scope claims
+still require the separately verified semantic execution record before dataset
+publication; source PASS alone does not establish those claims.
+
+Independent Standards and Spec review findings were corrected and cleared.
+Python 3.14 `make check` passes 454 tests, with 11 optional-Polars skips while
+Polars is absent. Real fixtures cover shared workbook reuse, hidden/open/closed
+scope distinctions, changed/missing files and directories, partition additions,
+unsafe objects, physical aliases, observed byte limits and membership mutation.
+CLI dispatch, record production, preserved bundle verification and Workbench
+publication remain pending; this is not feature qualification.

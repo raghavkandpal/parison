@@ -786,7 +786,7 @@ def _windows_directory_lock(path: Path):
     return close, handle
 
 
-def _enumerate_scope(root: Path, relative: str) -> set[str]:
+def _enumerate_scope(root: Path, relative: str, *, partition: bool = False) -> set[str]:
     opened = _open_scope(root, relative)
     prefix = "" if relative == "." else relative
     found: set[str] = set()
@@ -798,6 +798,8 @@ def _enumerate_scope(root: Path, relative: str) -> set[str]:
             except OSError as exc:
                 raise ParisonError("cannot enumerate closed scope") from exc
             for name in names:
+                if partition and name.startswith("."):
+                    continue
                 portable = f"{parent}/{name}" if parent else name
                 try:
                     metadata = os.stat(name, dir_fd=descriptor, follow_symlinks=False)
@@ -806,6 +808,8 @@ def _enumerate_scope(root: Path, relative: str) -> set[str]:
                 if stat.S_ISLNK(metadata.st_mode):
                     raise ParisonError("closed scope contains a symlink")
                 if stat.S_ISDIR(metadata.st_mode):
+                    if partition:
+                        raise ParisonError("partition must contain only regular files")
                     flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_DIRECTORY", 0) | os.O_NOFOLLOW
                     child = os.open(name, flags, dir_fd=descriptor)
                     try:
@@ -831,11 +835,15 @@ def _enumerate_scope(root: Path, relative: str) -> set[str]:
             raise ParisonError("cannot enumerate closed scope") from exc
         try:
             for entry in entries:
+                if partition and entry.name.startswith("."):
+                    continue
                 portable = f"{parent}/{entry.name}" if parent else entry.name
                 mode = entry.lstat().st_mode
                 if stat.S_ISLNK(mode):
                     raise ParisonError("closed scope contains a symlink")
                 if stat.S_ISDIR(mode):
+                    if partition:
+                        raise ParisonError("partition must contain only regular files")
                     walk_path(entry, portable)
                 elif stat.S_ISREG(mode):
                     found.add(portable)
@@ -870,12 +878,16 @@ def _scope_members(root: Path, scopes: list[str]) -> set[str]:
     return members
 
 
-def _identity(root: Path, relative: str, format_name: str) -> tuple[int, str, tuple[int, int]] | None:
+def _identity(
+    root: Path, relative: str, format_name: str, *, max_bytes: int | None = None
+) -> tuple[int, str, tuple[int, int]] | None:
     opened = _open_resource(root, relative)
     if opened is None:
         return None
     _path, descriptor, before, locks, sidecar_exists = opened
     try:
+        if max_bytes is not None and before.st_size > max_bytes:
+            raise ParisonError("manifest input byte limit exceeded")
         if format_name == "sqlite" and any(sidecar_exists(suffix) for suffix in ("-wal", "-journal", "-shm")):
             raise ParisonError("SQLite resource has ambiguous journal state")
         digest, size = hashlib.sha256(), 0
@@ -883,6 +895,8 @@ def _identity(root: Path, relative: str, format_name: str) -> tuple[int, str, tu
             while chunk := handle.read(1024 * 1024):
                 digest.update(chunk)
                 size += len(chunk)
+                if max_bytes is not None and size > max_bytes:
+                    raise ParisonError("manifest input byte limit exceeded")
             after = os.fstat(handle.fileno())
         stable = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) == (
             after.st_dev,
@@ -955,6 +969,144 @@ def create_dataset_manifest(
         raise ParisonError("closed scope contains undeclared resources")
     _write_once(Path(output), json.dumps(value, indent=2, sort_keys=True) + "\n", "cannot publish dataset manifest")
     return {**value, "manifest_sha256": _digest(value, b"parison:dataset-manifest-v1\0")}
+
+
+def verify_dataset_manifest_v2(
+    manifest_path: str | Path,
+    root: str | Path,
+    policy_path: str | Path,
+    summary: bool = False,
+    max_input_bytes: int = 1_000_000_000,
+) -> dict[str, Any]:
+    """Check local physical bytes and exact logical membership under explicit policy."""
+    manifest = normalize_dataset_manifest_v2(_read_json(manifest_path, "dataset manifest v2"))
+    if _policy_fingerprint(manifest["policy"]["kind"], policy_path) != manifest["policy"]["sha256"]:
+        raise ParisonError("manifest policy SHA-256 does not match the supplied policy")
+    if type(max_input_bytes) is not int or max_input_bytes <= 0:
+        raise ParisonError("manifest input byte limit must be a positive integer")
+    if sum(item["bytes"] for item in manifest["files"]) > max_input_bytes:
+        raise ParisonError("manifest input byte limit exceeded")
+    root = Path(root)
+    opened = _open_scope(root, ".")
+    if isinstance(opened, int):
+        os.close(opened)
+    partitions, sqlite_paths = {}, set()
+    for binding in manifest["bindings"]:
+        _, path, selection = _portable_binding_source(binding["source"], binding["source_kind"])
+        if selection["kind"] == "sqlite-table":
+            sqlite_paths.add(path)
+        if binding["source_kind"] == "partition":
+            partitions[path] = None
+
+    def membership(path: str) -> set[str] | None:
+        try:
+            return _enumerate_scope(root, path, partition=True)
+        except ParisonError as exc:
+            if isinstance(exc.__cause__, FileNotFoundError):
+                return None
+            raise
+
+    def closed_members() -> set[str]:
+        found: set[str] = set()
+        for scope in manifest["closed_scopes"]:
+            try:
+                found.update(_enumerate_scope(root, scope))
+            except ParisonError as exc:
+                if not isinstance(exc.__cause__, FileNotFoundError):
+                    raise
+        return found
+
+    before_partitions = {path: membership(path) for path in partitions}
+    before_scope = closed_members()
+    files, identities, statuses = [], set(), {}
+    remaining = max_input_bytes
+    reasons = set()
+    for item in manifest["files"]:
+        path = item["path"]
+        format_name = (
+            "sqlite" if path in sqlite_paths or Path(path).suffix.lower() in {".db", ".sqlite", ".sqlite3"} else "file"
+        )
+        try:
+            observed = _identity(root, path, format_name, max_bytes=remaining)
+        except ParisonError as exc:
+            if not isinstance(exc.__cause__, FileNotFoundError):
+                raise
+            observed = None
+        size, digest = None, None
+        if observed is None:
+            status = "missing"
+            reasons.add("missing-resource")
+        else:
+            size, digest, identity = observed
+            if identity in identities:
+                raise ParisonError("manifest files contain hard-link aliases")
+            identities.add(identity)
+            remaining -= size
+            status = (
+                "size-mismatch" if size != item["bytes"] else "digest-mismatch" if digest != item["sha256"] else "match"
+            )
+            if status != "match":
+                reasons.add(status)
+        statuses[path] = status
+        files.append(
+            {
+                "path": path,
+                "expected_bytes": item["bytes"],
+                "expected_sha256": item["sha256"],
+                "observed_bytes": size,
+                "observed_sha256": digest,
+                "status": status,
+            }
+        )
+    after_partitions = {path: membership(path) for path in partitions}
+    after_scope = closed_members()
+    if before_scope != after_scope or before_partitions != after_partitions:
+        raise ParisonError("source membership changed during manifest verification")
+    undeclared = after_scope - set(statuses)
+    if undeclared:
+        reasons.add("undeclared-members")
+    bindings = []
+    for binding in manifest["bindings"]:
+        matched = all(statuses[member] == "match" for member in binding["members"])
+        if binding["source_kind"] == "partition":
+            _, path, _ = _portable_binding_source(binding["source"], "partition")
+            matched &= after_partitions[path] == set(binding["members"])
+        if not matched:
+            reasons.add("logical-member-mismatch")
+        bindings.append(
+            {
+                "id": binding["id"],
+                "role": binding["role"],
+                "source_sha256": binding["source_sha256"],
+                "status": "match" if matched else "member-mismatch",
+            }
+        )
+    result = {
+        "manifest_result_version": 2,
+        "complete": True,
+        "outcome": "FAIL" if reasons else "PASS",
+        "manifest_sha256": _digest(manifest, b"parison:dataset-manifest-v2\0"),
+        "policy": manifest["policy"],
+        "files": files,
+        "bindings": bindings,
+        "closed_scope_status": "undeclared-members" if undeclared else "match",
+        "reason_codes": sorted(reasons),
+        "diagnostic_sha256": None,
+        "semantic_result": None,
+    }
+    if not summary:
+        return result
+    return {
+        key: result[key]
+        for key in ("manifest_result_version", "complete", "outcome", "manifest_sha256", "policy", "reason_codes")
+    } | {
+        "file_count": len(files),
+        "binding_count": len(bindings),
+        "status_counts": {
+            status: sum(item["status"] == status for item in files)
+            for status in ("match", "missing", "size-mismatch", "digest-mismatch")
+        },
+    }
 
 
 def verify_dataset_manifest(
