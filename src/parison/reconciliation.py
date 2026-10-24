@@ -1172,6 +1172,7 @@ def _verify_component_counts(item: dict[str, Any], check: dict[str, Any], rows: 
             and c["parent_rows"] >= c["compared_groups"] + 2 * c["duplicate_parent_groups"]
             and c["child_rows"] >= c["child_only_groups"] + c["compared_groups"] - c["parent_without_children_groups"]
             and c["groups"] <= c["parent_rows"] + c["child_rows"]
+            and (c["child_rows"] == 0 or c["groups"] > c["parent_without_children_groups"])
             and (c["duplicate_parent_groups"] > 0 or c["parent_rows"] == c["compared_groups"])
             and c["null_measure_rows"] <= c["parent_rows"] + c["child_rows"]
             and (check["nulls"] != "zero" or c["null_measure_rows"] == 0)
@@ -1298,9 +1299,11 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
         or result.get("complete") is not True
     ):
         raise ParisonError("reconciliation result is incomplete or unsupported")
-    if [item.get("id") for item in result.get("datasets", []) if isinstance(item, dict)] != dataset_ids or len(
-        result.get("datasets", [])
-    ) != len(dataset_ids):
+    if (
+        not isinstance(result.get("datasets"), list)
+        or [item.get("id") for item in result.get("datasets", []) if isinstance(item, dict)] != dataset_ids
+        or len(result.get("datasets", [])) != len(dataset_ids)
+    ):
         raise ParisonError("reconciliation result datasets do not match declaration")
     rows = _verify_alignment_counts(result["alignment"], normalized_alignment)
     checks = {check["id"]: check for check in normalized_declaration["checks"]}
@@ -1313,6 +1316,7 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
             observed = sides[side]
             if (
                 not isinstance(observed, list)
+                or any(not isinstance(item, dict) for item in observed)
                 or [(item.get("id"), item.get("kind")) for item in observed if isinstance(item, dict)]
                 != expected_checks
             ):
@@ -1320,7 +1324,7 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
             for item in observed:
                 if (
                     set(item) != {"id", "kind", "outcome", "counts"}
-                    or item["outcome"] not in {"PASS", "FAIL"}
+                    or item["outcome"] not in ("PASS", "FAIL")
                     or not isinstance(item["counts"], dict)
                     or any(type(value) is not int or value < 0 for value in item["counts"].values())
                 ):

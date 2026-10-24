@@ -60,3 +60,15 @@ mutations and a valid composed bundle. Broader null/tolerance/empty-input produc
 edge cases, independent Standards/Spec review and exact-head full-platform CI
 remain required before integration. This is prerequisite hardening, not feature
 6 completion. No released producer serialization is changed.
+
+## Independent review follow-up
+
+24 October 2026: Standards review found uncontrolled errors for malformed
+component entries/outcomes; Spec review found malformed dataset collections and
+impossible placement of child rows in conservation groups. All were corrected
+with digest-valid public-verifier regressions. Both reviewers independently
+cleared their findings. Producer-based alignment fixtures cover PASS,
+INCONCLUSIVE and FAIL, including failure precedence over declared-cutoff
+coordination. Narrow tests pass 29 tests; local full checks pass 437 tests with
+11 optional-Polars skips (Polars absent). Broader null/tolerance/empty producer
+qualification and exact-head full-platform CI remain pending.
