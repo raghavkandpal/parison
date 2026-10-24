@@ -3,6 +3,13 @@
 Date: 24 October 2026
 Status: frozen for implementation; runtime qualification pending
 
+Implementation checkpoint: fresh suite v2 input-binding capture now records
+selected case identities from resolved execution locators, effective recipe
+fingerprints and actual local source digests. A focused fixture validates the
+versioned record schema and proves a changed input yields a changed record.
+The runner has not yet opted into emitting this record or a suite manifest v3;
+the record must be captured before execution and rechecked before publication.
+
 ## Physical and logical identity
 
 An opt-in manifest contains exactly `manifest_version: 2`, `collection_id`,

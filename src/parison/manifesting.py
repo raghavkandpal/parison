@@ -435,6 +435,36 @@ def canonical_input_bindings_bytes(value: Any) -> bytes:
     ).encode("utf-8")
 
 
+def capture_suite_input_bindings(suite: dict[str, Any], selected: list[dict[str, Any]]) -> dict[str, Any]:
+    """Capture selected source identity from a freshly loaded suite, before execution."""
+    from .inputs import _source_digest, _source_path, _source_selection
+
+    if suite.get("suite_version") != 2 or not selected:
+        raise ParisonError("input binding capture requires selected suite v2 cases")
+    bindings = []
+    for case in selected:
+        for role in ("baseline", "candidate"):
+            source = case[role]
+            kind = "partition" if _source_path(source).is_dir() else "file"
+            bindings.append(
+                {
+                    "id": case["id"],
+                    "role": role,
+                    "source_kind": kind,
+                    "selection": _source_selection(source, kind),
+                    "source_sha256": _source_digest(source),
+                    "policy_sha256": case["policy_sha256"],
+                }
+            )
+    return normalize_input_bindings(
+        {
+            "binding_version": 1,
+            "policy": {"kind": "suite", "sha256": suite["suite_policy_sha256"]},
+            "bindings": bindings,
+        }
+    )
+
+
 def verify_dataset_input_bindings(manifest: Any, record: Any) -> None:
     """Check preserved declarations against a separately verified semantic record."""
     manifest, record = normalize_dataset_manifest_v2(manifest), normalize_input_bindings(record)
