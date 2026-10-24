@@ -174,3 +174,9 @@ success claims. Hostile fixture transformations must change selectors, recipe
 policy, member order/names/content and file/partition kind independently while
 preserving unrelated fields. Each must be tested at the authoritative validator
 or cross-member verifier boundary before qualification.
+
+Structural checkpoint: the closed Draft 2020-12 manifest-v2 schema accepts all
+four canonical declarations and rejects unknown binding fields, missing source
+kind, boolean sizes and unknown source kinds. These checks do not prove path
+safety, exact membership, canonical normalization or semantic cross-bindings;
+those remain authoritative runtime acceptance gates.
