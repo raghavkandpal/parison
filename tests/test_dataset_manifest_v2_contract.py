@@ -1,6 +1,7 @@
 """Structural acceptance gates; runtime binding verification is separate."""
 
 import copy
+import hashlib
 import json
 import unittest
 from pathlib import Path
@@ -58,3 +59,29 @@ class DatasetManifestV2Contract(unittest.TestCase):
             else:
                 binding["source_kind"] = "partition"
             self.assertFalse(validator.is_valid(invalid), mutation)
+
+    def test_artifact_examples_bind_the_canonical_member_bytes(self):
+        root = ROOT / "tests/fixtures/2.2"
+        names = {
+            "dataset-manifest.json": "dataset-manifest-v2.shared-workbook.canonical.json",
+            "manifest-result.json": "manifest-result-v2.canonical.json",
+            "reproducibility-diagnostic.json": "reproducibility-diagnostic-v2.canonical.json",
+        }
+        outer = json.loads((root / "dataset-evidence-v2.outer.canonical.json").read_bytes())
+        members = {}
+        for name, fixture in names.items():
+            data = (root / fixture).read_bytes()
+            members[name] = json.loads(data)
+            self.assertEqual(data, json.dumps(members[name], sort_keys=True, separators=(",", ":")).encode())
+            self.assertEqual(outer["files"][name], hashlib.sha256(data).hexdigest())
+        manifest_digest = hashlib.sha256(
+            b"parison:dataset-manifest-v2\0" + (root / names["dataset-manifest.json"]).read_bytes()
+        ).hexdigest()
+        diagnostic_digest = hashlib.sha256(
+            b"parison:reproducibility-diagnostic-v2\0" + (root / names["reproducibility-diagnostic.json"]).read_bytes()
+        ).hexdigest()
+        self.assertEqual(outer["manifest_sha256"], manifest_digest)
+        self.assertEqual(outer["diagnostic_sha256"], diagnostic_digest)
+        self.assertEqual(members["manifest-result.json"]["manifest_sha256"], manifest_digest)
+        self.assertEqual(members["reproducibility-diagnostic.json"]["manifest_sha256"], manifest_digest)
+        self.assertEqual(members["manifest-result.json"]["diagnostic_sha256"], diagnostic_digest)

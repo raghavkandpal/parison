@@ -203,3 +203,8 @@ bytes; semantic-child and effective-policy digests remain synthetic placeholders
 They are shape examples, not a verified bundle. Semantic bundle schemas,
 artifact validators, hostile cross-member cases and source-free publication
 qualification remain freeze/implementation gates.
+
+The artifact-example test now checks canonical member bytes, outer member-file
+hashes, the domain-separated manifest/diagnostic fingerprints and their repeated
+cross-member bindings. The semantic child and effective policy remain explicit
+placeholders; complete verified-bundle qualification is still pending.
