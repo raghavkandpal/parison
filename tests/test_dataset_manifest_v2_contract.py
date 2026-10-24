@@ -8,6 +8,15 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
+from parison.core import ParisonError
+from parison.manifesting import (
+    canonical_dataset_manifest_v2_bytes,
+    canonical_input_bindings_bytes,
+    normalize_dataset_manifest_v2,
+    normalize_input_bindings,
+    verify_dataset_input_bindings,
+)
+
 ROOT = Path(__file__).parents[1]
 
 
@@ -124,3 +133,78 @@ class DatasetManifestV2Contract(unittest.TestCase):
                 self.assertEqual(path.read_bytes(), json.dumps(value, sort_keys=True, separators=(",", ":")).encode())
                 del value["files"]["input-bindings.json"]
                 self.assertFalse(validator.is_valid(value))
+
+    def test_authoritative_normalization_pins_bytes_and_membership(self):
+        fixtures = ROOT / "tests/fixtures/2.2"
+        for path in fixtures.glob("dataset-manifest-v2.*.canonical.json"):
+            with self.subTest(fixture=path.name):
+                value = json.loads(path.read_bytes())
+                self.assertEqual(canonical_dataset_manifest_v2_bytes(value), path.read_bytes())
+                reordered = copy.deepcopy(value)
+                reordered["bindings"].reverse()
+                reordered["files"].reverse()
+                self.assertEqual(canonical_dataset_manifest_v2_bytes(reordered), path.read_bytes())
+                for mutation in ("scope", "duplicate", "size", "source-digest", "member"):
+                    invalid = copy.deepcopy(value)
+                    if mutation == "scope":
+                        invalid["closed_scopes"] = [".", "data"]
+                    elif mutation == "duplicate":
+                        invalid["bindings"].append(copy.deepcopy(invalid["bindings"][0]))
+                    elif mutation == "size":
+                        invalid["files"][0]["bytes"] = True
+                    elif mutation == "source-digest":
+                        invalid["bindings"][0]["source_sha256"] = "f" * 64
+                    else:
+                        invalid["bindings"][0]["members"] = ["../escape.csv"]
+                    with self.assertRaises(ParisonError, msg=mutation):
+                        normalize_dataset_manifest_v2(invalid)
+
+    def test_authoritative_sources_reject_unsafe_paths_and_partition_substitution(self):
+        root = ROOT / "tests/fixtures/2.2"
+        value = json.loads((root / "dataset-manifest-v2.shared-workbook.canonical.json").read_bytes())
+        for source in ("xlsx:../private.xlsx#Sheet!A1:B2", "xlsx:data//shared.xlsx#Sheet!A1:B2", "https://remote/file"):
+            invalid = copy.deepcopy(value)
+            invalid["bindings"][0]["source"] = source
+            with self.assertRaises(ParisonError):
+                normalize_dataset_manifest_v2(invalid)
+        partition = json.loads((root / "dataset-manifest-v2.partition.canonical.json").read_bytes())
+        partition["bindings"][0]["source_kind"] = "file"
+        with self.assertRaises(ParisonError):
+            normalize_dataset_manifest_v2(partition)
+
+    def test_authoritative_records_and_hostile_cross_member_substitutions(self):
+        root = ROOT / "tests/fixtures/2.2"
+        for name in ("shared-workbook", "json", "xml", "partition"):
+            manifest = json.loads((root / f"dataset-manifest-v2.{name}.canonical.json").read_bytes())
+            path = root / f"input-bindings-v1.{name}.canonical.json"
+            record = json.loads(path.read_bytes())
+            self.assertEqual(canonical_input_bindings_bytes(record), path.read_bytes())
+            verify_dataset_input_bindings(manifest, record)
+        mutations = json.loads((root / "dataset-binding-mutations.json").read_text())
+        for mutation in mutations:
+            with self.subTest(mutation=mutation["id"]):
+                name = mutation["fixture"]
+                manifest = json.loads((root / f"dataset-manifest-v2.{name}.canonical.json").read_bytes())
+                record = json.loads((root / f"input-bindings-v1.{name}.canonical.json").read_bytes())
+                target = manifest if mutation["target"] == "manifest" else record
+                target["bindings"][mutation["binding"]][mutation["field"]] = mutation["value"]
+                with self.assertRaises(ParisonError):
+                    verify_dataset_input_bindings(manifest, record)
+
+    def test_malformed_selectors_and_utf8_have_controlled_errors(self):
+        root = ROOT / "tests/fixtures/2.2"
+        manifest = json.loads((root / "dataset-manifest-v2.json.canonical.json").read_bytes())
+        manifest["bindings"][0]["source"] = "json:data/records.json#/bad~2escape"
+        with self.assertRaises(ParisonError):
+            normalize_dataset_manifest_v2(manifest)
+        manifest = json.loads((root / "dataset-manifest-v2.partition.canonical.json").read_bytes())
+        bad_name = "data/parts/" + chr(0xD800) + ".csv"
+        manifest["files"][0]["path"] = bad_name
+        for binding in manifest["bindings"]:
+            binding["members"] = [bad_name]
+        with self.assertRaises(ParisonError):
+            normalize_dataset_manifest_v2(manifest)
+        record = json.loads((root / "input-bindings-v1.xml.canonical.json").read_bytes())
+        record["bindings"][0]["selection"]["namespaces"] = {"x": chr(0xD800)}
+        with self.assertRaises(ParisonError):
+            normalize_input_bindings(record)

@@ -11,6 +11,9 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Record authoritative dataset-v2 declaration/input-binding normalization and
+  hostile substitution qualification; complete feature delivery remains pending.
+
 - Draft explicit dataset evidence v2 physical/logical bindings and versioned
   semantic selector records with canonical declaration acceptance inputs.
 

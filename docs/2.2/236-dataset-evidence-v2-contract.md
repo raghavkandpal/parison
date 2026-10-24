@@ -255,3 +255,21 @@ freeze the implementation target. This is a specification milestone only.
 Runtime validators, producer-backed semantic bundles, controlled cross-member
 rejection, source-free verification, publication safety, unchanged v1 bytes,
 Workbench workflow and exact-head full-platform qualification remain required.
+
+## Authoritative normalization checkpoint
+
+Local implementation now normalizes closed v2 declarations and semantic input
+records, pins canonical bytes and checks exact physical membership digests,
+logical scope, policy and selectors across the declaration/record pair. All seven
+hostile acceptance substitutions reject at these shared validation boundaries.
+The XML canonical input was corrected to the released `root/item` locator grammar
+(the earlier leading-slash example was structurally valid but not executable).
+
+Independent Standards and Spec review found malformed-pointer and invalid-UTF-8
+exception paths; they were fixed with regressions and independently cleared.
+Python 3.14 `make check` passes 448 tests with 11 optional-Polars skips (Polars
+absent). V1 dispatch and serialization are unchanged. CLI dispatch, source checks,
+semantic record production inside versioned bundles, source-free bundle checking,
+Workbench publication and platform qualification remain pending. The pair checker
+expects a separately verified semantic record; it does not authenticate issuers
+or establish source truth by itself.

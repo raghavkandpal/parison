@@ -1750,3 +1750,28 @@ def _iter_input_rows(
             f"unsupported input format for {path}; use .csv, .tsv, .jsonl, .parquet, a JSON, XML, or XLSX locator, "
             "or gzip-compressed text"
         )
+
+
+def _source_selection(source: str | Path, source_kind: str) -> dict[str, Any]:
+    """Describe an explicitly selected input without disclosing its local path."""
+    if source_kind not in ("file", "partition"):
+        raise ParisonError("source kind must be file or partition")
+    sqlite = _sqlite_source(source)
+    xlsx = _xlsx_source(source)
+    document = _json_source(source)
+    xml = _xml_source(source)
+    if source_kind == "partition":
+        if sqlite or xlsx or document or xml:
+            raise ParisonError("partition bindings require a plain directory reference")
+        return {"kind": "partition"}
+    if sqlite:
+        return {"kind": "sqlite-table", "table": sqlite[1]}
+    if xlsx:
+        if xlsx[1] == "range":
+            return {"kind": "xlsx-range", "sheet": xlsx[2], "range": xlsx[3]}
+        return {"kind": "xlsx-" + xlsx[1], "table" if xlsx[1] == "table" else "name": xlsx[3]}
+    if document:
+        return {"kind": "json-pointer", "pointer": document[1]}
+    if xml:
+        return {"kind": "xml-record", "record_path": xml[1], "namespaces": dict(sorted(xml[2].items()))}
+    return {"kind": "file"}

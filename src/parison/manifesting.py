@@ -14,6 +14,7 @@ import unicodedata
 from importlib import metadata
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import urlencode
 
 from . import __version__
 from ._safe_fs import check_output_parent as _check_output_parent
@@ -169,6 +170,283 @@ def canonical_dataset_manifest_bytes(value: Any) -> bytes:
     return json.dumps(
         normalize_dataset_manifest(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
+
+
+def _closed_object(value: Any, fields: str, label: str) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != set(fields.split()):
+        raise ParisonError(f"{label} has invalid fields")
+    return value
+
+
+def _portable_binding_source(source: Any, source_kind: Any) -> tuple[str, str, dict[str, Any]]:
+    from .inputs import _source_selection
+
+    if not isinstance(source, str) or "\0" in source or not isinstance(source_kind, str):
+        raise ParisonError("binding source must be an explicit portable locator")
+    selection = _source_selection(source, source_kind)
+    selection = _normalize_binding_selection(selection, source_kind)
+    prefix = source.split(":", 1)[0]
+    if prefix in {"sqlite", "xlsx", "json", "xml"}:
+        locator = source[len(prefix) + 1 :]
+        path = locator.split("#", 1)[0] if prefix == "json" else locator.rsplit("#", 1)[0]
+    else:
+        path = source
+    _resource_path(path)
+    try:
+        source.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ParisonError("binding source must be valid UTF-8") from exc
+    return source, path, selection
+
+
+def normalize_dataset_manifest_v2(value: Any) -> dict[str, Any]:
+    """Normalize declared identity without opening source files or executing policy."""
+    value = _closed_object(value, "manifest_version collection_id policy closed_scopes files bindings", "manifest v2")
+    if type(value["manifest_version"]) is not int or value["manifest_version"] != 2:
+        raise ParisonError("dataset manifest version must be 2")
+    policy = _closed_object(value["policy"], "kind sha256", "manifest policy")
+    if policy["kind"] not in ("suite", "reconciliation"):
+        raise ParisonError("manifest policy kind must be suite or reconciliation")
+    policy = {"kind": policy["kind"], "sha256": _sha256(policy["sha256"], "policy sha256")}
+    inventory = value["files"]
+    if not isinstance(inventory, list) or not 1 <= len(inventory) <= 10_000:
+        raise ParisonError("manifest files must contain 1 to 10000 entries")
+    files, collisions = {}, set()
+    for item in inventory:
+        item = _closed_object(item, "path bytes sha256", "manifest file")
+        path = _resource_path(item["path"])
+        try:
+            path.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise ParisonError("inventory paths must be valid UTF-8") from exc
+        collision = unicodedata.normalize("NFC", path).casefold()
+        if collision in collisions:
+            raise ParisonError("manifest files contain duplicate or non-portable paths")
+        collisions.add(collision)
+        if type(item["bytes"]) is not int or item["bytes"] < 0:
+            raise ParisonError("file bytes must be a nonnegative integer")
+        files[path] = {"path": path, "bytes": item["bytes"], "sha256": _sha256(item["sha256"], "file sha256")}
+    if any(str(parent) in files for path in files for parent in PurePosixPath(path).parents):
+        raise ParisonError("inventoried files cannot also be parent directories")
+    scopes = value["closed_scopes"]
+    if not isinstance(scopes, list) or len(scopes) > 100:
+        raise ParisonError("closed_scopes must contain at most 100 entries")
+    scopes = sorted(_scope_path(item) for item in scopes)
+    try:
+        for scope in scopes:
+            scope.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ParisonError("closed scopes must be valid UTF-8") from exc
+    folded = [unicodedata.normalize("NFC", item).casefold() for item in scopes]
+    if len(set(folded)) != len(folded) or any(
+        left != right and (left == "." or right.startswith(left + "/")) for left in folded for right in folded
+    ):
+        raise ParisonError("closed_scopes must be unique and non-overlapping")
+    if scopes and any(not any(scope == "." or path.startswith(scope + "/") for scope in scopes) for path in files):
+        raise ParisonError("every file must be inside a declared closed scope")
+    bindings = value["bindings"]
+    if not isinstance(bindings, list) or not 1 <= len(bindings) <= 10_000:
+        raise ParisonError("manifest bindings must contain 1 to 10000 entries")
+    normalized, pairs = [], set()
+    for item in bindings:
+        item = _closed_object(item, "id role source_kind source members source_sha256 policy_sha256", "binding")
+        identifier = _identifier(item["id"], "binding id")
+        role = item["role"]
+        if role not in ("baseline", "candidate"):
+            raise ParisonError("binding role must be baseline or candidate")
+        pair = identifier, role
+        if pair in pairs:
+            raise ParisonError("duplicate logical binding")
+        pairs.add(pair)
+        source, path, _ = _portable_binding_source(item["source"], item["source_kind"])
+        members = item["members"]
+        if not isinstance(members, list) or not 1 <= len(members) <= 10_000:
+            raise ParisonError("binding members must contain 1 to 10000 entries")
+        members = [_resource_path(member) for member in members]
+        if len(set(members)) != len(members) or any(member not in files for member in members):
+            raise ParisonError("binding members must reference unique inventoried files")
+        if item["source_kind"] == "file":
+            if members != [path]:
+                raise ParisonError("file binding must reference its one physical file")
+            digest = files[path]["sha256"]
+        else:
+            from .inputs import _file_format
+
+            if any(
+                PurePosixPath(member).parent.as_posix() != path or PurePosixPath(member).name.startswith(".")
+                for member in members
+            ):
+                raise ParisonError("partition members must be visible immediate children")
+            formats = {_file_format(Path(member)) for member in members}
+            if None in formats or len(formats) != 1 or formats == {"xlsx"}:
+                raise ParisonError("partition members must use one released supported format")
+            ordered = sorted(members, key=lambda member: PurePosixPath(member).name.encode("utf-8"))
+            if members != ordered:
+                raise ParisonError("partition members must be in released basename order")
+            digest = hashlib.sha256()
+            for member in members:
+                digest.update(
+                    PurePosixPath(member).name.encode("utf-8") + b"\0" + bytes.fromhex(files[member]["sha256"])
+                )
+            digest = digest.hexdigest()
+        if _sha256(item["source_sha256"], "source sha256") != digest:
+            raise ParisonError("binding source identity does not match physical membership")
+        normalized.append(
+            {
+                "id": identifier,
+                "role": role,
+                "source_kind": item["source_kind"],
+                "source": source,
+                "members": members,
+                "source_sha256": digest,
+                "policy_sha256": _sha256(item["policy_sha256"], "binding policy sha256"),
+            }
+        )
+    try:
+        ordered_files = sorted(files.values(), key=lambda item: item["path"].encode("utf-8"))
+    except UnicodeEncodeError as exc:
+        raise ParisonError("inventory paths must be valid UTF-8") from exc
+    return {
+        "manifest_version": 2,
+        "collection_id": _identifier(value["collection_id"], "collection id"),
+        "policy": policy,
+        "closed_scopes": scopes,
+        "files": ordered_files,
+        "bindings": sorted(normalized, key=lambda item: (item["id"], item["role"])),
+    }
+
+
+def canonical_dataset_manifest_v2_bytes(value: Any) -> bytes:
+    return json.dumps(
+        normalize_dataset_manifest_v2(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+
+
+def _normalize_binding_selection(value: Any, source_kind: Any) -> dict[str, Any]:
+    from .inputs import _source_selection
+
+    if not isinstance(value, dict) or not isinstance(value.get("kind"), str):
+        raise ParisonError("binding selection must be a closed tagged object")
+    kind = value["kind"]
+    fields = {
+        "file": "kind",
+        "partition": "kind",
+        "sqlite-table": "kind table",
+        "json-pointer": "kind pointer",
+        "xml-record": "kind record_path namespaces",
+        "xlsx-range": "kind sheet range",
+        "xlsx-table": "kind table",
+        "xlsx-defined-name": "kind name",
+    }
+    if kind not in fields:
+        raise ParisonError("unsupported binding selection kind")
+    _closed_object(value, fields[kind], "binding selection")
+    if not isinstance(source_kind, str) or source_kind not in ("file", "partition"):
+        raise ParisonError("unsupported source kind")
+    if (kind == "partition") != (source_kind == "partition"):
+        raise ParisonError("selection and source kind disagree")
+    for field, item in value.items():
+        if field == "namespaces":
+            if not isinstance(item, dict) or any(
+                not isinstance(k, str) or not isinstance(v, str) for k, v in item.items()
+            ):
+                raise ParisonError("XML namespaces must map strings to strings")
+        elif not isinstance(item, str) or "\0" in item or (not item and field != "pointer"):
+            raise ParisonError("binding selectors must contain explicit strings")
+    try:
+        json.dumps(value, ensure_ascii=False).encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ParisonError("binding selectors must be valid UTF-8") from exc
+    if kind in {"file", "partition"}:
+        source = "binding.csv"
+    elif kind == "sqlite-table":
+        source = "sqlite:binding.sqlite#" + value["table"]
+    elif kind == "json-pointer":
+        source = "json:binding.json#" + value["pointer"]
+        if any("~" in token.replace("~0", "").replace("~1", "") for token in value["pointer"].split("/")):
+            raise ParisonError("JSON pointer has an invalid escape")
+    elif kind == "xml-record":
+        source = "xml:binding.xml#" + value["record_path"]
+        if value["namespaces"]:
+            source += "?" + urlencode([("ns", f"{key},{uri}") for key, uri in sorted(value["namespaces"].items())])
+    elif kind == "xlsx-range":
+        from .inputs import _xlsx_range
+
+        try:
+            _xlsx_range(value["range"])
+        except ImportError as exc:
+            raise ParisonError("XLSX support requires the optional openpyxl dependency") from exc
+        source = "xlsx:binding.xlsx#" + value["sheet"] + "!" + value["range"]
+    elif kind == "xlsx-table":
+        source = "xlsx:binding.xlsx#table=" + value["table"]
+    else:
+        source = "xlsx:binding.xlsx#defined-name=" + value["name"]
+    observed = _source_selection(source, source_kind)
+    if observed != value:
+        raise ParisonError("binding selection does not match released locator syntax")
+    try:
+        json.dumps(observed, ensure_ascii=False).encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ParisonError("binding selectors must be valid UTF-8") from exc
+    return observed
+
+
+def normalize_input_bindings(value: Any) -> dict[str, Any]:
+    value = _closed_object(value, "binding_version policy bindings", "input bindings")
+    if type(value["binding_version"]) is not int or value["binding_version"] != 1:
+        raise ParisonError("input binding version must be 1")
+    policy = _closed_object(value["policy"], "kind sha256", "binding policy")
+    if policy["kind"] not in ("suite", "reconciliation"):
+        raise ParisonError("binding policy must be suite or reconciliation")
+    policy = {"kind": policy["kind"], "sha256": _sha256(policy["sha256"], "policy sha256")}
+    items = value["bindings"]
+    if not isinstance(items, list) or not 1 <= len(items) <= 10_000:
+        raise ParisonError("input bindings must contain 1 to 10000 entries")
+    normalized, pairs = [], set()
+    for item in items:
+        item = _closed_object(item, "id role source_kind selection source_sha256 policy_sha256", "input binding")
+        identifier = _identifier(item["id"], "binding id")
+        role = item["role"]
+        if role not in ("baseline", "candidate"):
+            raise ParisonError("binding role must be baseline or candidate")
+        if (identifier, role) in pairs:
+            raise ParisonError("duplicate input binding")
+        pairs.add((identifier, role))
+        normalized.append(
+            {
+                "id": identifier,
+                "role": role,
+                "source_kind": item["source_kind"],
+                "selection": _normalize_binding_selection(item["selection"], item["source_kind"]),
+                "source_sha256": _sha256(item["source_sha256"], "source sha256"),
+                "policy_sha256": _sha256(item["policy_sha256"], "binding policy sha256"),
+            }
+        )
+    return {
+        "binding_version": 1,
+        "policy": policy,
+        "bindings": sorted(normalized, key=lambda item: (item["id"], item["role"])),
+    }
+
+
+def canonical_input_bindings_bytes(value: Any) -> bytes:
+    return json.dumps(
+        normalize_input_bindings(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+
+
+def verify_dataset_input_bindings(manifest: Any, record: Any) -> None:
+    """Check preserved declarations against a separately verified semantic record."""
+    manifest, record = normalize_dataset_manifest_v2(manifest), normalize_input_bindings(record)
+    expected = []
+    for item in manifest["bindings"]:
+        _, _, selection = _portable_binding_source(item["source"], item["source_kind"])
+        expected.append(
+            {key: item[key] for key in ("id", "role", "source_kind", "source_sha256", "policy_sha256")}
+            | {"selection": _normalize_binding_selection(selection, item["source_kind"])}
+        )
+    if record != {"binding_version": 1, "policy": manifest["policy"], "bindings": expected}:
+        raise ParisonError("dataset input bindings do not match semantic evidence")
 
 
 def explain_dataset_manifest(path: str | Path) -> dict[str, Any]:

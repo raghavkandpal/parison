@@ -208,7 +208,7 @@
   Annotated tag and [GitHub release 2.1.0](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
   publish checksum-verified assets; a fresh install of the public wheel passed
   the full suite, comparison, investigation and handoff smoke.
-- Next gate: implement authoritative dataset-v2 normalization and semantic-record production against the independently frozen [dataset v2 contract](2.2/236-dataset-evidence-v2-contract.md). Structural schemas/examples pass local checks (443 tests); runtime and all six feature checkpoints remain incomplete. Reconciliation verifier prerequisite merged through PR #80 after exact-head full qualification.
+- Next gate: implement dataset-v2 source verification and versioned semantic-record production. Authoritative declaration/record normalization and seven hostile substitutions pass local checks (448 tests) and independent review against the [frozen contract](2.2/236-dataset-evidence-v2-contract.md). CLI/publication/platform qualification and all six feature checkpoints remain incomplete.
 
 ## Recorded next steps
 
