@@ -235,3 +235,13 @@ executes: capture all selected source identities before beginning case execution
 A failure to capture an identity aborts new-version publication rather than
 inventing an absent digest. Retained incomplete workspaces are not complete
 semantic evidence and cannot satisfy dataset publication.
+
+Hostile acceptance input `dataset-binding-mutations.json` specifies selector,
+recipe-policy, source-digest, file/partition-kind, member, semantic selector and
+side substitutions against the canonical declaration/record pairs. The named
+expected failures are acceptance categories, not a new CLI reason vocabulary.
+Future regressions must apply each mutation independently, recompute enclosing
+file digests and require controlled rejection by authoritative normalization or
+cross-member verification. The same-file selector fixture deliberately retains
+physical inventory bytes and SHA-256. These are frozen test inputs; runtime
+rejection is not yet implemented or qualified.
