@@ -72,3 +72,12 @@ INCONCLUSIVE and FAIL, including failure precedence over declared-cutoff
 coordination. Narrow tests pass 29 tests; local full checks pass 437 tests with
 11 optional-Polars skips (Polars absent). Broader null/tolerance/empty producer
 qualification and exact-head full-platform CI remain pending.
+
+Producer-edge follow-up: composed bundles now qualify empty inputs, zero-valued
+parents without children, null-as-zero conservation and a non-exact discrepancy
+within declared tolerance. Each fixture asserts expected counts and overall
+outcomes before public verification. Both independent reviewers cleared the
+strengthened fixtures. Local `make check` passes 438 tests with 11 absent-Polars
+skips. The earlier exact head `39ad001ed08754489749cd26790900e90191a3f6`
+passed the [full platform matrix](https://github.com/raghavkandpal/parison/actions/runs/40074490311);
+new fixture commits require their own exact-head qualification before merge.

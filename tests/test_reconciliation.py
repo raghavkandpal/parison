@@ -825,6 +825,51 @@ class ReconciliationContracts(unittest.TestCase):
             publish_reconciliation_bundle(valid, original, files[0], files[1])
             self.assertEqual(verify_reconciliation_bundle(valid)["outcome"], "PASS")
 
+    def test_hardened_verifier_accepts_conservation_producer_edges(self):
+        for case in ("empty", "parent-without-children", "null-zero", "tolerant"):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                files = self._preflight_files(root)
+                declaration = json.loads(files[1].read_text(encoding="utf-8"))
+                check = copy.deepcopy(reconciliation()["checks"][-1])
+                if case == "null-zero":
+                    check["nulls"] = "zero"
+                if case == "tolerant":
+                    check["comparison"] = "tolerance"
+                    check["tolerance"] = {"formula": "symmetric-v1", "absolute": 1.0, "relative": 0}
+                declaration["checks"].append(check)
+                files[1].write_text(json.dumps(declaration), encoding="utf-8")
+                for dataset in ("payouts", "payments"):
+                    for side in ("baseline", "candidate"):
+                        path = root / f"{dataset}-{side}.jsonl"
+                        rows = []
+                        if case != "empty" and not (case == "parent-without-children" and dataset == "payments"):
+                            amount = None if case == "null-zero" and dataset == "payments" else "0.00"
+                            if case == "tolerant" and dataset == "payments":
+                                amount = "0.50"
+                            rows.append({"payout_id": "p-1", "occurred_at": "2026-09-01T00:00:00Z", "amount": amount})
+                        path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+                        if not rows:
+                            path = root / f"{dataset}-{side}.csv"
+                            path.write_text("payout_id,occurred_at,amount\n", encoding="utf-8")
+                        files[3][dataset][side] = path
+                result = run_reconciliation(*files)
+                counts = result["conservation"]["baseline"][0]["counts"]
+                if case == "empty":
+                    self.assertEqual(counts["groups"], 0)
+                elif case == "parent-without-children":
+                    self.assertEqual(counts["parent_without_children_groups"], 1)
+                elif case == "null-zero":
+                    self.assertEqual(counts["exact_groups"], 1)
+                    self.assertEqual(counts["null_measure_rows"], 0)
+                if case == "tolerant":
+                    self.assertEqual(counts["within_tolerance_groups"], 1)
+                self.assertEqual(
+                    result["outcome"], "INCONCLUSIVE" if case in {"empty", "parent-without-children"} else "PASS"
+                )
+                publish_reconciliation_bundle(root / "bundle", result, files[0], files[1])
+                self.assertEqual(verify_reconciliation_bundle(root / "bundle")["outcome"], result["outcome"])
+
     def test_verifier_controls_malformed_collections(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
