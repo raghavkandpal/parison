@@ -4,6 +4,12 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Add an opt-in suite service envelope with a versioned input-binding record,
+  captured from selected local sources and checked against completed children.
+  CLI and dataset publication support remain under development.
+
 ### Fixed
 
 - Harden reconciliation evidence count shapes, arithmetic and derived outcomes

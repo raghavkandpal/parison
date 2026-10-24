@@ -7,8 +7,16 @@ Implementation checkpoint: fresh suite v2 input-binding capture now records
 selected case identities from resolved execution locators, effective recipe
 fingerprints and actual local source digests. A focused fixture validates the
 versioned record schema and proves a changed input yields a changed record.
-The runner has not yet opted into emitting this record or a suite manifest v3;
-the record must be captured before execution and rechecked before publication.
+The record is captured before execution and rechecked before publication in
+the opt-in suite service path.
+
+Implementation checkpoint: the suite service now has an explicit
+`input_bindings=True` opt-in. It captures selected source identities before
+execution, rechecks them before atomic publication, compares completed child
+digests, and emits manifest schema 3 with obligatory `input-bindings.json`.
+The preserved verifier checks the record against selected effective-plan
+selectors, policy fingerprints and completed child digests. CLI/Workbench
+exposure, reconciliation envelope and dataset publication remain pending.
 
 ## Physical and logical identity
 

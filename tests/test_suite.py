@@ -102,6 +102,25 @@ class SuiteTests(unittest.TestCase):
     def case(self, identifier="orders"):
         return {"id": identifier, "recipe": "recipe.json", "baseline": "baseline.csv", "candidate": "candidate.csv"}
 
+    def test_input_binding_envelope_is_versioned_and_verified(self):
+        self.write_plan_v2([self.case()])
+        output = self.root / "bound-suite"
+        result = run_suite(self.plan, output, input_bindings=True)
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(verify_bundle(output)["schema_version"], 3)
+        record = json.loads((output / "input-bindings.json").read_text())
+        self.assertEqual([item["role"] for item in record["bindings"]], ["baseline", "candidate"])
+        self.assertNotIn("baseline.csv", json.dumps(record))
+        record["bindings"][0]["policy_sha256"] = "0" * 64
+        member = output / "input-bindings.json"
+        member.write_text(json.dumps(record), encoding="utf-8")
+        manifest_path = output / "manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["files"]["input-bindings.json"] = hashlib.sha256(member.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaises(ParisonError):
+            verify_bundle(output)
+
     def test_compare_repeated_suites_requires_same_verified_scope_and_policy(self):
         self.write_plan_v2([self.case()])
         first, second = self.root / "first", self.root / "second"

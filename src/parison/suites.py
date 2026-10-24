@@ -400,10 +400,17 @@ def run_suite(
     jobs: int = 1,
     cancelled=None,
     progress=None,
+    input_bindings: bool = False,
 ) -> dict[str, Any]:
     """Run a validated ordered suite and atomically publish its child bundles."""
+    if input_bindings:
+        from .manifesting import canonical_input_bindings_bytes, capture_suite_input_bindings
+
     suite = load_suite(plan)
     selected = select_suite_cases(suite, case_ids, tags, shard_index, shard_count)
+    if input_bindings and suite["suite_version"] != 2:
+        raise ParisonError("input bindings require suite_version 2")
+    captured_inputs = capture_suite_input_bindings(suite, selected) if input_bindings else None
     if not 1 <= jobs <= _MAX_SUITE_JOBS:
         raise ParisonError(f"jobs must be between 1 and {_MAX_SUITE_JOBS}")
     if cancelled is not None and jobs != 1:
@@ -673,9 +680,27 @@ def run_suite(
             }
         (stage / "suite-result.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         (stage / "report.html").write_text(_suite_report(result), encoding="utf-8")
-        files = {name: _digest(stage / name) for name in ("suite-result.json", "effective-suite.json", "report.html")}
+        if input_bindings:
+            if capture_suite_input_bindings(suite, selected) != captured_inputs:
+                raise ParisonError("suite inputs changed during execution")
+            recorded = {(item["id"], item["role"]): item for item in captured_inputs["bindings"]}
+            for case in cases:
+                child_result = _read_bundle_result(stage / case["bundle"])
+                if not child_result.get("complete"):
+                    continue
+                for role in ("baseline", "candidate"):
+                    if (
+                        child_result.get("inputs", {}).get(role, {}).get("sha256")
+                        != recorded[(case["id"], role)]["source_sha256"]
+                    ):
+                        raise ParisonError("suite child input digest does not match captured binding")
+            (stage / "input-bindings.json").write_bytes(canonical_input_bindings_bytes(captured_inputs))
+        members = ("suite-result.json", "effective-suite.json", "report.html") + (
+            ("input-bindings.json",) if input_bindings else ()
+        )
+        files = {name: _digest(stage / name) for name in members}
         manifest = {
-            "schema_version": result["schema_version"],
+            "schema_version": 3 if input_bindings else result["schema_version"],
             "kind": kind,
             "complete": True,
             "outcome": outcome,
