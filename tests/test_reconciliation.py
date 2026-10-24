@@ -768,6 +768,133 @@ class ReconciliationContracts(unittest.TestCase):
             with self.assertRaisesRegex(ParisonError, "metadata is inconsistent"):
                 verify_reconciliation_bundle(bundle)
 
+    def test_hardened_verifier_accepts_produced_alignment_outcomes(self):
+        for mode, timestamp, expected in (
+            ("source-snapshot", "2026-09-01T00:00:00Z", "PASS"),
+            ("declared-cutoff", "2026-09-01T00:00:00Z", "INCONCLUSIVE"),
+            ("watermark", "2026-09-01T00:00:00Z", "PASS"),
+            ("source-snapshot", "2026-10-01T00:00:00Z", "FAIL"),
+            ("declared-cutoff", "2026-10-01T00:00:00Z", "FAIL"),
+        ):
+            with self.subTest(mode=mode, timestamp=timestamp), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                files = self._preflight_files(root, mode=mode, timestamp=timestamp)
+                result = run_reconciliation(*files)
+                self.assertEqual(result["outcome"], expected)
+                publish_reconciliation_bundle(root / "bundle", result, files[0], files[1])
+                self.assertEqual(verify_reconciliation_bundle(root / "bundle")["outcome"], expected)
+
+    def test_verifier_rejects_inconsistent_counts_with_valid_file_digests(self):
+        mutations = json.loads(
+            (ROOT / "tests/fixtures/2.2/reconciliation-count-mutations.json").read_text(encoding="utf-8")
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            declaration = json.loads(files[1].read_text(encoding="utf-8"))
+            declaration["checks"] = reconciliation()["checks"]
+            files[1].write_text(json.dumps(declaration), encoding="utf-8")
+            original = run_reconciliation(*files)
+            for mutation in mutations:
+                with self.subTest(mutation=mutation["id"]):
+                    result = copy.deepcopy(original)
+                    item = next(
+                        item for item in result["relationships"]["baseline"] if item["kind"] == mutation["kind"]
+                    )
+                    item["counts"].update(mutation["changes"])
+                    for key in mutation["remove"]:
+                        del item["counts"][key]
+                    bundle = root / mutation["id"]
+                    publish_reconciliation_bundle(bundle, result, files[0], files[1])
+                    with self.assertRaises(ParisonError):
+                        verify_reconciliation_bundle(bundle)
+            for label in ("conservation", "alignment", "child-placement"):
+                with self.subTest(component=label):
+                    result = copy.deepcopy(original)
+                    if label == "conservation":
+                        result[label]["baseline"][0]["counts"]["groups"] += 1
+                    elif label == "child-placement":
+                        result["conservation"]["baseline"][0]["counts"]["parent_without_children_groups"] = 1
+                    else:
+                        result[label]["datasets"][0]["sides"]["baseline"]["rows"] += 1
+                    bundle = root / label
+                    publish_reconciliation_bundle(bundle, result, files[0], files[1])
+                    with self.assertRaises(ParisonError):
+                        verify_reconciliation_bundle(bundle)
+            valid = root / "valid"
+            publish_reconciliation_bundle(valid, original, files[0], files[1])
+            self.assertEqual(verify_reconciliation_bundle(valid)["outcome"], "PASS")
+
+    def test_hardened_verifier_accepts_conservation_producer_edges(self):
+        for case in ("empty", "parent-without-children", "null-zero", "tolerant"):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                files = self._preflight_files(root)
+                declaration = json.loads(files[1].read_text(encoding="utf-8"))
+                check = copy.deepcopy(reconciliation()["checks"][-1])
+                if case == "null-zero":
+                    check["nulls"] = "zero"
+                if case == "tolerant":
+                    check["comparison"] = "tolerance"
+                    check["tolerance"] = {"formula": "symmetric-v1", "absolute": 1.0, "relative": 0}
+                declaration["checks"].append(check)
+                files[1].write_text(json.dumps(declaration), encoding="utf-8")
+                for dataset in ("payouts", "payments"):
+                    for side in ("baseline", "candidate"):
+                        path = root / f"{dataset}-{side}.jsonl"
+                        rows = []
+                        if case != "empty" and not (case == "parent-without-children" and dataset == "payments"):
+                            amount = None if case == "null-zero" and dataset == "payments" else "0.00"
+                            if case == "tolerant" and dataset == "payments":
+                                amount = "0.50"
+                            rows.append({"payout_id": "p-1", "occurred_at": "2026-09-01T00:00:00Z", "amount": amount})
+                        path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+                        if not rows:
+                            path = root / f"{dataset}-{side}.csv"
+                            path.write_text("payout_id,occurred_at,amount\n", encoding="utf-8")
+                        files[3][dataset][side] = path
+                result = run_reconciliation(*files)
+                counts = result["conservation"]["baseline"][0]["counts"]
+                if case == "empty":
+                    self.assertEqual(counts["groups"], 0)
+                elif case == "parent-without-children":
+                    self.assertEqual(counts["parent_without_children_groups"], 1)
+                elif case == "null-zero":
+                    self.assertEqual(counts["exact_groups"], 1)
+                    self.assertEqual(counts["null_measure_rows"], 0)
+                if case == "tolerant":
+                    self.assertEqual(counts["within_tolerance_groups"], 1)
+                self.assertEqual(
+                    result["outcome"], "INCONCLUSIVE" if case in {"empty", "parent-without-children"} else "PASS"
+                )
+                publish_reconciliation_bundle(root / "bundle", result, files[0], files[1])
+                self.assertEqual(verify_reconciliation_bundle(root / "bundle")["outcome"], result["outcome"])
+
+    def test_verifier_controls_malformed_collections(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            original = run_reconciliation(*files)
+            for label in ("datasets-null", "component-null", "outcome-array"):
+                with self.subTest(shape=label):
+                    bundle = root / label
+                    publish_reconciliation_bundle(bundle, original, files[0], files[1])
+                    result = copy.deepcopy(original)
+                    if label == "datasets-null":
+                        result["datasets"] = None
+                    elif label == "component-null":
+                        result["relationships"]["baseline"].append(None)
+                    else:
+                        result["relationships"]["baseline"][0]["outcome"] = []
+                    path = bundle / "reconciliation-result.json"
+                    path.write_text(json.dumps(result), encoding="utf-8")
+                    manifest_path = bundle / "manifest.json"
+                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    manifest["files"][path.name] = file_digest(path)
+                    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+                    with self.assertRaises(ParisonError):
+                        verify_reconciliation_bundle(bundle)
+
     def test_reconcile_cli_publishes_and_verifies_bundle(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
