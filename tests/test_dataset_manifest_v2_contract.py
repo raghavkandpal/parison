@@ -110,3 +110,17 @@ class DatasetManifestV2Contract(unittest.TestCase):
                 invalid = copy.deepcopy(value)
                 del invalid["manifest_sha256"]
                 self.assertFalse(validator.is_valid(invalid))
+
+    def test_semantic_bundle_versions_require_binding_record(self):
+        for kind, version in (("suite", 3), ("reconciliation", 2)):
+            with self.subTest(kind=kind):
+                name = f"{kind}-manifest-v{version}"
+                schema = json.loads((ROOT / f"src/parison/schemas/{name}.schema.json").read_text())
+                Draft202012Validator.check_schema(schema)
+                validator = Draft202012Validator(schema)
+                path = ROOT / f"tests/fixtures/2.2/{name}.canonical.json"
+                value = json.loads(path.read_bytes())
+                validator.validate(value)
+                self.assertEqual(path.read_bytes(), json.dumps(value, sort_keys=True, separators=(",", ":")).encode())
+                del value["files"]["input-bindings.json"]
+                self.assertFalse(validator.is_valid(value))

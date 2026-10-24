@@ -216,3 +216,22 @@ capturing the diagnostic. The outer dataset-evidence schema always requires
 both bindings to be present and non-null, and its verifier rejects nulls in the
 published manifest-result member. A standalone FAIL canonical example pins
 missing-resource and logical-member-mismatch with null observed file fields.
+
+Semantic-manifest structural fixtures pin suite manifest schema 3 and
+reconciliation manifest schema 2 with an obligatory input-bindings.json digest.
+Both schemas reject its removal. These fixtures use synthetic member digests
+and are not complete semantic bundles. Runtime verifiers must additionally
+validate exact membership, record fingerprint, scope and all per-side policies
+and source identities. Released result contracts remain unchanged inside the
+new envelope versions.
+
+Suite-v3 standalone artifacts retain released ERROR/INTERRUPTED outcomes and
+suite-shard kind. Dataset publication accepts only complete suite parents with
+scope_complete and execution_complete both true and PASS/FAIL/INCONCLUSIVE
+outcomes. Shards, ERROR and INTERRUPTED evidence remain valid standalone
+artifacts but are ineligible children of dataset evidence. The binding record
+covers the entire selected plan scope, including a selected case that never
+executes: capture all selected source identities before beginning case execution.
+A failure to capture an identity aborts new-version publication rather than
+inventing an absent digest. Retained incomplete workspaces are not complete
+semantic evidence and cannot satisfy dataset publication.

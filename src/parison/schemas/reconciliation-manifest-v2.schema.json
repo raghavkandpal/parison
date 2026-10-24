@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/reconciliation-manifest-v2.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "complete",
+    "outcome",
+    "sensitivity",
+    "runtime",
+    "files"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "kind": {
+      "const": "reconciliation"
+    },
+    "complete": {
+      "const": true
+    },
+    "outcome": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCONCLUSIVE"
+      ]
+    },
+    "sensitivity": {
+      "const": "raw"
+    },
+    "runtime": {
+      "type": "object"
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reconciliation-result.json",
+        "summary.json",
+        "effective-alignment.json",
+        "effective-reconciliation.json",
+        "input-bindings.json"
+      ],
+      "properties": {
+        "reconciliation-result.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "summary.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "effective-alignment.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "effective-reconciliation.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "input-bindings.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}
