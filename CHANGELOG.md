@@ -11,6 +11,8 @@ All notable changes will be documented in this file.
   CLI and dataset publication support remain under development.
 - Expose frozen dataset v2 and semantic-envelope schemas through the offline
   schema loader and CLI schema command.
+- Add explicit `--input-bindings` suite and reconciliation execution modes that
+  publish fresh selector records under new semantic bundle versions.
 
 ### Fixed
 

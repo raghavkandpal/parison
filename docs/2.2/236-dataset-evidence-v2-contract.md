@@ -28,6 +28,22 @@ publication path remain to be wired.
 The seven frozen v2/v3 schema names are available through the offline schema
 loader and CLI schema command; this does not qualify dataset publication.
 
+Reconciliation envelope checkpoint: `reconcile --input-bindings --output`
+captures selected local sources before execution, rechecks after execution and
+around private publication, then emits the obligatory record under manifest
+schema 2. Source-free verification compares the record with the effective
+reconciliation fingerprint, declared dataset recipe fingerprints and preserved
+parity input digests; it rejects duplicate keys. The unflagged v1 bundle and
+CLI result remain unchanged. This checkpoint does not yet implement dataset
+evidence v2 publication or its Workbench surface.
+Independent Spec review found that a separate publisher taking an authored
+record could attach a different selector from the same physical file to an old
+result. Schema-2 publication now stays inside fresh execution, while the
+released publisher remains schema-1 only. The private staging bundle is
+authoritatively verified before atomic installation; invalid derived outcomes
+leave neither destination nor staging. Selector-substitution and failed-staging
+regressions pin these boundaries.
+
 ## Physical and logical identity
 
 An opt-in manifest contains exactly `manifest_version: 2`, `collection_id`,

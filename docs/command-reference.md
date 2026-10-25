@@ -248,6 +248,7 @@ options:
   --engine {memory,sqlite}
   --summary             omit dataset and relationship identifiers and detailed counts
   --output OUTPUT       atomically publish a verified reconciliation bundle
+  --input-bindings      publish a versioned source-selection record
   --max-input-bytes MAX_INPUT_BYTES
   --max-decoded-bytes MAX_DECODED_BYTES
   --max-rows MAX_ROWS
@@ -418,6 +419,7 @@ options:
   --shard-count SHARD_COUNT
   --workspace WORKSPACE
   --resume
+  --input-bindings      publish a versioned source-selection record
   --jobs JOBS           maximum concurrent suite cases (default: 1; maximum: 16)
 ```
 

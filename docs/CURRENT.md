@@ -208,7 +208,7 @@
   Annotated tag and [GitHub release 2.1.0](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
   publish checksum-verified assets; a fresh install of the public wheel passed
   the full suite, comparison, investigation and handoff smoke.
-- Next gate: wire fresh reconciliation input-binding capture into its versioned semantic envelope, then dataset-v2 CLI/publication dispatch. Suite service opt-in emits a verified manifest-v3 record; independent review gaps in strict JSON and child-policy binding are fixed. Reconciliation capture has a focused schema/mutation test against the [frozen contract](2.2/236-dataset-evidence-v2-contract.md). Preserved dataset-bundle/Workbench/platform qualification and all six feature checkpoints remain incomplete.
+- Next gate: implement dataset-v2 CLI/publication dispatch from the now versioned suite and reconciliation semantic envelopes. Both `run-suite` and `reconcile` have explicit `--input-bindings` opt-ins, with source capture and preserved record verification against the [frozen contract](2.2/236-dataset-evidence-v2-contract.md). Preserved dataset-bundle/Workbench/platform qualification and all six feature checkpoints remain incomplete.
 
 ## Recorded next steps
 

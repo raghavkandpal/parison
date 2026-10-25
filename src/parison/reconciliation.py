@@ -1042,6 +1042,53 @@ def run_reconciliation(
     }
 
 
+def run_reconciliation_with_bindings(
+    output: str | Path,
+    alignment_path: str | Path,
+    reconciliation_path: str | Path,
+    receipt_path: str | Path,
+    inputs: dict[str, dict[str, str | Path]],
+    **limits: Any,
+) -> dict[str, Any]:
+    """Run and publish a reconciliation with a fresh semantic input record."""
+    from .manifesting import capture_reconciliation_input_bindings
+
+    declaration = explain_reconciliation(reconciliation_path)
+    before = capture_reconciliation_input_bindings(declaration, inputs)
+    result = run_reconciliation(alignment_path, reconciliation_path, receipt_path, inputs, **limits)
+    if capture_reconciliation_input_bindings(declaration, inputs) != before:
+        raise ParisonError("reconciliation inputs changed during execution")
+    _verify_reconciliation_input_bindings(before, result, declaration)
+    _publish_reconciliation_bundle(output, result, alignment_path, reconciliation_path, before, inputs)
+    return result
+
+
+def _verify_reconciliation_input_bindings(
+    record: Any, result: dict[str, Any], declaration: dict[str, Any]
+) -> dict[str, Any]:
+    from .manifesting import normalize_input_bindings
+
+    record = normalize_input_bindings(record)
+    if record["policy"] != {"kind": "reconciliation", "sha256": declaration["reconciliation_sha256"]}:
+        raise ParisonError("reconciliation input binding policy does not match declaration")
+    observed = {(item["id"], item["role"]): item for item in record["bindings"]}
+    datasets = {item["id"]: item for item in declaration["datasets"]}
+    parity = {item["id"]: item for item in result["datasets"]}
+    if set(parity) != set(datasets) or set(observed) != {
+        (identifier, role) for identifier in datasets for role in ("baseline", "candidate")
+    }:
+        raise ParisonError("reconciliation input bindings do not match datasets")
+    for identifier, dataset in datasets.items():
+        for role in ("baseline", "candidate"):
+            binding = observed[(identifier, role)]
+            if (
+                binding["policy_sha256"] != dataset["policy_sha256"]
+                or binding["source_sha256"] != parity[identifier][f"{role}_sha256"]
+            ):
+                raise ParisonError("reconciliation input binding does not match parity execution")
+    return record
+
+
 def summarize_reconciliation_result(result: dict[str, Any]) -> dict[str, Any]:
     component_counts = {label: 0 for label in ("PASS", "FAIL", "INCONCLUSIVE")}
     for item in result["datasets"]:
@@ -1076,6 +1123,18 @@ def publish_reconciliation_bundle(
     alignment_path: str | Path,
     reconciliation_path: str | Path,
 ) -> None:
+    """Publish the released schema-1 reconciliation result."""
+    _publish_reconciliation_bundle(output, result, alignment_path, reconciliation_path)
+
+
+def _publish_reconciliation_bundle(
+    output: str | Path,
+    result: dict[str, Any],
+    alignment_path: str | Path,
+    reconciliation_path: str | Path,
+    input_bindings: dict[str, Any] | None = None,
+    input_sources: dict[str, dict[str, str | Path]] | None = None,
+) -> None:
     target = Path(output)
     if target.exists():
         raise ParisonError(f"output already exists: {target}")
@@ -1085,6 +1144,12 @@ def publish_reconciliation_bundle(
         or result.get("reconciliation_sha256") != declaration["reconciliation_sha256"]
     ):
         raise ParisonError("result fingerprints do not match declarations")
+    if input_bindings is not None:
+        from .manifesting import capture_reconciliation_input_bindings
+
+        if input_sources is None or capture_reconciliation_input_bindings(declaration, input_sources) != input_bindings:
+            raise ParisonError("reconciliation input bindings changed before publication")
+        input_bindings = _verify_reconciliation_input_bindings(input_bindings, result, declaration)
     stage = None
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -1101,9 +1166,14 @@ def publish_reconciliation_bundle(
         }
         for name, value in payloads.items():
             (stage / name).write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if input_bindings is not None:
+            from .manifesting import canonical_input_bindings_bytes
+
+            (stage / "input-bindings.json").write_bytes(canonical_input_bindings_bytes(input_bindings))
+            payloads["input-bindings.json"] = input_bindings
         files = {name: file_digest(stage / name) for name in sorted(payloads)}
         manifest = {
-            "schema_version": 1,
+            "schema_version": 2 if input_bindings is not None else 1,
             "kind": "reconciliation",
             "complete": result["complete"],
             "outcome": result["outcome"],
@@ -1112,6 +1182,13 @@ def publish_reconciliation_bundle(
             "files": files,
         }
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if (
+            input_bindings is not None
+            and capture_reconciliation_input_bindings(declaration, input_sources) != input_bindings
+        ):
+            raise ParisonError("reconciliation input bindings changed during publication")
+        if input_bindings is not None:
+            verify_reconciliation_bundle(stage)
         _rename_no_replace(stage, target)
         stage = None
     except ParisonError:
@@ -1238,18 +1315,22 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
     if (
         not isinstance(manifest, dict)
         or set(manifest) != expected
-        or manifest.get("schema_version") != 1
+        or manifest.get("schema_version") not in (1, 2)
         or manifest.get("kind") != "reconciliation"
         or manifest.get("complete") is not True
     ):
         raise ParisonError("reconciliation manifest is incomplete or unsupported")
     if manifest.get("outcome") not in {"PASS", "FAIL", "INCONCLUSIVE"} or manifest.get("sensitivity") != "raw":
         raise ParisonError("reconciliation manifest has invalid metadata")
-    _verify_manifest_files(
-        root,
-        manifest["files"],
-        {"reconciliation-result.json", "summary.json", "effective-alignment.json", "effective-reconciliation.json"},
-    )
+    members = {
+        "reconciliation-result.json",
+        "summary.json",
+        "effective-alignment.json",
+        "effective-reconciliation.json",
+    }
+    if manifest["schema_version"] == 2:
+        members.add("input-bindings.json")
+    _verify_manifest_files(root, manifest["files"], members)
     try:
         result = json.loads(
             (root / "reconciliation-result.json").read_text(encoding="utf-8"), object_pairs_hook=_object
@@ -1372,6 +1453,13 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
         or result.get("outcome") != expected_outcome
     ):
         raise ParisonError("reconciliation bundle metadata is inconsistent")
+    if manifest["schema_version"] == 2:
+        from .manifesting import _read_json
+
+        record = _read_json(root / "input-bindings.json", "reconciliation input bindings")
+        _verify_reconciliation_input_bindings(
+            record, result, declaration | {"reconciliation_sha256": reconciliation_sha256}
+        )
     if manifest_path.read_bytes() != manifest_bytes:
         raise ParisonError("reconciliation bundle changed during verification")
     return manifest

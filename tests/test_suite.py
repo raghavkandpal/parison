@@ -110,6 +110,12 @@ class SuiteTests(unittest.TestCase):
         result = run_suite(self.plan, output, input_bindings=True)
         self.assertEqual(result["outcome"], "PASS")
         self.assertEqual(verify_bundle(output)["schema_version"], 3)
+        cli_output = self.root / "bound-cli-suite"
+        with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+            self.assertEqual(
+                main(["run-suite", "--plan", str(self.plan), "--output", str(cli_output), "--input-bindings"]), 0
+            )
+        self.assertEqual(verify_bundle(cli_output)["schema_version"], 3)
         record = json.loads((output / "input-bindings.json").read_text())
         original_record = (output / "input-bindings.json").read_text()
         self.assertEqual([item["role"] for item in record["bindings"]], ["baseline", "candidate"])

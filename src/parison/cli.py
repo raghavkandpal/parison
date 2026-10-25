@@ -79,6 +79,7 @@ from .reconciliation import (
     preflight_alignment,
     publish_reconciliation_bundle,
     run_reconciliation,
+    run_reconciliation_with_bindings,
     summarize_reconciliation_result,
     verify_reconciliation_bundle,
 )
@@ -245,6 +246,7 @@ def parser() -> argparse.ArgumentParser:
         "--summary", action="store_true", help="omit dataset and relationship identifiers and detailed counts"
     )
     reconcile.add_argument("--output", help="atomically publish a verified reconciliation bundle")
+    reconcile.add_argument("--input-bindings", action="store_true", help="publish a versioned source-selection record")
     reconcile.add_argument("--max-input-bytes", type=int, default=1_000_000_000)
     reconcile.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000)
     reconcile.add_argument("--max-rows", type=int, default=5_000_000)
@@ -401,6 +403,7 @@ def parser() -> argparse.ArgumentParser:
     suite_run.add_argument("--shard-count", type=int)
     suite_run.add_argument("--workspace")
     suite_run.add_argument("--resume", action="store_true")
+    suite_run.add_argument("--input-bindings", action="store_true", help="publish a versioned source-selection record")
     suite_run.add_argument(
         "--jobs", type=int, default=1, help="maximum concurrent suite cases (default: 1; maximum: 16)"
     )
@@ -827,23 +830,43 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "reconcile":
             if len({item[0] for item in args.dataset}) != len(args.dataset):
                 raise ParisonError("--dataset IDs must be unique")
+            if args.input_bindings and not args.output:
+                raise ParisonError("--input-bindings requires --output")
             inputs = {item[0]: {"recipe": item[1], "baseline": item[2], "candidate": item[3]} for item in args.dataset}
-            result = run_reconciliation(
-                args.alignment,
-                args.reconciliation,
-                args.receipt,
-                inputs,
-                args.engine,
-                args.max_input_bytes,
-                args.max_decoded_bytes,
-                args.max_rows,
-                args.max_keys,
-                args.max_groups,
-                args.max_distinct_rows,
-                args.max_temp_bytes,
-                args.temp_directory,
-            )
-            if args.output:
+            if args.input_bindings:
+                result = run_reconciliation_with_bindings(
+                    args.output,
+                    args.alignment,
+                    args.reconciliation,
+                    args.receipt,
+                    inputs,
+                    engine=args.engine,
+                    max_input_bytes=args.max_input_bytes,
+                    max_decoded_bytes=args.max_decoded_bytes,
+                    max_rows=args.max_rows,
+                    max_keys=args.max_keys,
+                    max_groups=args.max_groups,
+                    max_distinct_rows=args.max_distinct_rows,
+                    max_temp_bytes=args.max_temp_bytes,
+                    temp_directory=args.temp_directory,
+                )
+            else:
+                result = run_reconciliation(
+                    args.alignment,
+                    args.reconciliation,
+                    args.receipt,
+                    inputs,
+                    args.engine,
+                    args.max_input_bytes,
+                    args.max_decoded_bytes,
+                    args.max_rows,
+                    args.max_keys,
+                    args.max_groups,
+                    args.max_distinct_rows,
+                    args.max_temp_bytes,
+                    args.temp_directory,
+                )
+            if args.output and not args.input_bindings:
                 publish_reconciliation_bundle(args.output, result, args.alignment, args.reconciliation)
             print(
                 json.dumps(
@@ -970,6 +993,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.workspace,
                 args.resume,
                 args.jobs,
+                input_bindings=args.input_bindings,
             )
             print(
                 json.dumps(
