@@ -12,7 +12,11 @@ from jsonschema import Draft202012Validator
 
 from parison.cli import main
 from parison.core import ParisonError, explain_recipe, inspect_bundle, load_schema, verify_bundle
-from parison.manifesting import capture_reconciliation_input_bindings
+from parison.manifesting import (
+    capture_reconciliation_input_bindings,
+    create_dataset_manifest_v2,
+    publish_dataset_evidence_bundle_v2,
+)
 from parison.reconciliation import (
     _publish_reconciliation_bundle,
     canonical_reconciliation_bytes,
@@ -293,6 +297,54 @@ class ReconciliationContracts(unittest.TestCase):
                 _publish_reconciliation_bundle(output, result, files[0], files[1], record, files[3])
             self.assertFalse(output.exists())
             self.assertFalse(list(root.glob(".invalid-bound-run-*")))
+
+    def test_reconciliation_dataset_v2_publication_binds_receipt_and_sources(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            semantic = root / "semantic-run"
+            run_reconciliation_with_bindings(semantic, *files)
+            policy = explain_reconciliation(files[1])
+            physical = [
+                files[2],
+                *(files[3][identifier][role] for identifier in files[3] for role in ("baseline", "candidate")),
+            ]
+            inventory = [
+                {"path": path.name, "bytes": path.stat().st_size, "sha256": file_digest(path)} for path in physical
+            ]
+            bindings = [
+                {
+                    "id": dataset["id"],
+                    "role": role,
+                    "source_kind": "file",
+                    "source": files[3][dataset["id"]][role].name,
+                    "members": [files[3][dataset["id"]][role].name],
+                    "source_sha256": file_digest(files[3][dataset["id"]][role]),
+                    "policy_sha256": dataset["policy_sha256"],
+                }
+                for dataset in policy["datasets"]
+                for role in ("baseline", "candidate")
+            ]
+            draft = root / "draft.json"
+            draft.write_text(
+                json.dumps(
+                    {
+                        "manifest_version": 2,
+                        "collection_id": "reconciled",
+                        "policy": {"kind": "reconciliation", "sha256": policy["reconciliation_sha256"]},
+                        "closed_scopes": [],
+                        "files": inventory,
+                        "bindings": bindings,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            manifest = root / "dataset-manifest.json"
+            create_dataset_manifest_v2(root, draft, manifest, files[1])
+            output = root / "dataset-evidence"
+            publish_dataset_evidence_bundle_v2(output, manifest, root, files[1], semantic)
+            self.assertEqual(verify_bundle(output)["schema_version"], 2)
+            self.assertEqual(inspect_bundle(output)["binding_count"], 4)
 
     def test_installed_schemas_accept_contracts_and_reject_unknown_fields(self):
         for name, value in (("time-alignment", alignment()), ("reconciliation", reconciliation())):

@@ -1358,6 +1358,65 @@ def capture_reproducibility_diagnostic(manifest_path: str | Path, output: str | 
     return {**value, "diagnostic_sha256": _digest(value, b"parison:reproducibility-diagnostic-v1\0")}
 
 
+def normalize_reproducibility_diagnostic_v2(value: Any) -> dict[str, Any]:
+    if (
+        not isinstance(value, dict)
+        or type(value.get("diagnostic_version")) is not int
+        or value["diagnostic_version"] != 2
+    ):
+        raise ParisonError("reproducibility diagnostic version must be 2")
+    if not isinstance(value.get("observations"), list) or any(
+        not isinstance(item, str) for item in value["observations"]
+    ):
+        raise ParisonError("diagnostic observations must be strings")
+    try:
+        json.dumps(value, ensure_ascii=False).encode("utf-8")
+    except (UnicodeError, TypeError, ValueError) as exc:
+        raise ParisonError("reproducibility diagnostic must be valid UTF-8 JSON") from exc
+    normalized = normalize_reproducibility_diagnostic({**value, "diagnostic_version": 1})
+    return {**normalized, "diagnostic_version": 2}
+
+
+def capture_reproducibility_diagnostic_v2(manifest_path: str | Path, output: str | Path) -> dict[str, Any]:
+    manifest = explain_dataset_manifest_v2(manifest_path)
+    reader = None
+    if any(Path(item["path"]).suffix.lower() == ".parquet" for item in manifest["files"]):
+        try:
+            reader = {"distribution": "polars", "version": metadata.version("polars")}
+        except metadata.PackageNotFoundError:
+            reader = None
+    value = normalize_reproducibility_diagnostic_v2(
+        {
+            "diagnostic_version": 2,
+            "manifest_sha256": manifest["manifest_sha256"],
+            "runtime": {
+                "parison_version": __version__,
+                "python_implementation": sys.implementation.name,
+                "python_version": platform.python_version(),
+                "os_family": platform.system().lower(),
+                "architecture": platform.machine().lower() or "unknown",
+                "sqlite_version": sqlite3.sqlite_version,
+                "parquet_reader": reader,
+            },
+            "observations": [],
+        }
+    )
+    _write_once(
+        Path(output),
+        json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False),
+        "cannot publish reproducibility diagnostic",
+    )
+    return {**value, "diagnostic_sha256": _digest(value, b"parison:reproducibility-diagnostic-v2\0")}
+
+
+def capture_reproducibility_diagnostic_any(manifest_path: str | Path, output: str | Path) -> dict[str, Any]:
+    return (
+        capture_reproducibility_diagnostic_v2(manifest_path, output)
+        if dataset_manifest_version(manifest_path) == 2
+        else capture_reproducibility_diagnostic(manifest_path, output)
+    )
+
+
 def diff_reproducibility_diagnostics(left_path: str | Path, right_path: str | Path) -> dict[str, Any]:
     left = normalize_reproducibility_diagnostic(_read_json(left_path, "left reproducibility diagnostic"))
     right = normalize_reproducibility_diagnostic(_read_json(right_path, "right reproducibility diagnostic"))
@@ -1532,6 +1591,48 @@ def _semantic_result_metadata(bundle: Path, declaration: dict[str, Any]) -> dict
     }
 
 
+def _semantic_result_metadata_v2(bundle: Path, declaration: dict[str, Any]) -> dict[str, Any]:
+    """Reconstruct v2 logical identity from a verified versioned semantic child."""
+    from .core import verify_bundle
+
+    child = verify_bundle(bundle)
+    kind = declaration["policy"]["kind"]
+    required_schema = 3 if kind == "suite" else 2
+    if child.get("kind") != kind or child.get("schema_version") != required_schema:
+        raise ParisonError("dataset v2 requires a versioned semantic child of the declared kind")
+    if child.get("outcome") not in ("PASS", "FAIL", "INCONCLUSIVE"):
+        raise ParisonError("dataset v2 requires a completed semantic child")
+    if kind == "suite":
+        result = _read_bundle_json(bundle / "suite-result.json", "semantic suite result")
+        if any(result.get(name) is not True for name in ("complete", "scope_complete", "execution_complete")):
+            raise ParisonError("dataset v2 requires complete suite execution and scope")
+        if result.get("suite_policy_sha256") != declaration["policy"]["sha256"]:
+            raise ParisonError("semantic suite policy does not match dataset manifest")
+    else:
+        result = _read_bundle_json(bundle / "reconciliation-result.json", "semantic reconciliation result")
+        effective = _read_bundle_json(bundle / "effective-reconciliation.json", "semantic reconciliation policy")
+        if (
+            result.get("complete") is not True
+            or _effective_policy_fingerprint("reconciliation", effective) != declaration["policy"]["sha256"]
+        ):
+            raise ParisonError("semantic reconciliation policy does not match dataset manifest")
+        receipt_matches = [item["path"] for item in declaration["files"] if item["sha256"] == result["receipt_sha256"]]
+        bound_members = {member for binding in declaration["bindings"] for member in binding["members"]}
+        if len(receipt_matches) != 1 or receipt_matches[0] in bound_members:
+            raise ParisonError("dataset v2 receipt must match one unbound physical file")
+    record = normalize_input_bindings(_read_json(bundle / "input-bindings.json", "semantic input bindings"))
+    verify_dataset_input_bindings(declaration, record)
+    record_bytes = canonical_input_bindings_bytes(record)
+    if (bundle / "input-bindings.json").read_bytes() != record_bytes:
+        raise ParisonError("semantic input bindings are not canonical")
+    return {
+        "kind": kind,
+        "outcome": child["outcome"],
+        "manifest_sha256": _file_digest(bundle / "manifest.json"),
+        "input_bindings_sha256": _digest(record, b"parison:input-bindings-v1\0"),
+    }
+
+
 def publish_dataset_evidence_bundle(
     output: str | Path, manifest_path: str | Path, root: str | Path, policy_path: str | Path, result_bundle: str | Path
 ) -> dict[str, Any]:
@@ -1581,6 +1682,67 @@ def publish_dataset_evidence_bundle(
         raise
     except OSError as exc:
         raise ParisonError(f"cannot publish dataset evidence bundle: {exc}") from exc
+    finally:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+
+
+def publish_dataset_evidence_bundle_v2(
+    output: str | Path, manifest_path: str | Path, root: str | Path, policy_path: str | Path, result_bundle: str | Path
+) -> dict[str, Any]:
+    """Atomically publish verified physical/logical identity and a versioned child."""
+    manifest = explain_dataset_manifest_v2(manifest_path)
+    source_result = verify_dataset_manifest_v2(manifest_path, root, policy_path)
+    if source_result["outcome"] != "PASS":
+        raise ParisonError("dataset v2 publication requires matching local sources")
+    policy = _effective_policy(manifest["policy"]["kind"], policy_path)
+    target, stage = Path(output), None
+    if target.exists():
+        raise ParisonError(f"output already exists: {target}")
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _check_output_parent(target.parent)
+        stage = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent))
+        os.chmod(stage, 0o700)
+        declaration = {
+            key: manifest[key]
+            for key in ("manifest_version", "collection_id", "policy", "closed_scopes", "files", "bindings")
+        }
+        (stage / "dataset-manifest.json").write_bytes(canonical_dataset_manifest_v2_bytes(declaration))
+        (stage / "effective-policy.json").write_text(
+            json.dumps(policy, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        diagnostic = capture_reproducibility_diagnostic_v2(
+            stage / "dataset-manifest.json", stage / "reproducibility-diagnostic.json"
+        )
+        _copy_verified_bundle(Path(result_bundle), stage / "semantic-result")
+        semantic = _semantic_result_metadata_v2(stage / "semantic-result", declaration)
+        result = {**source_result, "diagnostic_sha256": diagnostic["diagnostic_sha256"], "semantic_result": semantic}
+        (stage / "manifest-result.json").write_text(
+            json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        outer = {
+            "schema_version": 2,
+            "kind": "dataset-evidence",
+            "complete": True,
+            "outcome": result["outcome"],
+            "manifest_sha256": manifest["manifest_sha256"],
+            "diagnostic_sha256": diagnostic["diagnostic_sha256"],
+            "semantic_result": semantic,
+            "policy": manifest["policy"],
+            "files": {name: _file_digest(stage / name) for name in sorted(_EVIDENCE_FILES)},
+        }
+        (stage / "manifest.json").write_text(json.dumps(outer, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        _verified_dataset_evidence_v2(stage)
+        if verify_dataset_manifest_v2(manifest_path, root, policy_path) != source_result:
+            raise ParisonError("dataset v2 sources changed during publication")
+        _rename_no_replace(stage, target)
+        stage = None
+        return outer
+    except ParisonError:
+        raise
+    except OSError as exc:
+        raise ParisonError(f"cannot publish dataset v2 evidence bundle: {exc}") from exc
     finally:
         if stage is not None:
             shutil.rmtree(stage, ignore_errors=True)
@@ -1675,6 +1837,96 @@ def _verify_manifest_result(result: Any, manifest: dict[str, Any]) -> None:
         or result["policy"] != manifest["policy"]
     ):
         raise ParisonError("dataset evidence result metadata is inconsistent")
+
+
+def _verify_manifest_result_v2(result: Any, manifest: dict[str, Any], *, published: bool) -> None:
+    fields = "manifest_result_version complete outcome manifest_sha256 policy files bindings closed_scope_status reason_codes diagnostic_sha256 semantic_result"
+    result = _closed_object(result, fields, "dataset v2 manifest result")
+    if (
+        type(result["manifest_result_version"]) is not int
+        or result["manifest_result_version"] != 2
+        or result["complete"] is not True
+    ):
+        raise ParisonError("dataset v2 manifest result is incomplete or unsupported")
+    if (
+        result["manifest_sha256"] != _digest(manifest, b"parison:dataset-manifest-v2\0")
+        or result["policy"] != manifest["policy"]
+    ):
+        raise ParisonError("dataset v2 manifest result policy or fingerprint differs")
+    observations = result["files"]
+    if not isinstance(observations, list) or len(observations) != len(manifest["files"]):
+        raise ParisonError("dataset v2 file observations do not match inventory")
+    statuses, reasons = {}, set()
+    for item, expected in zip(observations, manifest["files"], strict=True):
+        item = _closed_object(
+            item, "path expected_bytes expected_sha256 observed_bytes observed_sha256 status", "file observation"
+        )
+        if type(item["expected_bytes"]) is not int or (
+            item["path"],
+            item["expected_bytes"],
+            item["expected_sha256"],
+        ) != (
+            expected["path"],
+            expected["bytes"],
+            expected["sha256"],
+        ):
+            raise ParisonError("dataset v2 file observation differs from inventory")
+        size, digest = item["observed_bytes"], item["observed_sha256"]
+        if size is None and digest is None:
+            status = "missing"
+            reasons.add("missing-resource")
+        elif type(size) is int and size >= 0 and isinstance(digest, str) and _SHA256.fullmatch(digest):
+            status = (
+                "size-mismatch"
+                if size != expected["bytes"]
+                else "digest-mismatch"
+                if digest != expected["sha256"]
+                else "match"
+            )
+            if status != "match":
+                reasons.add(status)
+        else:
+            raise ParisonError("dataset v2 file observation has invalid observed identity")
+        if item["status"] != status:
+            raise ParisonError("dataset v2 file observation status is inconsistent")
+        statuses[expected["path"]] = status
+    bindings = result["bindings"]
+    if not isinstance(bindings, list) or len(bindings) != len(manifest["bindings"]):
+        raise ParisonError("dataset v2 binding observations do not match declaration")
+    for item, expected in zip(bindings, manifest["bindings"], strict=True):
+        item = _closed_object(item, "id role source_sha256 status", "binding observation")
+        if (item["id"], item["role"], item["source_sha256"]) != (
+            expected["id"],
+            expected["role"],
+            expected["source_sha256"],
+        ) or item["status"] not in ("match", "member-mismatch"):
+            raise ParisonError("dataset v2 binding observation differs from declaration")
+        if item["status"] == "match" and any(statuses[member] != "match" for member in expected["members"]):
+            raise ParisonError("dataset v2 binding cannot match a changed member")
+        if item["status"] != "match":
+            reasons.add("logical-member-mismatch")
+    if result["closed_scope_status"] not in ("match", "undeclared-members"):
+        raise ParisonError("dataset v2 closed scope status is invalid")
+    if result["closed_scope_status"] == "undeclared-members":
+        reasons.add("undeclared-members")
+    outcome = "FAIL" if reasons else "PASS"
+    if result["reason_codes"] != sorted(reasons) or result["outcome"] != outcome:
+        raise ParisonError("dataset v2 result outcome or reasons are inconsistent")
+    semantic, diagnostic = result["semantic_result"], result["diagnostic_sha256"]
+    if published:
+        if (
+            outcome != "PASS"
+            or not isinstance(semantic, dict)
+            or set(semantic) != {"kind", "outcome", "manifest_sha256", "input_bindings_sha256"}
+            or semantic.get("kind") != manifest["policy"]["kind"]
+            or semantic.get("outcome") not in ("PASS", "FAIL", "INCONCLUSIVE")
+        ):
+            raise ParisonError("dataset v2 published semantic result is invalid")
+        for name in ("manifest_sha256", "input_bindings_sha256"):
+            _sha256(semantic[name], name)
+        _sha256(diagnostic, "diagnostic_sha256")
+    elif semantic is not None or diagnostic is not None:
+        raise ParisonError("standalone dataset v2 source result must have null publication bindings")
 
 
 def _verified_dataset_evidence(directory: str | Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], str]:
@@ -1789,11 +2041,157 @@ def _verified_dataset_evidence(directory: str | Path) -> tuple[dict[str, Any], d
             lock[0](lock[1])
 
 
+def _dataset_evidence_version(directory: str | Path) -> int:
+    opened = _open_scope(Path(directory), ".")
+    try:
+        try:
+            value = json.loads(
+                _read_regular_at(opened, "manifest.json", "dataset evidence manifest"), object_pairs_hook=_object
+            )
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise ParisonError(f"cannot decode dataset evidence manifest: {exc}") from exc
+        version = value.get("schema_version") if isinstance(value, dict) else None
+        if type(version) is not int or version not in (1, 2):
+            raise ParisonError("dataset evidence schema version must be 1 or 2")
+        return version
+    finally:
+        if isinstance(opened, int):
+            os.close(opened)
+
+
+def _verified_dataset_evidence_v2(directory: str | Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], str]:
+    root = Path(directory)
+    opened = _open_scope(root, ".")
+    lock = _windows_directory_lock(root) if isinstance(opened, Path) and os.name == "nt" else None
+    expected_members = _EVIDENCE_FILES | {"manifest.json", "semantic-result"}
+    try:
+        if set(os.listdir(opened)) != expected_members:
+            raise ParisonError("dataset v2 evidence bundle has unexpected membership")
+        manifest_bytes = _read_regular_at(opened, "manifest.json", "dataset v2 evidence manifest")
+        try:
+            outer = json.loads(manifest_bytes, object_pairs_hook=_object)
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise ParisonError(f"cannot decode dataset v2 evidence manifest: {exc}") from exc
+        outer = _closed_object(
+            outer,
+            "schema_version kind complete outcome manifest_sha256 diagnostic_sha256 semantic_result policy files",
+            "dataset v2 evidence manifest",
+        )
+        if (
+            type(outer["schema_version"]) is not int
+            or outer["schema_version"] != 2
+            or outer["kind"] != "dataset-evidence"
+            or outer["complete"] is not True
+        ):
+            raise ParisonError("dataset v2 evidence manifest is incomplete or unsupported")
+        files = outer["files"]
+        if not isinstance(files, dict) or set(files) != _EVIDENCE_FILES:
+            raise ParisonError("dataset v2 evidence manifest has invalid file membership")
+        values = {}
+        for name in sorted(files):
+            values[name] = _read_regular_at(opened, name, f"dataset v2 evidence file {name}")
+            if _sha256(files[name], f"{name} sha256") != hashlib.sha256(values[name]).hexdigest():
+                raise ParisonError(f"dataset v2 evidence file failed integrity check: {name}")
+
+        def decoded(name: str) -> dict[str, Any]:
+            try:
+                value = json.loads(values[name], object_pairs_hook=_object)
+            except (UnicodeError, json.JSONDecodeError) as exc:
+                raise ParisonError(f"cannot decode dataset v2 {name}: {exc}") from exc
+            if not isinstance(value, dict):
+                raise ParisonError(f"dataset v2 {name} must be a JSON object")
+            return value
+
+        declaration = normalize_dataset_manifest_v2(decoded("dataset-manifest.json"))
+        if values["dataset-manifest.json"] != canonical_dataset_manifest_v2_bytes(declaration):
+            raise ParisonError("dataset v2 manifest member is not canonical")
+        manifest_sha = _digest(declaration, b"parison:dataset-manifest-v2\0")
+        result = decoded("manifest-result.json")
+        _verify_manifest_result_v2(result, declaration, published=True)
+        diagnostic = normalize_reproducibility_diagnostic_v2(decoded("reproducibility-diagnostic.json"))
+        diagnostic_bytes = json.dumps(diagnostic, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
+            "utf-8"
+        )
+        if values["reproducibility-diagnostic.json"] != diagnostic_bytes:
+            raise ParisonError("dataset v2 diagnostic member is not canonical")
+        diagnostic_sha = _digest(diagnostic, b"parison:reproducibility-diagnostic-v2\0")
+        policy = decoded("effective-policy.json")
+        if _effective_policy_fingerprint(declaration["policy"]["kind"], policy) != declaration["policy"]["sha256"]:
+            raise ParisonError("dataset v2 effective policy does not match manifest")
+        with tempfile.TemporaryDirectory(prefix="parison-semantic-verify-") as temporary:
+            snapshot = Path(temporary) / "semantic-result"
+            if isinstance(opened, int):
+                flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_DIRECTORY", 0) | os.O_NOFOLLOW
+                try:
+                    semantic_fd = os.open("semantic-result", flags, dir_fd=opened)
+                except OSError as exc:
+                    raise ParisonError("semantic result bundle is missing or unsafe") from exc
+                try:
+                    _copy_bundle_snapshot(semantic_fd, snapshot)
+                finally:
+                    os.close(semantic_fd)
+            else:
+                _copy_bundle_snapshot(root / "semantic-result", snapshot)
+            semantic = _semantic_result_metadata_v2(snapshot, declaration)
+        if (
+            outer["outcome"] != result["outcome"]
+            or outer["manifest_sha256"] != manifest_sha
+            or outer["policy"] != declaration["policy"]
+            or diagnostic["manifest_sha256"] != manifest_sha
+            or outer["diagnostic_sha256"] != diagnostic_sha
+            or result["diagnostic_sha256"] != diagnostic_sha
+            or outer["semantic_result"] != semantic
+            or result["semantic_result"] != semantic
+        ):
+            raise ParisonError("dataset v2 evidence bundle metadata is inconsistent")
+        if (
+            _read_regular_at(opened, "manifest.json", "dataset v2 evidence manifest") != manifest_bytes
+            or set(os.listdir(opened)) != expected_members
+        ):
+            raise ParisonError("dataset v2 evidence bundle changed during verification")
+        for name in sorted(files):
+            if _read_regular_at(opened, name, f"dataset v2 evidence file {name}") != values[name]:
+                raise ParisonError("dataset v2 evidence member changed during verification")
+        return outer, result, diagnostic, hashlib.sha256(manifest_bytes).hexdigest()
+    finally:
+        if isinstance(opened, int):
+            os.close(opened)
+        if lock is not None:
+            lock[0](lock[1])
+
+
 def verify_dataset_evidence_bundle(directory: str | Path) -> dict[str, Any]:
-    return _verified_dataset_evidence(directory)[0]
+    return (
+        _verified_dataset_evidence_v2(directory)
+        if _dataset_evidence_version(directory) == 2
+        else _verified_dataset_evidence(directory)
+    )[0]
 
 
 def inspect_dataset_evidence_bundle(directory: str | Path) -> dict[str, Any]:
+    if _dataset_evidence_version(directory) == 2:
+        manifest, result, diagnostic, bundle_sha256 = _verified_dataset_evidence_v2(directory)
+        return {
+            "kind": "dataset-evidence",
+            "schema_version": 2,
+            "outcome": result["outcome"],
+            "complete": True,
+            "manifest_sha256": manifest["manifest_sha256"],
+            "diagnostic_sha256": manifest["diagnostic_sha256"],
+            "semantic_result": manifest["semantic_result"],
+            "policy": manifest["policy"],
+            "file_count": len(result["files"]),
+            "binding_count": len(result["bindings"]),
+            "status_counts": {
+                status: sum(item["status"] == status for item in result["files"])
+                for status in ("match", "missing", "size-mismatch", "digest-mismatch")
+            },
+            "reason_codes": result["reason_codes"],
+            "runtime": diagnostic["runtime"],
+            "observations": diagnostic["observations"],
+            "bundle_sha256": bundle_sha256,
+            "manifest_files": sorted(manifest["files"]),
+        }
     manifest, result, diagnostic, bundle_sha256 = _verified_dataset_evidence(directory)
     return {
         "kind": "dataset-evidence",

@@ -10,10 +10,12 @@ from jsonschema import Draft202012Validator
 
 from parison.core import ParisonError, load_schema
 from parison.manifesting import (
+    _verify_manifest_result_v2,
     canonical_dataset_manifest_v2_bytes,
     canonical_input_bindings_bytes,
     normalize_dataset_manifest_v2,
     normalize_input_bindings,
+    normalize_reproducibility_diagnostic_v2,
     verify_dataset_input_bindings,
 )
 
@@ -21,6 +23,43 @@ ROOT = Path(__file__).parents[1]
 
 
 class DatasetManifestV2Contract(unittest.TestCase):
+    def test_source_free_result_validator_accepts_pinned_pass_and_fail(self):
+        fixtures = ROOT / "tests/fixtures/2.2"
+        manifest = json.loads((fixtures / "dataset-manifest-v2.shared-workbook.canonical.json").read_text())
+        for name in ("manifest-result-v2.canonical.json", "manifest-result-v2.standalone-fail.canonical.json"):
+            with self.subTest(name=name):
+                result = json.loads((fixtures / name).read_text())
+                _verify_manifest_result_v2(result, manifest, published=result["semantic_result"] is not None)
+
+    def test_preserved_result_requires_exact_integer_expected_size(self):
+        fixtures = ROOT / "tests/fixtures/2.2"
+        manifest = json.loads((fixtures / "dataset-manifest-v2.shared-workbook.canonical.json").read_text())
+        result = json.loads((fixtures / "manifest-result-v2.canonical.json").read_text())
+        for size in (100.0, True):
+            with self.subTest(size=size):
+                changed_manifest, changed_result = copy.deepcopy(manifest), copy.deepcopy(result)
+                changed_manifest["files"][0]["bytes"] = 1 if size is True else 100
+                changed_result["files"][0]["expected_bytes"] = size
+                changed_result["files"][0]["observed_bytes"] = changed_manifest["files"][0]["bytes"]
+                changed_result["manifest_sha256"] = hashlib.sha256(
+                    b"parison:dataset-manifest-v2\0" + canonical_dataset_manifest_v2_bytes(changed_manifest)
+                ).hexdigest()
+                with self.assertRaises(ParisonError):
+                    _verify_manifest_result_v2(changed_result, changed_manifest, published=True)
+
+    def test_v2_diagnostic_malformed_values_have_controlled_errors(self):
+        fixture = ROOT / "tests/fixtures/2.2/reproducibility-diagnostic-v2.canonical.json"
+        value = json.loads(fixture.read_text())
+        for mutation in ("surrogate", "array", "object"):
+            with self.subTest(mutation=mutation):
+                changed = copy.deepcopy(value)
+                if mutation == "surrogate":
+                    changed["runtime"]["os_family"] = "\ud800"
+                else:
+                    changed["observations"] = [[]] if mutation == "array" else [{}]
+                with self.assertRaises(ParisonError):
+                    normalize_reproducibility_diagnostic_v2(changed)
+
     def test_versioned_schemas_are_available_through_public_loader(self):
         for name in (
             "dataset-manifest-v2",

@@ -60,12 +60,14 @@ from .evolution import (
     summarize_policy_diff,
 )
 from .manifesting import (
-    capture_reproducibility_diagnostic,
+    capture_reproducibility_diagnostic_any,
     create_dataset_manifest,
     create_dataset_manifest_v2,
+    dataset_manifest_version,
     diff_reproducibility_diagnostics,
     explain_dataset_manifest_any,
     publish_dataset_evidence_bundle,
+    publish_dataset_evidence_bundle_v2,
     verify_dataset_manifest_any,
 )
 from .project import init_project
@@ -944,9 +946,12 @@ def main(argv: list[str] | None = None) -> int:
             )
             return OUTCOME_CODES[result["outcome"]]
         if args.command == "publish-dataset-evidence":
-            result = publish_dataset_evidence_bundle(
-                args.output, args.manifest, args.root, args.policy_file, args.result_bundle
+            publisher = (
+                publish_dataset_evidence_bundle_v2
+                if dataset_manifest_version(args.manifest) == 2
+                else publish_dataset_evidence_bundle
             )
+            result = publisher(args.output, args.manifest, args.root, args.policy_file, args.result_bundle)
             print(
                 json.dumps(
                     {
@@ -963,7 +968,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             return OUTCOME_CODES[result["outcome"]]
         if args.command == "capture-reproducibility":
-            result = capture_reproducibility_diagnostic(args.manifest, args.output)
+            result = capture_reproducibility_diagnostic_any(args.manifest, args.output)
             print(json.dumps({"output": args.output, "diagnostic_sha256": result["diagnostic_sha256"]}, sort_keys=True))
             return 0
         if args.command == "diff-reproducibility":

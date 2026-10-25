@@ -208,7 +208,7 @@
   Annotated tag and [GitHub release 2.1.0](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
   publish checksum-verified assets; a fresh install of the public wheel passed
   the full suite, comparison, investigation and handoff smoke.
-- Next gate: implement dataset-evidence v2 publication and source-free preserved-bundle verification. Manifest v2 create/validate/explain/source-verify CLI dispatch now uses an explicit declaration and canonical bytes; suite and reconciliation semantic envelopes have fresh `--input-bindings` opt-ins against the [frozen contract](2.2/236-dataset-evidence-v2-contract.md). Preserved dataset-bundle/Workbench/platform qualification and all six feature checkpoints remain incomplete.
+- Next gate: independently review and qualify dataset-evidence v2 publication, preserved verification, hostile substitutions and Workbench access. Complete suite and reconciliation bundles now bind versioned semantic input records, local physical checks, effective policy and canonical diagnostic under the [frozen contract](2.2/236-dataset-evidence-v2-contract.md). Full platform qualification and all six feature checkpoints remain incomplete.
 
 ## Recorded next steps
 

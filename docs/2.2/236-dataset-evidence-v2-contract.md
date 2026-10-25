@@ -52,6 +52,26 @@ version. The released v1 creation arguments/default and command results remain
 accepted. Dataset-evidence v2 publication and preserved-bundle verification
 remain the next qualification gate.
 
+Preserved-bundle checkpoint: dataset evidence schema 2 now publishes only a
+PASS physical/logical source check with a complete suite-manifest-v3 or
+reconciliation-manifest-v2 child. It binds canonical manifest and diagnostic
+bytes, effective policy, authoritative observations, the child's manifest and
+canonical input-binding record, and the exactly-one unbound reconciliation
+receipt. Publication verifies private staging, rechecks local sources and
+installs atomically without replacement. Source-free verification replays all
+cross-member checks from the bundle snapshot; inspection returns aggregate
+counts without source paths, selectors or case IDs. Complete suite and
+reconciliation fixture runs pass after original source files are removed.
+
+The standalone FAIL result fixture had reason codes in noncanonical order.
+Its order is corrected to the already frozen sorted-reason rule and is now
+checked by the authoritative result validator alongside the PASS fixture.
+Independent review found that Python equality admitted integral floats and
+booleans in a preserved `expected_bytes` field. The source-free validator now
+requires an exact integer, with a digest-valid public-bundle mutation proving
+rejection. Version-2 diagnostics also reject malformed observation objects and
+invalid UTF-8 with controlled errors; v1 normalization remains untouched.
+
 ## Physical and logical identity
 
 An opt-in manifest contains exactly `manifest_version: 2`, `collection_id`,
