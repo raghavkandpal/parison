@@ -285,6 +285,9 @@ options:
 options:
   -h, --help            show this help message and exit
   --root ROOT
+  --manifest-version {1,2}
+  --declaration DECLARATION
+                        strict JSON v2 declaration containing physical and logical bindings
   --collection-id COLLECTION_ID
   --policy-kind {suite,reconciliation}
   --policy-sha256 POLICY_SHA256

@@ -44,6 +44,14 @@ authoritatively verified before atomic installation; invalid derived outcomes
 leave neither destination nor staging. Selector-substitution and failed-staging
 regressions pin these boundaries.
 
+Manifest command checkpoint: `create-dataset-manifest --manifest-version 2
+--declaration` reads the complete strict JSON physical/logical declaration,
+checks the explicit policy and all local sources, and writes canonical v2 bytes
+only for PASS. Validate, explain and source-verify commands dispatch by declared
+version. The released v1 creation arguments/default and command results remain
+accepted. Dataset-evidence v2 publication and preserved-bundle verification
+remain the next qualification gate.
+
 ## Physical and logical identity
 
 An opt-in manifest contains exactly `manifest_version: 2`, `collection_id`,

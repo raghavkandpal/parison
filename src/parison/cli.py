@@ -62,10 +62,11 @@ from .evolution import (
 from .manifesting import (
     capture_reproducibility_diagnostic,
     create_dataset_manifest,
+    create_dataset_manifest_v2,
     diff_reproducibility_diagnostics,
-    explain_dataset_manifest,
+    explain_dataset_manifest_any,
     publish_dataset_evidence_bundle,
-    verify_dataset_manifest,
+    verify_dataset_manifest_any,
 )
 from .project import init_project
 from .reconciliation import (
@@ -267,14 +268,16 @@ def parser() -> argparse.ArgumentParser:
         "create-dataset-manifest", help="bind explicitly named local files to a deterministic manifest"
     )
     create_manifest.add_argument("--root", required=True)
-    create_manifest.add_argument("--collection-id", required=True)
-    create_manifest.add_argument("--policy-kind", choices=("suite", "reconciliation"), required=True)
-    create_manifest.add_argument("--policy-sha256", required=True)
+    create_manifest.add_argument("--manifest-version", type=int, choices=(1, 2), default=1)
+    create_manifest.add_argument(
+        "--declaration", help="strict JSON v2 declaration containing physical and logical bindings"
+    )
+    create_manifest.add_argument("--collection-id")
+    create_manifest.add_argument("--policy-kind", choices=("suite", "reconciliation"))
+    create_manifest.add_argument("--policy-sha256")
     create_manifest.add_argument("--policy-file", required=True)
     create_manifest.add_argument("--closed-scope", action="append", default=[])
-    create_manifest.add_argument(
-        "--resource", action="append", nargs=4, metavar=("ID", "ROLE", "FORMAT", "PATH"), required=True
-    )
+    create_manifest.add_argument("--resource", action="append", nargs=4, metavar=("ID", "ROLE", "FORMAT", "PATH"))
     create_manifest.add_argument("--output", required=True)
     validate_manifest = commands.add_parser(
         "validate-dataset-manifest", help="validate a dataset-manifest-v1 declaration"
@@ -898,16 +901,27 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(inspect_reconciliation_bundle(args.bundle), indent=2, sort_keys=True))
             return 0
         if args.command == "create-dataset-manifest":
-            result = create_dataset_manifest(
-                args.root,
-                args.collection_id,
-                args.policy_kind,
-                args.policy_sha256,
-                args.resource,
-                args.output,
-                args.policy_file,
-                args.closed_scope,
-            )
+            if args.manifest_version == 2:
+                if not args.declaration or any(
+                    (args.collection_id, args.policy_kind, args.policy_sha256, args.resource, args.closed_scope)
+                ):
+                    raise ParisonError("manifest v2 requires --declaration without v1 resource arguments")
+                result = create_dataset_manifest_v2(args.root, args.declaration, args.output, args.policy_file)
+            else:
+                if args.declaration or not all(
+                    (args.collection_id, args.policy_kind, args.policy_sha256, args.resource)
+                ):
+                    raise ParisonError("manifest v1 requires collection, policy and resource arguments")
+                result = create_dataset_manifest(
+                    args.root,
+                    args.collection_id,
+                    args.policy_kind,
+                    args.policy_sha256,
+                    args.resource,
+                    args.output,
+                    args.policy_file,
+                    args.closed_scope,
+                )
             print(json.dumps({"output": args.output, "manifest_sha256": result["manifest_sha256"]}, sort_keys=True))
             print(
                 "Manifest PASS proves declared local byte identity only; it is not extraction truth or approval.",
@@ -915,14 +929,14 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
         if args.command == "validate-dataset-manifest":
-            explain_dataset_manifest(args.manifest)
+            explain_dataset_manifest_any(args.manifest)
             print("valid")
             return 0
         if args.command == "explain-dataset-manifest":
-            print(json.dumps(explain_dataset_manifest(args.manifest), indent=2, sort_keys=True))
+            print(json.dumps(explain_dataset_manifest_any(args.manifest), indent=2, sort_keys=True))
             return 0
         if args.command == "verify-dataset-manifest":
-            result = verify_dataset_manifest(args.manifest, args.root, args.policy_file, args.summary)
+            result = verify_dataset_manifest_any(args.manifest, args.root, args.policy_file, args.summary)
             print(json.dumps(result, indent=2, sort_keys=True))
             print(
                 "Manifest PASS proves declared local byte identity only; it is not extraction truth or approval.",

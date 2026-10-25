@@ -6,13 +6,16 @@ import json
 import os
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
+from parison.cli import main
 from parison.core import ParisonError
-from parison.manifesting import verify_dataset_manifest_v2
+from parison.manifesting import canonical_dataset_manifest_v2_bytes, verify_dataset_manifest_v2
 
 ROOT = Path(__file__).parents[1]
 
@@ -54,6 +57,46 @@ class DatasetManifestV2Sources(unittest.TestCase):
     def verify(self, **kwargs):
         self.manifest.write_text(json.dumps(self.value), encoding="utf-8")
         return verify_dataset_manifest_v2(self.manifest, self.root, self.policy, **kwargs)
+
+    def test_v2_cli_creation_explanation_and_source_verification(self):
+        self.manifest.write_text(json.dumps(self.value), encoding="utf-8")
+        output = self.root / "created.json"
+        with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+            self.assertEqual(
+                main(
+                    [
+                        "create-dataset-manifest",
+                        "--manifest-version",
+                        "2",
+                        "--declaration",
+                        str(self.manifest),
+                        "--root",
+                        str(self.root),
+                        "--policy-file",
+                        str(self.policy),
+                        "--output",
+                        str(output),
+                    ]
+                ),
+                0,
+            )
+        self.assertEqual(output.read_bytes(), canonical_dataset_manifest_v2_bytes(self.value))
+        for command in (
+            ["validate-dataset-manifest", str(output)],
+            ["explain-dataset-manifest", str(output)],
+            [
+                "verify-dataset-manifest",
+                "--manifest",
+                str(output),
+                "--root",
+                str(self.root),
+                "--policy-file",
+                str(self.policy),
+                "--summary",
+            ],
+        ):
+            with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                self.assertEqual(main(command), 0)
 
     def test_pass_result_schema_and_summary_disclosure(self):
         result = self.verify()

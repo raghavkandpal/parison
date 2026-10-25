@@ -517,6 +517,23 @@ def explain_dataset_manifest(path: str | Path) -> dict[str, Any]:
     return {**value, "manifest_sha256": _digest(value, b"parison:dataset-manifest-v1\0")}
 
 
+def explain_dataset_manifest_v2(path: str | Path) -> dict[str, Any]:
+    value = normalize_dataset_manifest_v2(_read_json(path, "dataset manifest v2"))
+    return {**value, "manifest_sha256": _digest(value, b"parison:dataset-manifest-v2\0")}
+
+
+def dataset_manifest_version(path: str | Path) -> int:
+    value = _read_json(path, "dataset manifest")
+    version = value.get("manifest_version")
+    if type(version) is not int or version not in (1, 2):
+        raise ParisonError("dataset manifest version must be 1 or 2")
+    return version
+
+
+def explain_dataset_manifest_any(path: str | Path) -> dict[str, Any]:
+    return explain_dataset_manifest_v2(path) if dataset_manifest_version(path) == 2 else explain_dataset_manifest(path)
+
+
 def _policy_fingerprint(kind: str, path: str | Path) -> str:
     return _effective_policy_fingerprint(kind, _effective_policy(kind, path))
 
@@ -1034,6 +1051,21 @@ def create_dataset_manifest(
     return {**value, "manifest_sha256": _digest(value, b"parison:dataset-manifest-v1\0")}
 
 
+def create_dataset_manifest_v2(
+    root: str | Path, declaration_path: str | Path, output: str | Path, policy_path: str | Path
+) -> dict[str, Any]:
+    """Publish an explicit v2 declaration only after local source verification."""
+    value = normalize_dataset_manifest_v2(_read_json(declaration_path, "dataset manifest v2 declaration"))
+    if _policy_fingerprint(value["policy"]["kind"], policy_path) != value["policy"]["sha256"]:
+        raise ParisonError("declared policy SHA-256 does not match the supplied policy")
+    if verify_dataset_manifest_v2(declaration_path, root, policy_path)["outcome"] != "PASS":
+        raise ParisonError("dataset v2 declaration does not match local sources")
+    _write_once(
+        Path(output), canonical_dataset_manifest_v2_bytes(value).decode("utf-8"), "cannot publish dataset manifest"
+    )
+    return {**value, "manifest_sha256": _digest(value, b"parison:dataset-manifest-v2\0")}
+
+
 def verify_dataset_manifest_v2(
     manifest_path: str | Path,
     root: str | Path,
@@ -1242,6 +1274,16 @@ def verify_dataset_manifest(
     if not summary:
         result["resources"] = details
     return result
+
+
+def verify_dataset_manifest_any(
+    manifest_path: str | Path, root: str | Path, policy_path: str | Path, summary: bool = False
+) -> dict[str, Any]:
+    return (
+        verify_dataset_manifest_v2(manifest_path, root, policy_path, summary)
+        if dataset_manifest_version(manifest_path) == 2
+        else verify_dataset_manifest(manifest_path, root, policy_path, summary)
+    )
 
 
 def normalize_reproducibility_diagnostic(value: Any) -> dict[str, Any]:
