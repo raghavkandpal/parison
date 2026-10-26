@@ -1,7 +1,7 @@
 # Current development state
 
 - Version: **2.1.0 released; six-feature 2.2 train accepted**
-- Branch: `feature/recoverable-suites-v2` (from PR #82 merge `71a54ad`)
+- Branch: `feature/workbench-policy-review` (from PR #83 merge `1b8f1ff`)
 - Theme: local-first verification — the Workbench suite workflow, repeated
   suite comparison and failed-member investigation are released
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
@@ -210,7 +210,8 @@
   the full suite, comparison, investigation and handoff smoke.
 - Integrated: dataset evidence v2 passed independent Standards/Spec review and the exact-head [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40264738870) at `88ea66a`; PR #81 merged into `develop` at `31cd36b`. Physical/logical bindings, fresh semantic input records, source-free verification and reviewed Workbench publication are complete under the [frozen contract](2.2/236-dataset-evidence-v2-contract.md).
 - Integrated: Workbench suite-v2 authoring passed independent Standards/Spec review, `make check`, rendered UI inspection and the exact-head [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40267185090) at `3c142cf`; PR #82 merged into `develop` at `71a54ad`. The [authoring contract](2.2/237-workbench-suite-authoring-contract.md) records the accepted behavior.
-- Next gate: qualify the [recoverable-suite implementation](2.2/238-recoverable-suite-execution-contract.md). Host/UI now expose explicit retained restart/resume, authoritative preview and guarded abandonment; selection-bound checkpoints prevent stale reuse and cancellation retains only deliberately owned state. Independent Standards/Spec review is clear and `make check` passes 484 tests. PR #83 awaits exact-head full-matrix CI and integration. Four feature integrations remain incomplete.
+- Integrated: recoverable suites through [PR #83](https://github.com/raghavkandpal/parison/pull/83) at `1b8f1ff`; exact head `170fb90` passed independent Standards/Spec review, 484 local tests, [full built-wheel CI](https://github.com/raghavkandpal/parison/actions/runs/40285758273) and [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40285762200).
+- Next gate: qualify implemented [Workbench policy-change review](2.2/240-workbench-policy-review-contract.md), then suite rehearsal series and complete reconciliation. Local `make check` passes 490 tests; independent Standards/Spec review is clear. PR #84 awaits corrected-head full-matrix CI and integration. Three of six feature integrations remain incomplete.
 
 ## Recorded next steps
 

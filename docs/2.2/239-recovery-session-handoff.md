@@ -1,6 +1,9 @@
 # Recoverable suites continuation
 
-26 October 2026. Session stopped at 7% remaining five-hour usage, as requested.
+26 October 2026. A stopping checkpoint was prepared at 7% remaining five-hour
+usage. The window reset before stopping; work continued and PR #83 merged at
+`1b8f1ff` after exact-head CI passed. The prompt below is historical; follow
+`docs/CURRENT.md` for the active gate.
 
 ## Copy-ready next-session goal
 

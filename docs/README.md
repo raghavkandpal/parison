@@ -6,6 +6,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 
 ## 2.2 — accepted six-feature train
 
+- [Workbench policy-change review contract](2.2/240-workbench-policy-review-contract.md)
+
 - [Recoverable suites continuation](2.2/239-recovery-session-handoff.md)
 
 - [Recoverable suite execution contract and implementation](2.2/238-recoverable-suite-execution-contract.md)
