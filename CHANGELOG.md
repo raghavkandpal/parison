@@ -19,6 +19,8 @@ All notable changes will be documented in this file.
   logical bindings, a versioned semantic child and summary-safe inspection.
 - Review and publish dataset evidence v2 in Workbench with explicit local
   inputs, inventory and bindings; changed review inputs require a fresh review.
+- Compose, review and export unapproved suite-v2 drafts in Workbench with
+  explicit ordered cases, released controls and destination-relative references.
 
 ### Fixed
 

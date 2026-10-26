@@ -1,7 +1,7 @@
 # Current development state
 
 - Version: **2.1.0 released; six-feature 2.2 train accepted**
-- Branch: `feature/dataset-evidence-v2` (from PR #80 merge `15cd5be`)
+- Branch: `feature/workbench-suite-authoring-v2` (from PR #81 merge `31cd36b`)
 - Theme: local-first verification — the Workbench suite workflow, repeated
   suite comparison and failed-member investigation are released
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
@@ -208,7 +208,8 @@
   Annotated tag and [GitHub release 2.1.0](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
   publish checksum-verified assets; a fresh install of the public wheel passed
   the full suite, comparison, investigation and handoff smoke.
-- Next gate: independently review and qualify dataset-evidence v2 Workbench review/publication, then run the exact-head full built-wheel matrix before integration. The host now reviews explicit local inventory, bindings, policy and versioned semantic evidence; publication rechecks inputs and requires the current review token. Complete suite and reconciliation bundles bind versioned semantic input records, local physical checks, effective policy and canonical diagnostic under the [frozen contract](2.2/236-dataset-evidence-v2-contract.md). All six feature integrations remain incomplete.
+- Integrated: dataset evidence v2 passed independent Standards/Spec review and the exact-head [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40264738870) at `88ea66a`; PR #81 merged into `develop` at `31cd36b`. Physical/logical bindings, fresh semantic input records, source-free verification and reviewed Workbench publication are complete under the [frozen contract](2.2/236-dataset-evidence-v2-contract.md).
+- Next gate: independently review and qualify Workbench suite-v2 authoring. The Plans activity now composes ordered cases, released limits and execution controls, policy locks and destination-relative references, then exports an unapproved draft after authoritative review. The [frozen authoring contract](2.2/237-workbench-suite-authoring-contract.md) records acceptance fixtures. Five feature integrations remain incomplete.
 
 ## Recorded next steps
 
