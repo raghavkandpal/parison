@@ -72,6 +72,22 @@ requires an exact integer, with a digest-valid public-bundle mutation proving
 rejection. Version-2 diagnostics also reject malformed observation objects and
 invalid UTF-8 with controlled errors; v1 normalization remains untouched.
 
+Workbench checkpoint: the Datasets activity reviews a workspace-relative
+declaration, physical root, policy, versioned suite or reconciliation bundle,
+and new output. Review returns the explicit physical inventory and logical
+bindings plus summary-safe source and semantic verification. Its token binds
+the requested paths, source/semantic result, normalized manifest and the raw
+declaration and policy bytes. Publication repeats the review under the host
+execution lock, rejects changed inputs or output, then invokes the private
+verified, atomic v2 publisher. The publisher compares reviewed declaration and
+policy bytes, normalized manifest, source summary and copied semantic evidence
+before installation. Suite policy references are workspace-confined before
+loading. Loopback and direct fixtures cover stale review paths, changed source
+bytes, semantically equivalent declaration edits, recipe traversal and symlinks,
+changed collection identity at the publisher boundary, and successful
+source-free verification. Independent re-review and platform qualification
+remain pending.
+
 ## Physical and logical identity
 
 An opt-in manifest contains exactly `manifest_version: 2`, `collection_id`,

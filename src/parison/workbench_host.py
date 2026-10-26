@@ -19,6 +19,12 @@ from .analysis import drill_down, export_drilldown
 from .core import ParisonError
 from .evidence import evidence_statement, export_statement, inspect_bundle, report_cutover
 from .inputs import _source_digest, _source_path, _source_paths
+from .manifesting import (
+    _semantic_result_metadata_v2,
+    explain_dataset_manifest_v2,
+    publish_dataset_evidence_bundle_v2,
+    verify_dataset_manifest_v2,
+)
 from .policies import list_suite
 from .workbench import (
     compare_projection,
@@ -143,6 +149,51 @@ def _suite_plan(
             for case in listed["cases"]
         ],
     }
+
+
+def _dataset_review(root: Path, request: dict[str, object]) -> tuple[dict, tuple[Path, Path, Path, Path, Path], dict]:
+    names = ("declaration", "physical_root", "policy", "semantic_bundle", "output")
+    paths = tuple(_workspace_path(root, request.get(name)) for name in names)
+    if any(path is None for path in paths):
+        raise ParisonError("dataset paths must stay inside the workspace")
+    draft, physical, policy, semantic, output = paths
+    if (
+        not draft.is_file()
+        or not physical.is_dir()
+        or not policy.is_file()
+        or not semantic.is_dir()
+        or output.exists()
+        or output.is_symlink()
+    ):
+        raise ParisonError("dataset review requires existing inputs and a new output path")
+    manifest = explain_dataset_manifest_v2(draft)
+    if manifest["policy"]["kind"] == "suite":
+        _suite_plan(root, str(policy.relative_to(root)), [], [], None, None, "")
+    source = verify_dataset_manifest_v2(draft, physical, policy, summary=True)
+    if source["outcome"] != "PASS":
+        raise ParisonError("dataset review requires matching local sources")
+    declaration = {key: value for key, value in manifest.items() if key != "manifest_sha256"}
+    semantic_result = _semantic_result_metadata_v2(semantic, declaration)
+    fields = {name: request[name] for name in names}
+    snapshot = {
+        "declaration_sha256": hashlib.sha256(draft.read_bytes()).hexdigest(),
+        "policy_sha256": hashlib.sha256(policy.read_bytes()).hexdigest(),
+        "manifest_sha256": manifest["manifest_sha256"],
+        "source": source,
+        "semantic": semantic_result,
+    }
+    review_id = hashlib.sha256(
+        json.dumps(
+            {"paths": fields, **snapshot},
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return (
+        {"declaration": declaration, "source": source, "semantic": semantic_result, "review_id": review_id},
+        paths,
+        snapshot,
+    )
 
 
 def _choose_bundle(root: Path) -> str | None:
@@ -325,7 +376,7 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 return
             path = urlsplit(self.path).path
             if path == "/api/session" and not request:
-                payload = {"activities": ["plans", "run", "results", "history", "investigate", "compare"]}
+                payload = {"activities": ["plans", "run", "datasets", "results", "history", "investigate", "compare"]}
             elif path == "/api/shutdown" and not request:
                 session["closing"] = True
                 session["capability"] = None
@@ -390,6 +441,43 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 except ParisonError:
                     self._headers(422, "application/json")
                     return
+            elif path == "/api/dataset-review" and set(request) == {
+                "declaration",
+                "physical_root",
+                "policy",
+                "semantic_bundle",
+                "output",
+            }:
+                try:
+                    payload, _, _ = _dataset_review(root, request)
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/dataset-publish" and set(request) == {
+                "declaration",
+                "physical_root",
+                "policy",
+                "semantic_bundle",
+                "output",
+                "review_id",
+            }:
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
+                try:
+                    reviewed, paths, snapshot = _dataset_review(root, request)
+                    if request["review_id"] != reviewed["review_id"]:
+                        raise ParisonError("dataset review changed before publication")
+                    draft, physical, policy, semantic, output = paths
+                    publish_dataset_evidence_bundle_v2(
+                        output, draft, physical, policy, semantic, expected_review=snapshot
+                    )
+                    payload = {"output": request["output"], "evidence": inspect_bundle(output)}
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+                finally:
+                    run_lock.release()
             elif path == "/api/validate-plan" and set(request) == {"source"}:
                 source = request["source"]
                 if not isinstance(source, str):

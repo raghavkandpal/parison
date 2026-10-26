@@ -208,7 +208,7 @@
   Annotated tag and [GitHub release 2.1.0](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
   publish checksum-verified assets; a fresh install of the public wheel passed
   the full suite, comparison, investigation and handoff smoke.
-- Next gate: independently review and qualify dataset-evidence v2 publication, preserved verification, hostile substitutions and Workbench access. Complete suite and reconciliation bundles now bind versioned semantic input records, local physical checks, effective policy and canonical diagnostic under the [frozen contract](2.2/236-dataset-evidence-v2-contract.md). Full platform qualification and all six feature checkpoints remain incomplete.
+- Next gate: independently review and qualify dataset-evidence v2 Workbench review/publication, then run the exact-head full built-wheel matrix before integration. The host now reviews explicit local inventory, bindings, policy and versioned semantic evidence; publication rechecks inputs and requires the current review token. Complete suite and reconciliation bundles bind versioned semantic input records, local physical checks, effective policy and canonical diagnostic under the [frozen contract](2.2/236-dataset-evidence-v2-contract.md). All six feature integrations remain incomplete.
 
 ## Recorded next steps
 

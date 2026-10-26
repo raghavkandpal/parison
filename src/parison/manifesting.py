@@ -1688,13 +1688,26 @@ def publish_dataset_evidence_bundle(
 
 
 def publish_dataset_evidence_bundle_v2(
-    output: str | Path, manifest_path: str | Path, root: str | Path, policy_path: str | Path, result_bundle: str | Path
+    output: str | Path,
+    manifest_path: str | Path,
+    root: str | Path,
+    policy_path: str | Path,
+    result_bundle: str | Path,
+    *,
+    expected_review: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Atomically publish verified physical/logical identity and a versioned child."""
     manifest = explain_dataset_manifest_v2(manifest_path)
     source_result = verify_dataset_manifest_v2(manifest_path, root, policy_path)
     if source_result["outcome"] != "PASS":
         raise ParisonError("dataset v2 publication requires matching local sources")
+    if expected_review is not None and (
+        manifest["manifest_sha256"] != expected_review["manifest_sha256"]
+        or hashlib.sha256(Path(manifest_path).read_bytes()).hexdigest() != expected_review["declaration_sha256"]
+        or hashlib.sha256(Path(policy_path).read_bytes()).hexdigest() != expected_review["policy_sha256"]
+        or verify_dataset_manifest_v2(manifest_path, root, policy_path, summary=True) != expected_review["source"]
+    ):
+        raise ParisonError("dataset review changed before publication")
     policy = _effective_policy(manifest["policy"]["kind"], policy_path)
     target, stage = Path(output), None
     if target.exists():
@@ -1717,6 +1730,8 @@ def publish_dataset_evidence_bundle_v2(
         )
         _copy_verified_bundle(Path(result_bundle), stage / "semantic-result")
         semantic = _semantic_result_metadata_v2(stage / "semantic-result", declaration)
+        if expected_review is not None and semantic != expected_review["semantic"]:
+            raise ParisonError("dataset semantic result changed after review")
         result = {**source_result, "diagnostic_sha256": diagnostic["diagnostic_sha256"], "semantic_result": semantic}
         (stage / "manifest-result.json").write_text(
             json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -1736,6 +1751,11 @@ def publish_dataset_evidence_bundle_v2(
         _verified_dataset_evidence_v2(stage)
         if verify_dataset_manifest_v2(manifest_path, root, policy_path) != source_result:
             raise ParisonError("dataset v2 sources changed during publication")
+        if expected_review is not None and (
+            hashlib.sha256(Path(manifest_path).read_bytes()).hexdigest() != expected_review["declaration_sha256"]
+            or hashlib.sha256(Path(policy_path).read_bytes()).hexdigest() != expected_review["policy_sha256"]
+        ):
+            raise ParisonError("dataset review inputs changed during publication")
         _rename_no_replace(stage, target)
         stage = None
         return outer

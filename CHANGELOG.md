@@ -17,6 +17,8 @@ All notable changes will be documented in this file.
   version-aware validation, explanation and local source verification commands.
 - Publish and source-free verify dataset evidence v2 bundles with physical and
   logical bindings, a versioned semantic child and summary-safe inspection.
+- Review and publish dataset evidence v2 in Workbench with explicit local
+  inputs, inventory and bindings; changed review inputs require a fresh review.
 
 ### Fixed
 
