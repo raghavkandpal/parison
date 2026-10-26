@@ -4,7 +4,7 @@ import shutil
 import subprocess
 import unittest
 
-from parison.workbench_page import PAGE, PLAN_PICKER_SCRIPT
+from parison.workbench_page import PAGE, PLAN_PICKER_SCRIPT, POLICY_REVIEW_SCRIPT
 
 
 class WorkbenchPageTests(unittest.TestCase):
@@ -42,6 +42,41 @@ async function scenario(change,stage){
   const current=await scenario(()=>{},'response');assert.equal(current.context.recipe.value,'selected.json');assert.equal(current.submitted,1);
 })().catch(error=>{console.error(error);process.exitCode=1});
 """.replace("SCRIPT", json.dumps(PLAN_PICKER_SCRIPT))
+        checked = subprocess.run([shutil.which("node"), "-e", program], capture_output=True, text=True, check=False)
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+
+    @unittest.skipUnless(shutil.which("node"), "Node.js is not installed for the browser-script regression")
+    def test_policy_review_discards_late_summary_and_sensitive_details(self):
+        program = r"""
+const assert=require('node:assert/strict'),vm=require('node:vm');
+const script=SCRIPT;
+async function scenario(kind,stage){
+  const elements={};
+  function element(id){return elements[id]||(elements[id]={value:id,hidden:true,disabled:true,textContent:'',handlers:{},addEventListener(e,f){this.handlers[e]=f},replaceChildren(){this.rendered=null}})}
+  let resolveResponse,resolveBody;
+  const context={document:{getElementById:element},rows:(data,label,target)=>target.rendered=data,post:()=>new Promise(resolve=>resolveResponse=resolve)};
+  vm.runInNewContext(script,context);
+  const summary={review_id:'review',summary:{compatibility:'ACCEPT'}};
+  async function deliver(body){resolveResponse({ok:true,json:async()=>body});await Promise.resolve();await Promise.resolve()}
+  if(kind==='details'){
+    const first=element('policy-review-form').handlers.submit({preventDefault(){}});await deliver(summary);await first;
+    assert.equal(element('policy-details-button').disabled,false);
+  }
+  const pending=kind==='summary'?element('policy-review-form').handlers.submit({preventDefault(){}}):element('policy-details-button').handlers.click();
+  if(stage==='response')element('policy-review-form').handlers.input();
+  resolveResponse({ok:true,json:()=>new Promise(resolve=>resolveBody=resolve)});
+  await Promise.resolve();
+  await new Promise(setImmediate);
+  if(stage==='body')element('policy-review-form').handlers.input();
+  resolveBody(kind==='summary'?summary:{details:{secret:'schema-sensitive'}});
+  await pending;
+  assert.equal(element('policy-review-summary').hidden,true);
+  assert.equal(element('policy-details-button').disabled,true);
+  assert.equal(element('policy-details').textContent,'');
+  assert.equal(element('policy-details').hidden,true);
+}
+(async()=>{for(const kind of ['summary','details'])for(const stage of ['response','body'])await scenario(kind,stage)})().catch(error=>{console.error(error);process.exitCode=1});
+""".replace("SCRIPT", json.dumps(POLICY_REVIEW_SCRIPT))
         checked = subprocess.run([shutil.which("node"), "-e", program], capture_output=True, text=True, check=False)
         self.assertEqual(checked.returncode, 0, checked.stderr)
 

@@ -26,6 +26,63 @@ except ImportError:
 
 
 class WorkbenchHostTests(unittest.TestCase):
+    def test_policy_review_routes_require_local_inputs_and_current_disclosure(self):
+        from parison.evolution import diff_policies, summarize_policy_diff
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            examples = Path(__file__).parents[1] / "examples/1.2"
+            for file in examples.iterdir():
+                (root / file.name).write_bytes(file.read_bytes())
+            request = {
+                "baseline_recipe": "baseline.recipe.json",
+                "candidate_recipe": "candidate.recipe.json",
+                "evolution": "orders.schema-evolution.json",
+            }
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+                response = self._post(
+                    connection, server, "/api/policy-review", request, **{"X-Parison-Session": "wrong"}
+                )
+                self.assertEqual(response.status, 404)
+                response.read()
+                response = self._post(connection, server, "/api/policy-review", request)
+                self.assertEqual(response.status, 200)
+                reviewed = json.loads(response.read())
+                assessment = diff_policies(*(root / value for value in request.values()))
+                self.assertEqual(reviewed["summary"], summarize_policy_diff(assessment))
+                self.assertNotIn("details", reviewed)
+                detail = {**request, "review_id": reviewed["review_id"]}
+                response = self._post(connection, server, "/api/policy-details", detail)
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read())["details"], assessment)
+                (root / "link.json").symlink_to(root / request["baseline_recipe"])
+                for change in (
+                    {"baseline_recipe": "../outside"},
+                    {"evolution": "link.json"},
+                    {"candidate_recipe": str(root / "candidate.recipe.json")},
+                    {"baseline_recipe": []},
+                ):
+                    response = self._post(connection, server, "/api/policy-review", {**request, **change})
+                    self.assertEqual(response.status, 422)
+                    response.read()
+                for identity in (None, [], "wrong"):
+                    response = self._post(connection, server, "/api/policy-details", {**detail, "review_id": identity})
+                    self.assertEqual(response.status, 422)
+                    response.read()
+                declaration = root / request["evolution"]
+                declaration.write_bytes(declaration.read_bytes() + b"\n")
+                response = self._post(connection, server, "/api/policy-details", detail)
+                self.assertEqual(response.status, 422)
+                response.read()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
     def test_owned_suite_recovery_routes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "project"

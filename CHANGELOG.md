@@ -6,6 +6,10 @@ All notable changes will be documented in this file.
 
 ### Added
 
+- Review two explicit recipes and an evolution declaration in Workbench Compare,
+  with summary-first mechanical assessment and separately requested schema-sensitive
+  details bound to unchanged input bytes. Exact-policy evidence gates stay intact.
+
 - Recover selected Workbench suites through explicit retained restart/resume,
   authoritative reusable-case preview and guarded local-state deletion. Retained
   evidence stays sensitive; verified output survives History registration failure.

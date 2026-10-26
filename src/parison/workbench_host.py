@@ -36,6 +36,7 @@ from .workbench import (
     investigate_suite_member,
     plan_projection,
     plan_text_projection,
+    review_policy_change,
     workbench_projection,
 )
 from .workbench_page import PAGE
@@ -505,6 +506,25 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     return
                 finally:
                     run_lock.release()
+            elif (
+                path == "/api/policy-review" and set(request) == {"baseline_recipe", "candidate_recipe", "evolution"}
+            ) or (
+                path == "/api/policy-details"
+                and set(request) == {"baseline_recipe", "candidate_recipe", "evolution", "review_id"}
+            ):
+                try:
+                    paths = [
+                        _workspace_path(root, request[name])
+                        for name in ("baseline_recipe", "candidate_recipe", "evolution")
+                    ]
+                    if any(item is None or not item.is_file() for item in paths):
+                        raise ParisonError("policy review requires local files")
+                    if path == "/api/policy-details" and not isinstance(request["review_id"], str):
+                        raise ParisonError("policy details require a review identity")
+                    payload = review_policy_change(*paths, expected_review=request.get("review_id"))
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
             elif path == "/api/validate-plan" and set(request) == {"source"}:
                 source = request["source"]
                 if not isinstance(source, str):

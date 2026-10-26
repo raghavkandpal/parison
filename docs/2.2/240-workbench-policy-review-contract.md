@@ -30,3 +30,11 @@ unsafe paths, authentication and late responses; and proof that ACCEPT cannot
 bypass exact-policy suite comparison. Existing byte fixtures remain unchanged.
 Narrow tests, `make check`, independent Standards/Spec review, rendered UI
 inspection and exact-head built-wheel matrix gate integration.
+
+Implementation checkpoint: the shared Workbench service and two guarded routes
+now expose byte-bound summary/detail review, with Compare controls that clear
+stale state and separately reveal/hide schema-sensitive details. Local
+`make check` passes 489 tests. Fixtures cover service/CLI parity, confidentiality,
+byte changes during/between requests, authentication/path rejection, delayed
+browser responses and the unchanged suite comparison gate. The rendered summary
+and detail workflow was inspected; independent review and exact-head CI remain.

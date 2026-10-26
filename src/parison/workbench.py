@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import os
@@ -18,11 +19,39 @@ from .catalog import list_runs
 from .comparison import compare
 from .core import ParisonError
 from .evidence import inspect_bundle, publish, verify_bundle
+from .evolution import diff_policies, summarize_policy_diff
 from .inputs import InputCancellation, validate_inputs
 from .policies import explain_recipe_text, load_recipe
 from .suites import compare_suites, run_suite
 from .workbench_plans import plan_controls
 from .workbench_suite_recovery import recovery_selection
+
+
+def review_policy_change(
+    baseline_recipe: Path, candidate_recipe: Path, evolution: Path, expected_review: str | None = None
+) -> dict[str, Any]:
+    """Review exact local policy bytes; disclose details only for a current review."""
+    paths = (baseline_recipe, candidate_recipe, evolution)
+
+    def identity() -> str:
+        try:
+            digests = [hashlib.sha256(path.read_bytes()).hexdigest() for path in paths]
+        except OSError as exc:
+            raise ParisonError("cannot read policy review inputs") from exc
+        return hashlib.sha256(json.dumps(digests, separators=(",", ":")).encode()).hexdigest()
+
+    review_id = identity()
+    if expected_review is not None and expected_review != review_id:
+        raise ParisonError("policy review inputs changed; review the summary again")
+    assessment = diff_policies(*paths)
+    if identity() != review_id:
+        raise ParisonError("policy review inputs changed during assessment")
+    return {
+        "review_id": review_id,
+        "summary": summarize_policy_diff(assessment),
+        **({"details": assessment} if expected_review is not None else {}),
+    }
+
 
 _COMMON_FIELDS = (
     "kind",
