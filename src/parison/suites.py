@@ -299,6 +299,43 @@ def _reusable_workspace_child(
     return resource_limits == expected_resources
 
 
+def preview_suite_recovery(
+    plan: str | Path,
+    workspace: str | Path,
+    *,
+    case_ids: list[str] | None = None,
+    tags: list[str] | None = None,
+    shard_index: int | None = None,
+    shard_count: int | None = None,
+    sample_limit: int = 100,
+) -> dict[str, Any]:
+    """Report current reuse eligibility using the runner's exact child rule."""
+    suite = load_suite(plan)
+    if suite["suite_version"] != 2:
+        raise ParisonError("suite recovery requires suite_version 2")
+    selected = select_suite_cases(suite, case_ids, tags, shard_index, shard_count)
+    root = Path(workspace)
+    if (
+        root.is_symlink()
+        or not root.is_dir()
+        or any(path.is_symlink() or not path.is_dir() for path in (root / "cases", root / "checkpoints"))
+    ):
+        raise ParisonError("suite recovery workspace is incomplete or unsafe")
+    cases = []
+    for case in selected:
+        limits = case["limits"]
+        reusable = _reusable_workspace_child(
+            case,
+            root / "cases" / case["id"],
+            root / "checkpoints" / f"{case['id']}.json",
+            suite["suite_policy_sha256"],
+            limits,
+            sample_limit,
+        )
+        cases.append({"id": case["id"], "reusable": reusable})
+    return {"suite_policy_sha256": suite["suite_policy_sha256"], "cases": cases}
+
+
 def _execute_suite_case(
     case: dict[str, Any], destination: Path, sample_limit: int, limits: dict[str, int]
 ) -> dict[str, Any]:

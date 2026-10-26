@@ -31,7 +31,7 @@ from parison.core import (
     verify_bundle,
 )
 from parison.evidence import _verify_suite_input_bindings
-from parison.suites import compare_suites
+from parison.suites import compare_suites, preview_suite_recovery
 from parison.workbench import compare_projection
 
 
@@ -538,12 +538,17 @@ class SuiteTests(unittest.TestCase):
         self.write_plan_v2([self.case("first"), self.case("second")])
         workspace = self.root / "workspace"
         run_suite(self.plan, self.root / "initial", workspace=workspace)
+        preview = preview_suite_recovery(self.plan, workspace)
+        self.assertEqual([case["reusable"] for case in preview["cases"]], [True, True])
         with patch("parison.suites.compare", side_effect=AssertionError("comparison should be reused")):
             resumed = run_suite(self.plan, self.root / "resumed", workspace=workspace, resume=True)
         self.assertEqual(resumed["outcome"], "PASS")
         self.assertEqual(verify_bundle(self.root / "resumed")["kind"], "suite")
 
         (self.root / "candidate.csv").write_text("id,value\na,2\n", encoding="utf-8")
+        self.assertEqual(
+            [case["reusable"] for case in preview_suite_recovery(self.plan, workspace)["cases"]], [False, False]
+        )
         calls = 0
         from parison.core import compare as real_compare
 

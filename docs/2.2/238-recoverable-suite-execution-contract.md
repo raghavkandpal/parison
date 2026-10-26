@@ -3,6 +3,13 @@
 Date: 26 October 2026  
 Status: frozen before implementation
 
+Implementation checkpoint: a read-only runner service now reports selected
+case reuse using `_reusable_workspace_child` itself. A targeted retained-suite
+fixture proves both complete children are eligible before an input change and
+neither is eligible after it. Workbench lifecycle, owned workspace marker,
+deliberate restart/resume, cancellation and abandonment remain to be built and
+qualified.
+
 ## Deliberate lifecycle
 
 Workbench exposes a retained local execution workspace only after an explicit
