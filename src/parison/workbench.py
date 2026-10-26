@@ -136,6 +136,13 @@ def execute_suite_run(
     resume: bool = False,
 ) -> dict[str, Any]:
     """Execute one selected local suite, then verify and catalog its bundle."""
+    output_path = Path(os.path.abspath(output))
+    if any((parent / ".workbench-owner").exists() for parent in output_path.parents):
+        raise ParisonError("suite output overlaps retained state")
+    if retained_workspace is not None:
+        retained_path = Path(os.path.abspath(retained_workspace))
+        if output_path.is_relative_to(retained_path) or retained_path.is_relative_to(output_path):
+            raise ParisonError("suite output overlaps retained state")
     if resume:
         from .workbench_suite_recovery import require_owned_workspace
 

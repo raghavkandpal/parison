@@ -79,6 +79,17 @@ class WorkbenchHostTests(unittest.TestCase):
                     post("/api/suite-run", {**run, **change}, 422)
                 result = post("/api/suite-run", run)
                 self.assertEqual(result["evidence"]["outcome"], "PASS")
+                post("/api/suite-plan", {**selection, "output": "retained/published"}, 422)
+                post(
+                    "/api/run",
+                    {
+                        "recipe": "recipe.json",
+                        "baseline": "baseline.csv",
+                        "candidate": "candidate.csv",
+                        "output": "retained/ordinary",
+                    },
+                    422,
+                )
                 preview = {**selection, "workspace": "retained"}
                 self.assertEqual(post("/api/suite-recovery", preview)["cases"], [{"id": "orders", "reusable": True}])
                 post("/api/suite-run", {**run, "output": "collision"}, 422)

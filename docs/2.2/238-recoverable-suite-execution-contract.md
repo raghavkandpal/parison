@@ -13,8 +13,13 @@ preserved and reported separately when History registration fails.
 
 Focused fixtures cover actual reuse, cancellation during a later member, changed
 input/selection/policy, tampered checkpoints, new-workspace restart, path overlap,
-unsafe ownership and active abandonment. Independent review and exact-head CI
-remain required before integration.
+unsafe ownership and active abandonment. Independent Standards/Spec review cleared the final fixes: prevent publication
+inside owned retained state, protect independently published descendants from
+abandonment, reject descendant symlinks, recompute malformed checkpoints and
+never reuse incomplete children. `make check` passes 484 tests on Python 3.14
+with Polars installed. Rendered recovery controls were inspected in the in-app
+browser; the UI detector reported no findings. Exact-head CI remains required
+before integration through PR #83.
 
 ## Deliberate lifecycle
 

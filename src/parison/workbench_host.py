@@ -78,6 +78,8 @@ def _workspace_path(root: Path, value: object) -> Path | None:
     candidate = root.joinpath(*parts)
     current = root
     for part in parts:
+        if (current / ".workbench-owner").exists():
+            return None
         current /= part
         if current.is_symlink():
             return None

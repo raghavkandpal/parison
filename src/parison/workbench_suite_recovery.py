@@ -16,6 +16,8 @@ def workspace_owner(root: Path, workspace: Path) -> str:
         raise ParisonError("retained suite workspace must stay inside the Workbench workspace")
     current = root
     for part in workspace.relative_to(root).parts:
+        if (current / "manifest.json").exists() or (current / ".workbench-owner").exists():
+            raise ParisonError("retained suite workspace overlaps published or retained state")
         current /= part
         if current.is_symlink():
             raise ParisonError("retained suite workspace follows a symlink")
@@ -33,14 +35,25 @@ def require_owned_workspace(root: Path, workspace: Path) -> None:
             raise ParisonError("retained suite workspace is not owned by this Workbench")
     except (OSError, UnicodeError) as exc:
         raise ParisonError("cannot verify retained suite workspace ownership") from exc
+    for current, directories, files in os.walk(workspace, followlinks=False):
+        if any((Path(current) / name).is_symlink() for name in directories + files):
+            raise ParisonError("retained suite workspace contains a symlink")
 
 
 def abandon_owned_workspace(root: Path, workspace: Path) -> None:
     """Remove only an exact owned workspace with no symlink descendants."""
     require_owned_workspace(root, workspace)
-    for current, directories, files in os.walk(workspace, followlinks=False):
-        if any((Path(current) / name).is_symlink() for name in directories + files):
-            raise ParisonError("retained suite workspace contains a symlink")
+    if any(path.name not in {".workbench-owner", "cases", "checkpoints"} for path in workspace.iterdir()):
+        raise ParisonError("retained suite workspace contains unrelated state")
+    for current, _directories, files in os.walk(workspace, followlinks=False):
+        if "manifest.json" in files:
+            relative = Path(current).relative_to(workspace)
+            if (
+                len(relative.parts) != 2
+                or relative.parts[0] != "cases"
+                or not (workspace / "checkpoints" / (relative.name + ".json")).is_file()
+            ):
+                raise ParisonError("retained suite workspace contains a published output")
     try:
         shutil.rmtree(workspace)
     except OSError as exc:

@@ -280,9 +280,9 @@ def _reusable_workspace_child(
         expected = _checkpoint_data(case, child, suite_sha256, limits, sample_limit, checkpoint_context)
         verify_bundle(child)
         child_result = _read_bundle_result(child)
-    except (OSError, json.JSONDecodeError, ParisonError):
+    except (OSError, ValueError, ParisonError):
         return False
-    if checkpoint != expected:
+    if checkpoint != expected or child_result.get("complete") is not True:
         return False
     try:
         current_inputs = {"baseline": _source_digest(case["baseline"]), "candidate": _source_digest(case["candidate"])}
