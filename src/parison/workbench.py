@@ -19,7 +19,7 @@ from .catalog import list_runs
 from .comparison import compare
 from .core import ParisonError
 from .evidence import inspect_bundle, publish, verify_bundle
-from .evolution import diff_policies, summarize_policy_diff
+from .evolution import diff_policy_texts, summarize_policy_diff
 from .inputs import InputCancellation, validate_inputs
 from .policies import explain_recipe_text, load_recipe
 from .suites import compare_suites, run_suite
@@ -33,18 +33,22 @@ def review_policy_change(
     """Review exact local policy bytes; disclose details only for a current review."""
     paths = (baseline_recipe, candidate_recipe, evolution)
 
-    def identity() -> str:
+    def snapshot() -> list[bytes]:
         try:
-            digests = [hashlib.sha256(path.read_bytes()).hexdigest() for path in paths]
+            return [path.read_bytes() for path in paths]
         except OSError as exc:
             raise ParisonError("cannot read policy review inputs") from exc
-        return hashlib.sha256(json.dumps(digests, separators=(",", ":")).encode()).hexdigest()
 
-    review_id = identity()
+    captured = snapshot()
+    digests = [hashlib.sha256(source).hexdigest() for source in captured]
+    review_id = hashlib.sha256(json.dumps(digests, separators=(",", ":")).encode()).hexdigest()
     if expected_review is not None and expected_review != review_id:
         raise ParisonError("policy review inputs changed; review the summary again")
-    assessment = diff_policies(*paths)
-    if identity() != review_id:
+    try:
+        assessment = diff_policy_texts(*(source.decode("utf-8") for source in captured))
+    except UnicodeError as exc:
+        raise ParisonError("policy review inputs must be UTF-8") from exc
+    if snapshot() != captured:
         raise ParisonError("policy review inputs changed during assessment")
     return {
         "review_id": review_id,

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from parison.core import ParisonError, explain_recipe
+from parison.policies import explain_recipe_text
 
 _CHANGES = ("unchanged", "renamed", "added", "removed", "split", "merged")
 _FIELD_KEYS = {"id", "name", "presence", "nullability", "default"}
@@ -128,10 +129,17 @@ def canonical_evolution_bytes(value: Any) -> bytes:
 
 def load_evolution(path: str | Path) -> dict[str, Any]:
     try:
-        value = json.loads(Path(path).read_text(encoding="utf-8"), object_pairs_hook=_object)
+        return _load_evolution_text(Path(path).read_text(encoding="utf-8"))
     except ParisonError:
         raise
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ParisonError(f"cannot read evolution declaration: {exc}") from exc
+
+
+def _load_evolution_text(source: str) -> dict[str, Any]:
+    try:
+        value = json.loads(source, object_pairs_hook=_object)
+    except (UnicodeError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read evolution declaration: {exc}") from exc
     return normalize_evolution(value)
 
@@ -253,6 +261,19 @@ def diff_policies(
     baseline = explain_recipe(baseline_recipe)
     candidate = explain_recipe(candidate_recipe)
     evolution = explain_evolution(evolution_path)
+    return _diff_policies(baseline, candidate, evolution)
+
+
+def diff_policy_texts(baseline_source: str, candidate_source: str, evolution_source: str) -> dict[str, Any]:
+    """Assess captured input text through the same released policy-diff logic."""
+    baseline = explain_recipe_text(baseline_source)
+    candidate = explain_recipe_text(candidate_source)
+    evolution = _load_evolution_text(evolution_source)
+    evolution["evolution_sha256"] = hashlib.sha256(canonical_evolution_bytes(evolution)).hexdigest()
+    return _diff_policies(baseline, candidate, evolution)
+
+
+def _diff_policies(baseline: dict, candidate: dict, evolution: dict) -> dict[str, Any]:
     baseline_index = _column_index(baseline, "baseline")
     candidate_index = _column_index(candidate, "candidate")
     baseline_excluded = baseline["excluded_columns"]

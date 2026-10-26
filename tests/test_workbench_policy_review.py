@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from parison.cli import main
 from parison.core import ParisonError
-from parison.evolution import diff_policies, summarize_policy_diff
+from parison.evolution import diff_policies, diff_policy_texts, summarize_policy_diff
 from parison.suites import compare_suites, run_suite
 from parison.workbench import review_policy_change
 
@@ -91,14 +91,36 @@ class WorkbenchPolicyReviewTests(unittest.TestCase):
                 review_policy_change(*self.paths, expected_review=reviewed["review_id"])
             path.write_bytes(original)
 
-        def changing(*paths):
-            result = diff_policies(*paths)
+        def changing(*sources):
+            result = diff_policy_texts(*sources)
             self.paths[2].write_bytes(self.paths[2].read_bytes() + b"\n")
             return result
 
-        with patch("parison.workbench.diff_policies", side_effect=changing):
+        with patch("parison.workbench.diff_policy_texts", side_effect=changing):
             with self.assertRaisesRegex(ParisonError, "during assessment"):
                 review_policy_change(*self.paths)
+
+    def test_transient_edits_cannot_change_the_captured_assessment(self):
+        reviewed = review_policy_change(*self.paths)
+        original = self.paths[1].read_bytes()
+
+        def transient(*sources):
+            changed = json.loads(original)
+            changed["scope"]["snapshot"] = "unreviewed-sensitive-scope"
+            self.paths[1].write_text(json.dumps(changed), encoding="utf-8")
+            try:
+                return diff_policy_texts(*sources)
+            finally:
+                self.paths[1].write_bytes(original)
+
+        with patch("parison.workbench.diff_policy_texts", side_effect=transient):
+            details = review_policy_change(*self.paths, expected_review=reviewed["review_id"])
+        self.assertEqual(details["summary"], reviewed["summary"])
+        self.assertEqual(details["details"], diff_policies(*self.paths))
+        self.assertNotIn("unreviewed-sensitive-scope", json.dumps(details))
+        self.paths[2].write_bytes(b"\xff")
+        with self.assertRaisesRegex(ParisonError, "UTF-8"):
+            review_policy_change(*self.paths)
 
     def test_accept_does_not_bypass_suite_policy_gate(self):
         self.assertEqual(review_policy_change(*self.paths)["summary"]["compatibility"], "ACCEPT")
