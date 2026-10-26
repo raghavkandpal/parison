@@ -231,10 +231,16 @@ def _copy_verified_child(source: Path, target: Path) -> None:
 
 
 def _checkpoint_data(
-    case: dict[str, Any], child: Path, suite_sha256: str, limits: dict[str, int], sample_limit: int
+    case: dict[str, Any],
+    child: Path,
+    suite_sha256: str,
+    limits: dict[str, int],
+    sample_limit: int,
+    checkpoint_context: dict | None = None,
 ) -> dict[str, Any]:
     result = _read_bundle_result(child)
     return {
+        **({"context": checkpoint_context} if checkpoint_context is not None else {}),
         "case_id": case["id"],
         "suite_policy_sha256": suite_sha256,
         "policy_sha256": case["policy_sha256"],
@@ -267,10 +273,11 @@ def _reusable_workspace_child(
     suite_sha256: str,
     limits: dict[str, int],
     sample_limit: int,
+    checkpoint_context: dict | None = None,
 ) -> bool:
     try:
         checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
-        expected = _checkpoint_data(case, child, suite_sha256, limits, sample_limit)
+        expected = _checkpoint_data(case, child, suite_sha256, limits, sample_limit, checkpoint_context)
         verify_bundle(child)
         child_result = _read_bundle_result(child)
     except (OSError, json.JSONDecodeError, ParisonError):
@@ -308,6 +315,7 @@ def preview_suite_recovery(
     shard_index: int | None = None,
     shard_count: int | None = None,
     sample_limit: int = 100,
+    checkpoint_context: dict | None = None,
 ) -> dict[str, Any]:
     """Report current reuse eligibility using the runner's exact child rule."""
     suite = load_suite(plan)
@@ -331,6 +339,7 @@ def preview_suite_recovery(
             suite["suite_policy_sha256"],
             limits,
             sample_limit,
+            checkpoint_context,
         )
         cases.append({"id": case["id"], "reusable": reusable})
     return {"suite_policy_sha256": suite["suite_policy_sha256"], "cases": cases}
@@ -439,6 +448,7 @@ def run_suite(
     progress=None,
     input_bindings: bool = False,
     workspace_owner: str | None = None,
+    checkpoint_context: dict | None = None,
 ) -> dict[str, Any]:
     """Run a validated ordered suite and atomically publish its child bundles."""
     if input_bindings:
@@ -513,7 +523,13 @@ def run_suite(
                 and workspace_child is not None
                 and checkpoint is not None
                 and _reusable_workspace_child(
-                    case, workspace_child, checkpoint, suite["suite_policy_sha256"], limits, sample_limit
+                    case,
+                    workspace_child,
+                    checkpoint,
+                    suite["suite_policy_sha256"],
+                    limits,
+                    sample_limit,
+                    checkpoint_context,
                 )
             )
             if reused:
@@ -539,7 +555,9 @@ def run_suite(
             if workspace_child is not None and checkpoint is not None:
                 _write_checkpoint(
                     checkpoint,
-                    _checkpoint_data(case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit),
+                    _checkpoint_data(
+                        case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit, checkpoint_context
+                    ),
                 )
                 _copy_verified_child(workspace_child, child)
             cases_by_id[case["id"]] = {
@@ -658,7 +676,14 @@ def run_suite(
                         continue
                     _write_checkpoint(
                         checkpoint,
-                        _checkpoint_data(case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit),
+                        _checkpoint_data(
+                            case,
+                            workspace_child,
+                            suite["suite_policy_sha256"],
+                            limits,
+                            sample_limit,
+                            checkpoint_context,
+                        ),
                     )
                 raise
             except BaseException:

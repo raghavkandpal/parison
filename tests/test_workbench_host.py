@@ -26,6 +26,90 @@ except ImportError:
 
 
 class WorkbenchHostTests(unittest.TestCase):
+    def test_owned_suite_recovery_routes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "project"
+            init_project(root)
+            (root / "suite.json").write_text(
+                json.dumps(
+                    {
+                        "suite_version": 2,
+                        "cases": [
+                            {
+                                "id": "orders",
+                                "recipe": "recipe.json",
+                                "baseline": "baseline.csv",
+                                "candidate": "candidate.csv",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+                selection = {"plan": "suite.json", "case_ids": [], "tags": [], "shard_index": None, "shard_count": None}
+
+                def post(path, request, status=200):
+                    response = self._post(connection, server, path, request)
+                    body = response.read()
+                    self.assertEqual(response.status, status, body)
+                    return json.loads(body) if body else None
+
+                review = post("/api/suite-plan", {**selection, "output": "first"})
+                run = {
+                    **selection,
+                    "output": "first",
+                    "plan_sha256": review["plan_sha256"],
+                    "members_sha256": review["members_sha256"],
+                    "workspace": "retained",
+                    "mode": "restart",
+                }
+                for change in (
+                    {"workspace": "../outside"},
+                    {"workspace": "."},
+                    {"workspace": "first/state"},
+                    {"output": "retained/output"},
+                    {"mode": []},
+                    {"mode": "temporary"},
+                ):
+                    post("/api/suite-run", {**run, **change}, 422)
+                result = post("/api/suite-run", run)
+                self.assertEqual(result["evidence"]["outcome"], "PASS")
+                preview = {**selection, "workspace": "retained"}
+                self.assertEqual(post("/api/suite-recovery", preview)["cases"], [{"id": "orders", "reusable": True}])
+                post("/api/suite-run", {**run, "output": "collision"}, 422)
+                with patch("parison.suites.compare", side_effect=AssertionError("must reuse")):
+                    post("/api/suite-run", {**run, "output": "second", "mode": "resume"})
+                original = (root / "candidate.csv").read_bytes()
+                (root / "candidate.csv").write_bytes(original + b"\n")
+                self.assertFalse(post("/api/suite-recovery", preview)["cases"][0]["reusable"])
+                post("/api/suite-run", {**run, "output": "stale", "mode": "resume"}, 422)
+                (root / "candidate.csv").write_bytes(original)
+                post("/api/suite-abandon", {"workspace": "first"}, 422)
+                post("/api/suite-abandon", {"workspace": "../outside"}, 422)
+
+                def active_run(*args, **kwargs):
+                    other = http.client.HTTPConnection(*server.server_address)
+                    response = self._post(other, server, "/api/suite-abandon", {"workspace": "retained"})
+                    self.assertEqual(response.status, 409)
+                    response.read()
+                    other.close()
+                    raise ParisonError("workbench suite cancelled")
+
+                with patch("parison.workbench_host.execute_suite_run", side_effect=active_run):
+                    post("/api/suite-run", {**run, "output": "active", "mode": "resume"}, 422)
+                post("/api/suite-abandon", {"workspace": "retained"})
+                self.assertFalse((root / "retained").exists())
+                self.assertTrue((root / "first/manifest.json").exists())
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
     def test_failed_suite_member_investigation_exports_bounded_raw_sample(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

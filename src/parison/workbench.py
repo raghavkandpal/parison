@@ -22,6 +22,7 @@ from .inputs import InputCancellation, validate_inputs
 from .policies import explain_recipe_text, load_recipe
 from .suites import compare_suites, run_suite
 from .workbench_plans import plan_controls
+from .workbench_suite_recovery import recovery_selection
 
 _COMMON_FIELDS = (
     "kind",
@@ -159,6 +160,9 @@ def execute_suite_run(
         workspace=retained_workspace,
         resume=resume,
         workspace_owner=owner,
+        checkpoint_context=recovery_selection(case_ids, tags, shard_index, shard_count)
+        if retained_workspace is not None
+        else None,
     )
     projection = workbench_projection(output)
     try:

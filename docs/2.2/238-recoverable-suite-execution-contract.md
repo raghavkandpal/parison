@@ -3,15 +3,18 @@
 Date: 26 October 2026  
 Status: frozen before implementation
 
-Implementation checkpoint: a read-only runner service now reports selected
-case reuse using `_reusable_workspace_child` itself. A targeted retained-suite
-fixture proves both complete children are eligible before an input change and
-neither is eligible after it. Opt-in Workbench execution writes a local owner
-marker when retaining a workspace, verifies it before resume, and can abandon
-only an exact marked workspace with no symlink descendants. A service fixture
-proves verified output survives catalog-registration failure and completed
-children are reused. Workbench preview, deliberate restart/resume/cancellation
-controls and abandonment routes remain to be built and qualified.
+Implementation checkpoint: the runner shares its exact checkpoint eligibility
+rule with read-only preview. Workbench exposes explicit temporary, restart and
+resume modes, retained-state preview, cooperative cancellation and guarded
+abandonment. Owned Workbench checkpoints also bind the reviewed selection;
+released CLI checkpoints and bundle bytes remain unchanged. Host operations
+serialize validation and execution under the run lock. Verified publication is
+preserved and reported separately when History registration fails.
+
+Focused fixtures cover actual reuse, cancellation during a later member, changed
+input/selection/policy, tampered checkpoints, new-workspace restart, path overlap,
+unsafe ownership and active abandonment. Independent review and exact-head CI
+remain required before integration.
 
 ## Deliberate lifecycle
 

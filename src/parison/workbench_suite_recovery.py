@@ -11,9 +11,14 @@ from .core import ParisonError
 
 
 def workspace_owner(root: Path, workspace: Path) -> str:
-    root, workspace = root.absolute(), workspace.absolute()
-    if workspace == root or not workspace.is_relative_to(root):
+    root, workspace = Path(os.path.abspath(root)), Path(os.path.abspath(workspace))
+    if root.is_symlink() or workspace == root or not workspace.is_relative_to(root):
         raise ParisonError("retained suite workspace must stay inside the Workbench workspace")
+    current = root
+    for part in workspace.relative_to(root).parts:
+        current /= part
+        if current.is_symlink():
+            raise ParisonError("retained suite workspace follows a symlink")
     identity = f"parison-workbench-suite-v1\n{root}\n{workspace.relative_to(root)}\n".encode()
     return hashlib.sha256(identity).hexdigest()
 
@@ -40,3 +45,8 @@ def abandon_owned_workspace(root: Path, workspace: Path) -> None:
         shutil.rmtree(workspace)
     except OSError as exc:
         raise ParisonError("cannot abandon retained suite workspace") from exc
+
+
+def recovery_selection(case_ids: list[str], tags: list[str], shard_index: int | None, shard_count: int | None) -> dict:
+    """Bind Workbench checkpoints to the explicitly reviewed selection."""
+    return {"case_ids": sorted(case_ids), "tags": sorted(tags), "shard_index": shard_index, "shard_count": shard_count}
