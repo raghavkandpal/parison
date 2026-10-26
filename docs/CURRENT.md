@@ -1,7 +1,7 @@
 # Current development state
 
 - Version: **2.1.0 released; six-feature 2.2 train accepted**
-- Branch: `feature/workbench-suite-authoring-v2` (from PR #81 merge `31cd36b`)
+- Branch: `feature/recoverable-suites-v2` (from PR #82 merge `71a54ad`)
 - Theme: local-first verification — the Workbench suite workflow, repeated
   suite comparison and failed-member investigation are released
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
@@ -209,7 +209,8 @@
   publish checksum-verified assets; a fresh install of the public wheel passed
   the full suite, comparison, investigation and handoff smoke.
 - Integrated: dataset evidence v2 passed independent Standards/Spec review and the exact-head [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40264738870) at `88ea66a`; PR #81 merged into `develop` at `31cd36b`. Physical/logical bindings, fresh semantic input records, source-free verification and reviewed Workbench publication are complete under the [frozen contract](2.2/236-dataset-evidence-v2-contract.md).
-- Next gate: independently review and qualify Workbench suite-v2 authoring. The Plans activity now composes ordered cases, released limits and execution controls, policy locks and destination-relative references, then exports an unapproved draft after authoritative review. The [frozen authoring contract](2.2/237-workbench-suite-authoring-contract.md) records acceptance fixtures. Five feature integrations remain incomplete.
+- Integrated: Workbench suite-v2 authoring passed independent Standards/Spec review, `make check`, rendered UI inspection and the exact-head [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40267185090) at `3c142cf`; PR #82 merged into `develop` at `71a54ad`. The [authoring contract](2.2/237-workbench-suite-authoring-contract.md) records the accepted behavior.
+- Next gate: implement the [frozen recoverable-suite contract](2.2/238-recoverable-suite-execution-contract.md), sharing the runner's checkpoint eligibility rule for preview and resume. Four feature integrations remain incomplete.
 
 ## Recorded next steps
 
