@@ -210,7 +210,7 @@
   the full suite, comparison, investigation and handoff smoke.
 - Integrated: dataset evidence v2 passed independent Standards/Spec review and the exact-head [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40264738870) at `88ea66a`; PR #81 merged into `develop` at `31cd36b`. Physical/logical bindings, fresh semantic input records, source-free verification and reviewed Workbench publication are complete under the [frozen contract](2.2/236-dataset-evidence-v2-contract.md).
 - Integrated: Workbench suite-v2 authoring passed independent Standards/Spec review, `make check`, rendered UI inspection and the exact-head [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40267185090) at `3c142cf`; PR #82 merged into `develop` at `71a54ad`. The [authoring contract](2.2/237-workbench-suite-authoring-contract.md) records the accepted behavior.
-- Next gate: implement the [frozen recoverable-suite contract](2.2/238-recoverable-suite-execution-contract.md), sharing the runner's checkpoint eligibility rule for preview and resume. Four feature integrations remain incomplete.
+- Next gate: finish the [frozen recoverable-suite contract](2.2/238-recoverable-suite-execution-contract.md) in Workbench. The runner now shares its exact checkpoint eligibility rule with read-only preview; opt-in retention marks owned workspaces, resume verifies ownership, and service tests prove reuse plus verified output survival when catalog registration fails. The host/UI lifecycle and independent qualification remain. Four feature integrations remain incomplete.
 
 ## Recorded next steps
 

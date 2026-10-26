@@ -131,8 +131,21 @@ def execute_suite_run(
     shard_count: int | None,
     cancelled=None,
     progress=None,
+    retained_workspace: str | Path | None = None,
+    resume: bool = False,
 ) -> dict[str, Any]:
     """Execute one selected local suite, then verify and catalog its bundle."""
+    if resume:
+        from .workbench_suite_recovery import require_owned_workspace
+
+        if retained_workspace is None:
+            raise ParisonError("resume requires a retained workspace")
+        require_owned_workspace(Path(workspace), Path(retained_workspace))
+    owner = None
+    if retained_workspace is not None and not resume:
+        from .workbench_suite_recovery import workspace_owner
+
+        owner = workspace_owner(Path(workspace), Path(retained_workspace))
     run_suite(
         plan,
         output,
@@ -143,9 +156,15 @@ def execute_suite_run(
         jobs=1,
         cancelled=cancelled,
         progress=progress,
+        workspace=retained_workspace,
+        resume=resume,
+        workspace_owner=owner,
     )
     projection = workbench_projection(output)
-    indexed = catalog_add(_catalog_path(workspace), output)
+    try:
+        indexed = catalog_add(_catalog_path(workspace), output)
+    except ParisonError:
+        return {"evidence": projection, "catalog_status": "failed"}
     return {"evidence": projection, "catalog_status": indexed["status"]}
 
 

@@ -438,6 +438,7 @@ def run_suite(
     cancelled=None,
     progress=None,
     input_bindings: bool = False,
+    workspace_owner: str | None = None,
 ) -> dict[str, Any]:
     """Run a validated ordered suite and atomically publish its child bundles."""
     if input_bindings:
@@ -456,6 +457,8 @@ def run_suite(
         raise ParisonError("suite workspaces require suite_version 2")
     if resume and workspace is None:
         raise ParisonError("--resume requires --workspace")
+    if workspace_owner is not None and (workspace is None or resume or not workspace_owner):
+        raise ParisonError("workspace owner requires a new retained workspace")
     output = Path(output)
     if output.exists():
         raise ParisonError(f"output already exists: {output}")
@@ -478,6 +481,8 @@ def run_suite(
                 (workspace_path / "cases").mkdir(parents=True)
                 (workspace_path / "checkpoints").mkdir()
                 os.chmod(workspace_path, 0o700)
+                if workspace_owner is not None:
+                    (workspace_path / ".workbench-owner").write_text(workspace_owner + "\n", encoding="ascii")
             except OSError as exc:
                 raise ParisonError(f"cannot prepare suite workspace: {exc}") from exc
     stage = None

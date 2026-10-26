@@ -6,9 +6,12 @@ Status: frozen before implementation
 Implementation checkpoint: a read-only runner service now reports selected
 case reuse using `_reusable_workspace_child` itself. A targeted retained-suite
 fixture proves both complete children are eligible before an input change and
-neither is eligible after it. Workbench lifecycle, owned workspace marker,
-deliberate restart/resume, cancellation and abandonment remain to be built and
-qualified.
+neither is eligible after it. Opt-in Workbench execution writes a local owner
+marker when retaining a workspace, verifies it before resume, and can abandon
+only an exact marked workspace with no symlink descendants. A service fixture
+proves verified output survives catalog-registration failure and completed
+children are reused. Workbench preview, deliberate restart/resume/cancellation
+controls and abandonment routes remain to be built and qualified.
 
 ## Deliberate lifecycle
 
