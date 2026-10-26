@@ -12,11 +12,18 @@ from jsonschema import Draft202012Validator
 
 from parison.cli import main
 from parison.core import ParisonError, explain_recipe, inspect_bundle, load_schema, verify_bundle
+from parison.manifesting import (
+    capture_reconciliation_input_bindings,
+    create_dataset_manifest_v2,
+    publish_dataset_evidence_bundle_v2,
+)
 from parison.reconciliation import (
+    _publish_reconciliation_bundle,
     canonical_reconciliation_bytes,
     canonical_time_alignment_bytes,
     check_conservation,
     check_identity_references,
+    explain_reconciliation,
     explain_time_alignment,
     file_digest,
     inspect_reconciliation_bundle,
@@ -25,6 +32,7 @@ from parison.reconciliation import (
     preflight_alignment,
     publish_reconciliation_bundle,
     run_reconciliation,
+    run_reconciliation_with_bindings,
     summarize_reconciliation_result,
     verify_reconciliation_bundle,
 )
@@ -188,6 +196,155 @@ class ReconciliationContracts(unittest.TestCase):
                 sides[side] = path
             sources[dataset_id] = {"recipe": recipe_path, **sides}
         return alignment_path, reconciliation_path, receipt, sources
+
+    def test_fresh_reconciliation_input_capture_binds_sources_and_policy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            files = self._preflight_files(Path(temporary))
+            declaration = explain_reconciliation(files[1])
+            captured = capture_reconciliation_input_bindings(declaration, files[3])
+            self.assertEqual(
+                captured["policy"], {"kind": "reconciliation", "sha256": declaration["reconciliation_sha256"]}
+            )
+            self.assertEqual(len(captured["bindings"]), 4)
+            self.assertEqual(captured["bindings"][0]["selection"], {"kind": "file"})
+            Draft202012Validator(
+                json.loads((ROOT / "src/parison/schemas/input-bindings-v1.schema.json").read_text())
+            ).validate(captured)
+            files[3]["payments"]["baseline"].write_text("changed", encoding="utf-8")
+            self.assertNotEqual(captured, capture_reconciliation_input_bindings(declaration, files[3]))
+
+    def test_versioned_reconciliation_bundle_verifies_input_bindings(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            bundle = root / "bound-run"
+            run_reconciliation_with_bindings(bundle, *files)
+            manifest = verify_bundle(bundle)
+            self.assertEqual(manifest["schema_version"], 2)
+            Draft202012Validator(load_schema("reconciliation-manifest-v2")).validate(manifest)
+            self.assertNotIn(str(root), (bundle / "input-bindings.json").read_text())
+            command = [
+                "reconcile",
+                "--alignment",
+                str(files[0]),
+                "--reconciliation",
+                str(files[1]),
+                "--receipt",
+                str(files[2]),
+                "--output",
+                str(root / "cli-run"),
+                "--input-bindings",
+            ]
+            for identifier, sources in files[3].items():
+                command.extend(
+                    [
+                        "--dataset",
+                        identifier,
+                        str(sources["recipe"]),
+                        str(sources["baseline"]),
+                        str(sources["candidate"]),
+                    ]
+                )
+            with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                self.assertEqual(main(command), 0)
+            self.assertEqual(verify_bundle(root / "cli-run")["schema_version"], 2)
+            record = json.loads((bundle / "input-bindings.json").read_text())
+            original_record = (bundle / "input-bindings.json").read_text()
+            record["bindings"][0]["policy_sha256"] = "0" * 64
+            member = bundle / "input-bindings.json"
+            member.write_text(json.dumps(record), encoding="utf-8")
+            manifest_path = bundle / "manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["files"]["input-bindings.json"] = file_digest(member)
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaises(ParisonError):
+                verify_bundle(bundle)
+            member.write_text(original_record.replace('"binding_version":1', '"binding_version":1,"binding_version":1'))
+            manifest["files"]["input-bindings.json"] = file_digest(member)
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ParisonError, "duplicate JSON key"):
+                verify_bundle(bundle)
+
+    def test_same_file_selector_change_cannot_publish_old_reconciliation_result(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            old_result = run_reconciliation(*files)
+            document = root / "selected.json"
+            document.write_text('{"left":[],"right":[]}', encoding="utf-8")
+            files[3]["payments"]["baseline"] = f"json:{document}#/left"
+            old_result["datasets"][0]["baseline_sha256"] = file_digest(document)
+
+            def change_selector(*_args, **_kwargs):
+                files[3]["payments"]["baseline"] = f"json:{document}#/right"
+                return old_result
+
+            output = root / "substituted"
+            with patch("parison.reconciliation.run_reconciliation", side_effect=change_selector):
+                with self.assertRaisesRegex(ParisonError, "changed during execution"):
+                    run_reconciliation_with_bindings(output, *files)
+            self.assertFalse(output.exists())
+
+    def test_versioned_publication_rejects_invalid_staging_and_cleans_it(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            result = run_reconciliation(*files)
+            record = capture_reconciliation_input_bindings(explain_reconciliation(files[1]), files[3])
+            result["outcome"] = "FAIL"
+            output = root / "invalid-bound-run"
+            with self.assertRaisesRegex(ParisonError, "metadata is inconsistent"):
+                _publish_reconciliation_bundle(output, result, files[0], files[1], record, files[3])
+            self.assertFalse(output.exists())
+            self.assertFalse(list(root.glob(".invalid-bound-run-*")))
+
+    def test_reconciliation_dataset_v2_publication_binds_receipt_and_sources(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            semantic = root / "semantic-run"
+            run_reconciliation_with_bindings(semantic, *files)
+            policy = explain_reconciliation(files[1])
+            physical = [
+                files[2],
+                *(files[3][identifier][role] for identifier in files[3] for role in ("baseline", "candidate")),
+            ]
+            inventory = [
+                {"path": path.name, "bytes": path.stat().st_size, "sha256": file_digest(path)} for path in physical
+            ]
+            bindings = [
+                {
+                    "id": dataset["id"],
+                    "role": role,
+                    "source_kind": "file",
+                    "source": files[3][dataset["id"]][role].name,
+                    "members": [files[3][dataset["id"]][role].name],
+                    "source_sha256": file_digest(files[3][dataset["id"]][role]),
+                    "policy_sha256": dataset["policy_sha256"],
+                }
+                for dataset in policy["datasets"]
+                for role in ("baseline", "candidate")
+            ]
+            draft = root / "draft.json"
+            draft.write_text(
+                json.dumps(
+                    {
+                        "manifest_version": 2,
+                        "collection_id": "reconciled",
+                        "policy": {"kind": "reconciliation", "sha256": policy["reconciliation_sha256"]},
+                        "closed_scopes": [],
+                        "files": inventory,
+                        "bindings": bindings,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            manifest = root / "dataset-manifest.json"
+            create_dataset_manifest_v2(root, draft, manifest, files[1])
+            output = root / "dataset-evidence"
+            publish_dataset_evidence_bundle_v2(output, manifest, root, files[1], semantic)
+            self.assertEqual(verify_bundle(output)["schema_version"], 2)
+            self.assertEqual(inspect_bundle(output)["binding_count"], 4)
 
     def test_installed_schemas_accept_contracts_and_reject_unknown_fields(self):
         for name, value in (("time-alignment", alignment()), ("reconciliation", reconciliation())):

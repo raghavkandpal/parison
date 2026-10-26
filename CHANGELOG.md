@@ -4,12 +4,34 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Add an opt-in suite service envelope with a versioned input-binding record,
+  captured from selected local sources and checked against completed children.
+  CLI and dataset publication support remain under development.
+- Expose frozen dataset v2 and semantic-envelope schemas through the offline
+  schema loader and CLI schema command.
+- Add explicit `--input-bindings` suite and reconciliation execution modes that
+  publish fresh selector records under new semantic bundle versions.
+- Add explicit dataset manifest v2 creation from strict declarations, with
+  version-aware validation, explanation and local source verification commands.
+- Publish and source-free verify dataset evidence v2 bundles with physical and
+  logical bindings, a versioned semantic child and summary-safe inspection.
+- Review and publish dataset evidence v2 in Workbench with explicit local
+  inputs, inventory and bindings; changed review inputs require a fresh review.
+
 ### Fixed
 
 - Harden reconciliation evidence count shapes, arithmetic and derived outcomes
   against internally inconsistent preserved results (qualification pending).
 
 ### Documentation
+
+- Record authoritative dataset-v2 declaration/input-binding normalization and
+  hostile substitution qualification; complete feature delivery remains pending.
+
+- Draft explicit dataset evidence v2 physical/logical bindings and versioned
+  semantic selector records with canonical declaration acceptance inputs.
 
 - Begin six-feature 2.2 contract and acceptance freeze; record verified baseline
   CI and a reproduced reconciliation count-vocabulary validation gap.

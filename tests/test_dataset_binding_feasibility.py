@@ -7,7 +7,8 @@ from pathlib import Path
 
 from openpyxl import Workbook
 
-from parison.inputs import _source_digest, _source_paths
+from parison.core import ParisonError
+from parison.inputs import _source_digest, _source_paths, _source_selection
 
 
 class DatasetBindingFeasibility(unittest.TestCase):
@@ -62,3 +63,15 @@ class DatasetBindingFeasibility(unittest.TestCase):
             self.assertNotEqual(changed, expected)
             (root / "c.csv").write_bytes(b"id\n4\n")
             self.assertNotEqual(_source_digest(root), changed)
+
+    def test_selector_record_omits_paths_and_rejects_structured_partitions(self):
+        self.assertEqual(
+            _source_selection("xlsx:private/shared.xlsx#Sheet!A1:B2", "file"),
+            {"kind": "xlsx-range", "sheet": "Sheet", "range": "A1:B2"},
+        )
+        self.assertEqual(
+            _source_selection("json:private/records.json#/items", "file"), {"kind": "json-pointer", "pointer": "/items"}
+        )
+        self.assertEqual(_source_selection("private/parts", "partition"), {"kind": "partition"})
+        with self.assertRaises(ParisonError):
+            _source_selection("json:private/records.json#/items", "partition")

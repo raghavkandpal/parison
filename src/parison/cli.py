@@ -60,12 +60,15 @@ from .evolution import (
     summarize_policy_diff,
 )
 from .manifesting import (
-    capture_reproducibility_diagnostic,
+    capture_reproducibility_diagnostic_any,
     create_dataset_manifest,
+    create_dataset_manifest_v2,
+    dataset_manifest_version,
     diff_reproducibility_diagnostics,
-    explain_dataset_manifest,
+    explain_dataset_manifest_any,
     publish_dataset_evidence_bundle,
-    verify_dataset_manifest,
+    publish_dataset_evidence_bundle_v2,
+    verify_dataset_manifest_any,
 )
 from .project import init_project
 from .reconciliation import (
@@ -79,6 +82,7 @@ from .reconciliation import (
     preflight_alignment,
     publish_reconciliation_bundle,
     run_reconciliation,
+    run_reconciliation_with_bindings,
     summarize_reconciliation_result,
     verify_reconciliation_bundle,
 )
@@ -245,6 +249,7 @@ def parser() -> argparse.ArgumentParser:
         "--summary", action="store_true", help="omit dataset and relationship identifiers and detailed counts"
     )
     reconcile.add_argument("--output", help="atomically publish a verified reconciliation bundle")
+    reconcile.add_argument("--input-bindings", action="store_true", help="publish a versioned source-selection record")
     reconcile.add_argument("--max-input-bytes", type=int, default=1_000_000_000)
     reconcile.add_argument("--max-decoded-bytes", type=int, default=1_000_000_000)
     reconcile.add_argument("--max-rows", type=int, default=5_000_000)
@@ -265,14 +270,16 @@ def parser() -> argparse.ArgumentParser:
         "create-dataset-manifest", help="bind explicitly named local files to a deterministic manifest"
     )
     create_manifest.add_argument("--root", required=True)
-    create_manifest.add_argument("--collection-id", required=True)
-    create_manifest.add_argument("--policy-kind", choices=("suite", "reconciliation"), required=True)
-    create_manifest.add_argument("--policy-sha256", required=True)
+    create_manifest.add_argument("--manifest-version", type=int, choices=(1, 2), default=1)
+    create_manifest.add_argument(
+        "--declaration", help="strict JSON v2 declaration containing physical and logical bindings"
+    )
+    create_manifest.add_argument("--collection-id")
+    create_manifest.add_argument("--policy-kind", choices=("suite", "reconciliation"))
+    create_manifest.add_argument("--policy-sha256")
     create_manifest.add_argument("--policy-file", required=True)
     create_manifest.add_argument("--closed-scope", action="append", default=[])
-    create_manifest.add_argument(
-        "--resource", action="append", nargs=4, metavar=("ID", "ROLE", "FORMAT", "PATH"), required=True
-    )
+    create_manifest.add_argument("--resource", action="append", nargs=4, metavar=("ID", "ROLE", "FORMAT", "PATH"))
     create_manifest.add_argument("--output", required=True)
     validate_manifest = commands.add_parser(
         "validate-dataset-manifest", help="validate a dataset-manifest-v1 declaration"
@@ -353,6 +360,7 @@ def parser() -> argparse.ArgumentParser:
             "suite-result-v2",
             "suite-manifest",
             "suite-manifest-v2",
+            "suite-manifest-v3",
             "statement",
             "schema-evolution",
             "policy-diff",
@@ -362,8 +370,14 @@ def parser() -> argparse.ArgumentParser:
             "relationship-result",
             "conservation-result",
             "reconciliation-result",
+            "reconciliation-manifest-v2",
             "dataset-manifest",
+            "dataset-manifest-v2",
+            "input-bindings-v1",
+            "manifest-result-v2",
+            "dataset-evidence-v2",
             "reproducibility-diagnostic",
+            "reproducibility-diagnostic-v2",
             "discrepancy-analysis",
             "discrepancy-drilldown",
         ),
@@ -394,6 +408,7 @@ def parser() -> argparse.ArgumentParser:
     suite_run.add_argument("--shard-count", type=int)
     suite_run.add_argument("--workspace")
     suite_run.add_argument("--resume", action="store_true")
+    suite_run.add_argument("--input-bindings", action="store_true", help="publish a versioned source-selection record")
     suite_run.add_argument(
         "--jobs", type=int, default=1, help="maximum concurrent suite cases (default: 1; maximum: 16)"
     )
@@ -820,23 +835,43 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "reconcile":
             if len({item[0] for item in args.dataset}) != len(args.dataset):
                 raise ParisonError("--dataset IDs must be unique")
+            if args.input_bindings and not args.output:
+                raise ParisonError("--input-bindings requires --output")
             inputs = {item[0]: {"recipe": item[1], "baseline": item[2], "candidate": item[3]} for item in args.dataset}
-            result = run_reconciliation(
-                args.alignment,
-                args.reconciliation,
-                args.receipt,
-                inputs,
-                args.engine,
-                args.max_input_bytes,
-                args.max_decoded_bytes,
-                args.max_rows,
-                args.max_keys,
-                args.max_groups,
-                args.max_distinct_rows,
-                args.max_temp_bytes,
-                args.temp_directory,
-            )
-            if args.output:
+            if args.input_bindings:
+                result = run_reconciliation_with_bindings(
+                    args.output,
+                    args.alignment,
+                    args.reconciliation,
+                    args.receipt,
+                    inputs,
+                    engine=args.engine,
+                    max_input_bytes=args.max_input_bytes,
+                    max_decoded_bytes=args.max_decoded_bytes,
+                    max_rows=args.max_rows,
+                    max_keys=args.max_keys,
+                    max_groups=args.max_groups,
+                    max_distinct_rows=args.max_distinct_rows,
+                    max_temp_bytes=args.max_temp_bytes,
+                    temp_directory=args.temp_directory,
+                )
+            else:
+                result = run_reconciliation(
+                    args.alignment,
+                    args.reconciliation,
+                    args.receipt,
+                    inputs,
+                    args.engine,
+                    args.max_input_bytes,
+                    args.max_decoded_bytes,
+                    args.max_rows,
+                    args.max_keys,
+                    args.max_groups,
+                    args.max_distinct_rows,
+                    args.max_temp_bytes,
+                    args.temp_directory,
+                )
+            if args.output and not args.input_bindings:
                 publish_reconciliation_bundle(args.output, result, args.alignment, args.reconciliation)
             print(
                 json.dumps(
@@ -868,16 +903,27 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(inspect_reconciliation_bundle(args.bundle), indent=2, sort_keys=True))
             return 0
         if args.command == "create-dataset-manifest":
-            result = create_dataset_manifest(
-                args.root,
-                args.collection_id,
-                args.policy_kind,
-                args.policy_sha256,
-                args.resource,
-                args.output,
-                args.policy_file,
-                args.closed_scope,
-            )
+            if args.manifest_version == 2:
+                if not args.declaration or any(
+                    (args.collection_id, args.policy_kind, args.policy_sha256, args.resource, args.closed_scope)
+                ):
+                    raise ParisonError("manifest v2 requires --declaration without v1 resource arguments")
+                result = create_dataset_manifest_v2(args.root, args.declaration, args.output, args.policy_file)
+            else:
+                if args.declaration or not all(
+                    (args.collection_id, args.policy_kind, args.policy_sha256, args.resource)
+                ):
+                    raise ParisonError("manifest v1 requires collection, policy and resource arguments")
+                result = create_dataset_manifest(
+                    args.root,
+                    args.collection_id,
+                    args.policy_kind,
+                    args.policy_sha256,
+                    args.resource,
+                    args.output,
+                    args.policy_file,
+                    args.closed_scope,
+                )
             print(json.dumps({"output": args.output, "manifest_sha256": result["manifest_sha256"]}, sort_keys=True))
             print(
                 "Manifest PASS proves declared local byte identity only; it is not extraction truth or approval.",
@@ -885,14 +931,14 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
         if args.command == "validate-dataset-manifest":
-            explain_dataset_manifest(args.manifest)
+            explain_dataset_manifest_any(args.manifest)
             print("valid")
             return 0
         if args.command == "explain-dataset-manifest":
-            print(json.dumps(explain_dataset_manifest(args.manifest), indent=2, sort_keys=True))
+            print(json.dumps(explain_dataset_manifest_any(args.manifest), indent=2, sort_keys=True))
             return 0
         if args.command == "verify-dataset-manifest":
-            result = verify_dataset_manifest(args.manifest, args.root, args.policy_file, args.summary)
+            result = verify_dataset_manifest_any(args.manifest, args.root, args.policy_file, args.summary)
             print(json.dumps(result, indent=2, sort_keys=True))
             print(
                 "Manifest PASS proves declared local byte identity only; it is not extraction truth or approval.",
@@ -900,9 +946,12 @@ def main(argv: list[str] | None = None) -> int:
             )
             return OUTCOME_CODES[result["outcome"]]
         if args.command == "publish-dataset-evidence":
-            result = publish_dataset_evidence_bundle(
-                args.output, args.manifest, args.root, args.policy_file, args.result_bundle
+            publisher = (
+                publish_dataset_evidence_bundle_v2
+                if dataset_manifest_version(args.manifest) == 2
+                else publish_dataset_evidence_bundle
             )
+            result = publisher(args.output, args.manifest, args.root, args.policy_file, args.result_bundle)
             print(
                 json.dumps(
                     {
@@ -919,7 +968,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             return OUTCOME_CODES[result["outcome"]]
         if args.command == "capture-reproducibility":
-            result = capture_reproducibility_diagnostic(args.manifest, args.output)
+            result = capture_reproducibility_diagnostic_any(args.manifest, args.output)
             print(json.dumps({"output": args.output, "diagnostic_sha256": result["diagnostic_sha256"]}, sort_keys=True))
             return 0
         if args.command == "diff-reproducibility":
@@ -963,6 +1012,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.workspace,
                 args.resume,
                 args.jobs,
+                input_bindings=args.input_bindings,
             )
             print(
                 json.dumps(

@@ -14,6 +14,7 @@ import unicodedata
 from importlib import metadata
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import urlencode
 
 from . import __version__
 from ._safe_fs import check_output_parent as _check_output_parent
@@ -171,9 +172,366 @@ def canonical_dataset_manifest_bytes(value: Any) -> bytes:
     ).encode("utf-8")
 
 
+def _closed_object(value: Any, fields: str, label: str) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != set(fields.split()):
+        raise ParisonError(f"{label} has invalid fields")
+    return value
+
+
+def _portable_binding_source(source: Any, source_kind: Any) -> tuple[str, str, dict[str, Any]]:
+    from .inputs import _source_selection
+
+    if not isinstance(source, str) or "\0" in source or not isinstance(source_kind, str):
+        raise ParisonError("binding source must be an explicit portable locator")
+    selection = _source_selection(source, source_kind)
+    selection = _normalize_binding_selection(selection, source_kind)
+    prefix = source.split(":", 1)[0]
+    if prefix in {"sqlite", "xlsx", "json", "xml"}:
+        locator = source[len(prefix) + 1 :]
+        path = locator.split("#", 1)[0] if prefix == "json" else locator.rsplit("#", 1)[0]
+    else:
+        path = source
+    _resource_path(path)
+    try:
+        source.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ParisonError("binding source must be valid UTF-8") from exc
+    return source, path, selection
+
+
+def normalize_dataset_manifest_v2(value: Any) -> dict[str, Any]:
+    """Normalize declared identity without opening source files or executing policy."""
+    value = _closed_object(value, "manifest_version collection_id policy closed_scopes files bindings", "manifest v2")
+    if type(value["manifest_version"]) is not int or value["manifest_version"] != 2:
+        raise ParisonError("dataset manifest version must be 2")
+    policy = _closed_object(value["policy"], "kind sha256", "manifest policy")
+    if policy["kind"] not in ("suite", "reconciliation"):
+        raise ParisonError("manifest policy kind must be suite or reconciliation")
+    policy = {"kind": policy["kind"], "sha256": _sha256(policy["sha256"], "policy sha256")}
+    inventory = value["files"]
+    if not isinstance(inventory, list) or not 1 <= len(inventory) <= 10_000:
+        raise ParisonError("manifest files must contain 1 to 10000 entries")
+    files, collisions = {}, set()
+    for item in inventory:
+        item = _closed_object(item, "path bytes sha256", "manifest file")
+        path = _resource_path(item["path"])
+        try:
+            path.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise ParisonError("inventory paths must be valid UTF-8") from exc
+        collision = unicodedata.normalize("NFC", path).casefold()
+        if collision in collisions:
+            raise ParisonError("manifest files contain duplicate or non-portable paths")
+        collisions.add(collision)
+        if type(item["bytes"]) is not int or item["bytes"] < 0:
+            raise ParisonError("file bytes must be a nonnegative integer")
+        files[path] = {"path": path, "bytes": item["bytes"], "sha256": _sha256(item["sha256"], "file sha256")}
+    if any(str(parent) in files for path in files for parent in PurePosixPath(path).parents):
+        raise ParisonError("inventoried files cannot also be parent directories")
+    scopes = value["closed_scopes"]
+    if not isinstance(scopes, list) or len(scopes) > 100:
+        raise ParisonError("closed_scopes must contain at most 100 entries")
+    scopes = sorted(_scope_path(item) for item in scopes)
+    try:
+        for scope in scopes:
+            scope.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ParisonError("closed scopes must be valid UTF-8") from exc
+    folded = [unicodedata.normalize("NFC", item).casefold() for item in scopes]
+    if len(set(folded)) != len(folded) or any(
+        left != right and (left == "." or right.startswith(left + "/")) for left in folded for right in folded
+    ):
+        raise ParisonError("closed_scopes must be unique and non-overlapping")
+    if scopes and any(not any(scope == "." or path.startswith(scope + "/") for scope in scopes) for path in files):
+        raise ParisonError("every file must be inside a declared closed scope")
+    bindings = value["bindings"]
+    if not isinstance(bindings, list) or not 1 <= len(bindings) <= 10_000:
+        raise ParisonError("manifest bindings must contain 1 to 10000 entries")
+    normalized, pairs = [], set()
+    for item in bindings:
+        item = _closed_object(item, "id role source_kind source members source_sha256 policy_sha256", "binding")
+        identifier = _identifier(item["id"], "binding id")
+        role = item["role"]
+        if role not in ("baseline", "candidate"):
+            raise ParisonError("binding role must be baseline or candidate")
+        pair = identifier, role
+        if pair in pairs:
+            raise ParisonError("duplicate logical binding")
+        pairs.add(pair)
+        source, path, _ = _portable_binding_source(item["source"], item["source_kind"])
+        members = item["members"]
+        if not isinstance(members, list) or not 1 <= len(members) <= 10_000:
+            raise ParisonError("binding members must contain 1 to 10000 entries")
+        members = [_resource_path(member) for member in members]
+        if len(set(members)) != len(members) or any(member not in files for member in members):
+            raise ParisonError("binding members must reference unique inventoried files")
+        if item["source_kind"] == "file":
+            if members != [path]:
+                raise ParisonError("file binding must reference its one physical file")
+            digest = files[path]["sha256"]
+        else:
+            from .inputs import _file_format
+
+            if any(
+                PurePosixPath(member).parent.as_posix() != path or PurePosixPath(member).name.startswith(".")
+                for member in members
+            ):
+                raise ParisonError("partition members must be visible immediate children")
+            formats = {_file_format(Path(member)) for member in members}
+            if None in formats or len(formats) != 1 or formats == {"xlsx"}:
+                raise ParisonError("partition members must use one released supported format")
+            ordered = sorted(members, key=lambda member: PurePosixPath(member).name.encode("utf-8"))
+            if members != ordered:
+                raise ParisonError("partition members must be in released basename order")
+            digest = hashlib.sha256()
+            for member in members:
+                digest.update(
+                    PurePosixPath(member).name.encode("utf-8") + b"\0" + bytes.fromhex(files[member]["sha256"])
+                )
+            digest = digest.hexdigest()
+        if _sha256(item["source_sha256"], "source sha256") != digest:
+            raise ParisonError("binding source identity does not match physical membership")
+        normalized.append(
+            {
+                "id": identifier,
+                "role": role,
+                "source_kind": item["source_kind"],
+                "source": source,
+                "members": members,
+                "source_sha256": digest,
+                "policy_sha256": _sha256(item["policy_sha256"], "binding policy sha256"),
+            }
+        )
+    try:
+        ordered_files = sorted(files.values(), key=lambda item: item["path"].encode("utf-8"))
+    except UnicodeEncodeError as exc:
+        raise ParisonError("inventory paths must be valid UTF-8") from exc
+    return {
+        "manifest_version": 2,
+        "collection_id": _identifier(value["collection_id"], "collection id"),
+        "policy": policy,
+        "closed_scopes": scopes,
+        "files": ordered_files,
+        "bindings": sorted(normalized, key=lambda item: (item["id"], item["role"])),
+    }
+
+
+def canonical_dataset_manifest_v2_bytes(value: Any) -> bytes:
+    return json.dumps(
+        normalize_dataset_manifest_v2(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+
+
+def _normalize_binding_selection(value: Any, source_kind: Any) -> dict[str, Any]:
+    from .inputs import _source_selection
+
+    if not isinstance(value, dict) or not isinstance(value.get("kind"), str):
+        raise ParisonError("binding selection must be a closed tagged object")
+    kind = value["kind"]
+    fields = {
+        "file": "kind",
+        "partition": "kind",
+        "sqlite-table": "kind table",
+        "json-pointer": "kind pointer",
+        "xml-record": "kind record_path namespaces",
+        "xlsx-range": "kind sheet range",
+        "xlsx-table": "kind table",
+        "xlsx-defined-name": "kind name",
+    }
+    if kind not in fields:
+        raise ParisonError("unsupported binding selection kind")
+    _closed_object(value, fields[kind], "binding selection")
+    if not isinstance(source_kind, str) or source_kind not in ("file", "partition"):
+        raise ParisonError("unsupported source kind")
+    if (kind == "partition") != (source_kind == "partition"):
+        raise ParisonError("selection and source kind disagree")
+    for field, item in value.items():
+        if field == "namespaces":
+            if not isinstance(item, dict) or any(
+                not isinstance(k, str) or not isinstance(v, str) for k, v in item.items()
+            ):
+                raise ParisonError("XML namespaces must map strings to strings")
+        elif not isinstance(item, str) or "\0" in item or (not item and field != "pointer"):
+            raise ParisonError("binding selectors must contain explicit strings")
+    try:
+        json.dumps(value, ensure_ascii=False).encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ParisonError("binding selectors must be valid UTF-8") from exc
+    if kind in {"file", "partition"}:
+        source = "binding.csv"
+    elif kind == "sqlite-table":
+        source = "sqlite:binding.sqlite#" + value["table"]
+    elif kind == "json-pointer":
+        source = "json:binding.json#" + value["pointer"]
+        if any("~" in token.replace("~0", "").replace("~1", "") for token in value["pointer"].split("/")):
+            raise ParisonError("JSON pointer has an invalid escape")
+    elif kind == "xml-record":
+        source = "xml:binding.xml#" + value["record_path"]
+        if value["namespaces"]:
+            source += "?" + urlencode([("ns", f"{key},{uri}") for key, uri in sorted(value["namespaces"].items())])
+    elif kind == "xlsx-range":
+        from .inputs import _xlsx_range
+
+        try:
+            _xlsx_range(value["range"])
+        except ImportError as exc:
+            raise ParisonError("XLSX support requires the optional openpyxl dependency") from exc
+        source = "xlsx:binding.xlsx#" + value["sheet"] + "!" + value["range"]
+    elif kind == "xlsx-table":
+        source = "xlsx:binding.xlsx#table=" + value["table"]
+    else:
+        source = "xlsx:binding.xlsx#defined-name=" + value["name"]
+    observed = _source_selection(source, source_kind)
+    if observed != value:
+        raise ParisonError("binding selection does not match released locator syntax")
+    try:
+        json.dumps(observed, ensure_ascii=False).encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ParisonError("binding selectors must be valid UTF-8") from exc
+    return observed
+
+
+def normalize_input_bindings(value: Any) -> dict[str, Any]:
+    value = _closed_object(value, "binding_version policy bindings", "input bindings")
+    if type(value["binding_version"]) is not int or value["binding_version"] != 1:
+        raise ParisonError("input binding version must be 1")
+    policy = _closed_object(value["policy"], "kind sha256", "binding policy")
+    if policy["kind"] not in ("suite", "reconciliation"):
+        raise ParisonError("binding policy must be suite or reconciliation")
+    policy = {"kind": policy["kind"], "sha256": _sha256(policy["sha256"], "policy sha256")}
+    items = value["bindings"]
+    if not isinstance(items, list) or not 1 <= len(items) <= 10_000:
+        raise ParisonError("input bindings must contain 1 to 10000 entries")
+    normalized, pairs = [], set()
+    for item in items:
+        item = _closed_object(item, "id role source_kind selection source_sha256 policy_sha256", "input binding")
+        identifier = _identifier(item["id"], "binding id")
+        role = item["role"]
+        if role not in ("baseline", "candidate"):
+            raise ParisonError("binding role must be baseline or candidate")
+        if (identifier, role) in pairs:
+            raise ParisonError("duplicate input binding")
+        pairs.add((identifier, role))
+        normalized.append(
+            {
+                "id": identifier,
+                "role": role,
+                "source_kind": item["source_kind"],
+                "selection": _normalize_binding_selection(item["selection"], item["source_kind"]),
+                "source_sha256": _sha256(item["source_sha256"], "source sha256"),
+                "policy_sha256": _sha256(item["policy_sha256"], "binding policy sha256"),
+            }
+        )
+    return {
+        "binding_version": 1,
+        "policy": policy,
+        "bindings": sorted(normalized, key=lambda item: (item["id"], item["role"])),
+    }
+
+
+def canonical_input_bindings_bytes(value: Any) -> bytes:
+    return json.dumps(
+        normalize_input_bindings(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+
+
+def capture_suite_input_bindings(suite: dict[str, Any], selected: list[dict[str, Any]]) -> dict[str, Any]:
+    """Capture selected source identity from a freshly loaded suite, before execution."""
+    from .inputs import _source_digest, _source_path, _source_selection
+
+    if suite.get("suite_version") != 2 or not selected:
+        raise ParisonError("input binding capture requires selected suite v2 cases")
+    bindings = []
+    for case in selected:
+        for role in ("baseline", "candidate"):
+            source = case[role]
+            kind = "partition" if _source_path(source).is_dir() else "file"
+            bindings.append(
+                {
+                    "id": case["id"],
+                    "role": role,
+                    "source_kind": kind,
+                    "selection": _source_selection(source, kind),
+                    "source_sha256": _source_digest(source),
+                    "policy_sha256": case["policy_sha256"],
+                }
+            )
+    return normalize_input_bindings(
+        {
+            "binding_version": 1,
+            "policy": {"kind": "suite", "sha256": suite["suite_policy_sha256"]},
+            "bindings": bindings,
+        }
+    )
+
+
+def capture_reconciliation_input_bindings(
+    declaration: dict[str, Any], inputs: dict[str, dict[str, str | Path]]
+) -> dict[str, Any]:
+    """Capture the declared reconciliation's actual local source selections."""
+    from .inputs import _source_digest, _source_path, _source_selection
+
+    datasets = declaration.get("datasets")
+    if not isinstance(datasets, list) or set(inputs) != {item["id"] for item in datasets}:
+        raise ParisonError("reconciliation inputs do not match declared datasets")
+    bindings = []
+    for dataset in datasets:
+        for role in ("baseline", "candidate"):
+            source = inputs[dataset["id"]][role]
+            kind = "partition" if _source_path(source).is_dir() else "file"
+            bindings.append(
+                {
+                    "id": dataset["id"],
+                    "role": role,
+                    "source_kind": kind,
+                    "selection": _source_selection(source, kind),
+                    "source_sha256": _source_digest(source),
+                    "policy_sha256": dataset["policy_sha256"],
+                }
+            )
+    return normalize_input_bindings(
+        {
+            "binding_version": 1,
+            "policy": {"kind": "reconciliation", "sha256": declaration["reconciliation_sha256"]},
+            "bindings": bindings,
+        }
+    )
+
+
+def verify_dataset_input_bindings(manifest: Any, record: Any) -> None:
+    """Check preserved declarations against a separately verified semantic record."""
+    manifest, record = normalize_dataset_manifest_v2(manifest), normalize_input_bindings(record)
+    expected = []
+    for item in manifest["bindings"]:
+        _, _, selection = _portable_binding_source(item["source"], item["source_kind"])
+        expected.append(
+            {key: item[key] for key in ("id", "role", "source_kind", "source_sha256", "policy_sha256")}
+            | {"selection": _normalize_binding_selection(selection, item["source_kind"])}
+        )
+    if record != {"binding_version": 1, "policy": manifest["policy"], "bindings": expected}:
+        raise ParisonError("dataset input bindings do not match semantic evidence")
+
+
 def explain_dataset_manifest(path: str | Path) -> dict[str, Any]:
     value = normalize_dataset_manifest(_read_json(path, "dataset manifest"))
     return {**value, "manifest_sha256": _digest(value, b"parison:dataset-manifest-v1\0")}
+
+
+def explain_dataset_manifest_v2(path: str | Path) -> dict[str, Any]:
+    value = normalize_dataset_manifest_v2(_read_json(path, "dataset manifest v2"))
+    return {**value, "manifest_sha256": _digest(value, b"parison:dataset-manifest-v2\0")}
+
+
+def dataset_manifest_version(path: str | Path) -> int:
+    value = _read_json(path, "dataset manifest")
+    version = value.get("manifest_version")
+    if type(version) is not int or version not in (1, 2):
+        raise ParisonError("dataset manifest version must be 1 or 2")
+    return version
+
+
+def explain_dataset_manifest_any(path: str | Path) -> dict[str, Any]:
+    return explain_dataset_manifest_v2(path) if dataset_manifest_version(path) == 2 else explain_dataset_manifest(path)
 
 
 def _policy_fingerprint(kind: str, path: str | Path) -> str:
@@ -508,7 +866,7 @@ def _windows_directory_lock(path: Path):
     return close, handle
 
 
-def _enumerate_scope(root: Path, relative: str) -> set[str]:
+def _enumerate_scope(root: Path, relative: str, *, partition: bool = False) -> set[str]:
     opened = _open_scope(root, relative)
     prefix = "" if relative == "." else relative
     found: set[str] = set()
@@ -520,6 +878,8 @@ def _enumerate_scope(root: Path, relative: str) -> set[str]:
             except OSError as exc:
                 raise ParisonError("cannot enumerate closed scope") from exc
             for name in names:
+                if partition and name.startswith("."):
+                    continue
                 portable = f"{parent}/{name}" if parent else name
                 try:
                     metadata = os.stat(name, dir_fd=descriptor, follow_symlinks=False)
@@ -528,6 +888,8 @@ def _enumerate_scope(root: Path, relative: str) -> set[str]:
                 if stat.S_ISLNK(metadata.st_mode):
                     raise ParisonError("closed scope contains a symlink")
                 if stat.S_ISDIR(metadata.st_mode):
+                    if partition:
+                        raise ParisonError("partition must contain only regular files")
                     flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_DIRECTORY", 0) | os.O_NOFOLLOW
                     child = os.open(name, flags, dir_fd=descriptor)
                     try:
@@ -553,11 +915,15 @@ def _enumerate_scope(root: Path, relative: str) -> set[str]:
             raise ParisonError("cannot enumerate closed scope") from exc
         try:
             for entry in entries:
+                if partition and entry.name.startswith("."):
+                    continue
                 portable = f"{parent}/{entry.name}" if parent else entry.name
                 mode = entry.lstat().st_mode
                 if stat.S_ISLNK(mode):
                     raise ParisonError("closed scope contains a symlink")
                 if stat.S_ISDIR(mode):
+                    if partition:
+                        raise ParisonError("partition must contain only regular files")
                     walk_path(entry, portable)
                 elif stat.S_ISREG(mode):
                     found.add(portable)
@@ -592,12 +958,16 @@ def _scope_members(root: Path, scopes: list[str]) -> set[str]:
     return members
 
 
-def _identity(root: Path, relative: str, format_name: str) -> tuple[int, str, tuple[int, int]] | None:
+def _identity(
+    root: Path, relative: str, format_name: str, *, max_bytes: int | None = None
+) -> tuple[int, str, tuple[int, int]] | None:
     opened = _open_resource(root, relative)
     if opened is None:
         return None
     _path, descriptor, before, locks, sidecar_exists = opened
     try:
+        if max_bytes is not None and before.st_size > max_bytes:
+            raise ParisonError("manifest input byte limit exceeded")
         if format_name == "sqlite" and any(sidecar_exists(suffix) for suffix in ("-wal", "-journal", "-shm")):
             raise ParisonError("SQLite resource has ambiguous journal state")
         digest, size = hashlib.sha256(), 0
@@ -605,6 +975,8 @@ def _identity(root: Path, relative: str, format_name: str) -> tuple[int, str, tu
             while chunk := handle.read(1024 * 1024):
                 digest.update(chunk)
                 size += len(chunk)
+                if max_bytes is not None and size > max_bytes:
+                    raise ParisonError("manifest input byte limit exceeded")
             after = os.fstat(handle.fileno())
         stable = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) == (
             after.st_dev,
@@ -679,6 +1051,159 @@ def create_dataset_manifest(
     return {**value, "manifest_sha256": _digest(value, b"parison:dataset-manifest-v1\0")}
 
 
+def create_dataset_manifest_v2(
+    root: str | Path, declaration_path: str | Path, output: str | Path, policy_path: str | Path
+) -> dict[str, Any]:
+    """Publish an explicit v2 declaration only after local source verification."""
+    value = normalize_dataset_manifest_v2(_read_json(declaration_path, "dataset manifest v2 declaration"))
+    if _policy_fingerprint(value["policy"]["kind"], policy_path) != value["policy"]["sha256"]:
+        raise ParisonError("declared policy SHA-256 does not match the supplied policy")
+    if verify_dataset_manifest_v2(declaration_path, root, policy_path)["outcome"] != "PASS":
+        raise ParisonError("dataset v2 declaration does not match local sources")
+    _write_once(
+        Path(output), canonical_dataset_manifest_v2_bytes(value).decode("utf-8"), "cannot publish dataset manifest"
+    )
+    return {**value, "manifest_sha256": _digest(value, b"parison:dataset-manifest-v2\0")}
+
+
+def verify_dataset_manifest_v2(
+    manifest_path: str | Path,
+    root: str | Path,
+    policy_path: str | Path,
+    summary: bool = False,
+    max_input_bytes: int = 1_000_000_000,
+) -> dict[str, Any]:
+    """Check local physical bytes and exact logical membership under explicit policy."""
+    manifest = normalize_dataset_manifest_v2(_read_json(manifest_path, "dataset manifest v2"))
+    if _policy_fingerprint(manifest["policy"]["kind"], policy_path) != manifest["policy"]["sha256"]:
+        raise ParisonError("manifest policy SHA-256 does not match the supplied policy")
+    if type(max_input_bytes) is not int or max_input_bytes <= 0:
+        raise ParisonError("manifest input byte limit must be a positive integer")
+    if sum(item["bytes"] for item in manifest["files"]) > max_input_bytes:
+        raise ParisonError("manifest input byte limit exceeded")
+    root = Path(root)
+    opened = _open_scope(root, ".")
+    if isinstance(opened, int):
+        os.close(opened)
+    partitions, sqlite_paths = {}, set()
+    for binding in manifest["bindings"]:
+        _, path, selection = _portable_binding_source(binding["source"], binding["source_kind"])
+        if selection["kind"] == "sqlite-table":
+            sqlite_paths.add(path)
+        if binding["source_kind"] == "partition":
+            partitions[path] = None
+
+    def membership(path: str) -> set[str] | None:
+        try:
+            return _enumerate_scope(root, path, partition=True)
+        except ParisonError as exc:
+            if isinstance(exc.__cause__, FileNotFoundError):
+                return None
+            raise
+
+    def closed_members() -> set[str]:
+        found: set[str] = set()
+        for scope in manifest["closed_scopes"]:
+            try:
+                found.update(_enumerate_scope(root, scope))
+            except ParisonError as exc:
+                if not isinstance(exc.__cause__, FileNotFoundError):
+                    raise
+        return found
+
+    before_partitions = {path: membership(path) for path in partitions}
+    before_scope = closed_members()
+    files, identities, statuses = [], set(), {}
+    remaining = max_input_bytes
+    reasons = set()
+    for item in manifest["files"]:
+        path = item["path"]
+        format_name = (
+            "sqlite" if path in sqlite_paths or Path(path).suffix.lower() in {".db", ".sqlite", ".sqlite3"} else "file"
+        )
+        try:
+            observed = _identity(root, path, format_name, max_bytes=remaining)
+        except ParisonError as exc:
+            if not isinstance(exc.__cause__, FileNotFoundError):
+                raise
+            observed = None
+        size, digest = None, None
+        if observed is None:
+            status = "missing"
+            reasons.add("missing-resource")
+        else:
+            size, digest, identity = observed
+            if identity in identities:
+                raise ParisonError("manifest files contain hard-link aliases")
+            identities.add(identity)
+            remaining -= size
+            status = (
+                "size-mismatch" if size != item["bytes"] else "digest-mismatch" if digest != item["sha256"] else "match"
+            )
+            if status != "match":
+                reasons.add(status)
+        statuses[path] = status
+        files.append(
+            {
+                "path": path,
+                "expected_bytes": item["bytes"],
+                "expected_sha256": item["sha256"],
+                "observed_bytes": size,
+                "observed_sha256": digest,
+                "status": status,
+            }
+        )
+    after_partitions = {path: membership(path) for path in partitions}
+    after_scope = closed_members()
+    if before_scope != after_scope or before_partitions != after_partitions:
+        raise ParisonError("source membership changed during manifest verification")
+    undeclared = after_scope - set(statuses)
+    if undeclared:
+        reasons.add("undeclared-members")
+    bindings = []
+    for binding in manifest["bindings"]:
+        matched = all(statuses[member] == "match" for member in binding["members"])
+        if binding["source_kind"] == "partition":
+            _, path, _ = _portable_binding_source(binding["source"], "partition")
+            matched &= after_partitions[path] == set(binding["members"])
+        if not matched:
+            reasons.add("logical-member-mismatch")
+        bindings.append(
+            {
+                "id": binding["id"],
+                "role": binding["role"],
+                "source_sha256": binding["source_sha256"],
+                "status": "match" if matched else "member-mismatch",
+            }
+        )
+    result = {
+        "manifest_result_version": 2,
+        "complete": True,
+        "outcome": "FAIL" if reasons else "PASS",
+        "manifest_sha256": _digest(manifest, b"parison:dataset-manifest-v2\0"),
+        "policy": manifest["policy"],
+        "files": files,
+        "bindings": bindings,
+        "closed_scope_status": "undeclared-members" if undeclared else "match",
+        "reason_codes": sorted(reasons),
+        "diagnostic_sha256": None,
+        "semantic_result": None,
+    }
+    if not summary:
+        return result
+    return {
+        key: result[key]
+        for key in ("manifest_result_version", "complete", "outcome", "manifest_sha256", "policy", "reason_codes")
+    } | {
+        "file_count": len(files),
+        "binding_count": len(bindings),
+        "status_counts": {
+            status: sum(item["status"] == status for item in files)
+            for status in ("match", "missing", "size-mismatch", "digest-mismatch")
+        },
+    }
+
+
 def verify_dataset_manifest(
     manifest_path: str | Path, root: str | Path, policy_path: str | Path, summary: bool = False
 ) -> dict[str, Any]:
@@ -751,6 +1276,16 @@ def verify_dataset_manifest(
     return result
 
 
+def verify_dataset_manifest_any(
+    manifest_path: str | Path, root: str | Path, policy_path: str | Path, summary: bool = False
+) -> dict[str, Any]:
+    return (
+        verify_dataset_manifest_v2(manifest_path, root, policy_path, summary)
+        if dataset_manifest_version(manifest_path) == 2
+        else verify_dataset_manifest(manifest_path, root, policy_path, summary)
+    )
+
+
 def normalize_reproducibility_diagnostic(value: Any) -> dict[str, Any]:
     if (
         not isinstance(value, dict)
@@ -821,6 +1356,65 @@ def capture_reproducibility_diagnostic(manifest_path: str | Path, output: str | 
         Path(output), json.dumps(value, indent=2, sort_keys=False) + "\n", "cannot publish reproducibility diagnostic"
     )
     return {**value, "diagnostic_sha256": _digest(value, b"parison:reproducibility-diagnostic-v1\0")}
+
+
+def normalize_reproducibility_diagnostic_v2(value: Any) -> dict[str, Any]:
+    if (
+        not isinstance(value, dict)
+        or type(value.get("diagnostic_version")) is not int
+        or value["diagnostic_version"] != 2
+    ):
+        raise ParisonError("reproducibility diagnostic version must be 2")
+    if not isinstance(value.get("observations"), list) or any(
+        not isinstance(item, str) for item in value["observations"]
+    ):
+        raise ParisonError("diagnostic observations must be strings")
+    try:
+        json.dumps(value, ensure_ascii=False).encode("utf-8")
+    except (UnicodeError, TypeError, ValueError) as exc:
+        raise ParisonError("reproducibility diagnostic must be valid UTF-8 JSON") from exc
+    normalized = normalize_reproducibility_diagnostic({**value, "diagnostic_version": 1})
+    return {**normalized, "diagnostic_version": 2}
+
+
+def capture_reproducibility_diagnostic_v2(manifest_path: str | Path, output: str | Path) -> dict[str, Any]:
+    manifest = explain_dataset_manifest_v2(manifest_path)
+    reader = None
+    if any(Path(item["path"]).suffix.lower() == ".parquet" for item in manifest["files"]):
+        try:
+            reader = {"distribution": "polars", "version": metadata.version("polars")}
+        except metadata.PackageNotFoundError:
+            reader = None
+    value = normalize_reproducibility_diagnostic_v2(
+        {
+            "diagnostic_version": 2,
+            "manifest_sha256": manifest["manifest_sha256"],
+            "runtime": {
+                "parison_version": __version__,
+                "python_implementation": sys.implementation.name,
+                "python_version": platform.python_version(),
+                "os_family": platform.system().lower(),
+                "architecture": platform.machine().lower() or "unknown",
+                "sqlite_version": sqlite3.sqlite_version,
+                "parquet_reader": reader,
+            },
+            "observations": [],
+        }
+    )
+    _write_once(
+        Path(output),
+        json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False),
+        "cannot publish reproducibility diagnostic",
+    )
+    return {**value, "diagnostic_sha256": _digest(value, b"parison:reproducibility-diagnostic-v2\0")}
+
+
+def capture_reproducibility_diagnostic_any(manifest_path: str | Path, output: str | Path) -> dict[str, Any]:
+    return (
+        capture_reproducibility_diagnostic_v2(manifest_path, output)
+        if dataset_manifest_version(manifest_path) == 2
+        else capture_reproducibility_diagnostic(manifest_path, output)
+    )
 
 
 def diff_reproducibility_diagnostics(left_path: str | Path, right_path: str | Path) -> dict[str, Any]:
@@ -997,6 +1591,48 @@ def _semantic_result_metadata(bundle: Path, declaration: dict[str, Any]) -> dict
     }
 
 
+def _semantic_result_metadata_v2(bundle: Path, declaration: dict[str, Any]) -> dict[str, Any]:
+    """Reconstruct v2 logical identity from a verified versioned semantic child."""
+    from .core import verify_bundle
+
+    child = verify_bundle(bundle)
+    kind = declaration["policy"]["kind"]
+    required_schema = 3 if kind == "suite" else 2
+    if child.get("kind") != kind or child.get("schema_version") != required_schema:
+        raise ParisonError("dataset v2 requires a versioned semantic child of the declared kind")
+    if child.get("outcome") not in ("PASS", "FAIL", "INCONCLUSIVE"):
+        raise ParisonError("dataset v2 requires a completed semantic child")
+    if kind == "suite":
+        result = _read_bundle_json(bundle / "suite-result.json", "semantic suite result")
+        if any(result.get(name) is not True for name in ("complete", "scope_complete", "execution_complete")):
+            raise ParisonError("dataset v2 requires complete suite execution and scope")
+        if result.get("suite_policy_sha256") != declaration["policy"]["sha256"]:
+            raise ParisonError("semantic suite policy does not match dataset manifest")
+    else:
+        result = _read_bundle_json(bundle / "reconciliation-result.json", "semantic reconciliation result")
+        effective = _read_bundle_json(bundle / "effective-reconciliation.json", "semantic reconciliation policy")
+        if (
+            result.get("complete") is not True
+            or _effective_policy_fingerprint("reconciliation", effective) != declaration["policy"]["sha256"]
+        ):
+            raise ParisonError("semantic reconciliation policy does not match dataset manifest")
+        receipt_matches = [item["path"] for item in declaration["files"] if item["sha256"] == result["receipt_sha256"]]
+        bound_members = {member for binding in declaration["bindings"] for member in binding["members"]}
+        if len(receipt_matches) != 1 or receipt_matches[0] in bound_members:
+            raise ParisonError("dataset v2 receipt must match one unbound physical file")
+    record = normalize_input_bindings(_read_json(bundle / "input-bindings.json", "semantic input bindings"))
+    verify_dataset_input_bindings(declaration, record)
+    record_bytes = canonical_input_bindings_bytes(record)
+    if (bundle / "input-bindings.json").read_bytes() != record_bytes:
+        raise ParisonError("semantic input bindings are not canonical")
+    return {
+        "kind": kind,
+        "outcome": child["outcome"],
+        "manifest_sha256": _file_digest(bundle / "manifest.json"),
+        "input_bindings_sha256": _digest(record, b"parison:input-bindings-v1\0"),
+    }
+
+
 def publish_dataset_evidence_bundle(
     output: str | Path, manifest_path: str | Path, root: str | Path, policy_path: str | Path, result_bundle: str | Path
 ) -> dict[str, Any]:
@@ -1046,6 +1682,87 @@ def publish_dataset_evidence_bundle(
         raise
     except OSError as exc:
         raise ParisonError(f"cannot publish dataset evidence bundle: {exc}") from exc
+    finally:
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+
+
+def publish_dataset_evidence_bundle_v2(
+    output: str | Path,
+    manifest_path: str | Path,
+    root: str | Path,
+    policy_path: str | Path,
+    result_bundle: str | Path,
+    *,
+    expected_review: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Atomically publish verified physical/logical identity and a versioned child."""
+    manifest = explain_dataset_manifest_v2(manifest_path)
+    source_result = verify_dataset_manifest_v2(manifest_path, root, policy_path)
+    if source_result["outcome"] != "PASS":
+        raise ParisonError("dataset v2 publication requires matching local sources")
+    if expected_review is not None and (
+        manifest["manifest_sha256"] != expected_review["manifest_sha256"]
+        or hashlib.sha256(Path(manifest_path).read_bytes()).hexdigest() != expected_review["declaration_sha256"]
+        or hashlib.sha256(Path(policy_path).read_bytes()).hexdigest() != expected_review["policy_sha256"]
+        or verify_dataset_manifest_v2(manifest_path, root, policy_path, summary=True) != expected_review["source"]
+    ):
+        raise ParisonError("dataset review changed before publication")
+    policy = _effective_policy(manifest["policy"]["kind"], policy_path)
+    target, stage = Path(output), None
+    if target.exists():
+        raise ParisonError(f"output already exists: {target}")
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _check_output_parent(target.parent)
+        stage = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent))
+        os.chmod(stage, 0o700)
+        declaration = {
+            key: manifest[key]
+            for key in ("manifest_version", "collection_id", "policy", "closed_scopes", "files", "bindings")
+        }
+        (stage / "dataset-manifest.json").write_bytes(canonical_dataset_manifest_v2_bytes(declaration))
+        (stage / "effective-policy.json").write_text(
+            json.dumps(policy, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        diagnostic = capture_reproducibility_diagnostic_v2(
+            stage / "dataset-manifest.json", stage / "reproducibility-diagnostic.json"
+        )
+        _copy_verified_bundle(Path(result_bundle), stage / "semantic-result")
+        semantic = _semantic_result_metadata_v2(stage / "semantic-result", declaration)
+        if expected_review is not None and semantic != expected_review["semantic"]:
+            raise ParisonError("dataset semantic result changed after review")
+        result = {**source_result, "diagnostic_sha256": diagnostic["diagnostic_sha256"], "semantic_result": semantic}
+        (stage / "manifest-result.json").write_text(
+            json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        outer = {
+            "schema_version": 2,
+            "kind": "dataset-evidence",
+            "complete": True,
+            "outcome": result["outcome"],
+            "manifest_sha256": manifest["manifest_sha256"],
+            "diagnostic_sha256": diagnostic["diagnostic_sha256"],
+            "semantic_result": semantic,
+            "policy": manifest["policy"],
+            "files": {name: _file_digest(stage / name) for name in sorted(_EVIDENCE_FILES)},
+        }
+        (stage / "manifest.json").write_text(json.dumps(outer, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        _verified_dataset_evidence_v2(stage)
+        if verify_dataset_manifest_v2(manifest_path, root, policy_path) != source_result:
+            raise ParisonError("dataset v2 sources changed during publication")
+        if expected_review is not None and (
+            hashlib.sha256(Path(manifest_path).read_bytes()).hexdigest() != expected_review["declaration_sha256"]
+            or hashlib.sha256(Path(policy_path).read_bytes()).hexdigest() != expected_review["policy_sha256"]
+        ):
+            raise ParisonError("dataset review inputs changed during publication")
+        _rename_no_replace(stage, target)
+        stage = None
+        return outer
+    except ParisonError:
+        raise
+    except OSError as exc:
+        raise ParisonError(f"cannot publish dataset v2 evidence bundle: {exc}") from exc
     finally:
         if stage is not None:
             shutil.rmtree(stage, ignore_errors=True)
@@ -1140,6 +1857,96 @@ def _verify_manifest_result(result: Any, manifest: dict[str, Any]) -> None:
         or result["policy"] != manifest["policy"]
     ):
         raise ParisonError("dataset evidence result metadata is inconsistent")
+
+
+def _verify_manifest_result_v2(result: Any, manifest: dict[str, Any], *, published: bool) -> None:
+    fields = "manifest_result_version complete outcome manifest_sha256 policy files bindings closed_scope_status reason_codes diagnostic_sha256 semantic_result"
+    result = _closed_object(result, fields, "dataset v2 manifest result")
+    if (
+        type(result["manifest_result_version"]) is not int
+        or result["manifest_result_version"] != 2
+        or result["complete"] is not True
+    ):
+        raise ParisonError("dataset v2 manifest result is incomplete or unsupported")
+    if (
+        result["manifest_sha256"] != _digest(manifest, b"parison:dataset-manifest-v2\0")
+        or result["policy"] != manifest["policy"]
+    ):
+        raise ParisonError("dataset v2 manifest result policy or fingerprint differs")
+    observations = result["files"]
+    if not isinstance(observations, list) or len(observations) != len(manifest["files"]):
+        raise ParisonError("dataset v2 file observations do not match inventory")
+    statuses, reasons = {}, set()
+    for item, expected in zip(observations, manifest["files"], strict=True):
+        item = _closed_object(
+            item, "path expected_bytes expected_sha256 observed_bytes observed_sha256 status", "file observation"
+        )
+        if type(item["expected_bytes"]) is not int or (
+            item["path"],
+            item["expected_bytes"],
+            item["expected_sha256"],
+        ) != (
+            expected["path"],
+            expected["bytes"],
+            expected["sha256"],
+        ):
+            raise ParisonError("dataset v2 file observation differs from inventory")
+        size, digest = item["observed_bytes"], item["observed_sha256"]
+        if size is None and digest is None:
+            status = "missing"
+            reasons.add("missing-resource")
+        elif type(size) is int and size >= 0 and isinstance(digest, str) and _SHA256.fullmatch(digest):
+            status = (
+                "size-mismatch"
+                if size != expected["bytes"]
+                else "digest-mismatch"
+                if digest != expected["sha256"]
+                else "match"
+            )
+            if status != "match":
+                reasons.add(status)
+        else:
+            raise ParisonError("dataset v2 file observation has invalid observed identity")
+        if item["status"] != status:
+            raise ParisonError("dataset v2 file observation status is inconsistent")
+        statuses[expected["path"]] = status
+    bindings = result["bindings"]
+    if not isinstance(bindings, list) or len(bindings) != len(manifest["bindings"]):
+        raise ParisonError("dataset v2 binding observations do not match declaration")
+    for item, expected in zip(bindings, manifest["bindings"], strict=True):
+        item = _closed_object(item, "id role source_sha256 status", "binding observation")
+        if (item["id"], item["role"], item["source_sha256"]) != (
+            expected["id"],
+            expected["role"],
+            expected["source_sha256"],
+        ) or item["status"] not in ("match", "member-mismatch"):
+            raise ParisonError("dataset v2 binding observation differs from declaration")
+        if item["status"] == "match" and any(statuses[member] != "match" for member in expected["members"]):
+            raise ParisonError("dataset v2 binding cannot match a changed member")
+        if item["status"] != "match":
+            reasons.add("logical-member-mismatch")
+    if result["closed_scope_status"] not in ("match", "undeclared-members"):
+        raise ParisonError("dataset v2 closed scope status is invalid")
+    if result["closed_scope_status"] == "undeclared-members":
+        reasons.add("undeclared-members")
+    outcome = "FAIL" if reasons else "PASS"
+    if result["reason_codes"] != sorted(reasons) or result["outcome"] != outcome:
+        raise ParisonError("dataset v2 result outcome or reasons are inconsistent")
+    semantic, diagnostic = result["semantic_result"], result["diagnostic_sha256"]
+    if published:
+        if (
+            outcome != "PASS"
+            or not isinstance(semantic, dict)
+            or set(semantic) != {"kind", "outcome", "manifest_sha256", "input_bindings_sha256"}
+            or semantic.get("kind") != manifest["policy"]["kind"]
+            or semantic.get("outcome") not in ("PASS", "FAIL", "INCONCLUSIVE")
+        ):
+            raise ParisonError("dataset v2 published semantic result is invalid")
+        for name in ("manifest_sha256", "input_bindings_sha256"):
+            _sha256(semantic[name], name)
+        _sha256(diagnostic, "diagnostic_sha256")
+    elif semantic is not None or diagnostic is not None:
+        raise ParisonError("standalone dataset v2 source result must have null publication bindings")
 
 
 def _verified_dataset_evidence(directory: str | Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], str]:
@@ -1254,11 +2061,157 @@ def _verified_dataset_evidence(directory: str | Path) -> tuple[dict[str, Any], d
             lock[0](lock[1])
 
 
+def _dataset_evidence_version(directory: str | Path) -> int:
+    opened = _open_scope(Path(directory), ".")
+    try:
+        try:
+            value = json.loads(
+                _read_regular_at(opened, "manifest.json", "dataset evidence manifest"), object_pairs_hook=_object
+            )
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise ParisonError(f"cannot decode dataset evidence manifest: {exc}") from exc
+        version = value.get("schema_version") if isinstance(value, dict) else None
+        if type(version) is not int or version not in (1, 2):
+            raise ParisonError("dataset evidence schema version must be 1 or 2")
+        return version
+    finally:
+        if isinstance(opened, int):
+            os.close(opened)
+
+
+def _verified_dataset_evidence_v2(directory: str | Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], str]:
+    root = Path(directory)
+    opened = _open_scope(root, ".")
+    lock = _windows_directory_lock(root) if isinstance(opened, Path) and os.name == "nt" else None
+    expected_members = _EVIDENCE_FILES | {"manifest.json", "semantic-result"}
+    try:
+        if set(os.listdir(opened)) != expected_members:
+            raise ParisonError("dataset v2 evidence bundle has unexpected membership")
+        manifest_bytes = _read_regular_at(opened, "manifest.json", "dataset v2 evidence manifest")
+        try:
+            outer = json.loads(manifest_bytes, object_pairs_hook=_object)
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise ParisonError(f"cannot decode dataset v2 evidence manifest: {exc}") from exc
+        outer = _closed_object(
+            outer,
+            "schema_version kind complete outcome manifest_sha256 diagnostic_sha256 semantic_result policy files",
+            "dataset v2 evidence manifest",
+        )
+        if (
+            type(outer["schema_version"]) is not int
+            or outer["schema_version"] != 2
+            or outer["kind"] != "dataset-evidence"
+            or outer["complete"] is not True
+        ):
+            raise ParisonError("dataset v2 evidence manifest is incomplete or unsupported")
+        files = outer["files"]
+        if not isinstance(files, dict) or set(files) != _EVIDENCE_FILES:
+            raise ParisonError("dataset v2 evidence manifest has invalid file membership")
+        values = {}
+        for name in sorted(files):
+            values[name] = _read_regular_at(opened, name, f"dataset v2 evidence file {name}")
+            if _sha256(files[name], f"{name} sha256") != hashlib.sha256(values[name]).hexdigest():
+                raise ParisonError(f"dataset v2 evidence file failed integrity check: {name}")
+
+        def decoded(name: str) -> dict[str, Any]:
+            try:
+                value = json.loads(values[name], object_pairs_hook=_object)
+            except (UnicodeError, json.JSONDecodeError) as exc:
+                raise ParisonError(f"cannot decode dataset v2 {name}: {exc}") from exc
+            if not isinstance(value, dict):
+                raise ParisonError(f"dataset v2 {name} must be a JSON object")
+            return value
+
+        declaration = normalize_dataset_manifest_v2(decoded("dataset-manifest.json"))
+        if values["dataset-manifest.json"] != canonical_dataset_manifest_v2_bytes(declaration):
+            raise ParisonError("dataset v2 manifest member is not canonical")
+        manifest_sha = _digest(declaration, b"parison:dataset-manifest-v2\0")
+        result = decoded("manifest-result.json")
+        _verify_manifest_result_v2(result, declaration, published=True)
+        diagnostic = normalize_reproducibility_diagnostic_v2(decoded("reproducibility-diagnostic.json"))
+        diagnostic_bytes = json.dumps(diagnostic, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
+            "utf-8"
+        )
+        if values["reproducibility-diagnostic.json"] != diagnostic_bytes:
+            raise ParisonError("dataset v2 diagnostic member is not canonical")
+        diagnostic_sha = _digest(diagnostic, b"parison:reproducibility-diagnostic-v2\0")
+        policy = decoded("effective-policy.json")
+        if _effective_policy_fingerprint(declaration["policy"]["kind"], policy) != declaration["policy"]["sha256"]:
+            raise ParisonError("dataset v2 effective policy does not match manifest")
+        with tempfile.TemporaryDirectory(prefix="parison-semantic-verify-") as temporary:
+            snapshot = Path(temporary) / "semantic-result"
+            if isinstance(opened, int):
+                flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_DIRECTORY", 0) | os.O_NOFOLLOW
+                try:
+                    semantic_fd = os.open("semantic-result", flags, dir_fd=opened)
+                except OSError as exc:
+                    raise ParisonError("semantic result bundle is missing or unsafe") from exc
+                try:
+                    _copy_bundle_snapshot(semantic_fd, snapshot)
+                finally:
+                    os.close(semantic_fd)
+            else:
+                _copy_bundle_snapshot(root / "semantic-result", snapshot)
+            semantic = _semantic_result_metadata_v2(snapshot, declaration)
+        if (
+            outer["outcome"] != result["outcome"]
+            or outer["manifest_sha256"] != manifest_sha
+            or outer["policy"] != declaration["policy"]
+            or diagnostic["manifest_sha256"] != manifest_sha
+            or outer["diagnostic_sha256"] != diagnostic_sha
+            or result["diagnostic_sha256"] != diagnostic_sha
+            or outer["semantic_result"] != semantic
+            or result["semantic_result"] != semantic
+        ):
+            raise ParisonError("dataset v2 evidence bundle metadata is inconsistent")
+        if (
+            _read_regular_at(opened, "manifest.json", "dataset v2 evidence manifest") != manifest_bytes
+            or set(os.listdir(opened)) != expected_members
+        ):
+            raise ParisonError("dataset v2 evidence bundle changed during verification")
+        for name in sorted(files):
+            if _read_regular_at(opened, name, f"dataset v2 evidence file {name}") != values[name]:
+                raise ParisonError("dataset v2 evidence member changed during verification")
+        return outer, result, diagnostic, hashlib.sha256(manifest_bytes).hexdigest()
+    finally:
+        if isinstance(opened, int):
+            os.close(opened)
+        if lock is not None:
+            lock[0](lock[1])
+
+
 def verify_dataset_evidence_bundle(directory: str | Path) -> dict[str, Any]:
-    return _verified_dataset_evidence(directory)[0]
+    return (
+        _verified_dataset_evidence_v2(directory)
+        if _dataset_evidence_version(directory) == 2
+        else _verified_dataset_evidence(directory)
+    )[0]
 
 
 def inspect_dataset_evidence_bundle(directory: str | Path) -> dict[str, Any]:
+    if _dataset_evidence_version(directory) == 2:
+        manifest, result, diagnostic, bundle_sha256 = _verified_dataset_evidence_v2(directory)
+        return {
+            "kind": "dataset-evidence",
+            "schema_version": 2,
+            "outcome": result["outcome"],
+            "complete": True,
+            "manifest_sha256": manifest["manifest_sha256"],
+            "diagnostic_sha256": manifest["diagnostic_sha256"],
+            "semantic_result": manifest["semantic_result"],
+            "policy": manifest["policy"],
+            "file_count": len(result["files"]),
+            "binding_count": len(result["bindings"]),
+            "status_counts": {
+                status: sum(item["status"] == status for item in result["files"])
+                for status in ("match", "missing", "size-mismatch", "digest-mismatch")
+            },
+            "reason_codes": result["reason_codes"],
+            "runtime": diagnostic["runtime"],
+            "observations": diagnostic["observations"],
+            "bundle_sha256": bundle_sha256,
+            "manifest_files": sorted(manifest["files"]),
+        }
     manifest, result, diagnostic, bundle_sha256 = _verified_dataset_evidence(directory)
     return {
         "kind": "dataset-evidence",

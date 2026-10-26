@@ -245,7 +245,7 @@ def bundle_integrity_matches(directory: str | Path, expected_manifest_digest: st
 
 
 def _verify_suite_bundle(directory: Path, manifest: dict[str, Any]) -> dict[str, Any]:
-    if manifest.get("schema_version") == 2:
+    if manifest.get("schema_version") in (2, 3):
         return _verify_suite_bundle_v2(directory, manifest)
     if manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
         raise ParisonError("suite manifest is incomplete or unsupported")
@@ -347,9 +347,11 @@ def _verify_suite_bundle_v2(directory: Path, manifest: dict[str, Any]) -> dict[s
         raise ParisonError("suite v2 manifest is incomplete or unsupported")
     if manifest.get("outcome") not in OUTCOME_CODES or not isinstance(manifest.get("runtime"), dict):
         raise ParisonError("suite v2 manifest has invalid metadata")
-    _verify_manifest_files(
-        directory, manifest.get("files"), {"suite-result.json", "effective-suite.json", "report.html"}
-    )
+    version = manifest["schema_version"]
+    members = {"suite-result.json", "effective-suite.json", "report.html"}
+    if version == 3:
+        members.add("input-bindings.json")
+    _verify_manifest_files(directory, manifest.get("files"), members)
     try:
         result = json.loads((directory / "suite-result.json").read_text(encoding="utf-8"))
         effective = json.loads((directory / "effective-suite.json").read_text(encoding="utf-8"))
@@ -427,7 +429,36 @@ def _verify_suite_bundle_v2(directory: Path, manifest: dict[str, Any]) -> dict[s
         or result["kind"] != ("suite-shard" if selection["shard_count"] is not None else "suite")
     ):
         raise ParisonError("suite v2 result has invalid outcome, scope or completeness")
+    if version == 3:
+        _verify_suite_input_bindings(directory, result, selected)
     return manifest
+
+
+def _verify_suite_input_bindings(directory: Path, result: dict[str, Any], selected: list[dict[str, Any]]) -> None:
+    from .manifesting import _portable_binding_source, _read_json, normalize_input_bindings
+
+    record = normalize_input_bindings(_read_json(directory / "input-bindings.json", "suite input bindings"))
+    if record["policy"] != {"kind": "suite", "sha256": result["suite_policy_sha256"]}:
+        raise ParisonError("suite input binding policy does not match effective plan")
+    by_pair = {(item["id"], item["role"]): item for item in record["bindings"]}
+    if set(by_pair) != {(case["id"], role) for case in selected for role in ("baseline", "candidate")}:
+        raise ParisonError("suite input bindings do not match selected cases")
+    for case in selected:
+        for role in ("baseline", "candidate"):
+            item = by_pair[(case["id"], role)]
+            _, _, selection = _portable_binding_source(case[role], item["source_kind"])
+            if item["selection"] != selection or item["policy_sha256"] != case["policy_sha256"]:
+                raise ParisonError("suite input binding selector or policy does not match plan")
+    for case in result["cases"]:
+        child_result = _read_bundle_result(directory / case["bundle"])
+        if not child_result.get("complete"):
+            continue
+        for role in ("baseline", "candidate"):
+            item = by_pair[(case["id"], role)]
+            if child_result.get("inputs", {}).get(role, {}).get("sha256") != item["source_sha256"]:
+                raise ParisonError("suite input binding digest does not match child execution")
+            if child_result.get("policy_sha256") != item["policy_sha256"]:
+                raise ParisonError("suite input binding policy does not match child execution")
 
 
 def _verify_suite_child(directory: Path, case: Any, case_digests: dict[str, Any]) -> None:

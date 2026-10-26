@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import subprocess
 import unittest
@@ -55,12 +56,26 @@ async function scenario(change,stage){
         self.assertIn("#history-view table{table-layout:fixed}", page)
         self.assertIn('id="suite-plan-form"', page)
         self.assertIn("/api/suite-plan", page)
+        self.assertIn('data-view="datasets"', page)
+        self.assertIn('id="dataset-review"', page)
+        self.assertIn('id="dataset-publish-button" type="button" disabled', page)
+        self.assertIn("/api/dataset-review", page)
+        self.assertIn("/api/dataset-publish", page)
         self.assertNotIn("}th{width:34%", page)
         self.assertNotIn("No partial bundle was published", page)
         self.assertIn("Check the output location in Results before reusing it", page)
         for activity in ("run", "history", "investigate", "compare"):
             self.assertIn(f'data-view="{activity}"', page)
             self.assertIn(f'id="{activity}-view"', page)
+
+    @unittest.skipUnless(shutil.which("node"), "Node.js is not installed for the browser-script regression")
+    def test_embedded_workbench_script_is_valid_javascript(self):
+        script = re.search(r"<script>(.*?)</script>", PAGE.decode(), re.DOTALL)
+        self.assertIsNotNone(script)
+        checked = subprocess.run(
+            [shutil.which("node"), "--check"], input=script.group(1), capture_output=True, text=True
+        )
+        self.assertEqual(checked.returncode, 0, checked.stderr)
 
 
 if __name__ == "__main__":
