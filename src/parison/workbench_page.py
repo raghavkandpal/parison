@@ -123,6 +123,50 @@ document.getElementById('plan-input-form').addEventListener('submit',async event
 });
 """
 
+SUITE_AUTHORING_SCRIPT = r"""
+const authorForm=document.getElementById('suite-author-form'),authorStatus=document.getElementById('suite-author-status'),authorCases=document.getElementById('suite-author-cases'),authorReview=document.getElementById('suite-author-review'),authorExport=document.getElementById('suite-author-export');
+let authoredCases=[],editingCase=null,authorRevision=0,authorReviewed=null,authorPending=false;
+const authorField=id=>document.getElementById('author-'+id);
+function invalidateAuthor(){authorRevision++;authorReviewed=null;authorReview.hidden=true;authorExport.disabled=true;authorStatus.textContent='Draft changed. Review the current cases and references before export.';}
+function renderAuthoredCases(){
+  authorCases.replaceChildren();
+  authoredCases.forEach((item,index)=>{
+    const row=document.createElement('div');row.className='authored-case';
+    const label=document.createElement('span');label.textContent=(index+1)+'. '+item.id+' · '+item.recipe+' · '+item.baseline+' → '+item.candidate;row.append(label);
+    const actions=document.createElement('div');actions.className='actions';
+    for(const [name,action,disabled] of [
+      ['Edit',()=>{editingCase=index;authorPending=true;invalidateAuthor();for(const field of ['id','recipe','baseline','candidate','description','expected_policy_sha256'])authorField(field).value=item[field]||'';authorField('tags').value=(item.tags||[]).join(', ');authorField('limits').value=JSON.stringify(item.limits||{});authorField('engine').value=item.execution?.engine||'';authorField('max_temp_bytes').value=item.execution?.max_temp_bytes||'';authorField('id').focus();},false],
+      ['Up',()=>{[authoredCases[index-1],authoredCases[index]]=[authoredCases[index],authoredCases[index-1]];editingCase=null;invalidateAuthor();renderAuthoredCases();},index===0],
+      ['Down',()=>{[authoredCases[index],authoredCases[index+1]]=[authoredCases[index+1],authoredCases[index]];editingCase=null;invalidateAuthor();renderAuthoredCases();},index===authoredCases.length-1],
+      ['Remove',()=>{authoredCases.splice(index,1);editingCase=null;invalidateAuthor();renderAuthoredCases();},false]
+    ]){const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=name;button.disabled=disabled;button.addEventListener('click',action);actions.append(button)}
+    row.append(actions);authorCases.append(row);
+  });
+}
+document.getElementById('author-case-form').addEventListener('input',()=>{authorPending=true;invalidateAuthor()});
+document.getElementById('author-case-form').addEventListener('change',()=>{authorPending=true;invalidateAuthor()});
+document.getElementById('author-discard').addEventListener('click',()=>{editingCase=null;authorPending=false;document.getElementById('author-case-form').reset();authorField('limits').value='{}';invalidateAuthor()});
+document.getElementById('author-case-form').addEventListener('submit',event=>{
+  event.preventDefault();try{
+    const item={id:authorField('id').value,recipe:authorField('recipe').value,baseline:authorField('baseline').value,candidate:authorField('candidate').value};
+    const tags=authorField('tags').value.split(',').map(value=>value.trim()).filter(Boolean);if(tags.length)item.tags=tags;
+    for(const field of ['description','expected_policy_sha256'])if(authorField(field).value)item[field]=authorField(field).value;
+    const limits=JSON.parse(authorField('limits').value||'{}');if(Object.keys(limits).length)item.limits=limits;
+    if(authorField('engine').value){item.execution={engine:authorField('engine').value};if(authorField('max_temp_bytes').value)item.execution.max_temp_bytes=Number(authorField('max_temp_bytes').value)}
+    if(editingCase===null)authoredCases.push(item);else authoredCases[editingCase]=item;
+    editingCase=null;authorPending=false;event.currentTarget.reset();authorField('limits').value='{}';invalidateAuthor();renderAuthoredCases();
+  }catch(error){authorStatus.textContent='Case limits must be a JSON object. Review also checks released limits and policies.'}
+});
+authorForm.addEventListener('input',invalidateAuthor);
+function authoredDraft(){const defaults=JSON.parse(authorField('defaults').value||'{}');const draft={suite_version:2,cases:authoredCases};if(Object.keys(defaults).length)draft.defaults={limits:defaults};return draft}
+authorForm.addEventListener('submit',async event=>{
+  event.preventDefault();if(authorPending){authorStatus.textContent='Apply or discard the current case edits before reviewing the suite.';return}const revision=++authorRevision;authorReviewed=null;authorReview.hidden=true;authorExport.disabled=true;authorStatus.textContent='Validating draft at the chosen destination and checking local references...';
+  try{const request={destination:authorField('destination').value,draft:authoredDraft()};const response=await post('/api/suite-draft-review',request);if(!response.ok)throw Error();const reviewed=await response.json();if(revision!==authorRevision)return;authorReviewed={...request,review_id:reviewed.review_id};document.getElementById('suite-author-policy').textContent=reviewed.suite_policy_sha256;document.getElementById('suite-author-order').textContent=reviewed.case_ids.join(' → ');authorReview.hidden=false;authorExport.disabled=false;authorStatus.textContent='Unapproved draft reviewed. Check case order, references, limits and policy locks before export.'}
+  catch(error){if(revision===authorRevision)authorStatus.textContent='Review rejected. Check case IDs, limits, execution settings, locks, destination and current local references.'}
+});
+authorExport.addEventListener('click',async()=>{if(!authorReviewed)return;const revision=authorRevision,request=authorReviewed;authorExport.disabled=true;authorStatus.textContent='Rechecking draft and installing one new local file...';try{const response=await post('/api/suite-draft-export',request);if(!response.ok)throw Error();const result=await response.json();if(revision!==authorRevision)return;authorReviewed=null;authorStatus.textContent='Unapproved suite draft exported to '+result.destination+'. Validate it in Suite plan review before running.'}catch(error){if(revision===authorRevision)authorStatus.textContent='Export rejected. References may have changed or the destination may exist. Review again.';authorReviewed=null}finally{authorExport.disabled=true}});
+"""
+
 PAGE = (
     """<!doctype html>
 <html lang="en">
@@ -158,6 +202,7 @@ table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}th,t
 h3{margin:0 0 var(--space-2);font-size:1.1rem}.control-note{color:var(--ink-muted);font-size:.87rem;max-width:72ch}.policy-field{min-width:0;border-top:1px solid var(--border);padding:var(--space-3) 0}.control-children{padding:0 0 var(--space-3) var(--space-4)}summary{cursor:pointer;font-weight:650;padding:var(--space-3) 0;min-height:44px;overflow-wrap:anywhere}summary:focus-visible{outline:3px solid var(--focus)}.field-row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3)}.field-row label{flex:1;min-width:10rem;margin:0}.field-row input,.field-row select{margin-top:var(--space-2)}.field-row button{align-self:end}.control-heading{font-weight:650;flex:1;overflow-wrap:anywhere}.add-property{display:flex;gap:var(--space-2);margin:var(--space-4) 0}.add-property input{min-width:0}.add-property button{flex-shrink:0}.source-details{margin-top:var(--space-6);border-top:1px solid var(--border)}.source-details button{margin-top:var(--space-3)}.source-details pre,#plan-inputs pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--ink-muted)}select{font:inherit;max-width:100%;width:100%;padding:.72rem .8rem;border:1px solid var(--border-strong);border-radius:.45rem;background:var(--surface);color:var(--ink-strong)}select:focus{outline:3px solid var(--focus)}#plan-input-form{grid-template-columns:1fr 1fr;margin-top:var(--space-4)}#plan-input-form button{grid-column:1/-1;justify-self:start}.policy-field code{word-break:break-word}.policy-field button{font-size:.85rem;min-height:44px}.editor-body>.editor-footer{border-top:1px solid var(--border);padding-top:var(--space-4)}
 @media(max-width:760px){.shell{grid-template-columns:1fr}aside{padding:var(--space-4);gap:var(--space-4)}nav{grid-template-columns:repeat(3,1fr)}.nav-item{padding:var(--space-2);font-size:.8rem}.soon{display:none}.local{display:none}.topbar{padding:0 var(--space-4)}main{padding:var(--space-8) var(--space-4)}form,#run-form,#compare-form,#plan-input-form{grid-template-columns:1fr}.open-card .actions{display:grid;grid-template-columns:1fr 1fr}.editor header,.evidence header{align-items:flex-start;gap:var(--space-3)}.editor-footer{align-items:stretch;flex-direction:column}.editor-footer .status{min-width:0}.editor-footer .actions{display:grid;grid-template-columns:1fr}.editor-footer button{width:100%}.editor-body{padding:var(--space-4)}.empty{padding:var(--space-8) var(--space-4)}.field-row{align-items:stretch;flex-direction:column}.control-children{padding-left:var(--space-3)}.add-property{flex-wrap:wrap}.add-property input{flex:1;min-width:8rem}}
 #dataset-review pre{max-height:20rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.author-case-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3);margin-top:var(--space-6);padding-top:var(--space-6);border-top:1px solid var(--border)}.author-case-form button{justify-self:start}.authored-case{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) 0;border-bottom:1px solid var(--border)}.authored-case span{overflow-wrap:anywhere}.authored-case button{min-height:44px}@media(max-width:760px){.author-case-form{grid-template-columns:1fr}.authored-case{align-items:flex-start;flex-direction:column}}
 @media(max-width:760px){#dataset-form{grid-template-columns:1fr}#dataset-form .wide{grid-column:auto}}
 </style>
 </head>
@@ -182,6 +227,11 @@ h3{margin:0 0 var(--space-2);font-size:1.1rem}.control-note{color:var(--ink-mute
 <section class="card commands"><h2>Suite plan review</h2><p class="control-note">Review an existing local suite and its explicit case selection. This step reads plan references for validation; it does not execute or approve them.</p>
 <form id="suite-plan-form"><label for="suite-plan-path">Suite plan file<input id="suite-plan-path" required placeholder="suites/rehearsal.json" autocomplete="off"></label><label for="suite-case-ids">Case IDs <span>Optional, comma separated.</span><input id="suite-case-ids" placeholder="orders, customers" autocomplete="off"></label><label for="suite-tags">Tags <span>Optional, comma separated; all tags must match.</span><input id="suite-tags" placeholder="migration" autocomplete="off"></label><div class="field-row"><label for="suite-shard-index">Shard index <span>Optional, starts at 0.</span><input id="suite-shard-index" type="number" min="0" max="99" step="1"></label><label for="suite-shard-count">Shard count <span>Set with shard index.</span><input id="suite-shard-count" type="number" min="1" max="100" step="1"></label></div><label for="suite-output">Planned output folder <span>Optional new path inside this workspace. Validation does not publish it.</span><input id="suite-output" placeholder="runs/rehearsal-1" autocomplete="off"></label><button>Validate and list cases</button></form>
 <p id="suite-plan-status" class="status" role="status">Choose a suite inside this workspace.</p><div id="suite-plan-result" hidden><p id="suite-plan-summary"></p><p class="digest">Suite policy SHA-256: <code id="suite-plan-sha"></code></p><p id="suite-plan-output"></p><div id="suite-plan-cases"></div><p class="control-note">Plan references are displayed for local review. Execution revalidates this selection.</p><button id="suite-to-run" type="button">Continue to Run</button></div></section>
+<section class="card commands"><h2>Author suite v2</h2><p class="control-note">Compose ordered cases from existing local recipes and explicit input references. Review at the destination before exporting an unapproved draft; authoring never executes inputs.</p>
+<form id="suite-author-form"><label for="author-destination">New draft file <span>Workspace-relative path under an existing directory.</span><input id="author-destination" required placeholder="suites/rehearsal.json" autocomplete="off"></label><label for="author-defaults">Default limits <span>JSON object with released positive integer limits; use {} to omit.</span><input id="author-defaults" value="{}" spellcheck="false"></label><button>Review suite draft</button></form>
+<div id="suite-author-cases" aria-live="polite"></div>
+<form id="author-case-form" class="author-case-form"><label for="author-id">Case ID<input id="author-id" required placeholder="orders" autocomplete="off"></label><label for="author-recipe">Recipe reference<input id="author-recipe" required placeholder="../recipes/orders.json" autocomplete="off"></label><label for="author-baseline">Baseline reference<input id="author-baseline" required placeholder="../inputs/baseline.csv" autocomplete="off"></label><label for="author-candidate">Candidate reference<input id="author-candidate" required placeholder="../inputs/candidate.csv" autocomplete="off"></label><label for="author-tags">Tags <span>Comma separated, sorted and unique.</span><input id="author-tags" placeholder="critical, finance"></label><label for="author-description">Description<input id="author-description" maxlength="500"></label><label for="author-limits">Case limits <span>JSON object; use {} to inherit defaults.</span><input id="author-limits" value="{}" spellcheck="false"></label><label for="author-engine">Execution engine<select id="author-engine"><option value="">Default</option><option value="sqlite">SQLite</option></select></label><label for="author-max_temp_bytes">Max temporary bytes <span>Only with SQLite; positive integer.</span><input id="author-max_temp_bytes" type="number" min="1" step="1"></label><label for="author-expected_policy_sha256">Expected policy SHA-256 <span>Explicit optional lock.</span><input id="author-expected_policy_sha256" pattern="[a-f0-9]{64}" autocomplete="off"></label><div class="actions"><button>Add or update case</button><button id="author-discard" class="secondary" type="button">Discard case edits</button></div></form>
+<p id="suite-author-status" class="status" role="status">Add cases, then review the complete draft.</p><div id="suite-author-review" hidden><p>Unapproved draft · ordered cases: <strong id="suite-author-order"></strong></p><p class="digest">Suite policy SHA-256: <code id="suite-author-policy"></code></p><button id="suite-author-export" type="button" disabled>Export unapproved draft</button></div></section>
 <section id="plan-editor" class="card editor" hidden><header><h2>Verification plan</h2><button id="clear-plan" class="secondary clear" type="button">Clear plan</button></header>
 <div class="meta"><span>Unapproved draft</span><span id="recipe-version"></span><span id="comparison-mode"></span><span class="digest">Policy <code id="policy-sha"></code></span></div>
 <div class="editor-body"><h3>Policy controls</h3><p id="controls-status" class="control-note" role="status"></p><div id="policy-controls"></div><button id="apply-fields" class="secondary" type="button" disabled>Apply field edits</button>
@@ -299,7 +349,9 @@ async function exportHandoff(format,button,input){if(!handoffVerified)return;con
 statementButton.addEventListener('click',()=>exportHandoff('statement',statementButton,document.getElementById('statement-output')));
 reportButton.addEventListener('click',()=>exportHandoff('report',reportButton,document.getElementById('report-output')));
 __PLAN_CONTROLS__
+__SUITE_AUTHORING__
 </script></body></html>""".replace("__PLAN_PICKER__", PLAN_PICKER_SCRIPT)
     .replace("__PLAN_CONTROLS__", PLAN_CONTROLS_SCRIPT)
+    .replace("__SUITE_AUTHORING__", SUITE_AUTHORING_SCRIPT)
     .encode()
 )

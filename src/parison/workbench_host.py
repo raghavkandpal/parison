@@ -39,6 +39,7 @@ from .workbench import (
 )
 from .workbench_page import PAGE
 from .workbench_plans import edit_plan, plan_controls
+from .workbench_suite_authoring import export_suite_draft, review_suite_draft
 
 _MAX_REQUEST_BYTES = 262_144
 _MAX_REQUEST_THREADS = 8
@@ -441,6 +442,23 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 except ParisonError:
                     self._headers(422, "application/json")
                     return
+            elif path == "/api/suite-draft-review" and set(request) == {"destination", "draft"}:
+                try:
+                    payload = review_suite_draft(root, request["destination"], request["draft"])
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/suite-draft-export" and set(request) == {"destination", "draft", "review_id"}:
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
+                try:
+                    payload = export_suite_draft(root, request["destination"], request["draft"], request["review_id"])
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+                finally:
+                    run_lock.release()
             elif path == "/api/dataset-review" and set(request) == {
                 "declaration",
                 "physical_root",
