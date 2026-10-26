@@ -26,6 +26,7 @@ from .manifesting import (
     verify_dataset_manifest_v2,
 )
 from .policies import list_suite
+from .suites import preview_suite_recovery
 from .workbench import (
     compare_projection,
     execute_run,
@@ -40,6 +41,12 @@ from .workbench import (
 from .workbench_page import PAGE
 from .workbench_plans import edit_plan, plan_controls
 from .workbench_suite_authoring import export_suite_draft, review_suite_draft
+from .workbench_suite_recovery import (
+    abandon_owned_workspace,
+    recovery_selection,
+    require_owned_workspace,
+    workspace_owner,
+)
 
 _MAX_REQUEST_BYTES = 262_144
 _MAX_REQUEST_THREADS = 8
@@ -71,6 +78,8 @@ def _workspace_path(root: Path, value: object) -> Path | None:
     candidate = root.joinpath(*parts)
     current = root
     for part in parts:
+        if (current / ".workbench-owner").exists():
+            return None
         current /= part
         if current.is_symlink():
             return None
@@ -566,16 +575,89 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 finally:
                     active_kind["value"] = None
                     run_lock.release()
-            elif path == "/api/suite-run" and set(request) == {
+            elif path == "/api/suite-abandon" and set(request) == {"workspace"}:
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
+                try:
+                    retained = _workspace_path(root, request["workspace"])
+                    if retained is None:
+                        raise ParisonError("unsafe retained workspace")
+                    abandon_owned_workspace(root, retained)
+                    payload = {"status": "abandoned"}
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+                finally:
+                    run_lock.release()
+            elif path == "/api/suite-recovery" and set(request) == {
                 "plan",
                 "case_ids",
                 "tags",
                 "shard_index",
                 "shard_count",
-                "output",
-                "plan_sha256",
-                "members_sha256",
+                "workspace",
             }:
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
+                try:
+                    _suite_plan(
+                        root,
+                        request["plan"],
+                        request["case_ids"],
+                        request["tags"],
+                        request["shard_index"],
+                        request["shard_count"],
+                        "",
+                    )
+                    retained = _workspace_path(root, request["workspace"])
+                    if retained is None:
+                        raise ParisonError("unsafe retained workspace")
+                    require_owned_workspace(root, retained)
+                    payload = preview_suite_recovery(
+                        _workspace_path(root, request["plan"]),
+                        retained,
+                        case_ids=request["case_ids"],
+                        tags=request["tags"],
+                        shard_index=request["shard_index"],
+                        shard_count=request["shard_count"],
+                        checkpoint_context=recovery_selection(
+                            request["case_ids"], request["tags"], request["shard_index"], request["shard_count"]
+                        ),
+                    )
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+                finally:
+                    run_lock.release()
+            elif path == "/api/suite-run" and set(request) in (
+                {
+                    "plan",
+                    "case_ids",
+                    "tags",
+                    "shard_index",
+                    "shard_count",
+                    "output",
+                    "plan_sha256",
+                    "members_sha256",
+                },
+                {
+                    "plan",
+                    "case_ids",
+                    "tags",
+                    "shard_index",
+                    "shard_count",
+                    "output",
+                    "plan_sha256",
+                    "members_sha256",
+                    "workspace",
+                    "mode",
+                },
+            ):
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
                 try:
                     preview = _suite_plan(
                         root,
@@ -596,11 +678,25 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     output = _workspace_path(root, request["output"])
                     if plan is None or output is None:
                         raise ParisonError("unsafe suite path")
+                    retained = None
+                    mode = request.get("mode", "temporary")
+                    if not isinstance(mode, str) or mode not in {"temporary", "restart", "resume"}:
+                        raise ParisonError("invalid recovery mode")
+                    if mode == "temporary":
+                        if request.get("workspace", "") != "":
+                            raise ParisonError("temporary run cannot retain state")
+                    else:
+                        retained = _workspace_path(root, request["workspace"])
+                        if retained is None or output.is_relative_to(retained) or retained.is_relative_to(output):
+                            raise ParisonError("retained workspace overlaps output")
+                        workspace_owner(root, retained)
+                        if mode == "resume":
+                            require_owned_workspace(root, retained)
+                        elif retained.exists():
+                            raise ParisonError("restart requires a new retained workspace")
                 except ParisonError:
+                    run_lock.release()
                     self._headers(422, "application/json")
-                    return
-                if not run_lock.acquire(blocking=False):
-                    self._headers(409, "application/json")
                     return
                 try:
                     run_cancel.clear()
@@ -616,6 +712,8 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                         request["shard_count"],
                         cancelled=run_cancel.is_set,
                         progress=set_suite_progress,
+                        retained_workspace=retained,
+                        resume=mode == "resume",
                     )
                     suite_state["phase"] = "complete"
                 except ParisonError as exc:

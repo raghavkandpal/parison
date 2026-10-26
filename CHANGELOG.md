@@ -6,6 +6,10 @@ All notable changes will be documented in this file.
 
 ### Added
 
+- Recover selected Workbench suites through explicit retained restart/resume,
+  authoritative reusable-case preview and guarded local-state deletion. Retained
+  evidence stays sensitive; verified output survives History registration failure.
+
 - Add an opt-in suite service envelope with a versioned input-binding record,
   captured from selected local sources and checked against completed children.
   CLI and dataset publication support remain under development.

@@ -6,6 +6,9 @@ Start with [the current development state](CURRENT.md) for the active version an
 
 ## 2.2 — accepted six-feature train
 
+- [Recoverable suites continuation](2.2/239-recovery-session-handoff.md)
+
+- [Recoverable suite execution contract and implementation](2.2/238-recoverable-suite-execution-contract.md)
 - [Workbench suite-v2 authoring contract](2.2/237-workbench-suite-authoring-contract.md)
 - [Dataset evidence v2 implementation contract](2.2/236-dataset-evidence-v2-contract.md)
 

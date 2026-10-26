@@ -31,8 +31,9 @@ from parison.core import (
     verify_bundle,
 )
 from parison.evidence import _verify_suite_input_bindings
-from parison.suites import compare_suites
+from parison.suites import compare_suites, preview_suite_recovery
 from parison.workbench import compare_projection
+from parison.workbench_suite_recovery import abandon_owned_workspace, require_owned_workspace, workspace_owner
 
 
 def _crashing_suite_worker(case, *args):
@@ -537,13 +538,21 @@ class SuiteTests(unittest.TestCase):
     def test_resume_reuses_only_verified_current_children(self):
         self.write_plan_v2([self.case("first"), self.case("second")])
         workspace = self.root / "workspace"
-        run_suite(self.plan, self.root / "initial", workspace=workspace)
+        run_suite(
+            self.plan, self.root / "initial", workspace=workspace, workspace_owner=workspace_owner(self.root, workspace)
+        )
+        require_owned_workspace(self.root, workspace)
+        preview = preview_suite_recovery(self.plan, workspace)
+        self.assertEqual([case["reusable"] for case in preview["cases"]], [True, True])
         with patch("parison.suites.compare", side_effect=AssertionError("comparison should be reused")):
             resumed = run_suite(self.plan, self.root / "resumed", workspace=workspace, resume=True)
         self.assertEqual(resumed["outcome"], "PASS")
         self.assertEqual(verify_bundle(self.root / "resumed")["kind"], "suite")
 
         (self.root / "candidate.csv").write_text("id,value\na,2\n", encoding="utf-8")
+        self.assertEqual(
+            [case["reusable"] for case in preview_suite_recovery(self.plan, workspace)["cases"]], [False, False]
+        )
         calls = 0
         from parison.core import compare as real_compare
 
@@ -556,6 +565,22 @@ class SuiteTests(unittest.TestCase):
             changed = run_suite(self.plan, self.root / "changed", workspace=workspace, resume=True)
         self.assertEqual(calls, 2)
         self.assertEqual(changed["outcome"], "FAIL")
+        abandon_owned_workspace(self.root, workspace)
+        self.assertFalse(workspace.exists())
+
+    def test_recovery_abandonment_rejects_unmarked_and_symlinked_workspaces(self):
+        unmarked = self.root / "unmarked"
+        unmarked.mkdir()
+        with self.assertRaisesRegex(ParisonError, "missing or unsafe"):
+            abandon_owned_workspace(self.root, unmarked)
+        self.assertTrue(unmarked.exists())
+        marked = self.root / "marked"
+        marked.mkdir()
+        (marked / ".workbench-owner").write_text(workspace_owner(self.root, marked) + "\n", encoding="ascii")
+        (marked / "link").symlink_to(unmarked, target_is_directory=True)
+        with self.assertRaisesRegex(ParisonError, "contains a symlink"):
+            abandon_owned_workspace(self.root, marked)
+        self.assertTrue(marked.exists())
 
     def test_concurrent_resume_reuses_verified_children(self):
         self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])
