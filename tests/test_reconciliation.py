@@ -12,6 +12,7 @@ from jsonschema import Draft202012Validator
 
 from parison.cli import main
 from parison.core import ParisonError, explain_recipe, inspect_bundle, load_schema, verify_bundle
+from parison.evidence import evidence_statement, export_statement, report_cutover, verify_statement
 from parison.manifesting import (
     capture_reconciliation_input_bindings,
     create_dataset_manifest_v2,
@@ -23,6 +24,7 @@ from parison.reconciliation import (
     canonical_time_alignment_bytes,
     check_conservation,
     check_identity_references,
+    diagnose_reconciliation_bundle,
     explain_reconciliation,
     explain_time_alignment,
     file_digest,
@@ -221,6 +223,24 @@ class ReconciliationContracts(unittest.TestCase):
             run_reconciliation_with_bindings(bundle, *files)
             manifest = verify_bundle(bundle)
             self.assertEqual(manifest["schema_version"], 2)
+            statement = evidence_statement(bundle)
+            self.assertEqual(statement["predicateType"], "https://parison.dev/attestations/evidence/v2")
+            self.assertEqual(statement["predicate"]["policy"]["kind"], "reconciliation")
+            Draft202012Validator(load_schema("statement-v2")).validate(statement)
+            handoff = root / "reconciliation-statement.json"
+            export_statement(bundle, handoff)
+            self.assertEqual(verify_statement(bundle, handoff)["status"], "valid")
+            self.assertNotIn(str(root), handoff.read_text())
+            forged = json.loads(handoff.read_text())
+            forged["predicate"]["coordinationOutcome"] = "FAIL"
+            changed = root / "changed-statement.json"
+            changed.write_text(json.dumps(forged), encoding="utf-8")
+            with self.assertRaisesRegex(ParisonError, "does not match"):
+                verify_statement(bundle, changed)
+            report = root / "reconciliation-report.md"
+            report_cutover(bundle, report)
+            self.assertIn("Coordination outcome", report.read_text())
+
             Draft202012Validator(load_schema("reconciliation-manifest-v2")).validate(manifest)
             self.assertNotIn(str(root), (bundle / "input-bindings.json").read_text())
             command = [
@@ -264,6 +284,44 @@ class ReconciliationContracts(unittest.TestCase):
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(ParisonError, "duplicate JSON key"):
                 verify_bundle(bundle)
+
+    def test_bound_reconciliation_cancels_between_stages_without_publication(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            output = root / "cancelled"
+            phases = []
+
+            def progress(phase):
+                phases.append(phase)
+
+            with self.assertRaisesRegex(ParisonError, "cancelled"):
+                run_reconciliation_with_bindings(
+                    output,
+                    *files,
+                    progress=progress,
+                    cancelled=lambda: phases[-1] == "relationships",
+                )
+            self.assertIn("parity", phases)
+            self.assertFalse(output.exists())
+
+    def test_bound_reconciliation_cancels_staging_before_atomic_publication(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            output = root / "cancelled-staging"
+            calls = []
+
+            def before_publish():
+                calls.append(len(calls))
+                if len(calls) == 2:
+                    raise ParisonError("workbench reconciliation cancelled")
+
+            with self.assertRaisesRegex(ParisonError, "cancelled"):
+                run_reconciliation_with_bindings(output, *files, before_publish=before_publish)
+            self.assertEqual(len(calls), 2)
+            self.assertFalse(output.exists())
+            self.assertEqual(list(root.glob(".cancelled-staging-*")), [])
 
     def test_same_file_selector_change_cannot_publish_old_reconciliation_result(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -345,6 +403,22 @@ class ReconciliationContracts(unittest.TestCase):
             publish_dataset_evidence_bundle_v2(output, manifest, root, files[1], semantic)
             self.assertEqual(verify_bundle(output)["schema_version"], 2)
             self.assertEqual(inspect_bundle(output)["binding_count"], 4)
+            statement = evidence_statement(output)
+            self.assertEqual(statement["predicate"]["bundleKind"], "dataset-evidence")
+            self.assertEqual(statement["predicate"]["policy"]["kind"], "reconciliation")
+            Draft202012Validator(load_schema("statement-v2")).validate(statement)
+            handoff = root / "dataset-statement.json"
+            export_statement(output, handoff)
+            self.assertEqual(verify_statement(output, handoff)["status"], "valid")
+            self.assertNotIn(str(root), handoff.read_text())
+
+    def test_typed_statement_wire_fixture(self):
+        payload = (ROOT / "tests/fixtures/statement-reconciliation-v2.canonical.json").read_bytes()
+        value = json.loads(payload)
+        self.assertEqual(
+            payload, (json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+        )
+        Draft202012Validator(load_schema("statement-v2")).validate(value)
 
     def test_installed_schemas_accept_contracts_and_reject_unknown_fields(self):
         for name, value in (("time-alignment", alignment()), ("reconciliation", reconciliation())):
@@ -823,6 +897,23 @@ class ReconciliationContracts(unittest.TestCase):
                     "nulls": "forbid",
                 }
             )
+            declaration["checks"].append(
+                {
+                    "id": "payout-total",
+                    "kind": "conservation",
+                    "parent_dataset": "payouts",
+                    "parent_identity": "payout-id",
+                    "parent_group_columns": ["payout_id"],
+                    "child_dataset": "payments",
+                    "child_group_columns": ["payout_id"],
+                    "parent_measure": "amount",
+                    "child_measure": "amount",
+                    "operator": "sum",
+                    "nulls": "forbid",
+                    "comparison": "exact",
+                    "tolerance": None,
+                }
+            )
             files[1].write_text(json.dumps(declaration), encoding="utf-8")
             for side in ("baseline", "candidate"):
                 files[3]["payments"][side].write_text(
@@ -831,6 +922,7 @@ class ReconciliationContracts(unittest.TestCase):
             result = run_reconciliation(*files)
             self.assertEqual([item["outcome"] for item in result["datasets"]], ["PASS", "PASS"])
             self.assertEqual(result["outcome"], "FAIL")
+            self.assertTrue(all(item["outcome"] == "FAIL" for side in result["conservation"].values() for item in side))
             self.assertTrue(
                 all(
                     item["counts"]["orphan_rows"] == 1
@@ -838,6 +930,20 @@ class ReconciliationContracts(unittest.TestCase):
                     if item["kind"] == "reference"
                 )
             )
+            bundle = Path(temporary) / "diagnosed"
+            publish_reconciliation_bundle(bundle, result, files[0], files[1])
+            for runtime in files[3].values():
+                for side in ("baseline", "candidate"):
+                    runtime[side].unlink()
+            diagnosis = diagnose_reconciliation_bundle(bundle)
+            self.assertEqual(diagnosis["reason_counts"]["reference_orphan_rows"], 2)
+            self.assertEqual(diagnosis["reason_counts"]["conservation_child_only_groups"], 2)
+            self.assertEqual(diagnosis["dataset_outcome_counts"]["PASS"], 2)
+            for private in ("payments", "payouts", "payout_id", temporary):
+                self.assertNotIn(private, json.dumps(diagnosis))
+            with redirect_stdout(StringIO()) as stdout:
+                self.assertEqual(main(["diagnose-reconciliation", str(bundle)]), 0)
+            self.assertEqual(json.loads(stdout.getvalue()), diagnosis)
 
     def test_partitioned_backfill_can_pass_data_but_remain_inconclusive(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -14,7 +14,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from parison.core import ParisonError, compare, load_recipe, publish
-from parison.evidence import export_statement, report_cutover
+from parison.evidence import evidence_statement, export_statement, report_cutover
 from parison.project import init_project
 from parison.suites import run_suite
 from parison.workbench_host import _choose_bundle, _choose_recipe, _workspace_source, create_workbench_server
@@ -26,6 +26,178 @@ except ImportError:
 
 
 class WorkbenchHostTests(unittest.TestCase):
+    def test_reconciliation_handoff_and_source_free_diagnosis(self):
+        from parison.reconciliation import run_reconciliation_with_bindings
+        from tests.test_reconciliation import ReconciliationContracts
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            files = ReconciliationContracts()._preflight_files(root)
+            request = {
+                "alignment": files[0].name,
+                "reconciliation": files[1].name,
+                "receipt": files[2].name,
+                "datasets": [
+                    {
+                        "id": identifier,
+                        "recipe": str(sources["recipe"].relative_to(root)),
+                        "baseline": str(sources["baseline"].relative_to(root)),
+                        "candidate": str(sources["candidate"].relative_to(root)),
+                    }
+                    for identifier, sources in files[3].items()
+                ],
+                "output": "reconciled",
+            }
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+                response = self._post(connection, server, "/api/reconciliation-review", request)
+                self.assertEqual(response.status, 200)
+                reviewed = json.loads(response.read())
+                for private in ("payments", "payouts", "payout_id", str(root)):
+                    self.assertNotIn(private, json.dumps(reviewed))
+                receipt_bytes = files[2].read_bytes()
+                files[2].write_bytes(receipt_bytes + b"\n")
+                response = self._post(
+                    connection, server, "/api/reconciliation-run", {**request, "review_id": reviewed["review_id"]}
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "reconciled").exists())
+                files[2].write_bytes(receipt_bytes)
+                source = files[3]["payments"]["baseline"]
+                source_bytes = source.read_bytes()
+                source.write_bytes(source_bytes + b"\n")
+                response = self._post(
+                    connection, server, "/api/reconciliation-run", {**request, "review_id": reviewed["review_id"]}
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "reconciled").exists())
+                source.write_bytes(source_bytes)
+                response = self._post(
+                    connection, server, "/api/reconciliation-run", {**request, "review_id": reviewed["review_id"]}
+                )
+                self.assertEqual(response.status, 200)
+                executed = json.loads(response.read())
+                self.assertEqual(executed["evidence"]["kind"], "reconciliation")
+                self.assertEqual(executed["catalog_status"], "added")
+                run_reconciliation_with_bindings(root / "cli-reconciled", *files)
+                for member in (root / "reconciled").iterdir():
+                    self.assertEqual(member.read_bytes(), (root / "cli-reconciled" / member.name).read_bytes())
+                response = self._post(connection, server, "/api/evidence", {"bundle": "reconciled"})
+                self.assertEqual(response.status, 200)
+                opened = json.loads(response.read())
+                self.assertEqual(opened["dataset_outcome_counts"]["PASS"], 2)
+                self.assertNotIn("payout_id", json.dumps(opened))
+                response = self._post(connection, server, "/api/handoff-preview", {"bundle": "reconciled"})
+                self.assertEqual(response.status, 200)
+                claim = json.loads(response.read())
+                self.assertEqual(claim["predicate"]["bundleKind"], "reconciliation")
+                response = self._post(
+                    connection,
+                    server,
+                    "/api/handoff-export",
+                    {
+                        "bundle": "reconciled",
+                        "output": "typed.json",
+                        "format": "statement",
+                        **{"manifest_sha256": claim["manifest_sha256"]},
+                    },
+                )
+                self.assertEqual(response.status, 200)
+                response.read()
+                response = self._post(connection, server, "/api/reconciliation-diagnosis", {"bundle": "reconciled"})
+                self.assertEqual(response.status, 200)
+                diagnosis = json.loads(response.read())
+                self.assertEqual(diagnosis["kind"], "reconciliation-diagnosis")
+                self.assertNotIn(str(root), json.dumps(diagnosis))
+                response = self._post(connection, server, "/api/history", {})
+                self.assertEqual(response.status, 200)
+                self.assertIn("reconciliation", [item["kind"] for item in json.loads(response.read())])
+                second = {**request, "output": "uncataloged"}
+                response = self._post(connection, server, "/api/reconciliation-review", second)
+                self.assertEqual(response.status, 200)
+                second_review = json.loads(response.read())
+                with patch("parison.workbench.catalog_add", side_effect=ParisonError("catalog unavailable")):
+                    response = self._post(
+                        connection,
+                        server,
+                        "/api/reconciliation-run",
+                        {**second, "review_id": second_review["review_id"]},
+                    )
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read())["catalog_status"], "failed")
+                self.assertEqual(evidence_statement(root / "uncataloged")["predicate"]["bundleKind"], "reconciliation")
+                third = {**request, "output": "cancelled"}
+                response = self._post(connection, server, "/api/reconciliation-review", third)
+                self.assertEqual(response.status, 200)
+                third_review = json.loads(response.read())
+                started, release, finished = threading.Event(), threading.Event(), {}
+
+                def held_run(*_args, **kwargs):
+                    kwargs["progress"]("parity")
+                    started.set()
+                    release.wait(timeout=5)
+                    kwargs["before_publish"]()
+
+                def submit():
+                    with closing(http.client.HTTPConnection(*server.server_address)) as running:
+                        result = self._post(
+                            running,
+                            server,
+                            "/api/reconciliation-run",
+                            {**third, "review_id": third_review["review_id"]},
+                        )
+                        finished["status"] = result.status
+                        result.read()
+
+                with patch("parison.workbench_host.execute_reconciliation_run", side_effect=held_run):
+                    pending = threading.Thread(target=submit)
+                    pending.start()
+                    self.assertTrue(started.wait(timeout=5))
+                    response = self._post(connection, server, "/api/cancel-reconciliation", {})
+                    self.assertEqual(response.status, 200)
+                    response.read()
+                    release.set()
+                    pending.join(timeout=5)
+                self.assertEqual(finished["status"], 422)
+                self.assertFalse((root / "cancelled").exists())
+                fourth = {**request, "output": "stale-during"}
+                response = self._post(connection, server, "/api/reconciliation-review", fourth)
+                self.assertEqual(response.status, 200)
+                fourth_review = json.loads(response.read())
+                from parison.reconciliation import compare as ordinary_compare
+
+                changed_once = False
+
+                def change_receipt(*args, **kwargs):
+                    nonlocal changed_once
+                    result = ordinary_compare(*args, **kwargs)
+                    if not changed_once:
+                        files[2].write_bytes(receipt_bytes + b"\n")
+                        changed_once = True
+                    return result
+
+                with patch("parison.reconciliation.compare", side_effect=change_receipt):
+                    response = self._post(
+                        connection,
+                        server,
+                        "/api/reconciliation-run",
+                        {**fourth, "review_id": fourth_review["review_id"]},
+                    )
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "stale-during").exists())
+                files[2].write_bytes(receipt_bytes)
+                connection.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
     def test_suite_series_review_and_export_recheck_current_bundles(self):
         import shutil
 

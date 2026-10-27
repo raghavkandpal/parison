@@ -22,6 +22,7 @@ from .evidence import inspect_bundle, publish, verify_bundle
 from .evolution import diff_policy_texts, summarize_policy_diff
 from .inputs import InputCancellation, validate_inputs
 from .policies import explain_recipe_text, load_recipe
+from .reconciliation import run_reconciliation_with_bindings
 from .suites import compare_suites, run_suite
 from .workbench_plans import plan_controls
 from .workbench_suite_recovery import recovery_selection
@@ -77,6 +78,12 @@ _COMMON_FIELDS = (
     "resource_limits",
     "input_sha256",
     "policy_sha256",
+    "alignment_sha256",
+    "reconciliation_sha256",
+    "receipt_sha256",
+    "alignment",
+    "dataset_outcome_counts",
+    "relationship_outcome_counts",
     "bundle_sha256",
     "manifest_files",
 )
@@ -212,6 +219,37 @@ def execute_suite_run(
     return {"evidence": projection, "catalog_status": indexed["status"]}
 
 
+def execute_reconciliation_run(
+    workspace: str | Path,
+    output: str | Path,
+    alignment: str | Path,
+    declaration: str | Path,
+    receipt: str | Path,
+    inputs: dict,
+    *,
+    cancelled=None,
+    progress=None,
+    before_publish=None,
+) -> dict[str, Any]:
+    """Publish one bound reconciliation and report a later catalog failure honestly."""
+    run_reconciliation_with_bindings(
+        output,
+        alignment,
+        declaration,
+        receipt,
+        inputs,
+        cancelled=cancelled,
+        progress=progress,
+        before_publish=before_publish,
+    )
+    evidence = inspect_bundle(output)
+    try:
+        indexed = catalog_add(_catalog_path(workspace), output)
+    except ParisonError:
+        return {"evidence": evidence, "catalog_status": "failed"}
+    return {"evidence": evidence, "catalog_status": indexed["status"]}
+
+
 def history_projection(workspace: str | Path) -> list[dict[str, Any]]:
     """Return workspace-relative summary-safe history from the local catalog."""
     root = Path(workspace).resolve()
@@ -219,7 +257,9 @@ def history_projection(workspace: str | Path) -> list[dict[str, Any]]:
     if not database.exists():
         return []
     runs = [
-        run for run in list_runs(database, insertion_order=True) if run.get("kind") in {"run", "suite", "suite-shard"}
+        run
+        for run in list_runs(database, insertion_order=True)
+        if run.get("kind") in {"run", "suite", "suite-shard", "reconciliation", "dataset-evidence"}
     ]
     projected = []
     for run in runs:

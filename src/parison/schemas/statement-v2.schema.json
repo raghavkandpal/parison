@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/statement-v2.schema.json",
+  "title": "Parison typed evidence Statement v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "_type",
+    "subject",
+    "predicateType",
+    "predicate"
+  ],
+  "properties": {
+    "_type": {
+      "const": "https://in-toto.io/Statement/v1"
+    },
+    "subject": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "digest"
+        ],
+        "properties": {
+          "name": {
+            "const": "manifest.json"
+          },
+          "digest": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sha256"
+            ],
+            "properties": {
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        }
+      }
+    },
+    "predicateType": {
+      "const": "https://parison.dev/attestations/evidence/v2"
+    },
+    "predicate": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/reconciliation"
+        },
+        {
+          "$ref": "#/$defs/dataset"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "sha256"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "suite",
+            "reconciliation"
+          ]
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "reconciliation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundleKind",
+        "complete",
+        "outcome",
+        "parisonVersion",
+        "schemaVersion",
+        "policy",
+        "alignmentSha256",
+        "receiptSha256",
+        "coordinationMode",
+        "coordinationOutcome",
+        "reconciliationSha256"
+      ],
+      "properties": {
+        "bundleKind": {
+          "const": "reconciliation"
+        },
+        "complete": {
+          "const": true
+        },
+        "outcome": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "INCONCLUSIVE"
+          ]
+        },
+        "parisonVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schemaVersion": {
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "policy": {
+          "$ref": "#/$defs/policy"
+        },
+        "alignmentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "receiptSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "coordinationMode": {
+          "enum": [
+            "source-snapshot",
+            "watermark",
+            "declared-cutoff"
+          ]
+        },
+        "coordinationOutcome": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "INCONCLUSIVE"
+          ]
+        },
+        "reconciliationSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundleKind",
+        "complete",
+        "outcome",
+        "parisonVersion",
+        "schemaVersion",
+        "policy",
+        "manifestSha256",
+        "semanticResult"
+      ],
+      "properties": {
+        "bundleKind": {
+          "const": "dataset-evidence"
+        },
+        "complete": {
+          "const": true
+        },
+        "outcome": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "INCONCLUSIVE"
+          ]
+        },
+        "parisonVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schemaVersion": {
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "policy": {
+          "$ref": "#/$defs/policy"
+        },
+        "manifestSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "semanticResult": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "outcome",
+            "manifest_sha256"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "suite",
+                "reconciliation"
+              ]
+            },
+            "outcome": {
+              "enum": [
+                "PASS",
+                "FAIL",
+                "INCONCLUSIVE"
+              ]
+            },
+            "manifest_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "input_bindings_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -931,8 +931,18 @@ def run_reconciliation(
     max_distinct_rows: int = 100_000,
     max_temp_bytes: int = 5_000_000_000,
     temp_directory: str | Path | None = None,
+    cancelled=None,
+    progress=None,
 ) -> dict[str, Any]:
     """Compose alignment, existing parity and all declared relationship predicates."""
+
+    def checkpoint(phase: str) -> None:
+        if progress is not None:
+            progress(phase)
+        if cancelled is not None and cancelled():
+            raise ParisonError("workbench reconciliation cancelled")
+
+    checkpoint("preflight")
     sources = tuple(inputs[dataset_id][side] for dataset_id in sorted(inputs) for side in ("baseline", "candidate"))
     before = {str(source): _source_digest(source) for source in sources}
     alignment = preflight_alignment(
@@ -944,9 +954,11 @@ def run_reconciliation(
         max_decoded_bytes,
         max_rows,
     )
+    checkpoint("parity")
     declaration = explain_reconciliation(reconciliation_path)
     parity = []
     for dataset in declaration["datasets"]:
+        checkpoint("parity")
         dataset_id = dataset["id"]
         recipe = load_recipe(inputs[dataset_id]["recipe"])
         mode = recipe["comparison_mode"]
@@ -978,6 +990,7 @@ def run_reconciliation(
                 "discrepancy_count": result["discrepancy_count"],
             }
         )
+    checkpoint("relationships")
     relationships = check_identity_references(
         reconciliation_path,
         inputs,
@@ -989,6 +1002,7 @@ def run_reconciliation(
         max_temp_bytes,
         temp_directory,
     )
+    checkpoint("conservation")
     if any(check["kind"] == "conservation" for check in declaration["checks"]):
         conservation = check_conservation(
             reconciliation_path,
@@ -1003,6 +1017,7 @@ def run_reconciliation(
         )
     else:
         conservation = {"outcome": "PASS", "sides": {"baseline": [], "candidate": []}}
+    checkpoint("verifying")
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while reconciliation was running")
     component_outcomes = [
@@ -1048,6 +1063,7 @@ def run_reconciliation_with_bindings(
     reconciliation_path: str | Path,
     receipt_path: str | Path,
     inputs: dict[str, dict[str, str | Path]],
+    before_publish=None,
     **limits: Any,
 ) -> dict[str, Any]:
     """Run and publish a reconciliation with a fresh semantic input record."""
@@ -1059,7 +1075,11 @@ def run_reconciliation_with_bindings(
     if capture_reconciliation_input_bindings(declaration, inputs) != before:
         raise ParisonError("reconciliation inputs changed during execution")
     _verify_reconciliation_input_bindings(before, result, declaration)
-    _publish_reconciliation_bundle(output, result, alignment_path, reconciliation_path, before, inputs)
+    if before_publish is not None:
+        before_publish()
+    _publish_reconciliation_bundle(
+        output, result, alignment_path, reconciliation_path, before, inputs, before_publish=before_publish
+    )
     return result
 
 
@@ -1134,6 +1154,8 @@ def _publish_reconciliation_bundle(
     reconciliation_path: str | Path,
     input_bindings: dict[str, Any] | None = None,
     input_sources: dict[str, dict[str, str | Path]] | None = None,
+    *,
+    before_publish=None,
 ) -> None:
     target = Path(output)
     if target.exists():
@@ -1189,6 +1211,8 @@ def _publish_reconciliation_bundle(
             raise ParisonError("reconciliation input bindings changed during publication")
         if input_bindings is not None:
             verify_reconciliation_bundle(stage)
+        if before_publish is not None:
+            before_publish()
         _rename_no_replace(stage, target)
         stage = None
     except ParisonError:
@@ -1474,4 +1498,56 @@ def inspect_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
         "runtime": manifest["runtime"],
         "bundle_sha256": file_digest(Path(directory) / "manifest.json"),
         "manifest_files": sorted(manifest["files"]),
+    }
+
+
+def diagnose_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
+    """Count fixed failure reasons from verified preserved evidence only."""
+    root = Path(directory)
+    manifest = verify_reconciliation_bundle(root)
+    path = root / "reconciliation-result.json"
+    manifest_path = root / "manifest.json"
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+        if path.is_symlink() or manifest_path.is_symlink():
+            raise ParisonError("reconciliation changed during diagnosis")
+        if json.loads(manifest_bytes, object_pairs_hook=_object) != manifest:
+            raise ParisonError("reconciliation changed during diagnosis")
+        payload = path.read_bytes()
+        if hashlib.sha256(payload).hexdigest() != manifest["files"][path.name]:
+            raise ParisonError("reconciliation changed during diagnosis")
+        result = json.loads(payload, object_pairs_hook=_object)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ParisonError("cannot read reconciliation diagnosis") from exc
+    reasons = {
+        "identity_duplicate_keys": 0,
+        "identity_null_key_rows": 0,
+        "reference_orphan_rows": 0,
+        "reference_ambiguous_parent_rows": 0,
+        "reference_null_failure_rows": 0,
+        "conservation_different_groups": 0,
+        "conservation_child_only_groups": 0,
+        "conservation_duplicate_parent_groups": 0,
+        "conservation_null_measure_rows": 0,
+        "conservation_parent_without_children_groups": 0,
+    }
+    for side in ("baseline", "candidate"):
+        for item in result["relationships"][side] + result["conservation"][side]:
+            for name, count in item["counts"].items():
+                key = f"{item['kind']}_{name}"
+                if key in reasons:
+                    reasons[key] += count
+    try:
+        if path.read_bytes() != payload or manifest_path.read_bytes() != manifest_bytes:
+            raise ParisonError("reconciliation changed during diagnosis")
+    except OSError as exc:
+        raise ParisonError("reconciliation changed during diagnosis") from exc
+    return {
+        "kind": "reconciliation-diagnosis",
+        "outcome": result["outcome"],
+        "alignment_outcome": result["alignment"]["outcome"],
+        "alignment_reason_codes": result["alignment"]["reason_codes"],
+        "dataset_outcome_counts": summarize_reconciliation_result(result)["dataset_outcome_counts"],
+        "reason_counts": reasons,
+        "bundle_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
     }

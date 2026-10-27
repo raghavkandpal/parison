@@ -74,6 +74,7 @@ from .project import init_project
 from .reconciliation import (
     check_conservation,
     check_identity_references,
+    diagnose_reconciliation_bundle,
     explain_reconciliation,
     explain_time_alignment,
     inspect_reconciliation_bundle,
@@ -267,6 +268,10 @@ def parser() -> argparse.ArgumentParser:
         "inspect-reconciliation", help="print summary-safe metadata from a verified reconciliation bundle"
     )
     inspect_reconciliation_parser.add_argument("bundle")
+    diagnose_reconciliation_parser = commands.add_parser(
+        "diagnose-reconciliation", help="derive fixed, summary-safe reasons from a verified reconciliation bundle"
+    )
+    diagnose_reconciliation_parser.add_argument("bundle")
     create_manifest = commands.add_parser(
         "create-dataset-manifest", help="bind explicitly named local files to a deterministic manifest"
     )
@@ -363,6 +368,7 @@ def parser() -> argparse.ArgumentParser:
             "suite-manifest-v2",
             "suite-manifest-v3",
             "statement",
+            "statement-v2",
             "schema-evolution",
             "policy-diff",
             "time-alignment",
@@ -909,6 +915,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "inspect-reconciliation":
             print(json.dumps(inspect_reconciliation_bundle(args.bundle), indent=2, sort_keys=True))
+            return 0
+        if args.command == "diagnose-reconciliation":
+            print(json.dumps(diagnose_reconciliation_bundle(args.bundle), indent=2, sort_keys=True))
             return 0
         if args.command == "create-dataset-manifest":
             if args.manifest_version == 2:

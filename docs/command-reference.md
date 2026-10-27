@@ -9,7 +9,7 @@ end-to-end tasks, use the [current user guide](user-guide.md). Do not edit this 
 Compare data-pipeline outputs deterministically
 
 positional arguments:
-  {init,validate-recipe,explain,validate-evolution,explain-evolution,compile-evolution,diff-policy,validate-time-alignment,explain-time-alignment,validate-reconciliation,explain-reconciliation,preflight-alignment,check-identity-references,check-conservation,reconcile,verify-reconciliation,inspect-reconciliation,create-dataset-manifest,validate-dataset-manifest,explain-dataset-manifest,verify-dataset-manifest,publish-dataset-evidence,capture-reproducibility,diff-reproducibility,schema,export-editor-schemas,validate-suite,list-suite,run-suite,assemble-suite,report-ci,validate-inputs,draft-recipe,verify,inspect,compare-suites,workbench,analyze,analyze-suites,verify-analysis,drilldown,verify-drilldown,statement,verify-statement,report-cutover,catalog,export-evidence,compare}
+  {init,validate-recipe,explain,validate-evolution,explain-evolution,compile-evolution,diff-policy,validate-time-alignment,explain-time-alignment,validate-reconciliation,explain-reconciliation,preflight-alignment,check-identity-references,check-conservation,reconcile,verify-reconciliation,inspect-reconciliation,diagnose-reconciliation,create-dataset-manifest,validate-dataset-manifest,explain-dataset-manifest,verify-dataset-manifest,publish-dataset-evidence,capture-reproducibility,diff-reproducibility,schema,export-editor-schemas,validate-suite,list-suite,run-suite,assemble-suite,report-ci,validate-inputs,draft-recipe,verify,inspect,compare-suites,workbench,analyze,analyze-suites,verify-analysis,drilldown,verify-drilldown,statement,verify-statement,report-cutover,catalog,export-evidence,compare}
     init                create a minimal keyed migration project
     validate-recipe     validate a JSON recipe
     explain             print the effective recipe policy without reading inputs
@@ -35,6 +35,8 @@ positional arguments:
                         verify a published reconciliation bundle
     inspect-reconciliation
                         print summary-safe metadata from a verified reconciliation bundle
+    diagnose-reconciliation
+                        derive fixed, summary-safe reasons from a verified reconciliation bundle
     create-dataset-manifest
                         bind explicitly named local files to a deterministic manifest
     validate-dataset-manifest
@@ -280,6 +282,16 @@ options:
   -h, --help  show this help message and exit
 ```
 
+## `parison diagnose-reconciliation`
+
+```text
+positional arguments:
+  bundle
+
+options:
+  -h, --help  show this help message and exit
+```
+
 ## `parison create-dataset-manifest`
 
 ```text
@@ -365,7 +377,7 @@ options:
 
 ```text
 positional arguments:
-  {recipe,recipe-authoring,recipe-v2,recipe-v3,recipe-v4,recipe-v5,recipe-v6,result,result-v2,result-v3,manifest,preflight,preflight-v2,preflight-v3,preflight-v4,preflight-v5,preflight-v6,preflight-v7,preflight-v8,preflight-v9,preflight-v10,preflight-v11,preflight-v12,preflight-v13,preflight-v14,preflight-v15,preflight-v16,preflight-v17,preflight-v18,preflight-v19,preflight-v20,preflight-v21,preflight-v22,preflight-v23,preflight-v24,suite,suite-authoring,suite-v2,suite-result,suite-result-v2,suite-manifest,suite-manifest-v2,suite-manifest-v3,statement,schema-evolution,policy-diff,time-alignment,reconciliation,alignment-preflight,relationship-result,conservation-result,reconciliation-result,reconciliation-manifest-v2,dataset-manifest,dataset-manifest-v2,input-bindings-v1,manifest-result-v2,dataset-evidence-v2,reproducibility-diagnostic,reproducibility-diagnostic-v2,discrepancy-analysis,suite-series,discrepancy-drilldown}
+  {recipe,recipe-authoring,recipe-v2,recipe-v3,recipe-v4,recipe-v5,recipe-v6,result,result-v2,result-v3,manifest,preflight,preflight-v2,preflight-v3,preflight-v4,preflight-v5,preflight-v6,preflight-v7,preflight-v8,preflight-v9,preflight-v10,preflight-v11,preflight-v12,preflight-v13,preflight-v14,preflight-v15,preflight-v16,preflight-v17,preflight-v18,preflight-v19,preflight-v20,preflight-v21,preflight-v22,preflight-v23,preflight-v24,suite,suite-authoring,suite-v2,suite-result,suite-result-v2,suite-manifest,suite-manifest-v2,suite-manifest-v3,statement,statement-v2,schema-evolution,policy-diff,time-alignment,reconciliation,alignment-preflight,relationship-result,conservation-result,reconciliation-result,reconciliation-manifest-v2,dataset-manifest,dataset-manifest-v2,input-bindings-v1,manifest-result-v2,dataset-evidence-v2,reproducibility-diagnostic,reproducibility-diagnostic-v2,discrepancy-analysis,suite-series,discrepancy-drilldown}
 
 options:
   -h, --help            show this help message and exit
