@@ -86,6 +86,7 @@ from .reconciliation import (
     summarize_reconciliation_result,
     verify_reconciliation_bundle,
 )
+from .suite_series import analyze_suite_series
 from .suites import compare_suites
 from .workbench_host import serve_workbench
 
@@ -379,6 +380,7 @@ def parser() -> argparse.ArgumentParser:
             "reproducibility-diagnostic",
             "reproducibility-diagnostic-v2",
             "discrepancy-analysis",
+            "suite-series",
             "discrepancy-drilldown",
         ),
     )
@@ -499,6 +501,9 @@ operator and null policy. Suggestions are starting points, not approved policy."
     analysis.add_argument("--catalog")
     analysis.add_argument("--policy-sha256")
     analysis.add_argument("--output", required=True)
+    suite_series = commands.add_parser("analyze-suites", help="publish a bounded caller-ordered suite rehearsal series")
+    suite_series.add_argument("bundle", nargs="+")
+    suite_series.add_argument("--output", required=True)
     analysis_verify = commands.add_parser("verify-analysis", help="verify a discrepancy analysis bundle")
     analysis_verify.add_argument("bundle")
     drilldown = commands.add_parser("drilldown", help="export bounded raw samples for one discrepancy group")
@@ -646,6 +651,9 @@ def main(argv: list[str] | None = None) -> int:
                 "Analysis summarizes verified evidence; it does not establish cause, repair, approval or cutover readiness.",
                 file=sys.stderr,
             )
+            return 0
+        if args.command == "analyze-suites":
+            print(json.dumps(publish_analysis(args.output, analyze_suite_series(args.bundle)), sort_keys=True))
             return 0
         if args.command == "verify-analysis":
             print(json.dumps(verify_analysis_bundle(args.bundle), sort_keys=True))

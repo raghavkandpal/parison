@@ -70,11 +70,12 @@ def _read_verified_run(directory: str | Path) -> tuple[dict[str, Any], dict[str,
     if manifest.get("kind") is not None:
         raise ParisonError("discrepancy analysis requires an ordinary run bundle")
     try:
-        result = json.loads((path / "result.json").read_text(encoding="utf-8"), object_pairs_hook=_strict_object)
-        recipe = json.loads(
-            (path / "effective-recipe.json").read_text(encoding="utf-8"), object_pairs_hook=_strict_object
-        )
-    except (OSError, json.JSONDecodeError) as exc:
+        captured = {name: (path / name).read_bytes() for name in ("result.json", "effective-recipe.json")}
+        if any(hashlib.sha256(data).hexdigest() != manifest["files"][name] for name, data in captured.items()):
+            raise ParisonError("analysis inputs changed after verification")
+        result = json.loads(captured["result.json"], object_pairs_hook=_strict_object)
+        recipe = json.loads(captured["effective-recipe.json"], object_pairs_hook=_strict_object)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ParisonError(f"cannot read analysis inputs: {exc}") from exc
     _, after = _verified_bundle(path)
     if before != after:
@@ -486,7 +487,7 @@ def publish_analysis(output: str | Path, analysis: dict[str, Any]) -> dict[str, 
         payload = _canonical(analysis) + b"\n"
         (stage / "analysis.json").write_bytes(payload)
         manifest = {
-            "schema_version": 1,
+            "schema_version": 2 if analysis["kind"] == "suite-series" else 1,
             "kind": "discrepancy-analysis",
             "complete": True,
             "sensitivity": "summary",
@@ -528,27 +529,32 @@ def verify_analysis_bundle(directory: str | Path) -> dict[str, Any]:
         raise ParisonError(f"cannot read analysis bundle: {exc}") from exc
     digest = hashlib.sha256(payload).hexdigest()
     expected = {
-        "schema_version": 1,
+        "schema_version": 2 if isinstance(analysis, dict) and analysis.get("kind") == "suite-series" else 1,
         "kind": "discrepancy-analysis",
         "complete": True,
         "sensitivity": "summary",
-        "analysis_kind": analysis.get("kind"),
+        "analysis_kind": analysis.get("kind") if isinstance(analysis, dict) else None,
         "analysis_sha256": digest,
         "files": {"analysis.json": digest},
     }
+    _validate_analysis(analysis)
     if (
         manifest != expected
         or payload != _canonical(analysis) + b"\n"
         or manifest_bytes != _canonical(manifest) + b"\n"
     ):
         raise ParisonError("analysis bundle failed canonical integrity verification")
-    _validate_analysis(analysis)
     if manifest_path.read_bytes() != manifest_bytes or analysis_path.read_bytes() != payload:
         raise ParisonError("analysis bundle changed during verification")
     return manifest
 
 
 def _validate_analysis(analysis: Any) -> None:
+    if isinstance(analysis, dict) and analysis.get("kind") == "suite-series":
+        from .suite_series import validate_suite_series
+
+        validate_suite_series(analysis)
+        return
     common = {"analysis_version", "kind", "policy_sha256", "comparison_mode", "sensitivity", "groups"}
     if (
         not isinstance(analysis, dict)

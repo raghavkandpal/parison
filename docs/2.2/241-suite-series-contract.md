@@ -62,3 +62,10 @@ inputs; source-free verification, hostile recomputed digests, canonical fixture,
 summary disclosure, atomic no-overwrite cleanup and CLI/Workbench parity.
 Narrow tests, `make check`, independent Standards/Spec review and exact-head
 built-wheel matrix gate integration. Six features remain required for a candidate.
+
+Implementation checkpoint: the first producer, strict verifier, schema, canonical
+fixture, CLI commands and Workbench review/export are implemented. Focused tests
+cover v1/v2 parents, mixed modes, case-scoped group identity, caller order,
+source-free verification, hostile payloads, path rejection and interrupted
+staging. Exact local full-gate result, independent review and exact-head CI
+remain to be recorded before integration.

@@ -26,6 +26,68 @@ except ImportError:
 
 
 class WorkbenchHostTests(unittest.TestCase):
+    def test_suite_series_review_and_export_recheck_current_bundles(self):
+        import shutil
+
+        from parison.analysis import verify_analysis_bundle
+        from parison.suites import run_suite
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = Path(__file__).parents[1] / "examples/0.15"
+            for name in (
+                "payout-suite.json",
+                "payout-keyed.recipe.json",
+                "payout-aggregate.recipe.json",
+                "processor.csv",
+                "ledger.csv",
+            ):
+                shutil.copy2(source / name, root / name)
+            run_suite(root / "payout-suite.json", root / "first")
+            (root / "ledger.csv").write_bytes((root / "ledger.csv").read_bytes() + b"\n")
+            run_suite(root / "payout-suite.json", root / "second")
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+
+                def post(path, body, expected=200):
+                    response = self._post(connection, server, path, body)
+                    result = response.read()
+                    self.assertEqual(response.status, expected, result)
+                    return json.loads(result) if result else None
+
+                request = {"bundles": ["first", "second"]}
+                reviewed = post("/api/suite-series", request)
+                self.assertEqual(reviewed["series"]["kind"], "suite-series")
+                self.assertNotIn("payout_id", json.dumps(reviewed))
+                post("/api/suite-series", {"bundles": ["first", "../outside"]}, 422)
+                post("/api/suite-series", {"bundles": ["first", "first"]}, 422)
+                post("/api/suite-series-export", {**request, "review_id": "0" * 64, "output": "series"}, 422)
+                post(
+                    "/api/suite-series-export",
+                    {**request, "review_id": reviewed["review_id"], "output": "first/inside"},
+                    422,
+                )
+                written = post(
+                    "/api/suite-series-export", {**request, "review_id": reviewed["review_id"], "output": "series"}
+                )
+                self.assertEqual(verify_analysis_bundle(root / "series")["schema_version"], 2)
+                self.assertEqual(written["review_id"], reviewed["review_id"])
+                post(
+                    "/api/suite-series-export", {**request, "review_id": reviewed["review_id"], "output": "series"}, 422
+                )
+                (root / "second" / "cases" / "transaction-parity" / "result.json").write_text("{}", encoding="utf-8")
+                post(
+                    "/api/suite-series-export", {**request, "review_id": reviewed["review_id"], "output": "later"}, 422
+                )
+                self.assertFalse((root / "later").exists())
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
     def test_policy_review_routes_require_local_inputs_and_current_disclosure(self):
         from parison.evolution import diff_policies, summarize_policy_diff
 

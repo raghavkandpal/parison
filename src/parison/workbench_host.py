@@ -15,7 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .analysis import drill_down, export_drilldown
+from .analysis import _canonical, drill_down, export_drilldown, publish_analysis, verify_analysis_bundle
 from .core import ParisonError
 from .evidence import evidence_statement, export_statement, inspect_bundle, report_cutover
 from .inputs import _source_digest, _source_path, _source_paths
@@ -26,6 +26,7 @@ from .manifesting import (
     verify_dataset_manifest_v2,
 )
 from .policies import list_suite
+from .suite_series import MAX_RUNS, analyze_suite_series
 from .suites import preview_suite_recovery
 from .workbench import (
     compare_projection,
@@ -501,6 +502,39 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                         output, draft, physical, policy, semantic, expected_review=snapshot
                     )
                     payload = {"output": request["output"], "evidence": inspect_bundle(output)}
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+                finally:
+                    run_lock.release()
+            elif (path == "/api/suite-series" and set(request) == {"bundles"}) or (
+                path == "/api/suite-series-export" and set(request) == {"bundles", "review_id", "output"}
+            ):
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
+                try:
+                    bundles = request["bundles"]
+                    if not isinstance(bundles, list) or not 2 <= len(bundles) <= MAX_RUNS:
+                        raise ParisonError("suite series requires 2-16 explicit paths")
+                    paths = [_workspace_path(root, value) for value in bundles]
+                    if any(item is None for item in paths):
+                        raise ParisonError("unsafe suite series path")
+                    series = analyze_suite_series(paths)
+                    review_id = hashlib.sha256(_canonical(series)).hexdigest()
+                    if path == "/api/suite-series-export":
+                        output = _workspace_path(root, request["output"])
+                        if (
+                            request["review_id"] != review_id
+                            or output is None
+                            or any((parent / "manifest.json").exists() for parent in (output, *output.parents))
+                        ):
+                            raise ParisonError("suite series changed or output is unsafe")
+                        written = publish_analysis(output, series)
+                        verify_analysis_bundle(output)
+                        payload = {"review_id": review_id, "manifest_sha256": written["manifest_sha256"]}
+                    else:
+                        payload = {"review_id": review_id, "series": series}
                 except ParisonError:
                     self._headers(422, "application/json")
                     return
