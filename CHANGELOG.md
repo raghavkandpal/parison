@@ -4,6 +4,9 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+The six-feature 2.2.0 train is integrated on `develop`; candidate qualification
+is in progress. The released version remains 2.1.0.
+
 ### Added
 
 - Export typed unsigned Statements and metadata cover reports for verified
