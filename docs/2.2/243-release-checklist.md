@@ -25,8 +25,11 @@ are integrated on `develop`:
 
 - [x] `make check` on the integrated candidate preparation branch passed 503
   tests, Ruff, generated documentation and diff checks with Python 3.14.
-- [ ] Independent Standards and Spec review of `origin/main...develop` against
-  the six contracts, released compatibility and repository invariants.
+- [x] Independent Standards and Spec review of `origin/main...develop` at
+  `71b075f` found no actionable release blocker. A proposed suite-series
+  `INCONCLUSIVE` gap was disproved by a focused regression attempt: all three
+  ordinary comparison modes set `complete: false` when the outcome is
+  `INCONCLUSIVE`, so no such parent meets the series contract's complete gate.
 - [ ] Exact candidate commit passes quality CI and the full built-wheel matrix
   on Python 3.11–3.14 across Linux, macOS and Windows.
 - [ ] Clean `git archive` of that exact candidate builds wheel and source
@@ -36,13 +39,9 @@ are integrated on `develop`:
   evidence handling.
 - [ ] Reconcile candidate commit, CI run, artifact hashes and smoke result here.
 
-Integrated review at `develop` merge `71b075f` found no Standards blocker. Spec
-review found one release blocker: the suite-series contract accepts complete
-verified suites, while its producer and verifier reject complete `INCONCLUSIVE`
-members. Correct that mismatch with a regression test and repeat candidate
-qualification on the resulting integrated commit. A preliminary clean archive
-of candidate-preparation commit `1ad33c7` built a 2.2.0 wheel and sdist, but
-those artifacts are not release candidates while the blocker remains.
+A clean archive of candidate-preparation commit `1ad33c7` built a 2.2.0 wheel
+and source archive. Final candidate artifact qualification remains pending
+exact-head CI and a fresh wheel smoke.
 
 ## Publication boundary
 
