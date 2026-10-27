@@ -56,5 +56,7 @@ unchanged old Statement byte fixtures; summary disclosure assertions.
 
 Implementation checkpoint: typed reconciliation and dataset-evidence
 Statements, source-free local matching, metadata reports, schema registration
-and focused roundtrip/forgery tests are present on the feature branch. The
-Workbench reconciliation flow and remaining acceptance fixtures are pending.
+and focused roundtrip/forgery tests are present on the feature branch. Fixed
+reason-count diagnosis derives from verified bundles; CLI and Workbench handoff
+and diagnosis routes are present. Workbench declaration/input review and
+execution, remaining acceptance fixtures and final qualification are pending.

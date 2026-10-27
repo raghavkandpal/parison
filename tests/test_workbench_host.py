@@ -26,6 +26,47 @@ except ImportError:
 
 
 class WorkbenchHostTests(unittest.TestCase):
+    def test_reconciliation_handoff_and_source_free_diagnosis(self):
+        from parison.reconciliation import run_reconciliation_with_bindings
+        from tests.test_reconciliation import ReconciliationContracts
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            files = ReconciliationContracts()._preflight_files(root)
+            run_reconciliation_with_bindings(root / "reconciled", *files)
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+                response = self._post(connection, server, "/api/handoff-preview", {"bundle": "reconciled"})
+                self.assertEqual(response.status, 200)
+                claim = json.loads(response.read())
+                self.assertEqual(claim["predicate"]["bundleKind"], "reconciliation")
+                response = self._post(
+                    connection,
+                    server,
+                    "/api/handoff-export",
+                    {
+                        "bundle": "reconciled",
+                        "output": "typed.json",
+                        "format": "statement",
+                        **{"manifest_sha256": claim["manifest_sha256"]},
+                    },
+                )
+                self.assertEqual(response.status, 200)
+                response.read()
+                response = self._post(connection, server, "/api/reconciliation-diagnosis", {"bundle": "reconciled"})
+                self.assertEqual(response.status, 200)
+                diagnosis = json.loads(response.read())
+                self.assertEqual(diagnosis["kind"], "reconciliation-diagnosis")
+                self.assertNotIn(str(root), json.dumps(diagnosis))
+                connection.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
     def test_suite_series_review_and_export_recheck_current_bundles(self):
         import shutil
 

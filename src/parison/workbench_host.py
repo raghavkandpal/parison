@@ -26,6 +26,7 @@ from .manifesting import (
     verify_dataset_manifest_v2,
 )
 from .policies import list_suite
+from .reconciliation import diagnose_reconciliation_bundle
 from .suite_series import MAX_RUNS, analyze_suite_series
 from .suites import preview_suite_recovery
 from .workbench import (
@@ -802,8 +803,13 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     return
                 try:
                     statement = evidence_statement(bundle)
-                    if statement["predicate"]["bundleKind"] not in {"suite", "suite-shard"}:
-                        raise ParisonError("handoff requires a suite bundle")
+                    if statement["predicate"]["bundleKind"] not in {
+                        "suite",
+                        "suite-shard",
+                        "reconciliation",
+                        "dataset-evidence",
+                    }:
+                        raise ParisonError("handoff requires a supported verified bundle")
                     payload = {
                         "manifest_sha256": statement["subject"][0]["digest"]["sha256"],
                         "predicate": statement["predicate"],
@@ -826,16 +832,31 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     return
                 try:
                     statement = evidence_statement(bundle)
-                    if statement["predicate"]["bundleKind"] not in {"suite", "suite-shard"}:
-                        raise ParisonError("handoff requires a suite bundle")
+                    if statement["predicate"]["bundleKind"] not in {
+                        "suite",
+                        "suite-shard",
+                        "reconciliation",
+                        "dataset-evidence",
+                    }:
+                        raise ParisonError("handoff requires a supported verified bundle")
                     if statement["subject"][0]["digest"]["sha256"] != request["manifest_sha256"]:
-                        raise ParisonError("suite changed since handoff preview")
+                        raise ParisonError("bundle changed since handoff preview")
                     result = (
                         export_statement(bundle, output, expected_manifest_sha256=request["manifest_sha256"])
                         if request["format"] == "statement"
                         else report_cutover(bundle, output, expected_manifest_sha256=request["manifest_sha256"])
                     )
                     payload = {"output": request["output"], "manifest_sha256": result["bundle_sha256"]}
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/reconciliation-diagnosis" and set(request) == {"bundle"}:
+                bundle = _workspace_path(root, request["bundle"])
+                if bundle is None:
+                    self._headers(422, "application/json")
+                    return
+                try:
+                    payload = diagnose_reconciliation_bundle(bundle)
                 except ParisonError:
                     self._headers(422, "application/json")
                     return

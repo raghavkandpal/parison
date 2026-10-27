@@ -1475,3 +1475,55 @@ def inspect_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
         "bundle_sha256": file_digest(Path(directory) / "manifest.json"),
         "manifest_files": sorted(manifest["files"]),
     }
+
+
+def diagnose_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
+    """Count fixed failure reasons from verified preserved evidence only."""
+    root = Path(directory)
+    manifest = verify_reconciliation_bundle(root)
+    path = root / "reconciliation-result.json"
+    manifest_path = root / "manifest.json"
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+        if path.is_symlink() or manifest_path.is_symlink():
+            raise ParisonError("reconciliation changed during diagnosis")
+        if json.loads(manifest_bytes, object_pairs_hook=_object) != manifest:
+            raise ParisonError("reconciliation changed during diagnosis")
+        payload = path.read_bytes()
+        if hashlib.sha256(payload).hexdigest() != manifest["files"][path.name]:
+            raise ParisonError("reconciliation changed during diagnosis")
+        result = json.loads(payload, object_pairs_hook=_object)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ParisonError("cannot read reconciliation diagnosis") from exc
+    reasons = {
+        "identity_duplicate_keys": 0,
+        "identity_null_key_rows": 0,
+        "reference_orphan_rows": 0,
+        "reference_ambiguous_parent_rows": 0,
+        "reference_null_failure_rows": 0,
+        "conservation_different_groups": 0,
+        "conservation_child_only_groups": 0,
+        "conservation_duplicate_parent_groups": 0,
+        "conservation_null_measure_rows": 0,
+        "conservation_parent_without_children_groups": 0,
+    }
+    for side in ("baseline", "candidate"):
+        for item in result["relationships"][side] + result["conservation"][side]:
+            for name, count in item["counts"].items():
+                key = f"{item['kind']}_{name}"
+                if key in reasons:
+                    reasons[key] += count
+    try:
+        if path.read_bytes() != payload or manifest_path.read_bytes() != manifest_bytes:
+            raise ParisonError("reconciliation changed during diagnosis")
+    except OSError as exc:
+        raise ParisonError("reconciliation changed during diagnosis") from exc
+    return {
+        "kind": "reconciliation-diagnosis",
+        "outcome": result["outcome"],
+        "alignment_outcome": result["alignment"]["outcome"],
+        "alignment_reason_codes": result["alignment"]["reason_codes"],
+        "dataset_outcome_counts": summarize_reconciliation_result(result)["dataset_outcome_counts"],
+        "reason_counts": reasons,
+        "bundle_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+    }

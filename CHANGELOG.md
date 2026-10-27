@@ -6,6 +6,10 @@ All notable changes will be documented in this file.
 
 ### Added
 
+- Export typed unsigned Statements and metadata cover reports for verified
+  reconciliation and dataset evidence. Derive fixed, summary-safe reconciliation
+  reason counts from preserved bundles in the CLI and Workbench.
+
 - Publish and source-free verify a bounded caller-ordered suite rehearsal series
   with case-scoped discrepancy transitions and input-identity changes. CLI and
   Workbench expose the same summary-safe series without weakening policy gates.

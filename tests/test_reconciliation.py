@@ -24,6 +24,7 @@ from parison.reconciliation import (
     canonical_time_alignment_bytes,
     check_conservation,
     check_identity_references,
+    diagnose_reconciliation_bundle,
     explain_reconciliation,
     explain_time_alignment,
     file_digest,
@@ -872,6 +873,19 @@ class ReconciliationContracts(unittest.TestCase):
                     if item["kind"] == "reference"
                 )
             )
+            bundle = Path(temporary) / "diagnosed"
+            publish_reconciliation_bundle(bundle, result, files[0], files[1])
+            for runtime in files[3].values():
+                for side in ("baseline", "candidate"):
+                    runtime[side].unlink()
+            diagnosis = diagnose_reconciliation_bundle(bundle)
+            self.assertEqual(diagnosis["reason_counts"]["reference_orphan_rows"], 2)
+            self.assertEqual(diagnosis["dataset_outcome_counts"]["PASS"], 2)
+            for private in ("payments", "payouts", "payout_id", temporary):
+                self.assertNotIn(private, json.dumps(diagnosis))
+            with redirect_stdout(StringIO()) as stdout:
+                self.assertEqual(main(["diagnose-reconciliation", str(bundle)]), 0)
+            self.assertEqual(json.loads(stdout.getvalue()), diagnosis)
 
     def test_partitioned_backfill_can_pass_data_but_remain_inconclusive(self):
         with tempfile.TemporaryDirectory() as temporary:

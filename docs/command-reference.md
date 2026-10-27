@@ -9,7 +9,7 @@ end-to-end tasks, use the [current user guide](user-guide.md). Do not edit this 
 Compare data-pipeline outputs deterministically
 
 positional arguments:
-  {init,validate-recipe,explain,validate-evolution,explain-evolution,compile-evolution,diff-policy,validate-time-alignment,explain-time-alignment,validate-reconciliation,explain-reconciliation,preflight-alignment,check-identity-references,check-conservation,reconcile,verify-reconciliation,inspect-reconciliation,create-dataset-manifest,validate-dataset-manifest,explain-dataset-manifest,verify-dataset-manifest,publish-dataset-evidence,capture-reproducibility,diff-reproducibility,schema,export-editor-schemas,validate-suite,list-suite,run-suite,assemble-suite,report-ci,validate-inputs,draft-recipe,verify,inspect,compare-suites,workbench,analyze,analyze-suites,verify-analysis,drilldown,verify-drilldown,statement,verify-statement,report-cutover,catalog,export-evidence,compare}
+  {init,validate-recipe,explain,validate-evolution,explain-evolution,compile-evolution,diff-policy,validate-time-alignment,explain-time-alignment,validate-reconciliation,explain-reconciliation,preflight-alignment,check-identity-references,check-conservation,reconcile,verify-reconciliation,inspect-reconciliation,diagnose-reconciliation,create-dataset-manifest,validate-dataset-manifest,explain-dataset-manifest,verify-dataset-manifest,publish-dataset-evidence,capture-reproducibility,diff-reproducibility,schema,export-editor-schemas,validate-suite,list-suite,run-suite,assemble-suite,report-ci,validate-inputs,draft-recipe,verify,inspect,compare-suites,workbench,analyze,analyze-suites,verify-analysis,drilldown,verify-drilldown,statement,verify-statement,report-cutover,catalog,export-evidence,compare}
     init                create a minimal keyed migration project
     validate-recipe     validate a JSON recipe
     explain             print the effective recipe policy without reading inputs
@@ -35,6 +35,8 @@ positional arguments:
                         verify a published reconciliation bundle
     inspect-reconciliation
                         print summary-safe metadata from a verified reconciliation bundle
+    diagnose-reconciliation
+                        derive fixed, summary-safe reasons from a verified reconciliation bundle
     create-dataset-manifest
                         bind explicitly named local files to a deterministic manifest
     validate-dataset-manifest
@@ -271,6 +273,16 @@ options:
 ```
 
 ## `parison inspect-reconciliation`
+
+```text
+positional arguments:
+  bundle
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `parison diagnose-reconciliation`
 
 ```text
 positional arguments:
