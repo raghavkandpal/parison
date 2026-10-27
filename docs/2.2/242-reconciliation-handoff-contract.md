@@ -58,5 +58,15 @@ Implementation checkpoint: typed reconciliation and dataset-evidence
 Statements, source-free local matching, metadata reports, schema registration
 and focused roundtrip/forgery tests are present on the feature branch. Fixed
 reason-count diagnosis derives from verified bundles; CLI and Workbench handoff
-and diagnosis routes are present. Workbench declaration/input review and
-execution, remaining acceptance fixtures and final qualification are pending.
+and diagnosis routes are present. Workbench now takes one explicit row per
+dataset, returns only fingerprints and counts during review, rechecks exact
+declaration/recipe/receipt bytes and source selections before publication, and
+uses the released bound reconciliation runner. Cancellation is cooperative at
+preflight, parity, relationship, conservation and pre-publication checkpoints.
+After publication, a catalog failure is reported with the verified output still
+available. Results and History can reopen the bundle; Results and Reconcile
+offer source-free fixed reason counts. A synthetic local browser walkthrough
+completed review, execution and diagnosis. Focused regressions cover stale
+receipt/source inputs, changed receipt during execution, cancellation, catalog
+failure and byte parity with the CLI. Independent review, full local gate and
+exact-head CI remain before integration.

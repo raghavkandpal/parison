@@ -931,8 +931,18 @@ def run_reconciliation(
     max_distinct_rows: int = 100_000,
     max_temp_bytes: int = 5_000_000_000,
     temp_directory: str | Path | None = None,
+    cancelled=None,
+    progress=None,
 ) -> dict[str, Any]:
     """Compose alignment, existing parity and all declared relationship predicates."""
+
+    def checkpoint(phase: str) -> None:
+        if progress is not None:
+            progress(phase)
+        if cancelled is not None and cancelled():
+            raise ParisonError("workbench reconciliation cancelled")
+
+    checkpoint("preflight")
     sources = tuple(inputs[dataset_id][side] for dataset_id in sorted(inputs) for side in ("baseline", "candidate"))
     before = {str(source): _source_digest(source) for source in sources}
     alignment = preflight_alignment(
@@ -944,9 +954,11 @@ def run_reconciliation(
         max_decoded_bytes,
         max_rows,
     )
+    checkpoint("parity")
     declaration = explain_reconciliation(reconciliation_path)
     parity = []
     for dataset in declaration["datasets"]:
+        checkpoint("parity")
         dataset_id = dataset["id"]
         recipe = load_recipe(inputs[dataset_id]["recipe"])
         mode = recipe["comparison_mode"]
@@ -978,6 +990,7 @@ def run_reconciliation(
                 "discrepancy_count": result["discrepancy_count"],
             }
         )
+    checkpoint("relationships")
     relationships = check_identity_references(
         reconciliation_path,
         inputs,
@@ -989,6 +1002,7 @@ def run_reconciliation(
         max_temp_bytes,
         temp_directory,
     )
+    checkpoint("conservation")
     if any(check["kind"] == "conservation" for check in declaration["checks"]):
         conservation = check_conservation(
             reconciliation_path,
@@ -1003,6 +1017,7 @@ def run_reconciliation(
         )
     else:
         conservation = {"outcome": "PASS", "sides": {"baseline": [], "candidate": []}}
+    checkpoint("verifying")
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while reconciliation was running")
     component_outcomes = [
@@ -1048,6 +1063,7 @@ def run_reconciliation_with_bindings(
     reconciliation_path: str | Path,
     receipt_path: str | Path,
     inputs: dict[str, dict[str, str | Path]],
+    before_publish=None,
     **limits: Any,
 ) -> dict[str, Any]:
     """Run and publish a reconciliation with a fresh semantic input record."""
@@ -1059,6 +1075,8 @@ def run_reconciliation_with_bindings(
     if capture_reconciliation_input_bindings(declaration, inputs) != before:
         raise ParisonError("reconciliation inputs changed during execution")
     _verify_reconciliation_input_bindings(before, result, declaration)
+    if before_publish is not None:
+        before_publish()
     _publish_reconciliation_bundle(output, result, alignment_path, reconciliation_path, before, inputs)
     return result
 

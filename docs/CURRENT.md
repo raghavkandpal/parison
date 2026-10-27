@@ -214,6 +214,7 @@
 - Integrated: policy-change review through PR #84 at `126f00e`; exact head `c1955fe` passed independent Standards/Spec review, 490 local tests, [full matrix](https://github.com/raghavkandpal/parison/actions/runs/40326407130) and [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40326412286).
 - Integrated: verified suite rehearsal series through [PR #85](https://github.com/raghavkandpal/parison/pull/85) at `ce33dcc`; exact head `4b8de94` passed independent Standards/Spec review, 499 local tests, and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40463462263). Five of six features are integrated.
 - Next gate: implement the [complete reconciliation workflow and typed handoff](2.2/242-reconciliation-handoff-contract.md), then qualify feature 6 and prepare the candidate.
+- In progress: draft [PR #86](https://github.com/raghavkandpal/parison/pull/86) now includes typed handoff, source-free diagnosis and a reviewed Workbench reconciliation flow. Final local gate, independent review and exact-head CI remain before merging feature 6.
 
 ## Recorded next steps
 

@@ -240,6 +240,7 @@ class ReconciliationContracts(unittest.TestCase):
             report = root / "reconciliation-report.md"
             report_cutover(bundle, report)
             self.assertIn("Coordination outcome", report.read_text())
+
             Draft202012Validator(load_schema("reconciliation-manifest-v2")).validate(manifest)
             self.assertNotIn(str(root), (bundle / "input-bindings.json").read_text())
             command = [
@@ -283,6 +284,26 @@ class ReconciliationContracts(unittest.TestCase):
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(ParisonError, "duplicate JSON key"):
                 verify_bundle(bundle)
+
+    def test_bound_reconciliation_cancels_between_stages_without_publication(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            output = root / "cancelled"
+            phases = []
+
+            def progress(phase):
+                phases.append(phase)
+
+            with self.assertRaisesRegex(ParisonError, "cancelled"):
+                run_reconciliation_with_bindings(
+                    output,
+                    *files,
+                    progress=progress,
+                    cancelled=lambda: phases[-1] == "relationships",
+                )
+            self.assertIn("parity", phases)
+            self.assertFalse(output.exists())
 
     def test_same_file_selector_change_cannot_publish_old_reconciliation_result(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -858,6 +879,23 @@ class ReconciliationContracts(unittest.TestCase):
                     "nulls": "forbid",
                 }
             )
+            declaration["checks"].append(
+                {
+                    "id": "payout-total",
+                    "kind": "conservation",
+                    "parent_dataset": "payouts",
+                    "parent_identity": "payout-id",
+                    "parent_group_columns": ["payout_id"],
+                    "child_dataset": "payments",
+                    "child_group_columns": ["payout_id"],
+                    "parent_measure": "amount",
+                    "child_measure": "amount",
+                    "operator": "sum",
+                    "nulls": "forbid",
+                    "comparison": "exact",
+                    "tolerance": None,
+                }
+            )
             files[1].write_text(json.dumps(declaration), encoding="utf-8")
             for side in ("baseline", "candidate"):
                 files[3]["payments"][side].write_text(
@@ -866,6 +904,7 @@ class ReconciliationContracts(unittest.TestCase):
             result = run_reconciliation(*files)
             self.assertEqual([item["outcome"] for item in result["datasets"]], ["PASS", "PASS"])
             self.assertEqual(result["outcome"], "FAIL")
+            self.assertTrue(all(item["outcome"] == "FAIL" for side in result["conservation"].values() for item in side))
             self.assertTrue(
                 all(
                     item["counts"]["orphan_rows"] == 1
@@ -880,6 +919,7 @@ class ReconciliationContracts(unittest.TestCase):
                     runtime[side].unlink()
             diagnosis = diagnose_reconciliation_bundle(bundle)
             self.assertEqual(diagnosis["reason_counts"]["reference_orphan_rows"], 2)
+            self.assertEqual(diagnosis["reason_counts"]["conservation_child_only_groups"], 2)
             self.assertEqual(diagnosis["dataset_outcome_counts"]["PASS"], 2)
             for private in ("payments", "payouts", "payout_id", temporary):
                 self.assertNotIn(private, json.dumps(diagnosis))
