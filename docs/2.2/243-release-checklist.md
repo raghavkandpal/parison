@@ -36,6 +36,14 @@ are integrated on `develop`:
   evidence handling.
 - [ ] Reconcile candidate commit, CI run, artifact hashes and smoke result here.
 
+Integrated review at `develop` merge `71b075f` found no Standards blocker. Spec
+review found one release blocker: the suite-series contract accepts complete
+verified suites, while its producer and verifier reject complete `INCONCLUSIVE`
+members. Correct that mismatch with a regression test and repeat candidate
+qualification on the resulting integrated commit. A preliminary clean archive
+of candidate-preparation commit `1ad33c7` built a 2.2.0 wheel and sdist, but
+those artifacts are not release candidates while the blocker remains.
+
 ## Publication boundary
 
 The [accepted 2.2 contract](233-contracts-and-acceptance.md) does not authorize
