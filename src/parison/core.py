@@ -123,6 +123,7 @@ _SCHEMAS = {
     "reproducibility-diagnostic": "reproducibility-diagnostic-v1.schema.json",
     "reproducibility-diagnostic-v2": "reproducibility-diagnostic-v2.schema.json",
     "discrepancy-analysis": "discrepancy-analysis-v1.schema.json",
+    "suite-series": "suite-series-v1.schema.json",
     "discrepancy-drilldown": "discrepancy-drilldown-v1.schema.json",
 }
 

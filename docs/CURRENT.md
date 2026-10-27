@@ -1,7 +1,7 @@
 # Current development state
 
 - Version: **2.1.0 released; six-feature 2.2 train accepted**
-- Branch: `feature/workbench-policy-review` (from PR #83 merge `1b8f1ff`)
+- Branch: `feature/suite-rehearsal-series` (from PR #84 merge `126f00e`)
 - Theme: local-first verification — the Workbench suite workflow, repeated
   suite comparison and failed-member investigation are released
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
@@ -211,7 +211,8 @@
 - Integrated: dataset evidence v2 passed independent Standards/Spec review and the exact-head [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40264738870) at `88ea66a`; PR #81 merged into `develop` at `31cd36b`. Physical/logical bindings, fresh semantic input records, source-free verification and reviewed Workbench publication are complete under the [frozen contract](2.2/236-dataset-evidence-v2-contract.md).
 - Integrated: Workbench suite-v2 authoring passed independent Standards/Spec review, `make check`, rendered UI inspection and the exact-head [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40267185090) at `3c142cf`; PR #82 merged into `develop` at `71a54ad`. The [authoring contract](2.2/237-workbench-suite-authoring-contract.md) records the accepted behavior.
 - Integrated: recoverable suites through [PR #83](https://github.com/raghavkandpal/parison/pull/83) at `1b8f1ff`; exact head `170fb90` passed independent Standards/Spec review, 484 local tests, [full built-wheel CI](https://github.com/raghavkandpal/parison/actions/runs/40285758273) and [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40285762200).
-- Next gate: qualify implemented [Workbench policy-change review](2.2/240-workbench-policy-review-contract.md), then suite rehearsal series and complete reconciliation. Local `make check` passes 490 tests; independent Standards/Spec review is clear. PR #84 awaits corrected-head full-matrix CI and integration. Three of six feature integrations remain incomplete.
+- Integrated: policy-change review through PR #84 at `126f00e`; exact head `c1955fe` passed independent Standards/Spec review, 490 local tests, [full matrix](https://github.com/raghavkandpal/parison/actions/runs/40326407130) and [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40326412286).
+- Next gate: qualify implemented [verified suite rehearsal series](2.2/241-suite-series-contract.md), then complete reconciliation workflow and typed handoff. Four of six features are integrated.
 
 ## Recorded next steps
 

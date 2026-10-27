@@ -6,6 +6,10 @@ All notable changes will be documented in this file.
 
 ### Added
 
+- Publish and source-free verify a bounded caller-ordered suite rehearsal series
+  with case-scoped discrepancy transitions and input-identity changes. CLI and
+  Workbench expose the same summary-safe series without weakening policy gates.
+
 - Review two explicit recipes and an evolution declaration in Workbench Compare,
   with summary-first mechanical assessment and separately requested schema-sensitive
   details bound to unchanged input bytes. Exact-policy evidence gates stay intact.

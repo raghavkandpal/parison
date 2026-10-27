@@ -1,0 +1,303 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/suite-series-v1.schema.json",
+  "title": "Parison suite rehearsal series v1",
+  "type": "object",
+  "required": [
+    "suite_series_version",
+    "kind",
+    "sensitivity",
+    "suite_version",
+    "suite_policy_sha256",
+    "selection_sha256",
+    "runs",
+    "cases"
+  ],
+  "properties": {
+    "suite_series_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "suite-series"
+    },
+    "sensitivity": {
+      "const": "summary"
+    },
+    "suite_version": {
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "suite_policy_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "selection_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/run"
+      },
+      "minItems": 2,
+      "maxItems": 16
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/case"
+      },
+      "minItems": 1,
+      "maxItems": 100
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "run": {
+      "type": "object",
+      "required": [
+        "bundle_sha256",
+        "outcome"
+      ],
+      "properties": {
+        "bundle_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "outcome": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "child": {
+      "type": "object",
+      "required": [
+        "bundle_sha256",
+        "outcome",
+        "inputs"
+      ],
+      "properties": {
+        "bundle_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "outcome": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "inputs": {
+          "type": "object",
+          "required": [
+            "baseline",
+            "candidate"
+          ],
+          "properties": {
+            "baseline": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "candidate": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "group": {
+      "type": "object",
+      "required": [
+        "group_id",
+        "source_group_id",
+        "kind",
+        "classification",
+        "counts",
+        "transitions"
+      ],
+      "properties": {
+        "group_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source_group_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "kind": {
+          "enum": [
+            "record",
+            "field",
+            "group",
+            "measure",
+            "row"
+          ]
+        },
+        "classification": {
+          "enum": [
+            "baseline_only",
+            "candidate_only",
+            "within_tolerance",
+            "different",
+            "baseline_surplus",
+            "candidate_surplus"
+          ]
+        },
+        "counts": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 2,
+          "maxItems": 16
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/transition"
+          },
+          "minItems": 1,
+          "maxItems": 15
+        }
+      },
+      "additionalProperties": false
+    },
+    "transition": {
+      "type": "object",
+      "required": [
+        "group_id",
+        "from_run",
+        "to_run",
+        "before",
+        "after",
+        "delta",
+        "status"
+      ],
+      "properties": {
+        "group_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "from_run": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "to_run": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "before": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "after": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "delta": {
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "introduced",
+            "resolved",
+            "increased",
+            "decreased",
+            "unchanged"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "case": {
+      "type": "object",
+      "required": [
+        "case_ref",
+        "policy_sha256",
+        "comparison_mode",
+        "runs",
+        "groups",
+        "input_transitions"
+      ],
+      "properties": {
+        "case_ref": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "policy_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "comparison_mode": {
+          "enum": [
+            "keyed",
+            "aggregate",
+            "multiset"
+          ]
+        },
+        "runs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/child"
+          },
+          "minItems": 2,
+          "maxItems": 16
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/group"
+          },
+          "minItems": 1,
+          "maxItems": 10000
+        },
+        "input_transitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inputTransition"
+          },
+          "minItems": 1,
+          "maxItems": 15
+        }
+      },
+      "additionalProperties": false
+    },
+    "inputTransition": {
+      "type": "object",
+      "required": [
+        "from_run",
+        "to_run",
+        "baseline_changed",
+        "candidate_changed"
+      ],
+      "properties": {
+        "from_run": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "to_run": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "baseline_changed": {
+          "type": "boolean"
+        },
+        "candidate_changed": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
