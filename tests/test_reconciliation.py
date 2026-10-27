@@ -305,6 +305,24 @@ class ReconciliationContracts(unittest.TestCase):
             self.assertIn("parity", phases)
             self.assertFalse(output.exists())
 
+    def test_bound_reconciliation_cancels_staging_before_atomic_publication(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            files = self._preflight_files(root)
+            output = root / "cancelled-staging"
+            calls = []
+
+            def before_publish():
+                calls.append(len(calls))
+                if len(calls) == 2:
+                    raise ParisonError("workbench reconciliation cancelled")
+
+            with self.assertRaisesRegex(ParisonError, "cancelled"):
+                run_reconciliation_with_bindings(output, *files, before_publish=before_publish)
+            self.assertEqual(len(calls), 2)
+            self.assertFalse(output.exists())
+            self.assertEqual(list(root.glob(".cancelled-staging-*")), [])
+
     def test_same_file_selector_change_cannot_publish_old_reconciliation_result(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -68,5 +68,9 @@ available. Results and History can reopen the bundle; Results and Reconcile
 offer source-free fixed reason counts. A synthetic local browser walkthrough
 completed review, execution and diagnosis. Focused regressions cover stale
 receipt/source inputs, changed receipt during execution, cancellation, catalog
-failure and byte parity with the CLI. Independent review, full local gate and
-exact-head CI remain before integration.
+failure and byte parity with the CLI. The full local gate passes 503 tests.
+Independent Standards review found no issues. Spec review found a cancellation
+window during staging; a final checkpoint now runs after staged verification
+and immediately before atomic rename, and the regression proves that cancelling
+there leaves no output or staging residue. The reviewer cleared the correction.
+Exact-head CI remains before integration.

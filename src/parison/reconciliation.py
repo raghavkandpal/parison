@@ -1077,7 +1077,9 @@ def run_reconciliation_with_bindings(
     _verify_reconciliation_input_bindings(before, result, declaration)
     if before_publish is not None:
         before_publish()
-    _publish_reconciliation_bundle(output, result, alignment_path, reconciliation_path, before, inputs)
+    _publish_reconciliation_bundle(
+        output, result, alignment_path, reconciliation_path, before, inputs, before_publish=before_publish
+    )
     return result
 
 
@@ -1152,6 +1154,8 @@ def _publish_reconciliation_bundle(
     reconciliation_path: str | Path,
     input_bindings: dict[str, Any] | None = None,
     input_sources: dict[str, dict[str, str | Path]] | None = None,
+    *,
+    before_publish=None,
 ) -> None:
     target = Path(output)
     if target.exists():
@@ -1207,6 +1211,8 @@ def _publish_reconciliation_bundle(
             raise ParisonError("reconciliation input bindings changed during publication")
         if input_bindings is not None:
             verify_reconciliation_bundle(stage)
+        if before_publish is not None:
+            before_publish()
         _rename_no_replace(stage, target)
         stage = None
     except ParisonError:
