@@ -363,6 +363,7 @@ def parser() -> argparse.ArgumentParser:
             "suite-manifest-v2",
             "suite-manifest-v3",
             "statement",
+            "statement-v2",
             "schema-evolution",
             "policy-diff",
             "time-alignment",

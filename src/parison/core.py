@@ -106,6 +106,7 @@ _SCHEMAS = {
     "suite-manifest-v2": "suite-manifest-v2.schema.json",
     "suite-manifest-v3": "suite-manifest-v3.schema.json",
     "statement": "statement-v1.schema.json",
+    "statement-v2": "statement-v2.schema.json",
     "schema-evolution": "schema-evolution-v1.schema.json",
     "policy-diff": "policy-diff-v1.schema.json",
     "time-alignment": "time-alignment-v1.schema.json",

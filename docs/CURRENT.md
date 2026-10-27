@@ -212,7 +212,8 @@
 - Integrated: Workbench suite-v2 authoring passed independent Standards/Spec review, `make check`, rendered UI inspection and the exact-head [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40267185090) at `3c142cf`; PR #82 merged into `develop` at `71a54ad`. The [authoring contract](2.2/237-workbench-suite-authoring-contract.md) records the accepted behavior.
 - Integrated: recoverable suites through [PR #83](https://github.com/raghavkandpal/parison/pull/83) at `1b8f1ff`; exact head `170fb90` passed independent Standards/Spec review, 484 local tests, [full built-wheel CI](https://github.com/raghavkandpal/parison/actions/runs/40285758273) and [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40285762200).
 - Integrated: policy-change review through PR #84 at `126f00e`; exact head `c1955fe` passed independent Standards/Spec review, 490 local tests, [full matrix](https://github.com/raghavkandpal/parison/actions/runs/40326407130) and [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40326412286).
-- Next gate: qualify implemented [verified suite rehearsal series](2.2/241-suite-series-contract.md), then complete reconciliation workflow and typed handoff. Four of six features are integrated.
+- Integrated: verified suite rehearsal series through [PR #85](https://github.com/raghavkandpal/parison/pull/85) at `ce33dcc`; exact head `4b8de94` passed independent Standards/Spec review, 499 local tests, and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40463462263). Five of six features are integrated.
+- Next gate: implement the [complete reconciliation workflow and typed handoff](2.2/242-reconciliation-handoff-contract.md), then qualify feature 6 and prepare the candidate.
 
 ## Recorded next steps
 

@@ -12,6 +12,7 @@ from jsonschema import Draft202012Validator
 
 from parison.cli import main
 from parison.core import ParisonError, explain_recipe, inspect_bundle, load_schema, verify_bundle
+from parison.evidence import evidence_statement, export_statement, report_cutover, verify_statement
 from parison.manifesting import (
     capture_reconciliation_input_bindings,
     create_dataset_manifest_v2,
@@ -221,6 +222,23 @@ class ReconciliationContracts(unittest.TestCase):
             run_reconciliation_with_bindings(bundle, *files)
             manifest = verify_bundle(bundle)
             self.assertEqual(manifest["schema_version"], 2)
+            statement = evidence_statement(bundle)
+            self.assertEqual(statement["predicateType"], "https://parison.dev/attestations/evidence/v2")
+            self.assertEqual(statement["predicate"]["policy"]["kind"], "reconciliation")
+            Draft202012Validator(load_schema("statement-v2")).validate(statement)
+            handoff = root / "reconciliation-statement.json"
+            export_statement(bundle, handoff)
+            self.assertEqual(verify_statement(bundle, handoff)["status"], "valid")
+            self.assertNotIn(str(root), handoff.read_text())
+            forged = json.loads(handoff.read_text())
+            forged["predicate"]["coordinationOutcome"] = "FAIL"
+            changed = root / "changed-statement.json"
+            changed.write_text(json.dumps(forged), encoding="utf-8")
+            with self.assertRaisesRegex(ParisonError, "does not match"):
+                verify_statement(bundle, changed)
+            report = root / "reconciliation-report.md"
+            report_cutover(bundle, report)
+            self.assertIn("Coordination outcome", report.read_text())
             Draft202012Validator(load_schema("reconciliation-manifest-v2")).validate(manifest)
             self.assertNotIn(str(root), (bundle / "input-bindings.json").read_text())
             command = [
@@ -345,6 +363,22 @@ class ReconciliationContracts(unittest.TestCase):
             publish_dataset_evidence_bundle_v2(output, manifest, root, files[1], semantic)
             self.assertEqual(verify_bundle(output)["schema_version"], 2)
             self.assertEqual(inspect_bundle(output)["binding_count"], 4)
+            statement = evidence_statement(output)
+            self.assertEqual(statement["predicate"]["bundleKind"], "dataset-evidence")
+            self.assertEqual(statement["predicate"]["policy"]["kind"], "reconciliation")
+            Draft202012Validator(load_schema("statement-v2")).validate(statement)
+            handoff = root / "dataset-statement.json"
+            export_statement(output, handoff)
+            self.assertEqual(verify_statement(output, handoff)["status"], "valid")
+            self.assertNotIn(str(root), handoff.read_text())
+
+    def test_typed_statement_wire_fixture(self):
+        payload = (ROOT / "tests/fixtures/statement-reconciliation-v2.canonical.json").read_bytes()
+        value = json.loads(payload)
+        self.assertEqual(
+            payload, (json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+        )
+        Draft202012Validator(load_schema("statement-v2")).validate(value)
 
     def test_installed_schemas_accept_contracts_and_reject_unknown_fields(self):
         for name, value in (("time-alignment", alignment()), ("reconciliation", reconciliation())):
