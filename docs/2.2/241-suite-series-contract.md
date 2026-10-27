@@ -44,10 +44,14 @@ Publication reuses the atomic analysis publisher with a new outer
 `schema_version: 2`, `kind: discrepancy-analysis`, `analysis_kind: suite-series`;
 other manifest fields retain the existing digest layout. Released v1 bytes stay
 unchanged. The installed `suite-series` schema closes the payload. The independent
-verifier checks strict types, vocabulary, ordering, cardinalities, bounds, IDs,
-all transition derivations, outcome reduction, canonical bytes and digests without
-source files or parent bundles. It establishes internal consistency of preserved
-summaries, not authenticity, reconstruction of omitted names, or source reexecution.
+verifier checks strict types, vocabulary, ordering, cardinalities, bounds,
+case-reference shape and uniqueness, derivable group IDs, all transition
+derivations, outcome reduction, canonical bytes and digests without source files
+or parent bundles. The producer derives each case reference from the original
+case ID; a source-free verifier cannot reconstruct that derivation because the
+case ID is intentionally omitted. Verification establishes internal consistency
+of preserved summaries, not authenticity, reconstruction of omitted names, or
+source reexecution.
 
 CLI `analyze-suites BUNDLE... --output NEW` publishes the artifact;
 `verify-analysis` verifies it. Workbench Compare accepts one explicit path per
@@ -63,9 +67,10 @@ summary disclosure, atomic no-overwrite cleanup and CLI/Workbench parity.
 Narrow tests, `make check`, independent Standards/Spec review and exact-head
 built-wheel matrix gate integration. Six features remain required for a candidate.
 
-Implementation checkpoint: the first producer, strict verifier, schema, canonical
+Implementation checkpoint: the producer, strict verifier, schema, canonical
 fixture, CLI commands and Workbench review/export are implemented. Focused tests
 cover v1/v2 parents, mixed modes, case-scoped group identity, caller order,
 source-free verification, hostile payloads, path rejection and interrupted
-staging. Exact local full-gate result, independent review and exact-head CI
-remain to be recorded before integration.
+staging. The local full gate passed 499 tests. Independent Standards review found
+no issues; Spec review identified and resolved the case-reference verification
+overclaim above. Exact-head CI remains to be recorded before integration.
