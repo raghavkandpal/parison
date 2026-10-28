@@ -1,0 +1,1 @@
+{"limits":{"max_output_bytes":1000,"max_rows":10,"statement_timeout_ms":1000,"wall_timeout_ms":2000},"pair_plan_version":1,"source_id":"source-a","tables":{"order_lines":{"columns":["id","note"],"primary_key":["id"],"schema":"public","table":"order_lines"},"orders":{"columns":["id","note"],"primary_key":["id"],"schema":"public","table":"orders"}}}

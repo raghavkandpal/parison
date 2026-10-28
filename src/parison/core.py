@@ -130,6 +130,10 @@ _SCHEMAS = {
     "postgres-source-receipt": "postgres-source-receipt-v1.schema.json",
     "postgres-source-summary": "postgres-source-summary-v1.schema.json",
     "postgres-source-manifest": "postgres-source-manifest-v1.schema.json",
+    "postgres-pair-plan": "postgres-pair-plan-v1.schema.json",
+    "postgres-pair-receipt": "postgres-pair-receipt-v1.schema.json",
+    "postgres-pair-summary": "postgres-pair-summary-v1.schema.json",
+    "postgres-pair-manifest": "postgres-pair-manifest-v1.schema.json",
 }
 
 _SUITE_LIMIT_DEFAULTS = {

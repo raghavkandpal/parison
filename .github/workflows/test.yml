@@ -202,8 +202,10 @@ jobs:
           retention-days: 14
       - run: python -m unittest discover -s tests -v
       - run: parison verify-postgres-export tests/fixtures/postgres_ingress
+      - run: parison verify-postgres-pair tests/fixtures/postgres_pair
       - run: python -m pip install 'psycopg[binary]==3.3.6'
       - run: parison-postgres --help
+      - run: parison-postgres-pair --help
       - name: Check in-memory benchmark accuracy
         if: matrix.python-version == '3.14'
         run: |
@@ -242,8 +244,10 @@ jobs:
       - name: Install built wheel
         run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', *glob.glob('dist/parison-*.whl')])"
       - run: parison verify-postgres-export tests/fixtures/postgres_ingress
+      - run: parison verify-postgres-pair tests/fixtures/postgres_pair
       - run: python -m pip install 'psycopg[binary]==3.3.6'
       - run: parison-postgres --help
+      - run: parison-postgres-pair --help
       - run: parison --version
       - run: python tests/test_xlsx.py -v
       - run: parison schema recipe-v3

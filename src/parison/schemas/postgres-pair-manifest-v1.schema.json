@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-pair-manifest-v1.schema.json",
+  "title": "postgres-pair-manifest-v1",
+  "type": "object",
+  "required": [
+    "postgres_pair_manifest_version",
+    "kind",
+    "complete",
+    "files"
+  ],
+  "properties": {
+    "postgres_pair_manifest_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "postgresql-two-table-export"
+    },
+    "complete": {
+      "const": true
+    },
+    "files": {
+      "type": "object",
+      "required": [
+        "receipt.json",
+        "summary.json",
+        "orders",
+        "order_lines"
+      ],
+      "properties": {
+        "receipt.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "summary.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "orders": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "order_lines": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -22,6 +22,7 @@ dev = ["ruff==0.17.1"]
 [project.scripts]
 parison = "parison.cli:main"
 parison-postgres = "parison.postgres_ingress:main"
+parison-postgres-pair = "parison.postgres_pair:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

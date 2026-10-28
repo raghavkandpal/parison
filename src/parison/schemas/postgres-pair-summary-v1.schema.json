@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-pair-summary-v1.schema.json",
+  "title": "postgres-pair-summary-v1",
+  "type": "object",
+  "required": [
+    "postgres_pair_summary_version",
+    "kind",
+    "complete",
+    "coverage_claim",
+    "tables",
+    "rows",
+    "bytes",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "postgres_pair_summary_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "postgresql-two-table-export"
+    },
+    "complete": {
+      "const": true
+    },
+    "coverage_claim": {
+      "const": "adapter-two-tables-one-source-snapshot"
+    },
+    "tables": {
+      "const": 2
+    },
+    "rows": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 300000
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1073741824
+    },
+    "receipt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

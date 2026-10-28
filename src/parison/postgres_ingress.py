@@ -148,6 +148,126 @@ def _wall_cancellation(conn, seconds: float):
         timer.cancel()
 
 
+def _configure_transaction(cursor, limits: dict[str, int]) -> None:
+    cursor.execute("SET LOCAL DateStyle TO 'ISO, YMD'")
+    cursor.execute("SET LOCAL TimeZone TO 'UTC'")
+    cursor.execute("SET LOCAL row_security TO off")
+    cursor.execute(f"SET LOCAL statement_timeout TO '{limits['statement_timeout_ms']}ms'")
+    cursor.execute(f"SET LOCAL lock_timeout TO '{min(10_000, limits['statement_timeout_ms'])}ms'")
+    cursor.execute("SET LOCAL idle_in_transaction_session_timeout TO '60000ms'")
+
+
+def _lock_tables(cursor, plans: list[dict[str, Any]]) -> None:
+    for schema, table in sorted((plan["schema"], plan["table"]) for plan in plans):
+        cursor.execute(f"LOCK TABLE {_quote(schema)}.{_quote(table)} IN ACCESS SHARE MODE")
+
+
+def _acquire_table(
+    cursor,
+    plan: dict[str, Any],
+    stage: Path,
+    started: float,
+    remaining_rows: int | None = None,
+    remaining_bytes: int | None = None,
+) -> dict[str, Any]:
+    source, snapshot = _metadata(cursor, plan)
+    relation = f"{_quote(plan['schema'])}.{_quote(plan['table'])}"
+    cursor.execute(f"SELECT COUNT(*) FROM {relation}")
+    server_rows = cursor.fetchone()[0]
+    if server_rows > min(
+        plan["limits"]["max_rows"], remaining_rows if remaining_rows is not None else plan["limits"]["max_rows"]
+    ):
+        raise ParisonError("PostgreSQL source exceeds row limit")
+    text_columns = [
+        name for name, kind in zip(plan["columns"], source["types"], strict=True) if kind in {"text", "varchar"}
+    ]
+    if text_columns:
+        predicate = " OR ".join(f"{_quote(name)} = %s" for name in text_columns)
+        cursor.execute(f"SELECT EXISTS(SELECT 1 FROM {relation} WHERE {predicate})", [NULL_MARKER] * len(text_columns))
+        if cursor.fetchone()[0]:
+            raise ParisonError("PostgreSQL source contains reserved NULL marker")
+    selection = selection_sql(plan["schema"], plan["table"], plan["columns"], plan["primary_key"])
+    copy_sql = f"COPY ({selection}) TO STDOUT WITH (FORMAT CSV, HEADER TRUE, NULL E'\\\\N', ENCODING 'UTF8')"
+    digest = hashlib.sha256()
+    size = 0
+    with (stage / "data.csv").open("xb") as handle, cursor.copy(copy_sql) as copy:
+        for block in copy:
+            if time.monotonic() - started > plan["limits"]["wall_timeout_ms"] / 1000:
+                raise ParisonError("PostgreSQL export exceeded wall limit")
+            size += len(block)
+            if size > min(
+                plan["limits"]["max_output_bytes"],
+                remaining_bytes if remaining_bytes is not None else plan["limits"]["max_output_bytes"],
+            ):
+                raise ParisonError("PostgreSQL export exceeded byte limit")
+            digest.update(block)
+            handle.write(block)
+    local_rows = count_csv_rows(stage / "data.csv", plan["columns"], plan["limits"]["max_rows"])
+    if local_rows != server_rows:
+        raise ParisonError("PostgreSQL source and local counts differ")
+    return {
+        "source": source,
+        "snapshot": snapshot,
+        "selection": selection,
+        "server_rows": server_rows,
+        "local_rows": local_rows,
+        "size": size,
+        "digest": digest.hexdigest(),
+    }
+
+
+def _write_table_evidence(
+    stage: Path, plan: dict[str, Any], acquired: dict[str, Any], elapsed_ms: int
+) -> dict[str, Any]:
+    receipt = {
+        "postgres_source_receipt_version": 1,
+        "kind": "postgresql-table-export",
+        "plan_sha256": hashlib.sha256(_canonical(plan)).hexdigest(),
+        "source": acquired["source"],
+        "transaction": {
+            "isolation": "repeatable read",
+            "read_only": True,
+            "row_security": "off",
+            "snapshot": acquired["snapshot"],
+            "client_encoding": "UTF8",
+            "date_style": "ISO, YMD",
+            "time_zone": "UTC",
+        },
+        "selection": {
+            "sql": acquired["selection"],
+            "format": "csv-utf8-v1",
+            "null_marker": NULL_MARKER,
+            "null_marker_collision": False,
+        },
+        "limits": plan["limits"],
+        "observed": {
+            "server_rows": acquired["server_rows"],
+            "local_rows": acquired["local_rows"],
+            "output_bytes": acquired["size"],
+            "output_sha256": acquired["digest"],
+            "elapsed_ms": elapsed_ms,
+            "complete": True,
+        },
+    }
+    receipt_data = _write_json(stage / "receipt.json", receipt)
+    summary = source_summary(receipt, receipt_data)
+    summary_data = _write_json(stage / "summary.json", summary)
+    manifest = {
+        "postgres_source_manifest_version": 1,
+        "kind": "postgresql-table-export",
+        "complete": True,
+        "files": {
+            "data.csv": acquired["digest"],
+            "receipt.json": hashlib.sha256(receipt_data).hexdigest(),
+            "summary.json": hashlib.sha256(summary_data).hexdigest(),
+        },
+    }
+    _write_json(stage / "manifest.json", manifest)
+    if verify_postgres_export(stage) != summary:
+        raise ParisonError("PostgreSQL export verification failed")
+    return summary
+
+
 def export_postgres(plan_path: str | Path, output: str | Path) -> dict[str, Any]:
     """Acquire one bounded source table into a verified local bundle."""
     try:
@@ -172,52 +292,9 @@ def export_postgres(plan_path: str | Path, output: str | Path) -> dict[str, Any]
             try:
                 remaining = plan["limits"]["wall_timeout_ms"] / 1000 - (time.monotonic() - started)
                 with _wall_cancellation(conn, remaining), conn.cursor() as cursor:
-                    cursor.execute("SET LOCAL DateStyle TO 'ISO, YMD'")
-                    cursor.execute("SET LOCAL TimeZone TO 'UTC'")
-                    cursor.execute("SET LOCAL row_security TO off")
-                    cursor.execute(f"SET LOCAL statement_timeout TO '{plan['limits']['statement_timeout_ms']}ms'")
-                    cursor.execute(
-                        f"SET LOCAL lock_timeout TO '{min(10_000, plan['limits']['statement_timeout_ms'])}ms'"
-                    )
-                    cursor.execute("SET LOCAL idle_in_transaction_session_timeout TO '60000ms'")
-                    relation = f"{_quote(plan['schema'])}.{_quote(plan['table'])}"
-                    cursor.execute(f"LOCK TABLE {relation} IN ACCESS SHARE MODE")
-                    source, snapshot = _metadata(cursor, plan)
-                    cursor.execute(f"SELECT COUNT(*) FROM {relation}")
-                    server_rows = cursor.fetchone()[0]
-                    if server_rows > plan["limits"]["max_rows"]:
-                        raise ParisonError("PostgreSQL source exceeds row limit")
-                    text_columns = [
-                        name
-                        for name, kind in zip(plan["columns"], source["types"], strict=True)
-                        if kind in {"text", "varchar"}
-                    ]
-                    if text_columns:
-                        predicate = " OR ".join(f"{_quote(name)} = %s" for name in text_columns)
-                        cursor.execute(
-                            f"SELECT EXISTS(SELECT 1 FROM {relation} WHERE {predicate})",
-                            [NULL_MARKER] * len(text_columns),
-                        )
-                        if cursor.fetchone()[0]:
-                            raise ParisonError("PostgreSQL source contains reserved NULL marker")
-                    selection = selection_sql(plan["schema"], plan["table"], plan["columns"], plan["primary_key"])
-                    copy_sql = (
-                        f"COPY ({selection}) TO STDOUT WITH (FORMAT CSV, HEADER TRUE, NULL E'\\\\N', ENCODING 'UTF8')"
-                    )
-                    digest = hashlib.sha256()
-                    size = 0
-                    with (stage / "data.csv").open("xb") as handle, cursor.copy(copy_sql) as copy:
-                        for block in copy:
-                            if time.monotonic() - started > plan["limits"]["wall_timeout_ms"] / 1000:
-                                raise ParisonError("PostgreSQL export exceeded wall limit")
-                            size += len(block)
-                            if size > plan["limits"]["max_output_bytes"]:
-                                raise ParisonError("PostgreSQL export exceeded byte limit")
-                            digest.update(block)
-                            handle.write(block)
-                    local_rows = count_csv_rows(stage / "data.csv", plan["columns"], plan["limits"]["max_rows"])
-                    if local_rows != server_rows:
-                        raise ParisonError("PostgreSQL source and local counts differ")
+                    _configure_transaction(cursor, plan["limits"])
+                    _lock_tables(cursor, [plan])
+                    acquired = _acquire_table(cursor, plan, stage, started)
                 conn.execute("COMMIT")
             except BaseException:
                 try:
@@ -228,52 +305,7 @@ def export_postgres(plan_path: str | Path, output: str | Path) -> dict[str, Any]
         elapsed_ms = int((time.monotonic() - started) * 1000)
         if elapsed_ms > plan["limits"]["wall_timeout_ms"]:
             raise ParisonError("PostgreSQL export exceeded wall limit")
-        receipt = {
-            "postgres_source_receipt_version": 1,
-            "kind": "postgresql-table-export",
-            "plan_sha256": hashlib.sha256(_canonical(plan)).hexdigest(),
-            "source": source,
-            "transaction": {
-                "isolation": "repeatable read",
-                "read_only": True,
-                "row_security": "off",
-                "snapshot": snapshot,
-                "client_encoding": "UTF8",
-                "date_style": "ISO, YMD",
-                "time_zone": "UTC",
-            },
-            "selection": {
-                "sql": selection,
-                "format": "csv-utf8-v1",
-                "null_marker": NULL_MARKER,
-                "null_marker_collision": False,
-            },
-            "limits": plan["limits"],
-            "observed": {
-                "server_rows": server_rows,
-                "local_rows": local_rows,
-                "output_bytes": size,
-                "output_sha256": digest.hexdigest(),
-                "elapsed_ms": elapsed_ms,
-                "complete": True,
-            },
-        }
-        receipt_data = _write_json(stage / "receipt.json", receipt)
-        summary = source_summary(receipt, receipt_data)
-        summary_data = _write_json(stage / "summary.json", summary)
-        manifest = {
-            "postgres_source_manifest_version": 1,
-            "kind": "postgresql-table-export",
-            "complete": True,
-            "files": {
-                "data.csv": digest.hexdigest(),
-                "receipt.json": hashlib.sha256(receipt_data).hexdigest(),
-                "summary.json": hashlib.sha256(summary_data).hexdigest(),
-            },
-        }
-        _write_json(stage / "manifest.json", manifest)
-        if verify_postgres_export(stage) != summary:
-            raise ParisonError("PostgreSQL export verification failed")
+        summary = _write_table_evidence(stage, plan, acquired, elapsed_ms)
         if (time.monotonic() - started) * 1000 > plan["limits"]["wall_timeout_ms"]:
             raise ParisonError("PostgreSQL export exceeded wall limit")
         check_output_parent(target.parent)

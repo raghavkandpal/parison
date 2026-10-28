@@ -6,6 +6,9 @@ All notable changes will be documented in this file.
 
 ### Added
 
+- Add an optional coordinated two-table PostgreSQL reader with one source
+  snapshot, unchanged per-table receipts, a private pair coordination record,
+  summary-safe output and offline pair verification.
 - Add an optional, bounded one-table PostgreSQL reader with a qualified
   repeatable-read snapshot claim, canonical private receipt, safe summary,
   atomic local bundle, and offline verification command and schemas.
