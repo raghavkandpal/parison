@@ -1,7 +1,7 @@
 # Current development state
 
 - Version: **2.2.0 released** at exact tested merge `bfb17a6`
-- Branch: `docs/2.3-multitable-snapshot-research` (from handoff merge `9ec54ba`)
+- Branch: `feature/postgres-pair-acquisition` (from research merge `c524c95`)
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
@@ -222,7 +222,8 @@
 - Scope: the [2.3 six-feature roadmap](2.3/246-six-feature-roadmap.md) expands the selected sequence into one-table ingress, multi-table snapshot evidence, fast exact partition discovery, selective investigation, PostgreSQL 16→18 rehearsal and a portable decision dossier. Each has a separate acceptance gate; no 2.3 candidate is due before all six.
 - Contract frozen: [feature 1 PostgreSQL one-table ingress](2.3/247-postgresql-one-table-ingress-contract.md) fixes a reviewed plan, read-only snapshot, qualified all-rows/selected-columns adapter claim, private canonical receipt, summary-safe projection, offline verifier and fail-closed publication.
 - Integrated: [feature 1 implementation](2.3/248-one-table-ingress-implementation.md) merged through [PR #93](https://github.com/raghavkandpal/parison/pull/93) at `af23ebfe231facf543fda15bb0fde99fdad9515b`. Exact head `2856e54a7163c4b5e512fc51a2cebb0f7ada3c00` passed 509 local tests, independent Standards/Spec review, the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40649864507) on Python 3.11–3.14 Linux/macOS/Windows, and PR quality CI. The controlled PostgreSQL 18.6 gate passed snapshot/DDL lock, RLS, reserved null-marker, mid-COPY byte-limit cleanup, no-overwrite and source-removal checks. One of six 2.3 features is integrated; next gate is the feature 2 coordinated multi-table contract and adversarial corpus.
-- Research: [feature 2 snapshot coordination](2.3/249-multi-table-snapshot-research.md) favors one read-only transaction and connection, locks both reviewed tables before the first snapshot read, and defers exported snapshots until measured parallelism warrants them. Next gate: freeze the two-table wire contract and controlled failure corpus; no feature 2 runtime behavior is integrated.
+- Research: [feature 2 snapshot coordination](2.3/249-multi-table-snapshot-research.md) favors one read-only transaction and connection, locks both reviewed tables before the first snapshot read, and defers exported snapshots until measured parallelism warrants them.
+- Contract frozen: [feature 2 coordinated pair](2.3/250-postgresql-pair-acquisition-contract.md) fixes a strict two-slot plan, one pre-snapshot lock order and transaction, unchanged feature 1 child receipts, private canonical coordination evidence, safe summary and all-or-nothing publication. Next gate: implement and test the optional pair reader and offline verifier without changing 2.2 or feature 1 bytes.
 
 ## Recorded next steps
 

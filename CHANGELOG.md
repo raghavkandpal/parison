@@ -12,6 +12,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Freeze feature 2's coordinated two-table acquisition plan, common snapshot,
+  canonical pair evidence, summary-safe verifier and adversarial gate.
 - Research feature 2's one-transaction, two-table acquisition boundary and
   define the next contract and hostile concurrency gate.
 - Select the first post-2.2 evidence-ingress target through blind review:
