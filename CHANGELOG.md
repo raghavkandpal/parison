@@ -12,6 +12,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Research feature 2's one-transaction, two-table acquisition boundary and
+  define the next contract and hostile concurrency gate.
 - Select the first post-2.2 evidence-ingress target through blind review:
   PostgreSQL 16→18 order/ledger migration, with provisional measured budgets,
   an adversarial coverage corpus and an independently reviewed snapshot and
