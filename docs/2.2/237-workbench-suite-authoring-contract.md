@@ -1,7 +1,7 @@
 # Workbench suite-v2 authoring contract
 
 Date: 26 October 2026  
-Status: frozen contract; implementation under review
+Status: released in 2.2.0
 
 Implementation checkpoint: the Workbench Plans activity now composes ordered
 cases with explicit references, tags, descriptions, limits, SQLite execution

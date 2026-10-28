@@ -4,8 +4,9 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
-The six-feature 2.2.0 train is integrated on `develop`; candidate qualification
-is in progress. The released version remains 2.1.0.
+## 2.2.0 - 2026-10-28
+
+[Release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.2.0).
 
 ### Added
 
@@ -46,12 +47,12 @@ is in progress. The released version remains 2.1.0.
 ### Fixed
 
 - Harden reconciliation evidence count shapes, arithmetic and derived outcomes
-  against internally inconsistent preserved results (qualification pending).
+  against internally inconsistent preserved results.
 
 ### Documentation
 
 - Record authoritative dataset-v2 declaration/input-binding normalization and
-  hostile substitution qualification; complete feature delivery remains pending.
+  hostile substitution qualification.
 
 - Draft explicit dataset evidence v2 physical/logical bindings and versioned
   semantic selector records with canonical declaration acceptance inputs.

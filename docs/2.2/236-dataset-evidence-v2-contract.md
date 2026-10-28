@@ -1,7 +1,7 @@
 # Dataset evidence v2 contract
 
 Date: 24 October 2026
-Status: frozen for implementation; runtime qualification pending
+Status: released in 2.2.0
 
 Implementation checkpoint: fresh suite v2 input-binding capture now records
 selected case identities from resolved execution locators, effective recipe

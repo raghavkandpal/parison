@@ -1,7 +1,7 @@
 # Complete reconciliation workflow and typed handoff
 
 Date: 27 October 2026  
-Status: contract frozen before feature 6 implementation
+Status: released in 2.2.0
 
 The existing reconciliation count verifier is the authority for preserved
 evidence. The Workbench accepts explicit local alignment and reconciliation
