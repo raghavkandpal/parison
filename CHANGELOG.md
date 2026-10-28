@@ -4,6 +4,13 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Documentation
+
+- Select the first post-2.2 evidence-ingress target through blind review:
+  PostgreSQL 16→18 order/ledger migration, with provisional measured budgets,
+  an adversarial coverage corpus and an independently reviewed snapshot and
+  credential boundary. No runtime behavior changes yet.
+
 ## 2.2.0 - 2026-10-28
 
 [Release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.2.0).

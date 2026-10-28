@@ -1,7 +1,7 @@
 # Current development state
 
 - Version: **2.2.0 released** at exact tested merge `bfb17a6`
-- Branch: `docs/2.2-release-records` (from PR #89 merge `bfb17a6`)
+- Branch: `docs/post-2.2-ingress-direction` (from PR #90 merge `7d6e494`)
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
@@ -218,7 +218,8 @@
 - Candidate-qualified: source commit `5ecff94` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40641209814), clean-archive artifact inspection and a fresh installed-wheel smoke with 88 focused tests across all six capabilities. Integrated Standards/Spec review is clear; a proposed suite-series `INCONCLUSIVE` gap was disproved against released producer completeness semantics.
 - Integrated: [candidate preparation PR #87](https://github.com/raghavkandpal/parison/pull/87) merged to `develop` at `f5dc3e4f153522fc525e2a13944a801f91d339af`. Its exact qualification-record head `e0b8e083e03966dabb51267ac6887f2b46336371` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40641683700) and PR quality CI.
 - Released: [PR #89](https://github.com/raghavkandpal/parison/pull/89) merged at `bfb17a6baf26cde2930f12f4dfe4ff5f8c8c93c4`; [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40643582338) and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40643616772) passed on that exact merge. Annotated [2.2.0 release](https://github.com/raghavkandpal/parison/releases/tag/2.2.0) assets were re-downloaded, checksum-verified and the public wheel passed 88 focused tests in a fresh Python 3.14 environment.
-- Next gate: review the proposed post-2.2 fast-diff/cutover-evidence direction as research. Select a first user and migration pair, run budget, coverage corpus and credential/snapshot threat model before accepting a new scope. Keep the deterministic verifier local and preserve 2.2 contracts.
+- Research decision: the post-2.2 [direction](2.2/244-fast-diff-and-cutover-evidence-direction.md) now targets a database migration engineer rehearsing PostgreSQL 16→18 order/ledger migration. A blind review selected provisional 100k/250k-row gates, a measured ten-minute target on a named machine and an adversarial coverage corpus; an independent credential/snapshot review narrowed whole-table claims and publication boundaries.
+- Next gate: freeze one-table PostgreSQL source-receipt and coverage semantics, then implement an optional read-only adapter with offline verification. The two-table migration rehearsal follows after that boundary is qualified. Preserve released 2.2 bytes and core offline execution.
 
 ## Recorded next steps
 
