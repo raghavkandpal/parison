@@ -30,18 +30,26 @@ are integrated on `develop`:
   `INCONCLUSIVE` gap was disproved by a focused regression attempt: all three
   ordinary comparison modes set `complete: false` when the outcome is
   `INCONCLUSIVE`, so no such parent meets the series contract's complete gate.
-- [ ] Exact candidate commit passes quality CI and the full built-wheel matrix
-  on Python 3.11–3.14 across Linux, macOS and Windows.
-- [ ] Clean `git archive` of that exact candidate builds wheel and source
-  archive. Inspect contents, version metadata and SHA-256 hashes.
-- [ ] Fresh supported-Python install of the built wheel passes a synthetic
-  primary workflow covering the six 2.2 capabilities and verification-first
-  evidence handling.
-- [ ] Reconcile candidate commit, CI run, artifact hashes and smoke result here.
+- [x] Candidate source commit `5ecff944b479628b284cb7a932bdc13cfccc3847`
+  passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40641209814)
+  on Python 3.11–3.14 across Linux, macOS and Windows, plus PR quality CI.
+- [x] A clean `git archive` of that commit built and inspected
+  `parison-2.2.0-py3-none-any.whl` (SHA-256
+  `440f90def82b14c6f7ce7330c0e2aaab0ad15bbe8bb7f6356f4bea44d21fe071`)
+  and `parison-2.2.0.tar.gz` (SHA-256
+  `d5928fd6b8bbfcae55e09622a44c998769cd44a1591fa1fe38789ff8b7132d05`).
+  Wheel metadata reports version 2.2.0 and Python >=3.11; it contains 23
+  Python modules and 64 schemas. The source archive contains 49 test files.
+- [x] A fresh Python 3.14 environment installed that wheel, imported Parison
+  from site-packages, passed an example comparison and bundle verification,
+  and ran 88 focused synthetic tests from the clean archive across all six 2.2
+  capabilities, including Workbench reconciliation and typed handoff.
+- [ ] Require exact-head CI on the qualification-record commit before merging
+  candidate preparation to `develop`.
 
-A clean archive of candidate-preparation commit `1ad33c7` built a 2.2.0 wheel
-and source archive. Final candidate artifact qualification remains pending
-exact-head CI and a fresh wheel smoke.
+The first manual matrix attempt at this candidate head ended with a cancelled
+queued macOS 3.12 job; the successful rerun above completed every required
+lane. The smoke used the installed wheel, not the source checkout.
 
 ## Publication boundary
 
