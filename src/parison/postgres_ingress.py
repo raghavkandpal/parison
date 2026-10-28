@@ -181,8 +181,9 @@ def export_postgres(plan_path: str | Path, output: str | Path) -> dict[str, Any]
                         ("idle_in_transaction_session_timeout", "60000"),
                     ):
                         cursor.execute("SELECT set_config(%s, %s, true)", (setting, value))
-                    source, snapshot = _metadata(cursor, plan)
                     relation = f"{_quote(plan['schema'])}.{_quote(plan['table'])}"
+                    cursor.execute(f"LOCK TABLE {relation} IN ACCESS SHARE MODE")
+                    source, snapshot = _metadata(cursor, plan)
                     cursor.execute(f"SELECT COUNT(*) FROM {relation}")
                     server_rows = cursor.fetchone()[0]
                     if server_rows > plan["limits"]["max_rows"]:
@@ -274,6 +275,9 @@ def export_postgres(plan_path: str | Path, output: str | Path) -> dict[str, Any]
         _write_json(stage / "manifest.json", manifest)
         if verify_postgres_export(stage) != summary:
             raise ParisonError("PostgreSQL export verification failed")
+        if (time.monotonic() - started) * 1000 > plan["limits"]["wall_timeout_ms"]:
+            raise ParisonError("PostgreSQL export exceeded wall limit")
+        check_output_parent(target.parent)
         rename_no_replace(stage, target)
         stage = None
         return summary

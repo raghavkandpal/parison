@@ -69,6 +69,15 @@ def main() -> None:
 
                 def after_snapshot(cursor, declared):
                     source, snapshot = _metadata(cursor, declared)
+                    admin.execute("SET lock_timeout TO '250ms'")
+                    try:
+                        admin.execute(
+                            sql.SQL("ALTER TABLE {}.orders RENAME TO swapped_orders").format(sql.Identifier(schema))
+                        )
+                    except psycopg.errors.LockNotAvailable:
+                        pass
+                    else:
+                        raise AssertionError("qualified relation was not locked")
                     admin.execute(
                         sql.SQL("INSERT INTO {}.orders VALUES (3, 'late', 9, now())").format(sql.Identifier(schema))
                     )

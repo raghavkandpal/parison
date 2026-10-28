@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import io
 import json
+import os
+import stat
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 from .analysis import _canonical, _strict_object
 from .core import ParisonError
@@ -94,11 +98,11 @@ def validate_postgres_plan(value: Any) -> dict[str, Any]:
     return plan
 
 
-def _read_json(path: Path) -> tuple[dict[str, Any], bytes]:
+def _read_json(handle: BinaryIO) -> tuple[dict[str, Any], bytes]:
     try:
-        if path.stat().st_size > 256 * 1024:
+        data = handle.read(256 * 1024 + 1)
+        if len(data) > 256 * 1024:
             raise ParisonError("PostgreSQL evidence JSON is too large")
-        data = path.read_bytes()
         value = json.loads(data.decode("utf-8"), object_pairs_hook=_strict_object)
         if not isinstance(value, dict) or data != _canonical(value) + b"\n":
             raise ParisonError("PostgreSQL evidence is not canonical")
@@ -191,31 +195,71 @@ def source_summary(receipt: dict[str, Any], receipt_data: bytes) -> dict[str, An
 def count_csv_rows(data: Path, columns: list[str], max_rows: int) -> int:
     """Count complete CSV records, including rows with embedded newlines."""
     try:
-        with data.open("r", encoding="utf-8", newline="") as handle:
-            rows = csv.reader(handle, strict=True)
-            if next(rows, None) != columns:
-                raise ParisonError("PostgreSQL CSV header mismatch")
-            count = 0
-            for row in rows:
-                if len(row) != len(columns):
-                    raise ParisonError("PostgreSQL CSV row shape mismatch")
-                count += 1
-                if count > max_rows:
-                    raise ParisonError("PostgreSQL CSV exceeds row limit")
-            return count
+        with data.open("rb") as handle:
+            return _count_csv_handle(handle, columns, max_rows)
     except (OSError, UnicodeError, csv.Error) as exc:
         raise ParisonError("cannot read PostgreSQL CSV") from exc
+
+
+def _count_csv_handle(handle: BinaryIO, columns: list[str], max_rows: int) -> int:
+    text = io.TextIOWrapper(handle, encoding="utf-8", newline="")
+    try:
+        rows = csv.reader(text, strict=True)
+        if next(rows, None) != columns:
+            raise ParisonError("PostgreSQL CSV header mismatch")
+        count = 0
+        for row in rows:
+            if len(row) != len(columns):
+                raise ParisonError("PostgreSQL CSV row shape mismatch")
+            count += 1
+            if count > max_rows:
+                raise ParisonError("PostgreSQL CSV exceeds row limit")
+        return count
+    finally:
+        text.detach()
+
+
+@contextmanager
+def _bundle_handles(root: Path):
+    """Pin the directory and every regular file before verification."""
+    with ExitStack() as stack:
+        if os.name == "posix":
+            directory_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            stack.callback(os.close, directory_fd)
+            if set(os.listdir(directory_fd)) != FILES:
+                raise ParisonError("PostgreSQL export has invalid files")
+            handles = {}
+            for name in FILES:
+                fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fd)
+                handle = stack.enter_context(os.fdopen(fd, "rb"))
+                if not stat.S_ISREG(os.fstat(fd).st_mode):
+                    raise ParisonError("PostgreSQL export has unsafe file")
+                handles[name] = handle
+        else:
+            if root.is_symlink() or not root.is_dir() or {part.name for part in root.iterdir()} != FILES:
+                raise ParisonError("PostgreSQL export has invalid files")
+            handles = {}
+            for name in FILES:
+                path = root / name
+                if path.is_symlink() or not path.is_file():
+                    raise ParisonError("PostgreSQL export has unsafe file")
+                handles[name] = stack.enter_context(path.open("rb"))
+        yield handles
 
 
 def verify_postgres_export(directory: str | Path) -> dict[str, Any]:
     """Verify local bundle integrity without importing a database driver."""
     root = Path(directory)
     try:
-        if root.is_symlink() or not root.is_dir() or {part.name for part in root.iterdir()} != FILES:
-            raise ParisonError("PostgreSQL export has invalid files")
-        if any((root / name).is_symlink() or not (root / name).is_file() for name in FILES):
-            raise ParisonError("PostgreSQL export has unsafe file")
-        manifest, _ = _read_json(root / "manifest.json")
+        with _bundle_handles(root) as handles:
+            return _verify_handles(handles)
+    except (OSError, UnicodeError, csv.Error) as exc:
+        raise ParisonError("cannot verify PostgreSQL export") from exc
+
+
+def _verify_handles(handles: dict[str, BinaryIO]) -> dict[str, Any]:
+    try:
+        manifest, _ = _read_json(handles["manifest.json"])
         _object(manifest, "postgres_source_manifest_version kind complete files")
         if (
             type(manifest["postgres_source_manifest_version"]) is not int
@@ -227,9 +271,9 @@ def verify_postgres_export(directory: str | Path) -> dict[str, Any]:
         files = _object(manifest["files"], "data.csv receipt.json summary.json")
         for digest in files.values():
             _sha(digest)
-        receipt, receipt_data = _read_json(root / "receipt.json")
+        receipt, receipt_data = _read_json(handles["receipt.json"])
         _receipt(receipt)
-        summary, summary_data = _read_json(root / "summary.json")
+        summary, summary_data = _read_json(handles["summary.json"])
         _object(
             summary,
             "postgres_source_summary_version kind complete coverage_claim rows bytes output_sha256 receipt_sha256",
@@ -241,16 +285,16 @@ def verify_postgres_export(directory: str | Path) -> dict[str, Any]:
             or files["summary.json"] != hashlib.sha256(summary_data).hexdigest()
         ):
             raise ParisonError("PostgreSQL evidence digest mismatch")
-        data = root / "data.csv"
-        if data.stat().st_size != receipt["observed"]["output_bytes"]:
+        data = handles["data.csv"]
+        if os.fstat(data.fileno()).st_size != receipt["observed"]["output_bytes"]:
             raise ParisonError("PostgreSQL data size mismatch")
         digest = hashlib.sha256()
-        with data.open("rb") as handle:
-            for block in iter(lambda: handle.read(1024 * 1024), b""):
-                digest.update(block)
+        for block in iter(lambda: data.read(1024 * 1024), b""):
+            digest.update(block)
         if digest.hexdigest() != receipt["observed"]["output_sha256"] or digest.hexdigest() != files["data.csv"]:
             raise ParisonError("PostgreSQL data digest mismatch")
-        count = count_csv_rows(data, receipt["source"]["columns"], receipt["limits"]["max_rows"])
+        data.seek(0)
+        count = _count_csv_handle(data, receipt["source"]["columns"], receipt["limits"]["max_rows"])
         if count != receipt["observed"]["local_rows"]:
             raise ParisonError("PostgreSQL CSV count mismatch")
         return summary

@@ -12,6 +12,8 @@ from parison.analysis import _canonical
 from parison.core import ParisonError
 from parison.source_receipt import source_summary, validate_postgres_plan, verify_postgres_export
 
+FIXTURES = Path(__file__).parent / "fixtures" / "postgres_ingress"
+
 
 class PostgresIngress(unittest.TestCase):
     def setUp(self):
@@ -114,10 +116,9 @@ class PostgresIngress(unittest.TestCase):
                 "receipt_sha256",
             },
         )
-        self.assertEqual(
-            hashlib.sha256((self.root / "receipt.json").read_bytes()).hexdigest(),
-            "ee5db838074ac91b10eede44859362b78fb6bdef4dd9acd7ab5735fcf200f520",
-        )
+        for name in ("data.csv", "receipt.json", "summary.json", "manifest.json"):
+            self.assertEqual((self.root / name).read_bytes(), (FIXTURES / name).read_bytes())
+        self.assertEqual(_canonical(self.plan) + b"\n", (FIXTURES / "plan.json").read_bytes())
 
     def test_tampered_data_fails(self):
         self._bundle()
@@ -137,6 +138,12 @@ class PostgresIngress(unittest.TestCase):
         self.assertEqual(validate_postgres_plan(self.plan), self.plan)
         with self.assertRaises(ParisonError):
             validate_postgres_plan({**self.plan, "dsn": "secret"})
+        with self.assertRaises(ParisonError):
+            validate_postgres_plan({**self.plan, "primary_key": ["missing"]})
+        with self.assertRaises(ParisonError):
+            validate_postgres_plan({**self.plan, "columns": ["id", "id"]})
+        with self.assertRaises(ParisonError):
+            validate_postgres_plan({**self.plan, "limits": {**self.plan["limits"], "max_rows": 300001}})
 
     def test_forged_receipt_cannot_claim_truth(self):
         self._bundle()
@@ -146,3 +153,22 @@ class PostgresIngress(unittest.TestCase):
         receipt_path.write_bytes(_canonical(receipt) + b"\n")
         with self.assertRaises(ParisonError):
             verify_postgres_export(self.root)
+
+    def test_digest_valid_forgery_remains_adapter_claim(self):
+        self._bundle()
+        receipt = json.loads((self.root / "receipt.json").read_text())
+        receipt["source"]["source_id"] = "forged-source"
+        plan = {**self.plan, "source_id": "forged-source"}
+        receipt["plan_sha256"] = hashlib.sha256(_canonical(plan)).hexdigest()
+        receipt_bytes = _canonical(receipt) + b"\n"
+        (self.root / "receipt.json").write_bytes(receipt_bytes)
+        summary = source_summary(receipt, receipt_bytes)
+        summary_bytes = _canonical(summary) + b"\n"
+        (self.root / "summary.json").write_bytes(summary_bytes)
+        manifest = json.loads((self.root / "manifest.json").read_text())
+        manifest["files"]["receipt.json"] = hashlib.sha256(receipt_bytes).hexdigest()
+        manifest["files"]["summary.json"] = hashlib.sha256(summary_bytes).hexdigest()
+        (self.root / "manifest.json").write_bytes(_canonical(manifest) + b"\n")
+        self.assertEqual(verify_postgres_export(self.root), summary)
+        self.assertNotIn("forged-source", json.dumps(summary))
+        self.assertEqual(summary["coverage_claim"], "adapter-all-rows-selected-columns")
