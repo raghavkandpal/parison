@@ -1,7 +1,7 @@
 # Current development state
 
-- Version: **2.1.0 released; six-feature 2.2 train integrated; candidate qualification in progress**
-- Branch: `docs/2.2-release-candidate` (from PR #86 merge `71b075f`)
+- Version: **2.1.0 released; six-feature 2.2.0 candidate qualified on `develop`**
+- Branch: `docs/2.2-candidate-record` (from PR #87 merge `f5dc3e4`)
 - Theme: local-first verification — the Workbench suite workflow, repeated
   suite comparison and failed-member investigation are released
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
@@ -215,7 +215,8 @@
 - Integrated: verified suite rehearsal series through [PR #85](https://github.com/raghavkandpal/parison/pull/85) at `ce33dcc`; exact head `4b8de94` passed independent Standards/Spec review, 499 local tests, and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40463462263). Five of six features are integrated.
 - Integrated: [PR #86](https://github.com/raghavkandpal/parison/pull/86) merged at `71b075f`; typed handoff, source-free diagnosis and the reviewed Workbench reconciliation flow passed 503 local tests, independent Standards/Spec review, and the [exact-head built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40521983174) across Python 3.11–3.14 on Linux, macOS and Windows.
 - Candidate-qualified: source commit `5ecff94` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40641209814), clean-archive artifact inspection and a fresh installed-wheel smoke with 88 focused tests across all six capabilities. Integrated Standards/Spec review is clear; a proposed suite-series `INCONCLUSIVE` gap was disproved against released producer completeness semantics.
-- Next gate: require exact-head CI for the qualification record, then integrate candidate preparation to `develop` under the [active release checklist](2.2/243-release-checklist.md). No release merge, tag or publication is authorized by the accepted contract.
+- Integrated: [candidate preparation PR #87](https://github.com/raghavkandpal/parison/pull/87) merged to `develop` at `f5dc3e4f153522fc525e2a13944a801f91d339af`. Its exact qualification-record head `e0b8e083e03966dabb51267ac6887f2b46336371` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40641683700) and PR quality CI.
+- Next gate: await an explicit 2.2 release decision before opening a release PR to `main`. The proposed post-2.2 fast-diff/cutover-evidence direction remains research, not accepted scope; retain the local-first verifier boundary. No release merge, tag or publication is authorized by the accepted contract.
 
 ## Recorded next steps
 

@@ -1,7 +1,7 @@
 # Parison 2.2.0 release candidate checklist
 
 Date: 27 October 2026  
-Status: candidate qualification in progress; 2.1.0 remains the published release
+Status: **candidate qualified on `develop`**; 2.1.0 remains the published release
 
 ## Completed train
 
@@ -44,8 +44,10 @@ are integrated on `develop`:
   from site-packages, passed an example comparison and bundle verification,
   and ran 88 focused synthetic tests from the clean archive across all six 2.2
   capabilities, including Workbench reconciliation and typed handoff.
-- [ ] Require exact-head CI on the qualification-record commit before merging
-  candidate preparation to `develop`.
+- [x] Qualification-record head `e0b8e083e03966dabb51267ac6887f2b46336371`
+  passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40641683700)
+  and PR quality CI before [PR #87](https://github.com/raghavkandpal/parison/pull/87)
+  merged to `develop` at `f5dc3e4f153522fc525e2a13944a801f91d339af`.
 
 The first manual matrix attempt at this candidate head ended with a cancelled
 queued macOS 3.12 job; the successful rerun above completed every required
