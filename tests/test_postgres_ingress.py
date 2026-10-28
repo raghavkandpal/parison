@@ -118,7 +118,7 @@ class PostgresIngress(unittest.TestCase):
         )
         for name in ("data.csv", "receipt.json", "summary.json", "manifest.json"):
             self.assertEqual((self.root / name).read_bytes(), (FIXTURES / name).read_bytes())
-        self.assertEqual(_canonical(self.plan) + b"\n", (FIXTURES / "plan.json").read_bytes())
+        self.assertEqual(_canonical(self.plan) + b"\n", (FIXTURES.parent / "postgres_ingress_plan.json").read_bytes())
 
     def test_tampered_data_fails(self):
         self._bundle()
