@@ -61,6 +61,24 @@ format may remove this restriction without changing these bytes. The
 comparison recipe must explicitly review `\\N` as a null token; acquisition
 does not approve or mutate a recipe.
 
+The closed plan fields are `plan_version`, `source_id`, `schema`, `table`,
+`columns`, `primary_key` and `limits`. The closed limits are `max_rows`,
+`max_output_bytes`, `statement_timeout_ms` and `wall_timeout_ms`. The adapter
+may apply a smaller positive limit, never a larger one. The plan digest is
+SHA-256 over compact sorted-key UTF-8 JSON without a trailing newline.
+
+The closed receipt fields are `postgres_source_receipt_version`, `kind`,
+`plan_sha256`, `source`, `transaction`, `selection`, `limits` and `observed`.
+`source` has exactly `source_id`, `database`, `schema`, `table`, `columns`,
+`primary_key`, `types`, `server_version_num`, `role`, `role_is_owner`,
+`role_bypassrls` and `role_superuser`. `transaction` has exactly `isolation`,
+`read_only`, `row_security`, `snapshot`, `client_encoding`, `date_style` and
+`time_zone`. `selection` has exactly `sql`, `format`, `null_marker` and
+`null_marker_collision`. `limits` repeats the exact plan limits. `observed`
+has exactly `server_rows`, `local_rows`, `output_bytes`, `output_sha256`,
+`elapsed_ms` and `complete`. The verifier reconstructs the plan and generated
+SQL from the receipt fields before accepting their digests/claims.
+
 `receipt.json` is canonical UTF-8 compact sorted-key JSON plus one newline,
 versioned as `postgres_source_receipt_version: 1`. Its closed private fields
 record the plan digest, declared source and relation/columns/key, server
@@ -84,6 +102,12 @@ attestation. The offline verifier rechecks strict shapes, canonical bytes,
 file membership, symlink absence, digests, CSV header and row count, receipt
 arithmetic and exact summary derivation. A digest-valid forged source claim
 cannot be authenticated offline and must never be reported as such.
+
+The summary's exact fields are `postgres_source_summary_version`, `kind`,
+`complete`, `coverage_claim`, `rows`, `bytes`, `output_sha256` and
+`receipt_sha256`. The manifest's exact fields are
+`postgres_source_manifest_version`, `kind`, `complete` and `files`, where
+`files` contains exactly `data.csv`, `receipt.json` and `summary.json` digests.
 
 The producer's state is unpublished until COPY completes, the server count
 equals the parsed local count, byte/row/wall limits hold, the transaction
