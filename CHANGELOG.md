@@ -13,6 +13,8 @@ All notable changes will be documented in this file.
 - Expand the selected post-2.2 sequence into six separately reviewable 2.3
   capabilities with acceptance gates; the first is one-table PostgreSQL
   evidence ingress.
+- Freeze feature 1's private PostgreSQL source receipt, summary-safe projection,
+  read-only snapshot and local publication contract before runtime changes.
 
 ## 2.2.0 - 2026-10-28
 
