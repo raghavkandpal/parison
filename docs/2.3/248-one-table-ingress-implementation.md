@@ -29,8 +29,9 @@ scripts/check_postgres_ingress_live.py` with an isolated PostgreSQL database
 and libpq environment pointing to a role permitted to create a disposable
 schema and login role. It creates then removes a uniquely named fixture. The
 gate forces a concurrent insert after the snapshot is acquired and checks
-that the export still has the original two rows. It also checks RLS rejection,
-reserved null-marker rejection, no-overwrite, staging cleanup, and offline
+that the export still has the original two rows. It checks that a relation
+rename cannot pass the acquired lock. It also checks RLS rejection,
+reserved null-marker rejection, a mid-COPY byte limit, no-overwrite, staging cleanup, and offline
 verification after source removal. Local development ran this gate against
 PostgreSQL 18.6 on macOS; that is an environment-specific result, not a
 PostgreSQL 16 or production capacity claim.

@@ -172,15 +172,14 @@ def export_postgres(plan_path: str | Path, output: str | Path) -> dict[str, Any]
             try:
                 remaining = plan["limits"]["wall_timeout_ms"] / 1000 - (time.monotonic() - started)
                 with _wall_cancellation(conn, remaining), conn.cursor() as cursor:
-                    for setting, value in (
-                        ("DateStyle", "ISO, YMD"),
-                        ("TimeZone", "UTC"),
-                        ("row_security", "off"),
-                        ("statement_timeout", str(plan["limits"]["statement_timeout_ms"])),
-                        ("lock_timeout", str(min(10_000, plan["limits"]["statement_timeout_ms"]))),
-                        ("idle_in_transaction_session_timeout", "60000"),
-                    ):
-                        cursor.execute("SELECT set_config(%s, %s, true)", (setting, value))
+                    cursor.execute("SET LOCAL DateStyle TO 'ISO, YMD'")
+                    cursor.execute("SET LOCAL TimeZone TO 'UTC'")
+                    cursor.execute("SET LOCAL row_security TO off")
+                    cursor.execute(f"SET LOCAL statement_timeout TO '{plan['limits']['statement_timeout_ms']}ms'")
+                    cursor.execute(
+                        f"SET LOCAL lock_timeout TO '{min(10_000, plan['limits']['statement_timeout_ms'])}ms'"
+                    )
+                    cursor.execute("SET LOCAL idle_in_transaction_session_timeout TO '60000ms'")
                     relation = f"{_quote(plan['schema'])}.{_quote(plan['table'])}"
                     cursor.execute(f"LOCK TABLE {relation} IN ACCESS SHARE MODE")
                     source, snapshot = _metadata(cursor, plan)

@@ -96,6 +96,16 @@ def main() -> None:
                         pass
                     else:
                         raise AssertionError("no-overwrite gate failed")
+                    limited = {**plan, "limits": {**plan["limits"], "max_output_bytes": 32}}
+                    plan_path.write_text(json.dumps(limited))
+                    try:
+                        export_postgres(plan_path, root / "byte_limit")
+                    except ParisonError:
+                        assert not (root / "byte_limit").exists()
+                        assert not list(root.glob(".byte_limit-*"))
+                    else:
+                        raise AssertionError("mid-COPY byte limit gate failed")
+                    plan_path.write_text(json.dumps(plan))
                     admin.execute(
                         sql.SQL("ALTER TABLE {}.orders ENABLE ROW LEVEL SECURITY").format(sql.Identifier(schema))
                     )
@@ -130,7 +140,9 @@ def main() -> None:
                         os.environ["PGUSER"] = original_user
                 admin.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
                 assert verify_postgres_export(bundle) == summary
-                print("PostgreSQL ingress live gate passed: snapshot, RLS, NULL collision, no-overwrite, offline")
+                print(
+                    "PostgreSQL ingress live gate passed: snapshot, RLS, NULL collision, byte limit, no-overwrite, offline"
+                )
         finally:
             admin.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(sql.Identifier(schema)))
             admin.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(reader)))
