@@ -15,6 +15,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [PostgreSQL coordinated two-table acquisition contract](2.3/250-postgresql-pair-acquisition-contract.md)
 - [Coordinated PostgreSQL pair operator notes](2.3/251-postgresql-pair-operator-notes.md)
 - [Pair acquisition budget checkpoint](2.3/252-pair-acquisition-budget-checkpoint.md)
+- [Exact partition discovery research](2.3/253-partition-discovery-research.md)
+- [Exact partition discovery contract and adversarial gate](2.3/254-partition-discovery-contract.md)
 
 ## 2.2 — six-feature verification train — released
 

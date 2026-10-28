@@ -15,6 +15,9 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Research and freeze feature 3's reviewed integer-range exact discovery
+  contract, source-backed verification boundary, resource caps and adversarial
+  reference-corpus gate.
 - Record machine-specific 100k/250k two-table acquisition timing, adapter
   memory, bundle bytes and source scan counters after feature 2 integration.
 - Freeze feature 2's coordinated two-table acquisition plan, common snapshot,
