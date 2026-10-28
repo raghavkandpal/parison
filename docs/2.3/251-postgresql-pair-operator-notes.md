@@ -30,7 +30,8 @@ scripts/check_postgres_pair_live.py` with libpq settings for a disposable
 PostgreSQL database administrator. It creates a unique schema and read-only
 role, then removes them. The test verifies one snapshot despite concurrent
 writers, both relation locks before the first read, cleanup when the second
-table exceeds the shared byte cap, RLS rejection, no-overwrite, and offline
+table exceeds the shared byte cap, partial second-table interruption cleanup,
+connection termination before commit, RLS rejection, no-overwrite, and offline
 verification after the source schema is removed. It passed locally on
 PostgreSQL 18.6 on macOS; this is environment-specific evidence, not a
 PostgreSQL 16 or universal capacity claim.

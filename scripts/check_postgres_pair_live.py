@@ -112,6 +112,45 @@ def main() -> None:
                     else:
                         raise AssertionError("pair aggregate byte limit gate failed")
                     plan_path.write_text(json.dumps(plan))
+                    calls = 0
+
+                    def interrupt_second(cursor, declared, stage, started, remaining_rows, remaining_bytes):
+                        nonlocal calls
+                        calls += 1
+                        if calls == 2:
+                            (stage / "data.csv").write_bytes(b"partial-sensitive-data")
+                            raise KeyboardInterrupt
+                        return _acquire_table(cursor, declared, stage, started, remaining_rows, remaining_bytes)
+
+                    with patch("parison.postgres_pair._acquire_table", interrupt_second):
+                        try:
+                            export_postgres_pair(plan_path, root / "interrupted")
+                        except KeyboardInterrupt:
+                            assert not (root / "interrupted").exists()
+                            assert not list(root.glob(".interrupted-*"))
+                        else:
+                            raise AssertionError("second-table interruption gate failed")
+                    calls = 0
+
+                    def terminate_before_commit(cursor, declared, stage, started, remaining_rows, remaining_bytes):
+                        nonlocal calls
+                        result = _acquire_table(cursor, declared, stage, started, remaining_rows, remaining_bytes)
+                        calls += 1
+                        if calls == 2:
+                            terminated = admin.execute(
+                                "SELECT pg_terminate_backend(%s)", (cursor.connection.info.backend_pid,)
+                            ).fetchone()[0]
+                            assert terminated
+                        return result
+
+                    with patch("parison.postgres_pair._acquire_table", terminate_before_commit):
+                        try:
+                            export_postgres_pair(plan_path, root / "commit_failed")
+                        except ParisonError:
+                            assert not (root / "commit_failed").exists()
+                            assert not list(root.glob(".commit_failed-*"))
+                        else:
+                            raise AssertionError("pair commit failure gate failed")
                     admin.execute(
                         sql.SQL("ALTER TABLE {}.order_lines ENABLE ROW LEVEL SECURITY").format(sql.Identifier(schema))
                     )
@@ -134,7 +173,7 @@ def main() -> None:
                 admin.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
                 assert verify_postgres_pair(bundle) == summary
                 print(
-                    "PostgreSQL pair live gate passed: common snapshot, pre-lock, second-table failure cleanup, RLS, offline"
+                    "PostgreSQL pair live gate passed: common snapshot, pre-lock, limits, interruption, commit failure, RLS, offline"
                 )
         finally:
             admin.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(sql.Identifier(schema)))

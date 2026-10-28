@@ -61,6 +61,7 @@ class PostgresPair(unittest.TestCase):
             path = self.root / "tables" / slot
             receipt = json.loads((path / "receipt.json").read_text())
             table = self.plan["tables"][slot]
+            receipt["source"]["source_id"] = self.plan["source_id"]
             receipt["source"]["table"] = table["table"]
             receipt["selection"]["sql"] = selection_sql(
                 table["schema"], table["table"], table["columns"], table["primary_key"]
@@ -206,6 +207,13 @@ class PostgresPair(unittest.TestCase):
         _write_json(self.root / "manifest.json", manifest)
         with self.assertRaises(ParisonError):
             verify_postgres_pair(self.root)
+
+    def test_digest_valid_forged_source_stays_adapter_claim(self):
+        self.plan["source_id"] = "forged-secret-source"
+        expected = self._bundle()
+        self.assertEqual(verify_postgres_pair(self.root), expected)
+        self.assertNotIn("forged-secret-source", json.dumps(expected))
+        self.assertEqual(expected["coverage_claim"], "adapter-two-tables-one-source-snapshot")
 
 
 if __name__ == "__main__":

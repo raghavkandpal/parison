@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import stat
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
@@ -17,8 +18,8 @@ from .source_receipt import (
     _read_json,
     _sha,
     _text,
+    _verify_handles,
     validate_postgres_plan,
-    verify_postgres_export,
 )
 
 SLOTS = ("orders", "order_lines")
@@ -87,38 +88,43 @@ def verify_postgres_pair(directory: str | Path) -> dict[str, Any]:
             or {path.name for path in tables_root.iterdir()} != set(SLOTS)
         ):
             raise ParisonError("PostgreSQL pair has invalid tables")
-        children = {}
-        for slot in SLOTS:
-            child = tables_root / slot
-            verify_postgres_export(child)
-            with _bundle_handles(child) as handles:
+        with ExitStack() as stack:
+            children = {}
+            for slot in SLOTS:
+                child = tables_root / slot
+                handles = stack.enter_context(_bundle_handles(child))
+                _verify_handles(handles)
+                handles["receipt.json"].seek(0)
+                handles["manifest.json"].seek(0)
                 child_receipt, _ = _read_json(handles["receipt.json"])
                 _, child_manifest_bytes = _read_json(handles["manifest.json"])
-            children[slot] = (child_receipt, hashlib.sha256(child_manifest_bytes).hexdigest())
-        receipt, receipt_data = _read_pair_json(root / "receipt.json")
-        summary, summary_data = _read_pair_json(root / "summary.json")
-        manifest, _ = _read_pair_json(root / "manifest.json")
-        _verify_pair_receipt(receipt, children)
-        _object(summary, "postgres_pair_summary_version kind complete coverage_claim tables rows bytes receipt_sha256")
-        if summary != pair_summary(receipt, receipt_data):
-            raise ParisonError("PostgreSQL pair summary does not reconcile")
-        _object(manifest, "postgres_pair_manifest_version kind complete files")
-        if (
-            type(manifest["postgres_pair_manifest_version"]) is not int
-            or manifest["postgres_pair_manifest_version"] != 1
-            or manifest["kind"] != KIND
-            or manifest["complete"] is not True
-        ):
-            raise ParisonError("unsupported PostgreSQL pair manifest")
-        files = _object(manifest["files"], "receipt.json summary.json orders order_lines")
-        expected = {
-            "receipt.json": hashlib.sha256(receipt_data).hexdigest(),
-            "summary.json": hashlib.sha256(summary_data).hexdigest(),
-            **{slot: children[slot][1] for slot in SLOTS},
-        }
-        if files != expected:
-            raise ParisonError("PostgreSQL pair manifest digest mismatch")
-        return summary
+                children[slot] = (child_receipt, hashlib.sha256(child_manifest_bytes).hexdigest())
+            receipt, receipt_data = _read_pair_json(root / "receipt.json")
+            summary, summary_data = _read_pair_json(root / "summary.json")
+            manifest, _ = _read_pair_json(root / "manifest.json")
+            _verify_pair_receipt(receipt, children)
+            _object(
+                summary, "postgres_pair_summary_version kind complete coverage_claim tables rows bytes receipt_sha256"
+            )
+            if summary != pair_summary(receipt, receipt_data):
+                raise ParisonError("PostgreSQL pair summary does not reconcile")
+            _object(manifest, "postgres_pair_manifest_version kind complete files")
+            if (
+                type(manifest["postgres_pair_manifest_version"]) is not int
+                or manifest["postgres_pair_manifest_version"] != 1
+                or manifest["kind"] != KIND
+                or manifest["complete"] is not True
+            ):
+                raise ParisonError("unsupported PostgreSQL pair manifest")
+            files = _object(manifest["files"], "receipt.json summary.json orders order_lines")
+            expected = {
+                "receipt.json": hashlib.sha256(receipt_data).hexdigest(),
+                "summary.json": hashlib.sha256(summary_data).hexdigest(),
+                **{slot: children[slot][1] for slot in SLOTS},
+            }
+            if files != expected:
+                raise ParisonError("PostgreSQL pair manifest digest mismatch")
+            return summary
     except (OSError, UnicodeError, ValueError) as exc:
         raise ParisonError("cannot verify PostgreSQL pair") from exc
 
