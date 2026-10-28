@@ -133,6 +133,11 @@ Sources: [PostgreSQL transaction isolation](https://www.postgresql.org/docs/curr
 
 ## Selected sequence after 2.2
 
+The [2.3 six-feature roadmap](../2.3/246-six-feature-roadmap.md) expands
+evidence ingress into features 1–2, fast exact differences into 3–4, the
+migration-pair rehearsal into 5 and the dossier into 6. The four stages below
+remain the product sequence, not four separate release credits.
+
 1. **Evidence ingress:** freeze a source receipt and coverage contract; build
    one read-only PostgreSQL acquisition path. Preserve offline verification of
    everything it emits.

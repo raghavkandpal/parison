@@ -10,6 +10,9 @@ All notable changes will be documented in this file.
   PostgreSQL 16→18 order/ledger migration, with provisional measured budgets,
   an adversarial coverage corpus and an independently reviewed snapshot and
   credential boundary. No runtime behavior changes yet.
+- Expand the selected post-2.2 sequence into six separately reviewable 2.3
+  capabilities with acceptance gates; the first is one-table PostgreSQL
+  evidence ingress.
 
 ## 2.2.0 - 2026-10-28
 
