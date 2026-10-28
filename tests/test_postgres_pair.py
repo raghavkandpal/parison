@@ -195,6 +195,15 @@ class PostgresPair(unittest.TestCase):
         with self.assertRaises(ParisonError):
             verify_postgres_pair(self.root)
 
+    def test_symlinked_tables_directory_fails(self):
+        self._bundle()
+        tables = self.root / "tables"
+        displaced = self.root.parent / "displaced-tables"
+        tables.rename(displaced)
+        tables.symlink_to(displaced, target_is_directory=True)
+        with self.assertRaises(ParisonError):
+            verify_postgres_pair(self.root)
+
     def test_digest_valid_wrong_total_fails(self):
         self._bundle()
         receipt = json.loads((self.root / "receipt.json").read_text())

@@ -27,15 +27,15 @@ KIND = "postgresql-two-table-export"
 CLAIM = "adapter-two-tables-one-source-snapshot"
 
 
-def _read_pair_json(path: Path) -> tuple[dict[str, Any], bytes]:
-    if path.is_symlink():
-        raise ParisonError("PostgreSQL pair has unsafe file")
+def _read_pair_json(path: Path, parent_fd: int | None = None) -> tuple[dict[str, Any], bytes]:
     if os.name == "posix":
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=parent_fd)
         with os.fdopen(fd, "rb") as handle:
             if not stat.S_ISREG(os.fstat(fd).st_mode):
                 raise ParisonError("PostgreSQL pair has unsafe file")
             return _read_json(handle)
+    if path.is_symlink():
+        raise ParisonError("PostgreSQL pair has unsafe file")
     with path.open("rb") as handle:
         return _read_json(handle)
 
@@ -74,34 +74,51 @@ def verify_postgres_pair(directory: str | Path) -> dict[str, Any]:
     """Verify local pair coordination and both unchanged child bundles."""
     root = Path(directory)
     try:
-        if root.is_symlink() or {path.name for path in root.iterdir()} != {
-            "receipt.json",
-            "summary.json",
-            "manifest.json",
-            "tables",
-        }:
-            raise ParisonError("PostgreSQL pair has invalid files")
         tables_root = root / "tables"
-        if (
-            tables_root.is_symlink()
-            or not tables_root.is_dir()
-            or {path.name for path in tables_root.iterdir()} != set(SLOTS)
-        ):
-            raise ParisonError("PostgreSQL pair has invalid tables")
         with ExitStack() as stack:
+            root_fd = tables_fd = None
+            if os.name == "posix":
+                root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                stack.callback(os.close, root_fd)
+                if set(os.listdir(root_fd)) != {"receipt.json", "summary.json", "manifest.json", "tables"}:
+                    raise ParisonError("PostgreSQL pair has invalid files")
+                tables_fd = os.open("tables", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=root_fd)
+                stack.callback(os.close, tables_fd)
+                if set(os.listdir(tables_fd)) != set(SLOTS):
+                    raise ParisonError("PostgreSQL pair has invalid tables")
+            else:
+                if root.is_symlink() or {path.name for path in root.iterdir()} != {
+                    "receipt.json",
+                    "summary.json",
+                    "manifest.json",
+                    "tables",
+                }:
+                    raise ParisonError("PostgreSQL pair has invalid files")
+                if (
+                    tables_root.is_symlink()
+                    or not tables_root.is_dir()
+                    or {path.name for path in tables_root.iterdir()} != set(SLOTS)
+                ):
+                    raise ParisonError("PostgreSQL pair has invalid tables")
             children = {}
             for slot in SLOTS:
-                child = tables_root / slot
-                handles = stack.enter_context(_bundle_handles(child))
+                child = Path(slot) if tables_fd is not None else tables_root / slot
+                handles = stack.enter_context(_bundle_handles(child, parent_fd=tables_fd))
                 _verify_handles(handles)
                 handles["receipt.json"].seek(0)
                 handles["manifest.json"].seek(0)
                 child_receipt, _ = _read_json(handles["receipt.json"])
                 _, child_manifest_bytes = _read_json(handles["manifest.json"])
                 children[slot] = (child_receipt, hashlib.sha256(child_manifest_bytes).hexdigest())
-            receipt, receipt_data = _read_pair_json(root / "receipt.json")
-            summary, summary_data = _read_pair_json(root / "summary.json")
-            manifest, _ = _read_pair_json(root / "manifest.json")
+            receipt, receipt_data = _read_pair_json(
+                Path("receipt.json") if root_fd is not None else root / "receipt.json", root_fd
+            )
+            summary, summary_data = _read_pair_json(
+                Path("summary.json") if root_fd is not None else root / "summary.json", root_fd
+            )
+            manifest, _ = _read_pair_json(
+                Path("manifest.json") if root_fd is not None else root / "manifest.json", root_fd
+            )
             _verify_pair_receipt(receipt, children)
             _object(
                 summary, "postgres_pair_summary_version kind complete coverage_claim tables rows bytes receipt_sha256"

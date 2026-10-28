@@ -165,6 +165,52 @@ def main() -> None:
                         assert not (root / "rls").exists()
                     else:
                         raise AssertionError("pair RLS gate failed")
+                    admin.execute(
+                        sql.SQL("ALTER TABLE {}.order_lines DISABLE ROW LEVEL SECURITY").format(sql.Identifier(schema))
+                    )
+                    limited_rows = {**plan, "limits": {**plan["limits"], "max_rows": 3}}
+                    plan_path.write_text(json.dumps(limited_rows))
+                    try:
+                        export_postgres_pair(plan_path, root / "row_limited")
+                    except ParisonError:
+                        assert not (root / "row_limited").exists()
+                        assert not list(root.glob(".row_limited-*"))
+                    else:
+                        raise AssertionError("pair aggregate row limit gate failed")
+                    plan_path.write_text(json.dumps(plan))
+                    admin.execute(sql.SQL("DELETE FROM {}.order_lines").format(sql.Identifier(schema)))
+                    empty_summary = export_postgres_pair(plan_path, root / "empty_child")
+                    assert empty_summary["rows"] == 2
+                    assert verify_postgres_pair(root / "empty_child") == empty_summary
+                    quoted_table = 'quoted"lines'
+                    admin.execute(
+                        sql.SQL("CREATE TABLE {}.{} (id integer PRIMARY KEY, note text)").format(
+                            sql.Identifier(schema), sql.Identifier(quoted_table)
+                        )
+                    )
+                    admin.execute(
+                        sql.SQL("INSERT INTO {}.{} VALUES (1, %s)").format(
+                            sql.Identifier(schema), sql.Identifier(quoted_table)
+                        ),
+                        ("café ☕",),
+                    )
+                    admin.execute(
+                        sql.SQL("GRANT SELECT ON {}.{} TO {}").format(
+                            sql.Identifier(schema), sql.Identifier(quoted_table), sql.Identifier(reader)
+                        )
+                    )
+                    quoted_plan = {
+                        **plan,
+                        "tables": {
+                            **plan["tables"],
+                            "order_lines": {**plan["tables"]["order_lines"], "table": quoted_table},
+                        },
+                    }
+                    plan_path.write_text(json.dumps(quoted_plan))
+                    quoted_summary = export_postgres_pair(plan_path, root / "quoted")
+                    assert quoted_summary["rows"] == 3
+                    assert "café ☕".encode() in (root / "quoted" / "tables" / "order_lines" / "data.csv").read_bytes()
+                    assert verify_postgres_pair(root / "quoted") == quoted_summary
                 finally:
                     if original_user is None:
                         os.environ.pop("PGUSER", None)
@@ -173,7 +219,7 @@ def main() -> None:
                 admin.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
                 assert verify_postgres_pair(bundle) == summary
                 print(
-                    "PostgreSQL pair live gate passed: common snapshot, pre-lock, limits, interruption, commit failure, RLS, offline"
+                    "PostgreSQL pair live gate passed: snapshot, locks, limits, interruption, commit failure, RLS, empty/quoted UTF-8, offline"
                 )
         finally:
             admin.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(sql.Identifier(schema)))

@@ -220,11 +220,11 @@ def _count_csv_handle(handle: BinaryIO, columns: list[str], max_rows: int) -> in
 
 
 @contextmanager
-def _bundle_handles(root: Path):
+def _bundle_handles(root: Path, parent_fd: int | None = None):
     """Pin the directory and every regular file before verification."""
     with ExitStack() as stack:
         if os.name == "posix":
-            directory_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            directory_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd)
             stack.callback(os.close, directory_fd)
             if set(os.listdir(directory_fd)) != FILES:
                 raise ParisonError("PostgreSQL export has invalid files")
