@@ -4,6 +4,11 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## Post-2.2 direction — research
+
+- [Fast differences and defensible cutover evidence: chosen first target and gates](2.2/244-fast-diff-and-cutover-evidence-direction.md)
+- [PostgreSQL evidence ingress primary-source research](2.3/245-postgresql-ingress-research.md)
+
 ## 2.2 — six-feature verification train — released
 
 - [2.2.0 release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.2.0)
