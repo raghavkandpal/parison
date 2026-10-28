@@ -1,7 +1,7 @@
 # Current development state
 
-- Version: **2.1.0 released; six-feature 2.2 train accepted**
-- Branch: `feature/suite-rehearsal-series` (from PR #84 merge `126f00e`)
+- Version: **2.1.0 released; six-feature 2.2 train integrated; candidate qualification in progress**
+- Branch: `docs/2.2-release-candidate` (from PR #86 merge `71b075f`)
 - Theme: local-first verification — the Workbench suite workflow, repeated
   suite comparison and failed-member investigation are released
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
@@ -213,8 +213,9 @@
 - Integrated: recoverable suites through [PR #83](https://github.com/raghavkandpal/parison/pull/83) at `1b8f1ff`; exact head `170fb90` passed independent Standards/Spec review, 484 local tests, [full built-wheel CI](https://github.com/raghavkandpal/parison/actions/runs/40285758273) and [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40285762200).
 - Integrated: policy-change review through PR #84 at `126f00e`; exact head `c1955fe` passed independent Standards/Spec review, 490 local tests, [full matrix](https://github.com/raghavkandpal/parison/actions/runs/40326407130) and [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40326412286).
 - Integrated: verified suite rehearsal series through [PR #85](https://github.com/raghavkandpal/parison/pull/85) at `ce33dcc`; exact head `4b8de94` passed independent Standards/Spec review, 499 local tests, and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40463462263). Five of six features are integrated.
-- Next gate: implement the [complete reconciliation workflow and typed handoff](2.2/242-reconciliation-handoff-contract.md), then qualify feature 6 and prepare the candidate.
-- In progress: draft [PR #86](https://github.com/raghavkandpal/parison/pull/86) now includes typed handoff, source-free diagnosis and a reviewed Workbench reconciliation flow. The local gate passes 503 tests; independent Standards review is clear and the Spec review's staging-cancellation finding was corrected and cleared. Exact-head CI remains before merging feature 6.
+- Integrated: [PR #86](https://github.com/raghavkandpal/parison/pull/86) merged at `71b075f`; typed handoff, source-free diagnosis and the reviewed Workbench reconciliation flow passed 503 local tests, independent Standards/Spec review, and the [exact-head built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40521983174) across Python 3.11–3.14 on Linux, macOS and Windows.
+- Candidate-qualified: source commit `5ecff94` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40641209814), clean-archive artifact inspection and a fresh installed-wheel smoke with 88 focused tests across all six capabilities. Integrated Standards/Spec review is clear; a proposed suite-series `INCONCLUSIVE` gap was disproved against released producer completeness semantics.
+- Next gate: require exact-head CI for the qualification record, then integrate candidate preparation to `develop` under the [active release checklist](2.2/243-release-checklist.md). No release merge, tag or publication is authorized by the accepted contract.
 
 ## Recorded next steps
 

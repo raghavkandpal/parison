@@ -6,6 +6,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 
 ## 2.2 — accepted six-feature train
 
+- [2.2.0 release candidate checklist](2.2/243-release-checklist.md)
 - [Complete reconciliation workflow and typed handoff contract](2.2/242-reconciliation-handoff-contract.md)
 - [Verified suite rehearsal series contract](2.2/241-suite-series-contract.md)
 
