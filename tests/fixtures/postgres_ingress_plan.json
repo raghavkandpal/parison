@@ -1,0 +1,1 @@
+{"columns":["id","note"],"limits":{"max_output_bytes":1000,"max_rows":10,"statement_timeout_ms":1000,"wall_timeout_ms":2000},"plan_version":1,"primary_key":["id"],"schema":"public","source_id":"source-a","table":"orders"}

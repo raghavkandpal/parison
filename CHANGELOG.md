@@ -4,15 +4,23 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Add an optional, bounded one-table PostgreSQL reader with a qualified
+  repeatable-read snapshot claim, canonical private receipt, safe summary,
+  atomic local bundle, and offline verification command and schemas.
+
 ### Documentation
 
 - Select the first post-2.2 evidence-ingress target through blind review:
   PostgreSQL 16→18 order/ledger migration, with provisional measured budgets,
   an adversarial coverage corpus and an independently reviewed snapshot and
-  credential boundary. No runtime behavior changes yet.
+  credential boundary.
 - Expand the selected post-2.2 sequence into six separately reviewable 2.3
   capabilities with acceptance gates; the first is one-table PostgreSQL
   evidence ingress.
+- Freeze feature 1's private PostgreSQL source receipt, summary-safe projection,
+  read-only snapshot and local publication contract before runtime changes.
 
 ## 2.2.0 - 2026-10-28
 

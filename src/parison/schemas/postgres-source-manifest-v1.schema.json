@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-source-manifest-v1.schema.json",
+  "title": "postgres-source-manifest-v1",
+  "type": "object",
+  "required": [
+    "postgres_source_manifest_version",
+    "kind",
+    "complete",
+    "files"
+  ],
+  "properties": {
+    "postgres_source_manifest_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "postgresql-table-export"
+    },
+    "complete": {
+      "const": true
+    },
+    "files": {
+      "type": "object",
+      "required": [
+        "data.csv",
+        "receipt.json",
+        "summary.json"
+      ],
+      "properties": {
+        "data.csv": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "receipt.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "summary.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

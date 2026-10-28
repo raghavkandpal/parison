@@ -201,6 +201,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - run: python -m unittest discover -s tests -v
+      - run: parison verify-postgres-export tests/fixtures/postgres_ingress
+      - run: python -m pip install 'psycopg[binary]==3.3.6'
+      - run: parison-postgres --help
       - name: Check in-memory benchmark accuracy
         if: matrix.python-version == '3.14'
         run: |
@@ -238,6 +241,9 @@ jobs:
       - run: python -m pip install 'polars==1.44.2' 'openpyxl==3.1.5' 'jsonschema>=4,<5'
       - name: Install built wheel
         run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', *glob.glob('dist/parison-*.whl')])"
+      - run: parison verify-postgres-export tests/fixtures/postgres_ingress
+      - run: python -m pip install 'psycopg[binary]==3.3.6'
+      - run: parison-postgres --help
       - run: parison --version
       - run: python tests/test_xlsx.py -v
       - run: parison schema recipe-v3

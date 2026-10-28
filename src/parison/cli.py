@@ -87,6 +87,7 @@ from .reconciliation import (
     summarize_reconciliation_result,
     verify_reconciliation_bundle,
 )
+from .source_receipt import verify_postgres_export
 from .suite_series import analyze_suite_series
 from .suites import compare_suites
 from .workbench_host import serve_workbench
@@ -320,6 +321,8 @@ def parser() -> argparse.ArgumentParser:
     )
     diff_diagnostic.add_argument("left")
     diff_diagnostic.add_argument("right")
+    postgres_verify = commands.add_parser("verify-postgres-export", help="verify a local PostgreSQL source export")
+    postgres_verify.add_argument("bundle")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
     schema.add_argument(
         "name",
@@ -388,6 +391,10 @@ def parser() -> argparse.ArgumentParser:
             "discrepancy-analysis",
             "suite-series",
             "discrepancy-drilldown",
+            "postgres-export-plan",
+            "postgres-source-receipt",
+            "postgres-source-summary",
+            "postgres-source-manifest",
         ),
     )
     schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
@@ -991,6 +998,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "diff-reproducibility":
             print(json.dumps(diff_reproducibility_diagnostics(args.left, args.right), indent=2, sort_keys=True))
             print("Runtime differences are informational and do not change verification outcomes.", file=sys.stderr)
+            return 0
+        if args.command == "verify-postgres-export":
+            print(json.dumps(verify_postgres_export(args.bundle), sort_keys=True))
             return 0
         if args.command == "schema":
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))

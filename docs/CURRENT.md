@@ -1,7 +1,7 @@
 # Current development state
 
 - Version: **2.2.0 released** at exact tested merge `bfb17a6`
-- Branch: `docs/2.3-six-feature-roadmap` (from PR #91 merge `c69b993`)
+- Branch: `feature/postgresql-evidence-ingress` (from the merged 2.3 roadmap PR #92)
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
@@ -220,7 +220,8 @@
 - Released: [PR #89](https://github.com/raghavkandpal/parison/pull/89) merged at `bfb17a6baf26cde2930f12f4dfe4ff5f8c8c93c4`; [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40643582338) and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40643616772) passed on that exact merge. Annotated [2.2.0 release](https://github.com/raghavkandpal/parison/releases/tag/2.2.0) assets were re-downloaded, checksum-verified and the public wheel passed 88 focused tests in a fresh Python 3.14 environment.
 - Research decision: the post-2.2 [direction](2.2/244-fast-diff-and-cutover-evidence-direction.md) now targets a database migration engineer rehearsing PostgreSQL 16→18 order/ledger migration. A blind review selected provisional 100k/250k-row gates, a measured ten-minute target on a named machine and an adversarial coverage corpus; an independent credential/snapshot review narrowed whole-table claims and publication boundaries.
 - Scope: the [2.3 six-feature roadmap](2.3/246-six-feature-roadmap.md) expands the selected sequence into one-table ingress, multi-table snapshot evidence, fast exact partition discovery, selective investigation, PostgreSQL 16→18 rehearsal and a portable decision dossier. Each has a separate acceptance gate; no 2.3 candidate is due before all six.
-- Next gate: freeze feature 1's one-table source-receipt and coverage contract, then implement the optional read-only PostgreSQL reader with offline verification. Preserve released 2.2 bytes and core offline execution.
+- Contract frozen: [feature 1 PostgreSQL one-table ingress](2.3/247-postgresql-one-table-ingress-contract.md) fixes a reviewed plan, read-only snapshot, qualified all-rows/selected-columns adapter claim, private canonical receipt, summary-safe projection, offline verifier and fail-closed publication.
+- In progress: [feature 1 implementation](2.3/248-one-table-ingress-implementation.md) exports a bounded local PostgreSQL table and verifies it offline. The controlled PostgreSQL 18.6 gate passed concurrent-write snapshot, RLS, reserved null-marker, no-overwrite and source-removal checks. Next gate: complete local checks, independent Standards/Spec review, and exact-head built-wheel CI before integration.
 
 ## Recorded next steps
 
