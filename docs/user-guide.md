@@ -5,7 +5,7 @@ then produces deterministic evidence that can be verified elsewhere. A `PASS`
 means agreement under that policy. It does not prove extraction truth, approve
 the policy or authorize a cutover.
 
-This is the maintained guide for the released 2.0 line. The
+This is the maintained guide for the released 2.2.0 line. The
 [generated command reference](command-reference.md) lists every option; frozen
 version contracts remain the normative record for artifact semantics.
 
@@ -14,7 +14,7 @@ version contracts remain the normative record for artifact semantics.
 Python 3.11 or newer is required.
 
 ```sh
-python -m pip install /path/to/parison-2.1.0-py3-none-any.whl
+python -m pip install /path/to/parison-2.2.0-py3-none-any.whl
 parison --version
 parison init migration-check
 cd migration-check
@@ -42,13 +42,16 @@ receipts separately.
 
 ## Start the unified Workbench
 
-The 2.0 interface is one Python-hosted local application. The host binds
+The Workbench is one Python-hosted local application. The host binds
 only numeric loopback on an ephemeral port and requires a per-launch capability.
 Plans reviews CLI-native recipes;
 Run preflights and executes one explicit local comparison; Results verifies a
 bundle before display; History, Investigate and Compare operate only on verified
-summary-safe evidence. Continue to use the released CLI for automation and
-suite execution.
+summary-safe evidence. In 2.2, Plans can compose unapproved suite-v2 drafts;
+Run supports explicit retained suite restart/resume; Compare reviews two
+recipes and an evolution declaration; and Reconcile binds reviewed local
+declarations, inputs and receipt before execution. Continue to use the
+released CLI for automation.
 
 ```sh
 parison workbench --workspace .
@@ -355,6 +358,18 @@ The Workbench Compare activity accepts the same two workspace-relative suite
 bundles. It rejects changed scope, policy or tampered evidence. This is a
 summary-safe comparison, not a determination that a migration is safe.
 
+For 2–16 complete verified suite rehearsals under identical policy and case
+selection, create a separate source-free, bounded series artifact:
+
+```sh
+parison analyze-suites evidence/suite-01 evidence/suite-02 \
+  --output evidence/suite-series
+parison verify-analysis evidence/suite-series
+```
+
+The series retains caller order, per-case discrepancy transitions and input
+identity changes. It does not claim chronology, improvement or cutover approval.
+
 The 2.1 Workbench Investigate activity also accepts a verified
 suite bundle plus one exact failed case ID. It shows that member's discrepancy
 groups without record keys or values. For a nonzero group from a raw-sensitivity
@@ -381,6 +396,10 @@ See the [discrepancy-analysis guide](1.5/162-discrepancy-analysis-guide.md).
 
 Parison emits deterministic unsigned statements. An external reviewed signing
 system authenticates the exact statement bytes.
+
+Versioned typed Statements and metadata cover reports also accept verified
+reconciliation and dataset-evidence bundles. They identify the evidence kind
+without making Parison a signer or turning recorded PASS into approval.
 
 ```sh
 parison statement evidence/cutover --output parison-statement.json

@@ -1,7 +1,7 @@
 # Recoverable suite execution contract
 
 Date: 26 October 2026  
-Status: frozen before implementation
+Status: released in 2.2.0
 
 Implementation checkpoint: the runner shares its exact checkpoint eligibility
 rule with read-only preview. Workbench exposes explicit temporary, restart and

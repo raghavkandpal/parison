@@ -1,9 +1,10 @@
 # Current development state
 
-- Version: **2.1.0 released; six-feature 2.2.0 candidate qualified on `develop`**
-- Branch: `docs/2.2-candidate-record` (from PR #87 merge `f5dc3e4`)
-- Theme: local-first verification — the Workbench suite workflow, repeated
-  suite comparison and failed-member investigation are released
+- Version: **2.2.0 released** at exact tested merge `bfb17a6`
+- Branch: `docs/2.2-release-records` (from PR #89 merge `bfb17a6`)
+- Theme: local-first verification — six versioned 2.2 capabilities now cover
+  dataset evidence, suite authoring/recovery/series, policy review and
+  reconciliation workflow with typed unsigned handoff
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
   record projection and the 1.9 JSON/XML/XLSX structured field-selection train
   across all comparison modes
@@ -216,11 +217,12 @@
 - Integrated: [PR #86](https://github.com/raghavkandpal/parison/pull/86) merged at `71b075f`; typed handoff, source-free diagnosis and the reviewed Workbench reconciliation flow passed 503 local tests, independent Standards/Spec review, and the [exact-head built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40521983174) across Python 3.11–3.14 on Linux, macOS and Windows.
 - Candidate-qualified: source commit `5ecff94` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40641209814), clean-archive artifact inspection and a fresh installed-wheel smoke with 88 focused tests across all six capabilities. Integrated Standards/Spec review is clear; a proposed suite-series `INCONCLUSIVE` gap was disproved against released producer completeness semantics.
 - Integrated: [candidate preparation PR #87](https://github.com/raghavkandpal/parison/pull/87) merged to `develop` at `f5dc3e4f153522fc525e2a13944a801f91d339af`. Its exact qualification-record head `e0b8e083e03966dabb51267ac6887f2b46336371` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40641683700) and PR quality CI.
-- Next gate: await an explicit 2.2 release decision before opening a release PR to `main`. The proposed post-2.2 fast-diff/cutover-evidence direction remains research, not accepted scope; retain the local-first verifier boundary. No release merge, tag or publication is authorized by the accepted contract.
+- Released: [PR #89](https://github.com/raghavkandpal/parison/pull/89) merged at `bfb17a6baf26cde2930f12f4dfe4ff5f8c8c93c4`; [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40643582338) and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40643616772) passed on that exact merge. Annotated [2.2.0 release](https://github.com/raghavkandpal/parison/releases/tag/2.2.0) assets were re-downloaded, checksum-verified and the public wheel passed 88 focused tests in a fresh Python 3.14 environment.
+- Next gate: review the proposed post-2.2 fast-diff/cutover-evidence direction as research. Select a first user and migration pair, run budget, coverage corpus and credential/snapshot threat model before accepting a new scope. Keep the deterministic verifier local and preserve 2.2 contracts.
 
 ## Recorded next steps
 
-- Parison 2.1.0 is published. Internal review and test evidence never
+- Parison 2.2.0 is published. Internal review and test evidence never
   establishes operational policy or cutover approval.
 
 - When an autonomous session stops near its usage limit, return a copy-ready

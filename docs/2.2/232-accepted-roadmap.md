@@ -1,7 +1,7 @@
 # 2.2 accepted roadmap
 
 Date: 23 October 2026  
-Status: accepted by the user after independent blind review; implementation pending
+Status: six capabilities released in 2.2.0; original acceptance decision preserved
 
 This decision supersedes the scope targets in research documents 229 and 230. Preserve those documents and the [independent review](231-independent-feature-review.md) as decision evidence.
 

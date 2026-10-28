@@ -1,7 +1,7 @@
 # Verified suite rehearsal series contract
 
 Date: 27 October 2026
-Status: frozen before implementation
+Status: released in 2.2.0
 
 Feature 5 accepts 2–16 distinct, caller-ordered, recursively verified complete
 suite parents (v1 or v2), never shards. Selection, suite policy, ordered case

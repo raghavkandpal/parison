@@ -1,7 +1,7 @@
 # Reconciliation count verification contract
 
 Date: 23 October 2026
-Status: frozen for prerequisite hardening; initial implementation local; qualification pending
+Status: released in 2.2.0
 
 The next hardening slice preserves all released producer bytes and rejects only
 internally inconsistent evidence. It does not rerun source data or authenticate
