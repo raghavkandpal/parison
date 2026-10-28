@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-source-summary-v1.schema.json",
+  "title": "postgres-source-summary-v1",
+  "type": "object",
+  "required": [
+    "postgres_source_summary_version",
+    "kind",
+    "complete",
+    "coverage_claim",
+    "rows",
+    "bytes",
+    "output_sha256",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "postgres_source_summary_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "postgresql-table-export"
+    },
+    "complete": {
+      "const": true
+    },
+    "coverage_claim": {
+      "const": "adapter-all-rows-selected-columns"
+    },
+    "rows": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 300000
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1073741824
+    },
+    "output_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "receipt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

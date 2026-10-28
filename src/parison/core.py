@@ -126,6 +126,10 @@ _SCHEMAS = {
     "discrepancy-analysis": "discrepancy-analysis-v1.schema.json",
     "suite-series": "suite-series-v1.schema.json",
     "discrepancy-drilldown": "discrepancy-drilldown-v1.schema.json",
+    "postgres-export-plan": "postgres-export-plan-v1.schema.json",
+    "postgres-source-receipt": "postgres-source-receipt-v1.schema.json",
+    "postgres-source-summary": "postgres-source-summary-v1.schema.json",
+    "postgres-source-manifest": "postgres-source-manifest-v1.schema.json",
 }
 
 _SUITE_LIMIT_DEFAULTS = {

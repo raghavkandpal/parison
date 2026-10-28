@@ -10,6 +10,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [PostgreSQL evidence ingress primary-source research](2.3/245-postgresql-ingress-research.md)
 - [2.3 six-feature roadmap and acceptance gates](2.3/246-six-feature-roadmap.md)
 - [PostgreSQL one-table ingress contract](2.3/247-postgresql-one-table-ingress-contract.md)
+- [One-table ingress implementation and operator commands](2.3/248-one-table-ingress-implementation.md)
 
 ## 2.2 — six-feature verification train — released
 
