@@ -1,7 +1,7 @@
 # 2.1 release qualification research
 
 Date and repository-source access: 22–23 October 2026
-Status: updated for the complete three-capability train; candidate qualification active
+Status: qualification completed for the 2.1.0 release
 
 ## Finding
 

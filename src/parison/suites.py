@@ -231,10 +231,16 @@ def _copy_verified_child(source: Path, target: Path) -> None:
 
 
 def _checkpoint_data(
-    case: dict[str, Any], child: Path, suite_sha256: str, limits: dict[str, int], sample_limit: int
+    case: dict[str, Any],
+    child: Path,
+    suite_sha256: str,
+    limits: dict[str, int],
+    sample_limit: int,
+    checkpoint_context: dict | None = None,
 ) -> dict[str, Any]:
     result = _read_bundle_result(child)
     return {
+        **({"context": checkpoint_context} if checkpoint_context is not None else {}),
         "case_id": case["id"],
         "suite_policy_sha256": suite_sha256,
         "policy_sha256": case["policy_sha256"],
@@ -267,15 +273,16 @@ def _reusable_workspace_child(
     suite_sha256: str,
     limits: dict[str, int],
     sample_limit: int,
+    checkpoint_context: dict | None = None,
 ) -> bool:
     try:
         checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
-        expected = _checkpoint_data(case, child, suite_sha256, limits, sample_limit)
+        expected = _checkpoint_data(case, child, suite_sha256, limits, sample_limit, checkpoint_context)
         verify_bundle(child)
         child_result = _read_bundle_result(child)
-    except (OSError, json.JSONDecodeError, ParisonError):
+    except (OSError, ValueError, ParisonError):
         return False
-    if checkpoint != expected:
+    if checkpoint != expected or child_result.get("complete") is not True:
         return False
     try:
         current_inputs = {"baseline": _source_digest(case["baseline"]), "candidate": _source_digest(case["candidate"])}
@@ -297,6 +304,45 @@ def _reusable_workspace_child(
     if case.get("execution"):
         expected_resources["max_temp_bytes"] = case["execution"].get("max_temp_bytes", DEFAULT_MAX_TEMP_BYTES)
     return resource_limits == expected_resources
+
+
+def preview_suite_recovery(
+    plan: str | Path,
+    workspace: str | Path,
+    *,
+    case_ids: list[str] | None = None,
+    tags: list[str] | None = None,
+    shard_index: int | None = None,
+    shard_count: int | None = None,
+    sample_limit: int = 100,
+    checkpoint_context: dict | None = None,
+) -> dict[str, Any]:
+    """Report current reuse eligibility using the runner's exact child rule."""
+    suite = load_suite(plan)
+    if suite["suite_version"] != 2:
+        raise ParisonError("suite recovery requires suite_version 2")
+    selected = select_suite_cases(suite, case_ids, tags, shard_index, shard_count)
+    root = Path(workspace)
+    if (
+        root.is_symlink()
+        or not root.is_dir()
+        or any(path.is_symlink() or not path.is_dir() for path in (root / "cases", root / "checkpoints"))
+    ):
+        raise ParisonError("suite recovery workspace is incomplete or unsafe")
+    cases = []
+    for case in selected:
+        limits = case["limits"]
+        reusable = _reusable_workspace_child(
+            case,
+            root / "cases" / case["id"],
+            root / "checkpoints" / f"{case['id']}.json",
+            suite["suite_policy_sha256"],
+            limits,
+            sample_limit,
+            checkpoint_context,
+        )
+        cases.append({"id": case["id"], "reusable": reusable})
+    return {"suite_policy_sha256": suite["suite_policy_sha256"], "cases": cases}
 
 
 def _execute_suite_case(
@@ -400,10 +446,19 @@ def run_suite(
     jobs: int = 1,
     cancelled=None,
     progress=None,
+    input_bindings: bool = False,
+    workspace_owner: str | None = None,
+    checkpoint_context: dict | None = None,
 ) -> dict[str, Any]:
     """Run a validated ordered suite and atomically publish its child bundles."""
+    if input_bindings:
+        from .manifesting import canonical_input_bindings_bytes, capture_suite_input_bindings
+
     suite = load_suite(plan)
     selected = select_suite_cases(suite, case_ids, tags, shard_index, shard_count)
+    if input_bindings and suite["suite_version"] != 2:
+        raise ParisonError("input bindings require suite_version 2")
+    captured_inputs = capture_suite_input_bindings(suite, selected) if input_bindings else None
     if not 1 <= jobs <= _MAX_SUITE_JOBS:
         raise ParisonError(f"jobs must be between 1 and {_MAX_SUITE_JOBS}")
     if cancelled is not None and jobs != 1:
@@ -412,6 +467,8 @@ def run_suite(
         raise ParisonError("suite workspaces require suite_version 2")
     if resume and workspace is None:
         raise ParisonError("--resume requires --workspace")
+    if workspace_owner is not None and (workspace is None or resume or not workspace_owner):
+        raise ParisonError("workspace owner requires a new retained workspace")
     output = Path(output)
     if output.exists():
         raise ParisonError(f"output already exists: {output}")
@@ -434,6 +491,8 @@ def run_suite(
                 (workspace_path / "cases").mkdir(parents=True)
                 (workspace_path / "checkpoints").mkdir()
                 os.chmod(workspace_path, 0o700)
+                if workspace_owner is not None:
+                    (workspace_path / ".workbench-owner").write_text(workspace_owner + "\n", encoding="ascii")
             except OSError as exc:
                 raise ParisonError(f"cannot prepare suite workspace: {exc}") from exc
     stage = None
@@ -464,7 +523,13 @@ def run_suite(
                 and workspace_child is not None
                 and checkpoint is not None
                 and _reusable_workspace_child(
-                    case, workspace_child, checkpoint, suite["suite_policy_sha256"], limits, sample_limit
+                    case,
+                    workspace_child,
+                    checkpoint,
+                    suite["suite_policy_sha256"],
+                    limits,
+                    sample_limit,
+                    checkpoint_context,
                 )
             )
             if reused:
@@ -490,7 +555,9 @@ def run_suite(
             if workspace_child is not None and checkpoint is not None:
                 _write_checkpoint(
                     checkpoint,
-                    _checkpoint_data(case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit),
+                    _checkpoint_data(
+                        case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit, checkpoint_context
+                    ),
                 )
                 _copy_verified_child(workspace_child, child)
             cases_by_id[case["id"]] = {
@@ -609,7 +676,14 @@ def run_suite(
                         continue
                     _write_checkpoint(
                         checkpoint,
-                        _checkpoint_data(case, workspace_child, suite["suite_policy_sha256"], limits, sample_limit),
+                        _checkpoint_data(
+                            case,
+                            workspace_child,
+                            suite["suite_policy_sha256"],
+                            limits,
+                            sample_limit,
+                            checkpoint_context,
+                        ),
                     )
                 raise
             except BaseException:
@@ -673,9 +747,27 @@ def run_suite(
             }
         (stage / "suite-result.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         (stage / "report.html").write_text(_suite_report(result), encoding="utf-8")
-        files = {name: _digest(stage / name) for name in ("suite-result.json", "effective-suite.json", "report.html")}
+        if input_bindings:
+            if capture_suite_input_bindings(suite, selected) != captured_inputs:
+                raise ParisonError("suite inputs changed during execution")
+            recorded = {(item["id"], item["role"]): item for item in captured_inputs["bindings"]}
+            for case in cases:
+                child_result = _read_bundle_result(stage / case["bundle"])
+                if not child_result.get("complete"):
+                    continue
+                for role in ("baseline", "candidate"):
+                    if (
+                        child_result.get("inputs", {}).get(role, {}).get("sha256")
+                        != recorded[(case["id"], role)]["source_sha256"]
+                    ):
+                        raise ParisonError("suite child input digest does not match captured binding")
+            (stage / "input-bindings.json").write_bytes(canonical_input_bindings_bytes(captured_inputs))
+        members = ("suite-result.json", "effective-suite.json", "report.html") + (
+            ("input-bindings.json",) if input_bindings else ()
+        )
+        files = {name: _digest(stage / name) for name in members}
         manifest = {
-            "schema_version": result["schema_version"],
+            "schema_version": 3 if input_bindings else result["schema_version"],
             "kind": kind,
             "complete": True,
             "outcome": outcome,

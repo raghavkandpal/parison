@@ -1,0 +1,10 @@
+[
+  {"id":"unknown-count","kind":"identity","changes":{"invented_count":999},"remove":[]},
+  {"id":"missing-count","kind":"identity","changes":{},"remove":["rows"]},
+  {"id":"boolean-count","kind":"identity","changes":{"rows":true},"remove":[]},
+  {"id":"negative-count","kind":"identity","changes":{"rows":-1},"remove":[]},
+  {"id":"impossible-distinct","kind":"identity","changes":{"rows":1,"distinct_keys":2},"remove":[]},
+  {"id":"duplicate-pass","kind":"identity","changes":{"rows":2,"distinct_keys":1,"duplicate_keys":1},"remove":[]},
+  {"id":"reference-total","kind":"reference","changes":{"child_rows":0,"matched_rows":1},"remove":[]},
+  {"id":"orphan-pass","kind":"reference","changes":{"child_rows":1,"matched_rows":0,"orphan_rows":1},"remove":[]}
+]

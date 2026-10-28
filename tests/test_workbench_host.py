@@ -14,7 +14,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from parison.core import ParisonError, compare, load_recipe, publish
-from parison.evidence import export_statement, report_cutover
+from parison.evidence import evidence_statement, export_statement, report_cutover
 from parison.project import init_project
 from parison.suites import run_suite
 from parison.workbench_host import _choose_bundle, _choose_recipe, _workspace_source, create_workbench_server
@@ -26,6 +26,392 @@ except ImportError:
 
 
 class WorkbenchHostTests(unittest.TestCase):
+    def test_reconciliation_handoff_and_source_free_diagnosis(self):
+        from parison.reconciliation import run_reconciliation_with_bindings
+        from tests.test_reconciliation import ReconciliationContracts
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            files = ReconciliationContracts()._preflight_files(root)
+            request = {
+                "alignment": files[0].name,
+                "reconciliation": files[1].name,
+                "receipt": files[2].name,
+                "datasets": [
+                    {
+                        "id": identifier,
+                        "recipe": str(sources["recipe"].relative_to(root)),
+                        "baseline": str(sources["baseline"].relative_to(root)),
+                        "candidate": str(sources["candidate"].relative_to(root)),
+                    }
+                    for identifier, sources in files[3].items()
+                ],
+                "output": "reconciled",
+            }
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+                response = self._post(connection, server, "/api/reconciliation-review", request)
+                self.assertEqual(response.status, 200)
+                reviewed = json.loads(response.read())
+                for private in ("payments", "payouts", "payout_id", str(root)):
+                    self.assertNotIn(private, json.dumps(reviewed))
+                receipt_bytes = files[2].read_bytes()
+                files[2].write_bytes(receipt_bytes + b"\n")
+                response = self._post(
+                    connection, server, "/api/reconciliation-run", {**request, "review_id": reviewed["review_id"]}
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "reconciled").exists())
+                files[2].write_bytes(receipt_bytes)
+                source = files[3]["payments"]["baseline"]
+                source_bytes = source.read_bytes()
+                source.write_bytes(source_bytes + b"\n")
+                response = self._post(
+                    connection, server, "/api/reconciliation-run", {**request, "review_id": reviewed["review_id"]}
+                )
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "reconciled").exists())
+                source.write_bytes(source_bytes)
+                response = self._post(
+                    connection, server, "/api/reconciliation-run", {**request, "review_id": reviewed["review_id"]}
+                )
+                self.assertEqual(response.status, 200)
+                executed = json.loads(response.read())
+                self.assertEqual(executed["evidence"]["kind"], "reconciliation")
+                self.assertEqual(executed["catalog_status"], "added")
+                run_reconciliation_with_bindings(root / "cli-reconciled", *files)
+                for member in (root / "reconciled").iterdir():
+                    self.assertEqual(member.read_bytes(), (root / "cli-reconciled" / member.name).read_bytes())
+                response = self._post(connection, server, "/api/evidence", {"bundle": "reconciled"})
+                self.assertEqual(response.status, 200)
+                opened = json.loads(response.read())
+                self.assertEqual(opened["dataset_outcome_counts"]["PASS"], 2)
+                self.assertNotIn("payout_id", json.dumps(opened))
+                response = self._post(connection, server, "/api/handoff-preview", {"bundle": "reconciled"})
+                self.assertEqual(response.status, 200)
+                claim = json.loads(response.read())
+                self.assertEqual(claim["predicate"]["bundleKind"], "reconciliation")
+                response = self._post(
+                    connection,
+                    server,
+                    "/api/handoff-export",
+                    {
+                        "bundle": "reconciled",
+                        "output": "typed.json",
+                        "format": "statement",
+                        **{"manifest_sha256": claim["manifest_sha256"]},
+                    },
+                )
+                self.assertEqual(response.status, 200)
+                response.read()
+                response = self._post(connection, server, "/api/reconciliation-diagnosis", {"bundle": "reconciled"})
+                self.assertEqual(response.status, 200)
+                diagnosis = json.loads(response.read())
+                self.assertEqual(diagnosis["kind"], "reconciliation-diagnosis")
+                self.assertNotIn(str(root), json.dumps(diagnosis))
+                response = self._post(connection, server, "/api/history", {})
+                self.assertEqual(response.status, 200)
+                self.assertIn("reconciliation", [item["kind"] for item in json.loads(response.read())])
+                second = {**request, "output": "uncataloged"}
+                response = self._post(connection, server, "/api/reconciliation-review", second)
+                self.assertEqual(response.status, 200)
+                second_review = json.loads(response.read())
+                with patch("parison.workbench.catalog_add", side_effect=ParisonError("catalog unavailable")):
+                    response = self._post(
+                        connection,
+                        server,
+                        "/api/reconciliation-run",
+                        {**second, "review_id": second_review["review_id"]},
+                    )
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read())["catalog_status"], "failed")
+                self.assertEqual(evidence_statement(root / "uncataloged")["predicate"]["bundleKind"], "reconciliation")
+                third = {**request, "output": "cancelled"}
+                response = self._post(connection, server, "/api/reconciliation-review", third)
+                self.assertEqual(response.status, 200)
+                third_review = json.loads(response.read())
+                started, release, finished = threading.Event(), threading.Event(), {}
+
+                def held_run(*_args, **kwargs):
+                    kwargs["progress"]("parity")
+                    started.set()
+                    release.wait(timeout=5)
+                    kwargs["before_publish"]()
+
+                def submit():
+                    with closing(http.client.HTTPConnection(*server.server_address)) as running:
+                        result = self._post(
+                            running,
+                            server,
+                            "/api/reconciliation-run",
+                            {**third, "review_id": third_review["review_id"]},
+                        )
+                        finished["status"] = result.status
+                        result.read()
+
+                with patch("parison.workbench_host.execute_reconciliation_run", side_effect=held_run):
+                    pending = threading.Thread(target=submit)
+                    pending.start()
+                    self.assertTrue(started.wait(timeout=5))
+                    response = self._post(connection, server, "/api/cancel-reconciliation", {})
+                    self.assertEqual(response.status, 200)
+                    response.read()
+                    release.set()
+                    pending.join(timeout=5)
+                self.assertEqual(finished["status"], 422)
+                self.assertFalse((root / "cancelled").exists())
+                fourth = {**request, "output": "stale-during"}
+                response = self._post(connection, server, "/api/reconciliation-review", fourth)
+                self.assertEqual(response.status, 200)
+                fourth_review = json.loads(response.read())
+                from parison.reconciliation import compare as ordinary_compare
+
+                changed_once = False
+
+                def change_receipt(*args, **kwargs):
+                    nonlocal changed_once
+                    result = ordinary_compare(*args, **kwargs)
+                    if not changed_once:
+                        files[2].write_bytes(receipt_bytes + b"\n")
+                        changed_once = True
+                    return result
+
+                with patch("parison.reconciliation.compare", side_effect=change_receipt):
+                    response = self._post(
+                        connection,
+                        server,
+                        "/api/reconciliation-run",
+                        {**fourth, "review_id": fourth_review["review_id"]},
+                    )
+                self.assertEqual(response.status, 422)
+                response.read()
+                self.assertFalse((root / "stale-during").exists())
+                files[2].write_bytes(receipt_bytes)
+                connection.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
+    def test_suite_series_review_and_export_recheck_current_bundles(self):
+        import shutil
+
+        from parison.analysis import verify_analysis_bundle
+        from parison.suites import run_suite
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = Path(__file__).parents[1] / "examples/0.15"
+            for name in (
+                "payout-suite.json",
+                "payout-keyed.recipe.json",
+                "payout-aggregate.recipe.json",
+                "processor.csv",
+                "ledger.csv",
+            ):
+                shutil.copy2(source / name, root / name)
+            run_suite(root / "payout-suite.json", root / "first")
+            (root / "ledger.csv").write_bytes((root / "ledger.csv").read_bytes() + b"\n")
+            run_suite(root / "payout-suite.json", root / "second")
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+
+                def post(path, body, expected=200):
+                    response = self._post(connection, server, path, body)
+                    result = response.read()
+                    self.assertEqual(response.status, expected, result)
+                    return json.loads(result) if result else None
+
+                request = {"bundles": ["first", "second"]}
+                reviewed = post("/api/suite-series", request)
+                self.assertEqual(reviewed["series"]["kind"], "suite-series")
+                self.assertNotIn("payout_id", json.dumps(reviewed))
+                post("/api/suite-series", {"bundles": ["first", "../outside"]}, 422)
+                post("/api/suite-series", {"bundles": ["first", "first"]}, 422)
+                post("/api/suite-series-export", {**request, "review_id": "0" * 64, "output": "series"}, 422)
+                post(
+                    "/api/suite-series-export",
+                    {**request, "review_id": reviewed["review_id"], "output": "first/inside"},
+                    422,
+                )
+                written = post(
+                    "/api/suite-series-export", {**request, "review_id": reviewed["review_id"], "output": "series"}
+                )
+                self.assertEqual(verify_analysis_bundle(root / "series")["schema_version"], 2)
+                self.assertEqual(written["review_id"], reviewed["review_id"])
+                post(
+                    "/api/suite-series-export", {**request, "review_id": reviewed["review_id"], "output": "series"}, 422
+                )
+                (root / "second" / "cases" / "transaction-parity" / "result.json").write_text("{}", encoding="utf-8")
+                post(
+                    "/api/suite-series-export", {**request, "review_id": reviewed["review_id"], "output": "later"}, 422
+                )
+                self.assertFalse((root / "later").exists())
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
+    def test_policy_review_routes_require_local_inputs_and_current_disclosure(self):
+        from parison.evolution import diff_policies, summarize_policy_diff
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            examples = Path(__file__).parents[1] / "examples/1.2"
+            for file in examples.iterdir():
+                (root / file.name).write_bytes(file.read_bytes())
+            request = {
+                "baseline_recipe": "baseline.recipe.json",
+                "candidate_recipe": "candidate.recipe.json",
+                "evolution": "orders.schema-evolution.json",
+            }
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+                response = self._post(
+                    connection, server, "/api/policy-review", request, **{"X-Parison-Session": "wrong"}
+                )
+                self.assertEqual(response.status, 404)
+                response.read()
+                response = self._post(connection, server, "/api/policy-review", request)
+                self.assertEqual(response.status, 200)
+                reviewed = json.loads(response.read())
+                assessment = diff_policies(*(root / value for value in request.values()))
+                self.assertEqual(reviewed["summary"], summarize_policy_diff(assessment))
+                self.assertNotIn("details", reviewed)
+                detail = {**request, "review_id": reviewed["review_id"]}
+                response = self._post(connection, server, "/api/policy-details", detail)
+                self.assertEqual(response.status, 200)
+                self.assertEqual(json.loads(response.read())["details"], assessment)
+                (root / "link.json").symlink_to(root / request["baseline_recipe"])
+                for change in (
+                    {"baseline_recipe": "../outside"},
+                    {"evolution": "link.json"},
+                    {"candidate_recipe": str(root / "candidate.recipe.json")},
+                    {"baseline_recipe": []},
+                ):
+                    response = self._post(connection, server, "/api/policy-review", {**request, **change})
+                    self.assertEqual(response.status, 422)
+                    response.read()
+                for identity in (None, [], "wrong"):
+                    response = self._post(connection, server, "/api/policy-details", {**detail, "review_id": identity})
+                    self.assertEqual(response.status, 422)
+                    response.read()
+                declaration = root / request["evolution"]
+                declaration.write_bytes(declaration.read_bytes() + b"\n")
+                response = self._post(connection, server, "/api/policy-details", detail)
+                self.assertEqual(response.status, 422)
+                response.read()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
+    def test_owned_suite_recovery_routes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "project"
+            init_project(root)
+            (root / "suite.json").write_text(
+                json.dumps(
+                    {
+                        "suite_version": 2,
+                        "cases": [
+                            {
+                                "id": "orders",
+                                "recipe": "recipe.json",
+                                "baseline": "baseline.csv",
+                                "candidate": "candidate.csv",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            server, _ = create_workbench_server(root, "test-capability")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                connection = http.client.HTTPConnection(*server.server_address)
+                selection = {"plan": "suite.json", "case_ids": [], "tags": [], "shard_index": None, "shard_count": None}
+
+                def post(path, request, status=200):
+                    response = self._post(connection, server, path, request)
+                    body = response.read()
+                    self.assertEqual(response.status, status, body)
+                    return json.loads(body) if body else None
+
+                review = post("/api/suite-plan", {**selection, "output": "first"})
+                run = {
+                    **selection,
+                    "output": "first",
+                    "plan_sha256": review["plan_sha256"],
+                    "members_sha256": review["members_sha256"],
+                    "workspace": "retained",
+                    "mode": "restart",
+                }
+                for change in (
+                    {"workspace": "../outside"},
+                    {"workspace": "."},
+                    {"workspace": "first/state"},
+                    {"output": "retained/output"},
+                    {"mode": []},
+                    {"mode": "temporary"},
+                ):
+                    post("/api/suite-run", {**run, **change}, 422)
+                result = post("/api/suite-run", run)
+                self.assertEqual(result["evidence"]["outcome"], "PASS")
+                post("/api/suite-plan", {**selection, "output": "retained/published"}, 422)
+                post(
+                    "/api/run",
+                    {
+                        "recipe": "recipe.json",
+                        "baseline": "baseline.csv",
+                        "candidate": "candidate.csv",
+                        "output": "retained/ordinary",
+                    },
+                    422,
+                )
+                preview = {**selection, "workspace": "retained"}
+                self.assertEqual(post("/api/suite-recovery", preview)["cases"], [{"id": "orders", "reusable": True}])
+                post("/api/suite-run", {**run, "output": "collision"}, 422)
+                with patch("parison.suites.compare", side_effect=AssertionError("must reuse")):
+                    post("/api/suite-run", {**run, "output": "second", "mode": "resume"})
+                original = (root / "candidate.csv").read_bytes()
+                (root / "candidate.csv").write_bytes(original + b"\n")
+                self.assertFalse(post("/api/suite-recovery", preview)["cases"][0]["reusable"])
+                post("/api/suite-run", {**run, "output": "stale", "mode": "resume"}, 422)
+                (root / "candidate.csv").write_bytes(original)
+                post("/api/suite-abandon", {"workspace": "first"}, 422)
+                post("/api/suite-abandon", {"workspace": "../outside"}, 422)
+
+                def active_run(*args, **kwargs):
+                    other = http.client.HTTPConnection(*server.server_address)
+                    response = self._post(other, server, "/api/suite-abandon", {"workspace": "retained"})
+                    self.assertEqual(response.status, 409)
+                    response.read()
+                    other.close()
+                    raise ParisonError("workbench suite cancelled")
+
+                with patch("parison.workbench_host.execute_suite_run", side_effect=active_run):
+                    post("/api/suite-run", {**run, "output": "active", "mode": "resume"}, 422)
+                post("/api/suite-abandon", {"workspace": "retained"})
+                self.assertFalse((root / "retained").exists())
+                self.assertTrue((root / "first/manifest.json").exists())
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
     def test_failed_suite_member_investigation_exports_bounded_raw_sample(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

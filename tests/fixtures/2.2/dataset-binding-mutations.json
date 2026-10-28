@@ -1,0 +1,9 @@
+[
+  {"id":"selector-substitution","fixture":"shared-workbook","target":"manifest","binding":0,"field":"source","value":"xlsx:data/shared.xlsx#Sheet!A1:B4","expected":"selection-mismatch"},
+  {"id":"recipe-substitution","fixture":"shared-workbook","target":"manifest","binding":0,"field":"policy_sha256","value":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff","expected":"policy-mismatch"},
+  {"id":"source-digest-substitution","fixture":"shared-workbook","target":"manifest","binding":0,"field":"source_sha256","value":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff","expected":"source-identity-mismatch"},
+  {"id":"file-partition-substitution","fixture":"partition","target":"manifest","binding":0,"field":"source_kind","value":"file","expected":"source-kind-mismatch"},
+  {"id":"member-substitution","fixture":"partition","target":"manifest","binding":0,"field":"members","value":["data/parts/b.csv"],"expected":"membership-mismatch"},
+  {"id":"semantic-selector-substitution","fixture":"json","target":"record","binding":0,"field":"selection","value":{"kind":"json-pointer","pointer":"/other"},"expected":"selection-mismatch"},
+  {"id":"semantic-side-substitution","fixture":"xml","target":"record","binding":0,"field":"role","value":"candidate","expected":"scope-mismatch"}
+]

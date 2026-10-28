@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import os
@@ -18,10 +19,44 @@ from .catalog import list_runs
 from .comparison import compare
 from .core import ParisonError
 from .evidence import inspect_bundle, publish, verify_bundle
+from .evolution import diff_policy_texts, summarize_policy_diff
 from .inputs import InputCancellation, validate_inputs
 from .policies import explain_recipe_text, load_recipe
+from .reconciliation import run_reconciliation_with_bindings
 from .suites import compare_suites, run_suite
 from .workbench_plans import plan_controls
+from .workbench_suite_recovery import recovery_selection
+
+
+def review_policy_change(
+    baseline_recipe: Path, candidate_recipe: Path, evolution: Path, expected_review: str | None = None
+) -> dict[str, Any]:
+    """Review exact local policy bytes; disclose details only for a current review."""
+    paths = (baseline_recipe, candidate_recipe, evolution)
+
+    def snapshot() -> list[bytes]:
+        try:
+            return [path.read_bytes() for path in paths]
+        except OSError as exc:
+            raise ParisonError("cannot read policy review inputs") from exc
+
+    captured = snapshot()
+    digests = [hashlib.sha256(source).hexdigest() for source in captured]
+    review_id = hashlib.sha256(json.dumps(digests, separators=(",", ":")).encode()).hexdigest()
+    if expected_review is not None and expected_review != review_id:
+        raise ParisonError("policy review inputs changed; review the summary again")
+    try:
+        assessment = diff_policy_texts(*(source.decode("utf-8") for source in captured))
+    except UnicodeError as exc:
+        raise ParisonError("policy review inputs must be UTF-8") from exc
+    if snapshot() != captured:
+        raise ParisonError("policy review inputs changed during assessment")
+    return {
+        "review_id": review_id,
+        "summary": summarize_policy_diff(assessment),
+        **({"details": assessment} if expected_review is not None else {}),
+    }
+
 
 _COMMON_FIELDS = (
     "kind",
@@ -43,6 +78,12 @@ _COMMON_FIELDS = (
     "resource_limits",
     "input_sha256",
     "policy_sha256",
+    "alignment_sha256",
+    "reconciliation_sha256",
+    "receipt_sha256",
+    "alignment",
+    "dataset_outcome_counts",
+    "relationship_outcome_counts",
     "bundle_sha256",
     "manifest_files",
 )
@@ -131,8 +172,28 @@ def execute_suite_run(
     shard_count: int | None,
     cancelled=None,
     progress=None,
+    retained_workspace: str | Path | None = None,
+    resume: bool = False,
 ) -> dict[str, Any]:
     """Execute one selected local suite, then verify and catalog its bundle."""
+    output_path = Path(os.path.abspath(output))
+    if any((parent / ".workbench-owner").exists() for parent in output_path.parents):
+        raise ParisonError("suite output overlaps retained state")
+    if retained_workspace is not None:
+        retained_path = Path(os.path.abspath(retained_workspace))
+        if output_path.is_relative_to(retained_path) or retained_path.is_relative_to(output_path):
+            raise ParisonError("suite output overlaps retained state")
+    if resume:
+        from .workbench_suite_recovery import require_owned_workspace
+
+        if retained_workspace is None:
+            raise ParisonError("resume requires a retained workspace")
+        require_owned_workspace(Path(workspace), Path(retained_workspace))
+    owner = None
+    if retained_workspace is not None and not resume:
+        from .workbench_suite_recovery import workspace_owner
+
+        owner = workspace_owner(Path(workspace), Path(retained_workspace))
     run_suite(
         plan,
         output,
@@ -143,10 +204,50 @@ def execute_suite_run(
         jobs=1,
         cancelled=cancelled,
         progress=progress,
+        workspace=retained_workspace,
+        resume=resume,
+        workspace_owner=owner,
+        checkpoint_context=recovery_selection(case_ids, tags, shard_index, shard_count)
+        if retained_workspace is not None
+        else None,
     )
     projection = workbench_projection(output)
-    indexed = catalog_add(_catalog_path(workspace), output)
+    try:
+        indexed = catalog_add(_catalog_path(workspace), output)
+    except ParisonError:
+        return {"evidence": projection, "catalog_status": "failed"}
     return {"evidence": projection, "catalog_status": indexed["status"]}
+
+
+def execute_reconciliation_run(
+    workspace: str | Path,
+    output: str | Path,
+    alignment: str | Path,
+    declaration: str | Path,
+    receipt: str | Path,
+    inputs: dict,
+    *,
+    cancelled=None,
+    progress=None,
+    before_publish=None,
+) -> dict[str, Any]:
+    """Publish one bound reconciliation and report a later catalog failure honestly."""
+    run_reconciliation_with_bindings(
+        output,
+        alignment,
+        declaration,
+        receipt,
+        inputs,
+        cancelled=cancelled,
+        progress=progress,
+        before_publish=before_publish,
+    )
+    evidence = inspect_bundle(output)
+    try:
+        indexed = catalog_add(_catalog_path(workspace), output)
+    except ParisonError:
+        return {"evidence": evidence, "catalog_status": "failed"}
+    return {"evidence": evidence, "catalog_status": indexed["status"]}
 
 
 def history_projection(workspace: str | Path) -> list[dict[str, Any]]:
@@ -156,7 +257,9 @@ def history_projection(workspace: str | Path) -> list[dict[str, Any]]:
     if not database.exists():
         return []
     runs = [
-        run for run in list_runs(database, insertion_order=True) if run.get("kind") in {"run", "suite", "suite-shard"}
+        run
+        for run in list_runs(database, insertion_order=True)
+        if run.get("kind") in {"run", "suite", "suite-shard", "reconciliation", "dataset-evidence"}
     ]
     projected = []
     for run in runs:

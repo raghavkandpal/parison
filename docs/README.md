@@ -4,6 +4,30 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 2.2 — accepted six-feature train
+
+- [2.2.0 release candidate checklist](2.2/243-release-checklist.md)
+- [Complete reconciliation workflow and typed handoff contract](2.2/242-reconciliation-handoff-contract.md)
+- [Verified suite rehearsal series contract](2.2/241-suite-series-contract.md)
+
+- [Workbench policy-change review contract](2.2/240-workbench-policy-review-contract.md)
+
+- [Recoverable suites continuation](2.2/239-recovery-session-handoff.md)
+
+- [Recoverable suite execution contract and implementation](2.2/238-recoverable-suite-execution-contract.md)
+- [Workbench suite-v2 authoring contract](2.2/237-workbench-suite-authoring-contract.md)
+- [Dataset evidence v2 implementation contract](2.2/236-dataset-evidence-v2-contract.md)
+
+- [Reconciliation count verification contract](2.2/235-reconciliation-count-verification.md)
+
+- [Six-feature contracts and acceptance gates](2.2/233-contracts-and-acceptance.md)
+- [Initial repository and verifier qualification](2.2/234-initial-qualification.md)
+
+- [Original five-feature research and plan](2.2/229-five-feature-research-and-plan.md)
+- [Five additional capabilities: expanded ten-feature proposal](2.2/230-additional-five-feature-research.md)
+- [Independent blind feature review](2.2/231-independent-feature-review.md)
+- [Accepted six-feature roadmap and next-session handoff](2.2/232-accepted-roadmap.md)
+
 ## 1.9 — released
 
 - [Structured field-selection research](1.9/187-structured-field-selection-research.md)
@@ -46,7 +70,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Combined Workbench review and usability qualification](2.0/218-workbench-combined-review.md)
 - [2.0.0 release checklist](2.0/219-release-checklist.md)
 
-## 2.1 — Workbench suite train
+## 2.1 — Workbench suite train — released
 
 - [Suite rehearsal and evidence handoff research and plan](2.1/220-workbench-release-train-research-and-plan.md)
 - [Workbench suite plan review contract](2.1/221-workbench-suite-plan-contract.md)
@@ -80,7 +104,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [1.7.0 release checklist](1.7/174-release-checklist.md)
 - [1.7 engineering checkpoint](1.7/175-engineering-checkpoint.md)
 
-## Current 1.x documentation
+## User guide
 
 - [Task-oriented user guide](user-guide.md)
 - [Generated CLI command reference](command-reference.md)

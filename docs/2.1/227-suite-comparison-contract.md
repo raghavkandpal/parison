@@ -1,7 +1,7 @@
 # Repeated suite comparison contract
 
 Date: 22 October 2026  
-Status: integrated on `develop` through PR #72; exact-head full matrix passed
+Status: released in 2.1.0
 
 Compare two explicit local suite bundles after recursively verifying both.
 The comparison has a closed, deterministic, summary-safe projection and makes

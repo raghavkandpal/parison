@@ -3,4 +3,4 @@
 from .core import compare
 
 __all__ = ["compare"]
-__version__ = "2.1.0"
+__version__ = "2.2.0"

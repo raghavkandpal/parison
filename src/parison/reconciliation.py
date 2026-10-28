@@ -931,8 +931,18 @@ def run_reconciliation(
     max_distinct_rows: int = 100_000,
     max_temp_bytes: int = 5_000_000_000,
     temp_directory: str | Path | None = None,
+    cancelled=None,
+    progress=None,
 ) -> dict[str, Any]:
     """Compose alignment, existing parity and all declared relationship predicates."""
+
+    def checkpoint(phase: str) -> None:
+        if progress is not None:
+            progress(phase)
+        if cancelled is not None and cancelled():
+            raise ParisonError("workbench reconciliation cancelled")
+
+    checkpoint("preflight")
     sources = tuple(inputs[dataset_id][side] for dataset_id in sorted(inputs) for side in ("baseline", "candidate"))
     before = {str(source): _source_digest(source) for source in sources}
     alignment = preflight_alignment(
@@ -944,9 +954,11 @@ def run_reconciliation(
         max_decoded_bytes,
         max_rows,
     )
+    checkpoint("parity")
     declaration = explain_reconciliation(reconciliation_path)
     parity = []
     for dataset in declaration["datasets"]:
+        checkpoint("parity")
         dataset_id = dataset["id"]
         recipe = load_recipe(inputs[dataset_id]["recipe"])
         mode = recipe["comparison_mode"]
@@ -978,6 +990,7 @@ def run_reconciliation(
                 "discrepancy_count": result["discrepancy_count"],
             }
         )
+    checkpoint("relationships")
     relationships = check_identity_references(
         reconciliation_path,
         inputs,
@@ -989,6 +1002,7 @@ def run_reconciliation(
         max_temp_bytes,
         temp_directory,
     )
+    checkpoint("conservation")
     if any(check["kind"] == "conservation" for check in declaration["checks"]):
         conservation = check_conservation(
             reconciliation_path,
@@ -1003,6 +1017,7 @@ def run_reconciliation(
         )
     else:
         conservation = {"outcome": "PASS", "sides": {"baseline": [], "candidate": []}}
+    checkpoint("verifying")
     if any(_source_digest(source) != digest for source, digest in before.items()):
         raise ParisonError("an input changed while reconciliation was running")
     component_outcomes = [
@@ -1042,6 +1057,58 @@ def run_reconciliation(
     }
 
 
+def run_reconciliation_with_bindings(
+    output: str | Path,
+    alignment_path: str | Path,
+    reconciliation_path: str | Path,
+    receipt_path: str | Path,
+    inputs: dict[str, dict[str, str | Path]],
+    before_publish=None,
+    **limits: Any,
+) -> dict[str, Any]:
+    """Run and publish a reconciliation with a fresh semantic input record."""
+    from .manifesting import capture_reconciliation_input_bindings
+
+    declaration = explain_reconciliation(reconciliation_path)
+    before = capture_reconciliation_input_bindings(declaration, inputs)
+    result = run_reconciliation(alignment_path, reconciliation_path, receipt_path, inputs, **limits)
+    if capture_reconciliation_input_bindings(declaration, inputs) != before:
+        raise ParisonError("reconciliation inputs changed during execution")
+    _verify_reconciliation_input_bindings(before, result, declaration)
+    if before_publish is not None:
+        before_publish()
+    _publish_reconciliation_bundle(
+        output, result, alignment_path, reconciliation_path, before, inputs, before_publish=before_publish
+    )
+    return result
+
+
+def _verify_reconciliation_input_bindings(
+    record: Any, result: dict[str, Any], declaration: dict[str, Any]
+) -> dict[str, Any]:
+    from .manifesting import normalize_input_bindings
+
+    record = normalize_input_bindings(record)
+    if record["policy"] != {"kind": "reconciliation", "sha256": declaration["reconciliation_sha256"]}:
+        raise ParisonError("reconciliation input binding policy does not match declaration")
+    observed = {(item["id"], item["role"]): item for item in record["bindings"]}
+    datasets = {item["id"]: item for item in declaration["datasets"]}
+    parity = {item["id"]: item for item in result["datasets"]}
+    if set(parity) != set(datasets) or set(observed) != {
+        (identifier, role) for identifier in datasets for role in ("baseline", "candidate")
+    }:
+        raise ParisonError("reconciliation input bindings do not match datasets")
+    for identifier, dataset in datasets.items():
+        for role in ("baseline", "candidate"):
+            binding = observed[(identifier, role)]
+            if (
+                binding["policy_sha256"] != dataset["policy_sha256"]
+                or binding["source_sha256"] != parity[identifier][f"{role}_sha256"]
+            ):
+                raise ParisonError("reconciliation input binding does not match parity execution")
+    return record
+
+
 def summarize_reconciliation_result(result: dict[str, Any]) -> dict[str, Any]:
     component_counts = {label: 0 for label in ("PASS", "FAIL", "INCONCLUSIVE")}
     for item in result["datasets"]:
@@ -1076,6 +1143,20 @@ def publish_reconciliation_bundle(
     alignment_path: str | Path,
     reconciliation_path: str | Path,
 ) -> None:
+    """Publish the released schema-1 reconciliation result."""
+    _publish_reconciliation_bundle(output, result, alignment_path, reconciliation_path)
+
+
+def _publish_reconciliation_bundle(
+    output: str | Path,
+    result: dict[str, Any],
+    alignment_path: str | Path,
+    reconciliation_path: str | Path,
+    input_bindings: dict[str, Any] | None = None,
+    input_sources: dict[str, dict[str, str | Path]] | None = None,
+    *,
+    before_publish=None,
+) -> None:
     target = Path(output)
     if target.exists():
         raise ParisonError(f"output already exists: {target}")
@@ -1085,6 +1166,12 @@ def publish_reconciliation_bundle(
         or result.get("reconciliation_sha256") != declaration["reconciliation_sha256"]
     ):
         raise ParisonError("result fingerprints do not match declarations")
+    if input_bindings is not None:
+        from .manifesting import capture_reconciliation_input_bindings
+
+        if input_sources is None or capture_reconciliation_input_bindings(declaration, input_sources) != input_bindings:
+            raise ParisonError("reconciliation input bindings changed before publication")
+        input_bindings = _verify_reconciliation_input_bindings(input_bindings, result, declaration)
     stage = None
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -1101,9 +1188,14 @@ def publish_reconciliation_bundle(
         }
         for name, value in payloads.items():
             (stage / name).write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if input_bindings is not None:
+            from .manifesting import canonical_input_bindings_bytes
+
+            (stage / "input-bindings.json").write_bytes(canonical_input_bindings_bytes(input_bindings))
+            payloads["input-bindings.json"] = input_bindings
         files = {name: file_digest(stage / name) for name in sorted(payloads)}
         manifest = {
-            "schema_version": 1,
+            "schema_version": 2 if input_bindings is not None else 1,
             "kind": "reconciliation",
             "complete": result["complete"],
             "outcome": result["outcome"],
@@ -1112,6 +1204,15 @@ def publish_reconciliation_bundle(
             "files": files,
         }
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if (
+            input_bindings is not None
+            and capture_reconciliation_input_bindings(declaration, input_sources) != input_bindings
+        ):
+            raise ParisonError("reconciliation input bindings changed during publication")
+        if input_bindings is not None:
+            verify_reconciliation_bundle(stage)
+        if before_publish is not None:
+            before_publish()
         _rename_no_replace(stage, target)
         stage = None
     except ParisonError:
@@ -1121,6 +1222,107 @@ def publish_reconciliation_bundle(
     finally:
         if stage is not None:
             shutil.rmtree(stage, ignore_errors=True)
+
+
+def _verified_counts(value: Any, fields: str) -> dict[str, int]:
+    if (
+        not isinstance(value, dict)
+        or set(value) != set(fields.split())
+        or any(type(count) is not int or count < 0 for count in value.values())
+    ):
+        raise ParisonError("reconciliation result has invalid count shape")
+    return value
+
+
+def _verify_component_counts(item: dict[str, Any], check: dict[str, Any], rows: dict[str, int]) -> None:
+    kind = check["kind"]
+    if kind == "identity":
+        c = _verified_counts(item["counts"], "rows distinct_keys null_key_rows duplicate_keys")
+        valid = (
+            c["rows"] == rows[check["dataset"]]
+            and c["null_key_rows"] <= c["rows"]
+            and c["duplicate_keys"] <= c["distinct_keys"] <= c["rows"]
+            and c["distinct_keys"] + c["duplicate_keys"] <= c["rows"]
+            and (c["rows"] == 0) == (c["distinct_keys"] == 0)
+            and (c["duplicate_keys"] == 0) == (c["distinct_keys"] == c["rows"])
+        )
+        failed = c["duplicate_keys"] > 0 or (check["nulls"] == "forbid" and c["null_key_rows"] > 0)
+    elif kind == "reference":
+        c = _verified_counts(
+            item["counts"], "child_rows exempt_rows matched_rows orphan_rows ambiguous_parent_rows null_failure_rows"
+        )
+        valid = (
+            c["child_rows"] == rows[check["child_dataset"]]
+            and c["child_rows"] == sum(value for name, value in c.items() if name != "child_rows")
+            and (check["nulls"] == "all-null-exempt" or c["exempt_rows"] == 0)
+            and (check["nulls"] != "match-null" or c["null_failure_rows"] == 0)
+        )
+        failed = any(c[name] for name in ("orphan_rows", "ambiguous_parent_rows", "null_failure_rows"))
+    else:
+        c = _verified_counts(
+            item["counts"],
+            "parent_rows child_rows groups compared_groups exact_groups within_tolerance_groups different_groups "
+            "child_only_groups parent_without_children_groups duplicate_parent_groups null_measure_rows",
+        )
+        valid = (
+            c["parent_rows"] == rows[check["parent_dataset"]]
+            and c["child_rows"] == rows[check["child_dataset"]]
+            and c["groups"] == c["compared_groups"] + c["child_only_groups"] + c["duplicate_parent_groups"]
+            and c["compared_groups"] == c["exact_groups"] + c["within_tolerance_groups"] + c["different_groups"]
+            and c["parent_without_children_groups"] <= c["compared_groups"]
+            and c["parent_rows"] >= c["compared_groups"] + 2 * c["duplicate_parent_groups"]
+            and c["child_rows"] >= c["child_only_groups"] + c["compared_groups"] - c["parent_without_children_groups"]
+            and c["groups"] <= c["parent_rows"] + c["child_rows"]
+            and (c["child_rows"] == 0 or c["groups"] > c["parent_without_children_groups"])
+            and (c["duplicate_parent_groups"] > 0 or c["parent_rows"] == c["compared_groups"])
+            and c["null_measure_rows"] <= c["parent_rows"] + c["child_rows"]
+            and (check["nulls"] != "zero" or c["null_measure_rows"] == 0)
+            and (check["comparison"] != "exact" or c["within_tolerance_groups"] == 0)
+        )
+        failed = any(
+            c[name]
+            for name in ("different_groups", "child_only_groups", "duplicate_parent_groups", "null_measure_rows")
+        )
+    if not valid or item["outcome"] != ("FAIL" if failed else "PASS"):
+        raise ParisonError("reconciliation result counts or derived outcome are inconsistent")
+
+
+def _verify_alignment_counts(value: Any, declaration: dict[str, Any]) -> dict[str, dict[str, int]]:
+    _exact(value, {"outcome", "status", "reason_codes", "datasets"}, "alignment result")
+    datasets = value["datasets"]
+    if not isinstance(datasets, list) or len(datasets) != len(declaration["datasets"]):
+        raise ParisonError("alignment result datasets do not match declaration")
+    rows = {"baseline": {}, "candidate": {}}
+    failed = False
+    for observed, declared in zip(datasets, declaration["datasets"], strict=True):
+        _exact(observed, {"id", "sides"}, "alignment dataset")
+        if observed["id"] != declared["id"]:
+            raise ParisonError("alignment result datasets do not match declaration")
+        _exact(observed["sides"], {"baseline", "candidate"}, "alignment sides")
+        for side in rows:
+            c = _verified_counts(
+                observed["sides"][side],
+                "rows in_window before_window at_or_after_end null_event_time invalid_event_time",
+            )
+            if c["rows"] != sum(count for name, count in c.items() if name != "rows"):
+                raise ParisonError("alignment result counts are inconsistent")
+            failed |= c["rows"] != c["in_window"]
+            rows[side][observed["id"]] = c["rows"]
+    coordination = declaration["coordination"]
+    status, reasons = "PASS", []
+    if coordination["mode"] == "watermark":
+        if any(item["watermark"] < declaration["event_window"]["end"] for item in declaration["datasets"]):
+            status, reasons = "FAIL", ["watermark-before-window-end"]
+        elif coordination["watermark_kind"] == "heuristic":
+            status, reasons = "INCONCLUSIVE", ["heuristic-watermark"]
+    elif coordination["mode"] == "declared-cutoff":
+        status, reasons = "INCONCLUSIVE", ["coordination-not-machine-established"]
+    if failed:
+        status = "FAIL"
+        reasons.append("event-time-scope-failed")
+    if value["outcome"] != status or value["status"] != status or value["reason_codes"] != sorted(reasons):
+        raise ParisonError("alignment result derived outcome is inconsistent")
+    return rows
 
 
 def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
@@ -1137,18 +1339,22 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
     if (
         not isinstance(manifest, dict)
         or set(manifest) != expected
-        or manifest.get("schema_version") != 1
+        or manifest.get("schema_version") not in (1, 2)
         or manifest.get("kind") != "reconciliation"
         or manifest.get("complete") is not True
     ):
         raise ParisonError("reconciliation manifest is incomplete or unsupported")
     if manifest.get("outcome") not in {"PASS", "FAIL", "INCONCLUSIVE"} or manifest.get("sensitivity") != "raw":
         raise ParisonError("reconciliation manifest has invalid metadata")
-    _verify_manifest_files(
-        root,
-        manifest["files"],
-        {"reconciliation-result.json", "summary.json", "effective-alignment.json", "effective-reconciliation.json"},
-    )
+    members = {
+        "reconciliation-result.json",
+        "summary.json",
+        "effective-alignment.json",
+        "effective-reconciliation.json",
+    }
+    if manifest["schema_version"] == 2:
+        members.add("input-bindings.json")
+    _verify_manifest_files(root, manifest["files"], members)
     try:
         result = json.loads(
             (root / "reconciliation-result.json").read_text(encoding="utf-8"), object_pairs_hook=_object
@@ -1198,14 +1404,14 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
         or result.get("complete") is not True
     ):
         raise ParisonError("reconciliation result is incomplete or unsupported")
-    if [item.get("id") for item in result.get("datasets", []) if isinstance(item, dict)] != dataset_ids or len(
-        result.get("datasets", [])
-    ) != len(dataset_ids):
+    if (
+        not isinstance(result.get("datasets"), list)
+        or [item.get("id") for item in result.get("datasets", []) if isinstance(item, dict)] != dataset_ids
+        or len(result.get("datasets", [])) != len(dataset_ids)
+    ):
         raise ParisonError("reconciliation result datasets do not match declaration")
-    if [
-        item.get("id") for item in result.get("alignment", {}).get("datasets", []) if isinstance(item, dict)
-    ] != dataset_ids:
-        raise ParisonError("alignment result datasets do not match declaration")
+    rows = _verify_alignment_counts(result["alignment"], normalized_alignment)
+    checks = {check["id"]: check for check in normalized_declaration["checks"]}
     component_outcomes = [result.get("alignment", {}).get("outcome")]
     for field, expected_checks in (("relationships", relationship_checks), ("conservation", conservation_checks)):
         sides = result.get(field)
@@ -1215,6 +1421,7 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
             observed = sides[side]
             if (
                 not isinstance(observed, list)
+                or any(not isinstance(item, dict) for item in observed)
                 or [(item.get("id"), item.get("kind")) for item in observed if isinstance(item, dict)]
                 != expected_checks
             ):
@@ -1222,12 +1429,24 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
             for item in observed:
                 if (
                     set(item) != {"id", "kind", "outcome", "counts"}
-                    or item["outcome"] not in {"PASS", "FAIL"}
+                    or item["outcome"] not in ("PASS", "FAIL")
                     or not isinstance(item["counts"], dict)
                     or any(type(value) is not int or value < 0 for value in item["counts"].values())
                 ):
                     raise ParisonError(f"reconciliation result has invalid {field} counts")
+                _verify_component_counts(item, checks[item["id"]], rows[side])
                 component_outcomes.append(item["outcome"])
+        if field == "relationships":
+            for side in sides:
+                identities = {item["id"]: item["counts"] for item in sides[side] if item["kind"] == "identity"}
+                for item in sides[side]:
+                    if item["kind"] != "reference":
+                        continue
+                    parent = identities[checks[item["id"]]["parent_identity"]]
+                    if (item["counts"]["matched_rows"] > 0 and parent["distinct_keys"] == parent["duplicate_keys"]) or (
+                        item["counts"]["ambiguous_parent_rows"] > 0 and parent["duplicate_keys"] == 0
+                    ):
+                        raise ParisonError("reference counts conflict with parent identity")
     for item in result["datasets"]:
         if set(item) != {
             "id",
@@ -1258,6 +1477,13 @@ def verify_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
         or result.get("outcome") != expected_outcome
     ):
         raise ParisonError("reconciliation bundle metadata is inconsistent")
+    if manifest["schema_version"] == 2:
+        from .manifesting import _read_json
+
+        record = _read_json(root / "input-bindings.json", "reconciliation input bindings")
+        _verify_reconciliation_input_bindings(
+            record, result, declaration | {"reconciliation_sha256": reconciliation_sha256}
+        )
     if manifest_path.read_bytes() != manifest_bytes:
         raise ParisonError("reconciliation bundle changed during verification")
     return manifest
@@ -1272,4 +1498,56 @@ def inspect_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
         "runtime": manifest["runtime"],
         "bundle_sha256": file_digest(Path(directory) / "manifest.json"),
         "manifest_files": sorted(manifest["files"]),
+    }
+
+
+def diagnose_reconciliation_bundle(directory: str | Path) -> dict[str, Any]:
+    """Count fixed failure reasons from verified preserved evidence only."""
+    root = Path(directory)
+    manifest = verify_reconciliation_bundle(root)
+    path = root / "reconciliation-result.json"
+    manifest_path = root / "manifest.json"
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+        if path.is_symlink() or manifest_path.is_symlink():
+            raise ParisonError("reconciliation changed during diagnosis")
+        if json.loads(manifest_bytes, object_pairs_hook=_object) != manifest:
+            raise ParisonError("reconciliation changed during diagnosis")
+        payload = path.read_bytes()
+        if hashlib.sha256(payload).hexdigest() != manifest["files"][path.name]:
+            raise ParisonError("reconciliation changed during diagnosis")
+        result = json.loads(payload, object_pairs_hook=_object)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ParisonError("cannot read reconciliation diagnosis") from exc
+    reasons = {
+        "identity_duplicate_keys": 0,
+        "identity_null_key_rows": 0,
+        "reference_orphan_rows": 0,
+        "reference_ambiguous_parent_rows": 0,
+        "reference_null_failure_rows": 0,
+        "conservation_different_groups": 0,
+        "conservation_child_only_groups": 0,
+        "conservation_duplicate_parent_groups": 0,
+        "conservation_null_measure_rows": 0,
+        "conservation_parent_without_children_groups": 0,
+    }
+    for side in ("baseline", "candidate"):
+        for item in result["relationships"][side] + result["conservation"][side]:
+            for name, count in item["counts"].items():
+                key = f"{item['kind']}_{name}"
+                if key in reasons:
+                    reasons[key] += count
+    try:
+        if path.read_bytes() != payload or manifest_path.read_bytes() != manifest_bytes:
+            raise ParisonError("reconciliation changed during diagnosis")
+    except OSError as exc:
+        raise ParisonError("reconciliation changed during diagnosis") from exc
+    return {
+        "kind": "reconciliation-diagnosis",
+        "outcome": result["outcome"],
+        "alignment_outcome": result["alignment"]["outcome"],
+        "alignment_reason_codes": result["alignment"]["reason_codes"],
+        "dataset_outcome_counts": summarize_reconciliation_result(result)["dataset_outcome_counts"],
+        "reason_counts": reasons,
+        "bundle_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
     }

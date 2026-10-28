@@ -15,13 +15,30 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .analysis import drill_down, export_drilldown
+from .analysis import _canonical, drill_down, export_drilldown, publish_analysis, verify_analysis_bundle
 from .core import ParisonError
 from .evidence import evidence_statement, export_statement, inspect_bundle, report_cutover
 from .inputs import _source_digest, _source_path, _source_paths
-from .policies import list_suite
+from .manifesting import (
+    _semantic_result_metadata_v2,
+    canonical_input_bindings_bytes,
+    capture_reconciliation_input_bindings,
+    explain_dataset_manifest_v2,
+    publish_dataset_evidence_bundle_v2,
+    verify_dataset_manifest_v2,
+)
+from .policies import explain_recipe, list_suite
+from .reconciliation import (
+    diagnose_reconciliation_bundle,
+    explain_reconciliation,
+    explain_time_alignment,
+    file_digest,
+)
+from .suite_series import MAX_RUNS, analyze_suite_series
+from .suites import preview_suite_recovery
 from .workbench import (
     compare_projection,
+    execute_reconciliation_run,
     execute_run,
     execute_suite_run,
     history_projection,
@@ -29,10 +46,18 @@ from .workbench import (
     investigate_suite_member,
     plan_projection,
     plan_text_projection,
+    review_policy_change,
     workbench_projection,
 )
 from .workbench_page import PAGE
 from .workbench_plans import edit_plan, plan_controls
+from .workbench_suite_authoring import export_suite_draft, review_suite_draft
+from .workbench_suite_recovery import (
+    abandon_owned_workspace,
+    recovery_selection,
+    require_owned_workspace,
+    workspace_owner,
+)
 
 _MAX_REQUEST_BYTES = 262_144
 _MAX_REQUEST_THREADS = 8
@@ -64,6 +89,8 @@ def _workspace_path(root: Path, value: object) -> Path | None:
     candidate = root.joinpath(*parts)
     current = root
     for part in parts:
+        if (current / ".workbench-owner").exists():
+            return None
         current /= part
         if current.is_symlink():
             return None
@@ -143,6 +170,128 @@ def _suite_plan(
             for case in listed["cases"]
         ],
     }
+
+
+def _dataset_review(root: Path, request: dict[str, object]) -> tuple[dict, tuple[Path, Path, Path, Path, Path], dict]:
+    names = ("declaration", "physical_root", "policy", "semantic_bundle", "output")
+    paths = tuple(_workspace_path(root, request.get(name)) for name in names)
+    if any(path is None for path in paths):
+        raise ParisonError("dataset paths must stay inside the workspace")
+    draft, physical, policy, semantic, output = paths
+    if (
+        not draft.is_file()
+        or not physical.is_dir()
+        or not policy.is_file()
+        or not semantic.is_dir()
+        or output.exists()
+        or output.is_symlink()
+    ):
+        raise ParisonError("dataset review requires existing inputs and a new output path")
+    manifest = explain_dataset_manifest_v2(draft)
+    if manifest["policy"]["kind"] == "suite":
+        _suite_plan(root, str(policy.relative_to(root)), [], [], None, None, "")
+    source = verify_dataset_manifest_v2(draft, physical, policy, summary=True)
+    if source["outcome"] != "PASS":
+        raise ParisonError("dataset review requires matching local sources")
+    declaration = {key: value for key, value in manifest.items() if key != "manifest_sha256"}
+    semantic_result = _semantic_result_metadata_v2(semantic, declaration)
+    fields = {name: request[name] for name in names}
+    snapshot = {
+        "declaration_sha256": hashlib.sha256(draft.read_bytes()).hexdigest(),
+        "policy_sha256": hashlib.sha256(policy.read_bytes()).hexdigest(),
+        "manifest_sha256": manifest["manifest_sha256"],
+        "source": source,
+        "semantic": semantic_result,
+    }
+    review_id = hashlib.sha256(
+        json.dumps(
+            {"paths": fields, **snapshot},
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return (
+        {"declaration": declaration, "source": source, "semantic": semantic_result, "review_id": review_id},
+        paths,
+        snapshot,
+    )
+
+
+def _reconciliation_review(root: Path, request: dict[str, object]) -> tuple[dict, tuple, dict]:
+    """Bind exact reviewed paths and bytes without returning names or values."""
+    if set(request) != {"alignment", "reconciliation", "receipt", "datasets", "output"}:
+        raise ParisonError("invalid reconciliation review request")
+    alignment, declaration, receipt, output = (
+        _workspace_path(root, request[name]) for name in ("alignment", "reconciliation", "receipt", "output")
+    )
+    datasets = request["datasets"]
+    if (
+        any(path is None for path in (alignment, declaration, receipt, output))
+        or any(not path.is_file() for path in (alignment, declaration, receipt))
+        or output.exists()
+        or output.is_symlink()
+        or not isinstance(datasets, list)
+        or not 1 <= len(datasets) <= 100
+    ):
+        raise ParisonError("reconciliation review requires local files and a new output")
+    files = [alignment, declaration, receipt]
+    first_bytes = {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
+    aligned, declared = explain_time_alignment(alignment), explain_reconciliation(declaration)
+    if declared["alignment_sha256"] != aligned["alignment_sha256"]:
+        raise ParisonError("reconciliation alignment declaration does not match")
+    if {item["id"] for item in aligned["datasets"]} != {item["id"] for item in declared["datasets"]}:
+        raise ParisonError("reconciliation datasets do not match alignment")
+    if file_digest(receipt) != aligned["coordination"]["receipt_sha256"]:
+        raise ParisonError("reconciliation receipt does not match")
+    declared_ids = {item["id"] for item in declared["datasets"]}
+    if any(not isinstance(item, dict) or set(item) != {"id", "recipe", "baseline", "candidate"} for item in datasets):
+        raise ParisonError("reconciliation datasets require explicit local inputs")
+    if (
+        len({item["id"] for item in datasets if isinstance(item["id"], str)}) != len(datasets)
+        or {item["id"] for item in datasets if isinstance(item["id"], str)} != declared_ids
+    ):
+        raise ParisonError("reconciliation datasets do not match declaration")
+    inputs = {}
+    policies = {item["id"]: item["policy_sha256"] for item in declared["datasets"]}
+    for item in datasets:
+        recipe = _workspace_path(root, item["recipe"])
+        baseline, candidate = (_workspace_source(root, item[side]) for side in ("baseline", "candidate"))
+        if recipe is None or not recipe.is_file() or baseline is None or candidate is None:
+            raise ParisonError("reconciliation input path is unsafe")
+        first_bytes.setdefault(str(recipe), hashlib.sha256(recipe.read_bytes()).hexdigest())
+        if any(
+            not source.is_file() or source.is_symlink()
+            for value in (baseline, candidate)
+            for source in _source_paths(value)
+        ):
+            raise ParisonError("reconciliation source is missing or unsafe")
+        if explain_recipe(recipe)["policy_sha256"] != policies[item["id"]]:
+            raise ParisonError("reconciliation recipe does not match declared policy")
+        inputs[item["id"]] = {"recipe": recipe, "baseline": baseline, "candidate": candidate}
+        files.append(recipe)
+        for value in (baseline, candidate):
+            source_path = _source_path(value)
+            if source_path.is_dir() and (output.is_relative_to(source_path) or source_path.is_relative_to(output)):
+                raise ParisonError("reconciliation output overlaps an input")
+    before = {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
+    bindings = capture_reconciliation_input_bindings(declared, inputs)
+    if first_bytes != before or before != {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}:
+        raise ParisonError("reconciliation review inputs changed")
+    binding_sha256 = hashlib.sha256(canonical_input_bindings_bytes(bindings)).hexdigest()
+    snapshot = {"files": before, "bindings_sha256": binding_sha256, "request": request}
+    review_id = hashlib.sha256(_canonical(snapshot)).hexdigest()
+    return (
+        {
+            "review_id": review_id,
+            "alignment_sha256": aligned["alignment_sha256"],
+            "reconciliation_sha256": declared["reconciliation_sha256"],
+            "receipt_sha256": aligned["coordination"]["receipt_sha256"],
+            "input_bindings_sha256": binding_sha256,
+            "dataset_count": len(datasets),
+        },
+        (alignment, declaration, receipt, output, inputs),
+        snapshot,
+    )
 
 
 def _choose_bundle(root: Path) -> str | None:
@@ -228,6 +377,7 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
     run_cancel = threading.Event()
     run_state = {"phase": "idle"}
     suite_state = {"phase": "idle", "completed_cases": 0, "selected_cases": 0}
+    reconciliation_state = {"phase": "idle"}
     active_kind = {"value": None}
 
     def set_run_phase(phase: str) -> None:
@@ -325,7 +475,7 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 return
             path = urlsplit(self.path).path
             if path == "/api/session" and not request:
-                payload = {"activities": ["plans", "run", "results", "history", "investigate", "compare"]}
+                payload = {"activities": ["plans", "run", "datasets", "results", "history", "investigate", "compare"]}
             elif path == "/api/shutdown" and not request:
                 session["closing"] = True
                 session["capability"] = None
@@ -390,6 +540,112 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 except ParisonError:
                     self._headers(422, "application/json")
                     return
+            elif path == "/api/suite-draft-review" and set(request) == {"destination", "draft"}:
+                try:
+                    payload = review_suite_draft(root, request["destination"], request["draft"])
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/suite-draft-export" and set(request) == {"destination", "draft", "review_id"}:
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
+                try:
+                    payload = export_suite_draft(root, request["destination"], request["draft"], request["review_id"])
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+                finally:
+                    run_lock.release()
+            elif path == "/api/dataset-review" and set(request) == {
+                "declaration",
+                "physical_root",
+                "policy",
+                "semantic_bundle",
+                "output",
+            }:
+                try:
+                    payload, _, _ = _dataset_review(root, request)
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/dataset-publish" and set(request) == {
+                "declaration",
+                "physical_root",
+                "policy",
+                "semantic_bundle",
+                "output",
+                "review_id",
+            }:
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
+                try:
+                    reviewed, paths, snapshot = _dataset_review(root, request)
+                    if request["review_id"] != reviewed["review_id"]:
+                        raise ParisonError("dataset review changed before publication")
+                    draft, physical, policy, semantic, output = paths
+                    publish_dataset_evidence_bundle_v2(
+                        output, draft, physical, policy, semantic, expected_review=snapshot
+                    )
+                    payload = {"output": request["output"], "evidence": inspect_bundle(output)}
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+                finally:
+                    run_lock.release()
+            elif (path == "/api/suite-series" and set(request) == {"bundles"}) or (
+                path == "/api/suite-series-export" and set(request) == {"bundles", "review_id", "output"}
+            ):
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
+                try:
+                    bundles = request["bundles"]
+                    if not isinstance(bundles, list) or not 2 <= len(bundles) <= MAX_RUNS:
+                        raise ParisonError("suite series requires 2-16 explicit paths")
+                    paths = [_workspace_path(root, value) for value in bundles]
+                    if any(item is None for item in paths):
+                        raise ParisonError("unsafe suite series path")
+                    series = analyze_suite_series(paths)
+                    review_id = hashlib.sha256(_canonical(series)).hexdigest()
+                    if path == "/api/suite-series-export":
+                        output = _workspace_path(root, request["output"])
+                        if (
+                            request["review_id"] != review_id
+                            or output is None
+                            or any((parent / "manifest.json").exists() for parent in (output, *output.parents))
+                        ):
+                            raise ParisonError("suite series changed or output is unsafe")
+                        written = publish_analysis(output, series)
+                        verify_analysis_bundle(output)
+                        payload = {"review_id": review_id, "manifest_sha256": written["manifest_sha256"]}
+                    else:
+                        payload = {"review_id": review_id, "series": series}
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+                finally:
+                    run_lock.release()
+            elif (
+                path == "/api/policy-review" and set(request) == {"baseline_recipe", "candidate_recipe", "evolution"}
+            ) or (
+                path == "/api/policy-details"
+                and set(request) == {"baseline_recipe", "candidate_recipe", "evolution", "review_id"}
+            ):
+                try:
+                    paths = [
+                        _workspace_path(root, request[name])
+                        for name in ("baseline_recipe", "candidate_recipe", "evolution")
+                    ]
+                    if any(item is None or not item.is_file() for item in paths):
+                        raise ParisonError("policy review requires local files")
+                    if path == "/api/policy-details" and not isinstance(request["review_id"], str):
+                        raise ParisonError("policy details require a review identity")
+                    payload = review_policy_change(*paths, expected_review=request.get("review_id"))
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
             elif path == "/api/validate-plan" and set(request) == {"source"}:
                 source = request["source"]
                 if not isinstance(source, str):
@@ -436,6 +692,58 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 except ParisonError:
                     self._headers(422, "application/json")
                     return
+            elif (
+                path == "/api/reconciliation-review"
+                and set(request) == {"alignment", "reconciliation", "receipt", "datasets", "output"}
+            ) or (
+                path == "/api/reconciliation-run"
+                and set(request) == {"alignment", "reconciliation", "receipt", "datasets", "output", "review_id"}
+            ):
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
+                try:
+                    reviewed_request = {key: value for key, value in request.items() if key != "review_id"}
+                    reviewed, resolved, _ = _reconciliation_review(root, reviewed_request)
+                    if path == "/api/reconciliation-review":
+                        payload = reviewed
+                    else:
+                        if request["review_id"] != reviewed["review_id"]:
+                            raise ParisonError("reconciliation inputs changed since review")
+                        alignment, declaration, receipt, output, inputs = resolved
+                        run_cancel.clear()
+                        active_kind["value"] = "reconciliation"
+                        reconciliation_state["phase"] = "preflight"
+
+                        def before_publish() -> None:
+                            if run_cancel.is_set():
+                                raise ParisonError("workbench reconciliation cancelled")
+                            current, _, _ = _reconciliation_review(root, reviewed_request)
+                            if current["review_id"] != reviewed["review_id"]:
+                                raise ParisonError("reconciliation inputs changed during execution")
+
+                        payload = execute_reconciliation_run(
+                            root,
+                            output,
+                            alignment,
+                            declaration,
+                            receipt,
+                            inputs,
+                            cancelled=run_cancel.is_set,
+                            progress=lambda phase: reconciliation_state.update(phase=phase),
+                            before_publish=before_publish,
+                        )
+                        reconciliation_state["phase"] = "complete"
+                except (ParisonError, OSError, ValueError, TypeError) as exc:
+                    if path == "/api/reconciliation-run":
+                        reconciliation_state["phase"] = (
+                            "cancelled" if str(exc) == "workbench reconciliation cancelled" else "error"
+                        )
+                    self._headers(422, "application/json")
+                    return
+                finally:
+                    active_kind["value"] = None
+                    run_lock.release()
             elif path == "/api/run" and set(request) == {"recipe", "baseline", "candidate", "output"}:
                 paths = [
                     _workspace_path(root, request["recipe"]),
@@ -460,16 +768,89 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 finally:
                     active_kind["value"] = None
                     run_lock.release()
-            elif path == "/api/suite-run" and set(request) == {
+            elif path == "/api/suite-abandon" and set(request) == {"workspace"}:
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
+                try:
+                    retained = _workspace_path(root, request["workspace"])
+                    if retained is None:
+                        raise ParisonError("unsafe retained workspace")
+                    abandon_owned_workspace(root, retained)
+                    payload = {"status": "abandoned"}
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+                finally:
+                    run_lock.release()
+            elif path == "/api/suite-recovery" and set(request) == {
                 "plan",
                 "case_ids",
                 "tags",
                 "shard_index",
                 "shard_count",
-                "output",
-                "plan_sha256",
-                "members_sha256",
+                "workspace",
             }:
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
+                try:
+                    _suite_plan(
+                        root,
+                        request["plan"],
+                        request["case_ids"],
+                        request["tags"],
+                        request["shard_index"],
+                        request["shard_count"],
+                        "",
+                    )
+                    retained = _workspace_path(root, request["workspace"])
+                    if retained is None:
+                        raise ParisonError("unsafe retained workspace")
+                    require_owned_workspace(root, retained)
+                    payload = preview_suite_recovery(
+                        _workspace_path(root, request["plan"]),
+                        retained,
+                        case_ids=request["case_ids"],
+                        tags=request["tags"],
+                        shard_index=request["shard_index"],
+                        shard_count=request["shard_count"],
+                        checkpoint_context=recovery_selection(
+                            request["case_ids"], request["tags"], request["shard_index"], request["shard_count"]
+                        ),
+                    )
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+                finally:
+                    run_lock.release()
+            elif path == "/api/suite-run" and set(request) in (
+                {
+                    "plan",
+                    "case_ids",
+                    "tags",
+                    "shard_index",
+                    "shard_count",
+                    "output",
+                    "plan_sha256",
+                    "members_sha256",
+                },
+                {
+                    "plan",
+                    "case_ids",
+                    "tags",
+                    "shard_index",
+                    "shard_count",
+                    "output",
+                    "plan_sha256",
+                    "members_sha256",
+                    "workspace",
+                    "mode",
+                },
+            ):
+                if not run_lock.acquire(blocking=False):
+                    self._headers(409, "application/json")
+                    return
                 try:
                     preview = _suite_plan(
                         root,
@@ -490,11 +871,25 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     output = _workspace_path(root, request["output"])
                     if plan is None or output is None:
                         raise ParisonError("unsafe suite path")
+                    retained = None
+                    mode = request.get("mode", "temporary")
+                    if not isinstance(mode, str) or mode not in {"temporary", "restart", "resume"}:
+                        raise ParisonError("invalid recovery mode")
+                    if mode == "temporary":
+                        if request.get("workspace", "") != "":
+                            raise ParisonError("temporary run cannot retain state")
+                    else:
+                        retained = _workspace_path(root, request["workspace"])
+                        if retained is None or output.is_relative_to(retained) or retained.is_relative_to(output):
+                            raise ParisonError("retained workspace overlaps output")
+                        workspace_owner(root, retained)
+                        if mode == "resume":
+                            require_owned_workspace(root, retained)
+                        elif retained.exists():
+                            raise ParisonError("restart requires a new retained workspace")
                 except ParisonError:
+                    run_lock.release()
                     self._headers(422, "application/json")
-                    return
-                if not run_lock.acquire(blocking=False):
-                    self._headers(409, "application/json")
                     return
                 try:
                     run_cancel.clear()
@@ -510,6 +905,8 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                         request["shard_count"],
                         cancelled=run_cancel.is_set,
                         progress=set_suite_progress,
+                        retained_workspace=retained,
+                        resume=mode == "resume",
                     )
                     suite_state["phase"] = "complete"
                 except ParisonError as exc:
@@ -537,6 +934,15 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                 payload = {"status": "cancellation-requested"}
             elif path == "/api/suite-run-status" and not request:
                 payload = dict(suite_state)
+            elif path == "/api/cancel-reconciliation" and not request:
+                if active_kind["value"] != "reconciliation":
+                    self._headers(409, "application/json")
+                    return
+                run_cancel.set()
+                reconciliation_state["phase"] = "cancelling"
+                payload = {"status": "cancellation-requested"}
+            elif path == "/api/reconciliation-run-status" and not request:
+                payload = dict(reconciliation_state)
             elif path == "/api/handoff-preview" and set(request) == {"bundle"}:
                 bundle = _workspace_path(root, request["bundle"])
                 if bundle is None:
@@ -544,8 +950,13 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     return
                 try:
                     statement = evidence_statement(bundle)
-                    if statement["predicate"]["bundleKind"] not in {"suite", "suite-shard"}:
-                        raise ParisonError("handoff requires a suite bundle")
+                    if statement["predicate"]["bundleKind"] not in {
+                        "suite",
+                        "suite-shard",
+                        "reconciliation",
+                        "dataset-evidence",
+                    }:
+                        raise ParisonError("handoff requires a supported verified bundle")
                     payload = {
                         "manifest_sha256": statement["subject"][0]["digest"]["sha256"],
                         "predicate": statement["predicate"],
@@ -568,16 +979,31 @@ def create_workbench_server(workspace: str | Path, token: str | None = None) -> 
                     return
                 try:
                     statement = evidence_statement(bundle)
-                    if statement["predicate"]["bundleKind"] not in {"suite", "suite-shard"}:
-                        raise ParisonError("handoff requires a suite bundle")
+                    if statement["predicate"]["bundleKind"] not in {
+                        "suite",
+                        "suite-shard",
+                        "reconciliation",
+                        "dataset-evidence",
+                    }:
+                        raise ParisonError("handoff requires a supported verified bundle")
                     if statement["subject"][0]["digest"]["sha256"] != request["manifest_sha256"]:
-                        raise ParisonError("suite changed since handoff preview")
+                        raise ParisonError("bundle changed since handoff preview")
                     result = (
                         export_statement(bundle, output, expected_manifest_sha256=request["manifest_sha256"])
                         if request["format"] == "statement"
                         else report_cutover(bundle, output, expected_manifest_sha256=request["manifest_sha256"])
                     )
                     payload = {"output": request["output"], "manifest_sha256": result["bundle_sha256"]}
+                except ParisonError:
+                    self._headers(422, "application/json")
+                    return
+            elif path == "/api/reconciliation-diagnosis" and set(request) == {"bundle"}:
+                bundle = _workspace_path(root, request["bundle"])
+                if bundle is None:
+                    self._headers(422, "application/json")
+                    return
+                try:
+                    payload = diagnose_reconciliation_bundle(bundle)
                 except ParisonError:
                     self._headers(422, "application/json")
                     return

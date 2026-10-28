@@ -4,7 +4,78 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+The six-feature 2.2.0 train is integrated on `develop`; candidate qualification
+is in progress. The released version remains 2.1.0.
+
+### Added
+
+- Export typed unsigned Statements and metadata cover reports for verified
+  reconciliation and dataset evidence. Derive fixed, summary-safe reconciliation
+  reason counts from preserved bundles in the CLI and Workbench. Review exact
+  local declarations and dataset inputs, run bound reconciliation with
+  cooperative cancellation, and inspect its verified result in Workbench.
+
+- Publish and source-free verify a bounded caller-ordered suite rehearsal series
+  with case-scoped discrepancy transitions and input-identity changes. CLI and
+  Workbench expose the same summary-safe series without weakening policy gates.
+
+- Review two explicit recipes and an evolution declaration in Workbench Compare,
+  with summary-first mechanical assessment and separately requested schema-sensitive
+  details bound to unchanged input bytes. Exact-policy evidence gates stay intact.
+
+- Recover selected Workbench suites through explicit retained restart/resume,
+  authoritative reusable-case preview and guarded local-state deletion. Retained
+  evidence stays sensitive; verified output survives History registration failure.
+
+- Add an opt-in suite service envelope with a versioned input-binding record,
+  captured from selected local sources and checked against completed children.
+  CLI and dataset publication support remain under development.
+- Expose frozen dataset v2 and semantic-envelope schemas through the offline
+  schema loader and CLI schema command.
+- Add explicit `--input-bindings` suite and reconciliation execution modes that
+  publish fresh selector records under new semantic bundle versions.
+- Add explicit dataset manifest v2 creation from strict declarations, with
+  version-aware validation, explanation and local source verification commands.
+- Publish and source-free verify dataset evidence v2 bundles with physical and
+  logical bindings, a versioned semantic child and summary-safe inspection.
+- Review and publish dataset evidence v2 in Workbench with explicit local
+  inputs, inventory and bindings; changed review inputs require a fresh review.
+- Compose, review and export unapproved suite-v2 drafts in Workbench with
+  explicit ordered cases, released controls and destination-relative references.
+
+### Fixed
+
+- Harden reconciliation evidence count shapes, arithmetic and derived outcomes
+  against internally inconsistent preserved results (qualification pending).
+
+### Documentation
+
+- Record authoritative dataset-v2 declaration/input-binding normalization and
+  hostile substitution qualification; complete feature delivery remains pending.
+
+- Draft explicit dataset evidence v2 physical/logical bindings and versioned
+  semantic selector records with canonical declaration acceptance inputs.
+
+- Begin six-feature 2.2 contract and acceptance freeze; record verified baseline
+  CI and a reproduced reconciliation count-vocabulary validation gap.
+
+- Accept the reviewed six-capability 2.2 roadmap; defer assertions, archives
+  and reconciliation comparison and combine reconciliation diagnosis/handoff.
+
+- Record an independent blind review of all ten proposed 2.2 features,
+  including scope replacements and reconciliation trust prerequisites.
+
+- Expand the proposed 2.2 train to ten capabilities with reconciliation
+  comparison and investigation, explicit assertions, evidence archives and
+  Workbench suite authoring.
+
+- Research a proposed five-feature 2.2 train: Workbench reconciliation,
+  structured and partitioned dataset evidence, policy-change review,
+  recoverable suites, and suite rehearsal series. No new runtime behavior.
+
 ## 2.1.0 - 2026-10-23
+
+[Release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.1.0).
 
 ### Added
 

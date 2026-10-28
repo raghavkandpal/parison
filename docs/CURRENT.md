@@ -1,9 +1,9 @@
 # Current development state
 
-- Version: **2.1.0 release candidate in qualification**
-- Branch: `develop`
+- Version: **2.1.0 released; six-feature 2.2.0 candidate qualified on `develop`**
+- Branch: `docs/2.2-candidate-record` (from PR #87 merge `f5dc3e4`)
 - Theme: local-first verification — the Workbench suite workflow, repeated
-  suite comparison and failed-member investigation are integrated
+  suite comparison and failed-member investigation are released
 - Released: explicit JSON Pointer, bounded QName XML, exact XLSX named-table
   record projection and the 1.9 JSON/XML/XLSX structured field-selection train
   across all comparison modes
@@ -202,16 +202,26 @@
   the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39915435281),
   clean-archive inspection and a fresh Python 3.14 wheel smoke across all
   three 2.1 capabilities.
-- Next gate: integrate the [qualification record](2.1/225-release-checklist.md)
-  to `develop`, verify its exact head, then open the 2.1.0 release PR from
-  `develop` to `main`.
+- Released: exact merge `9a6e9e93b709331bb6bf1503b78f26d9fd5e6ac5`
+  passed [quality CI](https://github.com/raghavkandpal/parison/actions/runs/39916541177)
+  and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/39916541313).
+  Annotated tag and [GitHub release 2.1.0](https://github.com/raghavkandpal/parison/releases/tag/2.1.0)
+  publish checksum-verified assets; a fresh install of the public wheel passed
+  the full suite, comparison, investigation and handoff smoke.
+- Integrated: dataset evidence v2 passed independent Standards/Spec review and the exact-head [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40264738870) at `88ea66a`; PR #81 merged into `develop` at `31cd36b`. Physical/logical bindings, fresh semantic input records, source-free verification and reviewed Workbench publication are complete under the [frozen contract](2.2/236-dataset-evidence-v2-contract.md).
+- Integrated: Workbench suite-v2 authoring passed independent Standards/Spec review, `make check`, rendered UI inspection and the exact-head [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40267185090) at `3c142cf`; PR #82 merged into `develop` at `71a54ad`. The [authoring contract](2.2/237-workbench-suite-authoring-contract.md) records the accepted behavior.
+- Integrated: recoverable suites through [PR #83](https://github.com/raghavkandpal/parison/pull/83) at `1b8f1ff`; exact head `170fb90` passed independent Standards/Spec review, 484 local tests, [full built-wheel CI](https://github.com/raghavkandpal/parison/actions/runs/40285758273) and [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40285762200).
+- Integrated: policy-change review through PR #84 at `126f00e`; exact head `c1955fe` passed independent Standards/Spec review, 490 local tests, [full matrix](https://github.com/raghavkandpal/parison/actions/runs/40326407130) and [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40326412286).
+- Integrated: verified suite rehearsal series through [PR #85](https://github.com/raghavkandpal/parison/pull/85) at `ce33dcc`; exact head `4b8de94` passed independent Standards/Spec review, 499 local tests, and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40463462263). Five of six features are integrated.
+- Integrated: [PR #86](https://github.com/raghavkandpal/parison/pull/86) merged at `71b075f`; typed handoff, source-free diagnosis and the reviewed Workbench reconciliation flow passed 503 local tests, independent Standards/Spec review, and the [exact-head built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40521983174) across Python 3.11–3.14 on Linux, macOS and Windows.
+- Candidate-qualified: source commit `5ecff94` passed the full [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40641209814), clean-archive artifact inspection and a fresh installed-wheel smoke with 88 focused tests across all six capabilities. Integrated Standards/Spec review is clear; a proposed suite-series `INCONCLUSIVE` gap was disproved against released producer completeness semantics.
+- Integrated: [candidate preparation PR #87](https://github.com/raghavkandpal/parison/pull/87) merged to `develop` at `f5dc3e4f153522fc525e2a13944a801f91d339af`. Its exact qualification-record head `e0b8e083e03966dabb51267ac6887f2b46336371` passed [the full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40641683700) and PR quality CI.
+- Next gate: await an explicit 2.2 release decision before opening a release PR to `main`. The proposed post-2.2 fast-diff/cutover-evidence direction remains research, not accepted scope; retain the local-first verifier boundary. No release merge, tag or publication is authorized by the accepted contract.
 
 ## Recorded next steps
 
-- Development resumed by explicit user direction after the verified 1.9.0
-  release. Follow the active 2.0 research, contract and checkpoint documents;
-  internal review and test evidence never establishes operational policy or
-  cutover approval.
+- Parison 2.1.0 is published. Internal review and test evidence never
+  establishes operational policy or cutover approval.
 
 - When an autonomous session stops near its usage limit, return a copy-ready
   next-session goal prompt. Include the exact branch and commits, green CI and

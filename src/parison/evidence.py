@@ -245,7 +245,7 @@ def bundle_integrity_matches(directory: str | Path, expected_manifest_digest: st
 
 
 def _verify_suite_bundle(directory: Path, manifest: dict[str, Any]) -> dict[str, Any]:
-    if manifest.get("schema_version") == 2:
+    if manifest.get("schema_version") in (2, 3):
         return _verify_suite_bundle_v2(directory, manifest)
     if manifest.get("schema_version") != 1 or manifest.get("complete") is not True:
         raise ParisonError("suite manifest is incomplete or unsupported")
@@ -347,9 +347,11 @@ def _verify_suite_bundle_v2(directory: Path, manifest: dict[str, Any]) -> dict[s
         raise ParisonError("suite v2 manifest is incomplete or unsupported")
     if manifest.get("outcome") not in OUTCOME_CODES or not isinstance(manifest.get("runtime"), dict):
         raise ParisonError("suite v2 manifest has invalid metadata")
-    _verify_manifest_files(
-        directory, manifest.get("files"), {"suite-result.json", "effective-suite.json", "report.html"}
-    )
+    version = manifest["schema_version"]
+    members = {"suite-result.json", "effective-suite.json", "report.html"}
+    if version == 3:
+        members.add("input-bindings.json")
+    _verify_manifest_files(directory, manifest.get("files"), members)
     try:
         result = json.loads((directory / "suite-result.json").read_text(encoding="utf-8"))
         effective = json.loads((directory / "effective-suite.json").read_text(encoding="utf-8"))
@@ -427,7 +429,36 @@ def _verify_suite_bundle_v2(directory: Path, manifest: dict[str, Any]) -> dict[s
         or result["kind"] != ("suite-shard" if selection["shard_count"] is not None else "suite")
     ):
         raise ParisonError("suite v2 result has invalid outcome, scope or completeness")
+    if version == 3:
+        _verify_suite_input_bindings(directory, result, selected)
     return manifest
+
+
+def _verify_suite_input_bindings(directory: Path, result: dict[str, Any], selected: list[dict[str, Any]]) -> None:
+    from .manifesting import _portable_binding_source, _read_json, normalize_input_bindings
+
+    record = normalize_input_bindings(_read_json(directory / "input-bindings.json", "suite input bindings"))
+    if record["policy"] != {"kind": "suite", "sha256": result["suite_policy_sha256"]}:
+        raise ParisonError("suite input binding policy does not match effective plan")
+    by_pair = {(item["id"], item["role"]): item for item in record["bindings"]}
+    if set(by_pair) != {(case["id"], role) for case in selected for role in ("baseline", "candidate")}:
+        raise ParisonError("suite input bindings do not match selected cases")
+    for case in selected:
+        for role in ("baseline", "candidate"):
+            item = by_pair[(case["id"], role)]
+            _, _, selection = _portable_binding_source(case[role], item["source_kind"])
+            if item["selection"] != selection or item["policy_sha256"] != case["policy_sha256"]:
+                raise ParisonError("suite input binding selector or policy does not match plan")
+    for case in result["cases"]:
+        child_result = _read_bundle_result(directory / case["bundle"])
+        if not child_result.get("complete"):
+            continue
+        for role in ("baseline", "candidate"):
+            item = by_pair[(case["id"], role)]
+            if child_result.get("inputs", {}).get(role, {}).get("sha256") != item["source_sha256"]:
+                raise ParisonError("suite input binding digest does not match child execution")
+            if child_result.get("policy_sha256") != item["policy_sha256"]:
+                raise ParisonError("suite input binding policy does not match child execution")
 
 
 def _verify_suite_child(directory: Path, case: Any, case_digests: dict[str, Any]) -> None:
@@ -591,12 +622,70 @@ def inspect_bundle(directory: str | Path) -> dict[str, Any]:
 
 _STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
 _EVIDENCE_PREDICATE_TYPE = "https://parison.dev/attestations/evidence/v1"
+_TYPED_PREDICATE_TYPE = "https://parison.dev/attestations/evidence/v2"
+
+
+def _typed_evidence_snapshot(directory: Path, manifest: dict, manifest_bytes: bytes) -> tuple[dict, dict]:
+    """Project only verified, summary-safe fields from a non-run bundle."""
+    kind = manifest["kind"]
+
+    def member(name: str) -> dict:
+        try:
+            if (directory / name).is_symlink():
+                raise ParisonError("Statement source is unsafe")
+            payload = (directory / name).read_bytes()
+            if hashlib.sha256(payload).hexdigest() != manifest["files"][name]:
+                raise ParisonError("Statement source changed after verification")
+            return json.loads(payload)
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise ParisonError("cannot read typed Statement source") from exc
+
+    if kind == "reconciliation":
+        result = member("reconciliation-result.json")
+        alignment = member("effective-alignment.json")
+        policy = {"kind": "reconciliation", "sha256": result["reconciliation_sha256"]}
+        predicate = {
+            "bundleKind": kind,
+            "complete": True,
+            "outcome": result["outcome"],
+            "parisonVersion": result["runtime"]["parison_version"],
+            "schemaVersion": manifest["schema_version"],
+            "policy": policy,
+            "alignmentSha256": result["alignment_sha256"],
+            "receiptSha256": result["receipt_sha256"],
+            "coordinationMode": alignment["coordination"]["mode"],
+            "coordinationOutcome": result["alignment"]["outcome"],
+            "reconciliationSha256": result["reconciliation_sha256"],
+        }
+    else:
+        diagnostic = member("reproducibility-diagnostic.json")
+        result = member("manifest-result.json")
+        predicate = {
+            "bundleKind": kind,
+            "complete": True,
+            "outcome": manifest["outcome"],
+            "parisonVersion": diagnostic["runtime"]["parison_version"],
+            "schemaVersion": manifest["schema_version"],
+            "policy": manifest["policy"],
+            "manifestSha256": manifest["manifest_sha256"],
+            "semanticResult": manifest["semantic_result"],
+        }
+    if (directory / "manifest.json").read_bytes() != manifest_bytes:
+        raise ParisonError("bundle changed while preparing Statement")
+    return {
+        "_type": _STATEMENT_TYPE,
+        "subject": [{"name": "manifest.json", "digest": {"sha256": hashlib.sha256(manifest_bytes).hexdigest()}}],
+        "predicateType": _TYPED_PREDICATE_TYPE,
+        "predicate": predicate,
+    }, result
 
 
 def _evidence_snapshot(directory: str | Path) -> tuple[dict[str, Any], dict[str, Any]]:
     directory = Path(directory)
     manifest_path = directory / "manifest.json"
     manifest, manifest_bytes = _verified_bundle(directory)
+    if manifest.get("kind") in {"reconciliation", "dataset-evidence"}:
+        return _typed_evidence_snapshot(directory, manifest, manifest_bytes)
     manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
     is_suite = manifest.get("kind") in {"suite", "suite-shard"}
     result_name = "suite-result.json" if is_suite else "result.json"
@@ -748,6 +837,49 @@ def report_cutover(
     if expected_manifest_sha256 is not None and statement["subject"][0]["digest"]["sha256"] != expected_manifest_sha256:
         raise ParisonError("bundle changed since handoff preview")
     predicate = statement["predicate"]
+    if statement["predicateType"] == _TYPED_PREDICATE_TYPE:
+        rows = [
+            ("Bundle kind", predicate["bundleKind"]),
+            ("Manifest SHA-256", statement["subject"][0]["digest"]["sha256"]),
+            ("Outcome", predicate["outcome"]),
+            ("Complete", "true"),
+            ("Result schema", predicate["schemaVersion"]),
+            ("Produced by Parison", predicate["parisonVersion"]),
+            ("Policy kind", predicate["policy"]["kind"]),
+            ("Policy SHA-256", predicate["policy"]["sha256"]),
+        ]
+        if predicate["bundleKind"] == "reconciliation":
+            rows.extend(
+                (name, predicate[key])
+                for name, key in (
+                    ("Alignment SHA-256", "alignmentSha256"),
+                    ("Receipt SHA-256", "receiptSha256"),
+                    ("Coordination mode", "coordinationMode"),
+                    ("Coordination outcome", "coordinationOutcome"),
+                )
+            )
+        else:
+            rows.append(("Dataset manifest SHA-256", predicate["manifestSha256"]))
+            rows.append(("Semantic result SHA-256", predicate["semanticResult"]["manifest_sha256"]))
+        lines = [
+            "# Parison cutover evidence",
+            "",
+            "> Verified metadata cover sheet. This report is evidence, not cutover approval.",
+            "",
+            "| Field | Value |",
+            "| --- | --- |",
+            *[f"| {name} | {value} |" for name, value in rows],
+            "",
+            "## Independent checks still required",
+            "",
+            "- Authenticate the canonical Statement and authorize its signer identity and issuer.",
+            "- Require the reviewed policy, coordination, outcome and completeness.",
+            "- Validate source-owned extraction snapshot, watermark and completeness guarantees.",
+            "",
+        ]
+        target = Path(output)
+        _write_once(target, "\n".join(lines), "cannot write cutover report")
+        return {"output": str(target), "bundle_sha256": statement["subject"][0]["digest"]["sha256"]}
     rows = [
         ("Bundle kind", predicate["bundleKind"]),
         ("Manifest SHA-256", statement["subject"][0]["digest"]["sha256"]),

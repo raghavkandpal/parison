@@ -23,6 +23,7 @@ from parison.core import (
     run_suite,
     verify_bundle,
 )
+from parison.evidence import evidence_statement, export_statement, verify_statement
 from parison.manifesting import create_dataset_manifest, publish_dataset_evidence_bundle, verify_dataset_manifest
 from parison.reconciliation import publish_reconciliation_bundle, run_reconciliation, summarize_reconciliation_result
 
@@ -93,6 +94,12 @@ class CheckedInExamples(unittest.TestCase):
             self.assertEqual(inspected["kind"], "dataset-evidence")
             self.assertEqual(inspected["counts"]["matched"], 5)
             self.assertNotIn("examples/", json.dumps(inspected))
+            statement = evidence_statement(output)
+            self.assertEqual(statement["predicate"]["schemaVersion"], 1)
+            Draft202012Validator(load_schema("statement-v2")).validate(statement)
+            handoff = Path(directory) / "dataset-v1-statement.json"
+            export_statement(output, handoff)
+            self.assertEqual(verify_statement(output, handoff)["status"], "valid")
             unexpected = output / "unexpected.txt"
             unexpected.write_text("extra", encoding="utf-8")
             with self.assertRaisesRegex(ParisonError, "unexpected file membership"):

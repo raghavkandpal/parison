@@ -27,10 +27,13 @@ from parison.core import (
     load_suite,
     report_ci,
     run_suite,
+    select_suite_cases,
     verify_bundle,
 )
-from parison.suites import compare_suites
+from parison.evidence import _verify_suite_input_bindings
+from parison.suites import compare_suites, preview_suite_recovery
 from parison.workbench import compare_projection
+from parison.workbench_suite_recovery import abandon_owned_workspace, require_owned_workspace, workspace_owner
 
 
 def _crashing_suite_worker(case, *args):
@@ -101,6 +104,44 @@ class SuiteTests(unittest.TestCase):
 
     def case(self, identifier="orders"):
         return {"id": identifier, "recipe": "recipe.json", "baseline": "baseline.csv", "candidate": "candidate.csv"}
+
+    def test_input_binding_envelope_is_versioned_and_verified(self):
+        self.write_plan_v2([self.case()])
+        output = self.root / "bound-suite"
+        result = run_suite(self.plan, output, input_bindings=True)
+        self.assertEqual(result["outcome"], "PASS")
+        self.assertEqual(verify_bundle(output)["schema_version"], 3)
+        cli_output = self.root / "bound-cli-suite"
+        with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+            self.assertEqual(
+                main(["run-suite", "--plan", str(self.plan), "--output", str(cli_output), "--input-bindings"]), 0
+            )
+        self.assertEqual(verify_bundle(cli_output)["schema_version"], 3)
+        record = json.loads((output / "input-bindings.json").read_text())
+        original_record = (output / "input-bindings.json").read_text()
+        self.assertEqual([item["role"] for item in record["bindings"]], ["baseline", "candidate"])
+        self.assertNotIn("baseline.csv", json.dumps(record))
+        child_result = json.loads((output / "cases/orders/result.json").read_text())
+        child_result["policy_sha256"] = "0" * 64
+        parent_result = json.loads((output / "suite-result.json").read_text())
+        selected = select_suite_cases(json.loads((output / "effective-suite.json").read_text()), None, None, None, None)
+        with patch("parison.evidence._read_bundle_result", return_value=child_result):
+            with self.assertRaisesRegex(ParisonError, "policy does not match child execution"):
+                _verify_suite_input_bindings(output, parent_result, selected)
+        record["bindings"][0]["policy_sha256"] = "0" * 64
+        member = output / "input-bindings.json"
+        member.write_text(json.dumps(record), encoding="utf-8")
+        manifest_path = output / "manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["files"]["input-bindings.json"] = hashlib.sha256(member.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaises(ParisonError):
+            verify_bundle(output)
+        member.write_text(original_record.replace('"binding_version":1', '"binding_version":1,"binding_version":1'))
+        manifest["files"]["input-bindings.json"] = hashlib.sha256(member.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaisesRegex(ParisonError, "duplicate JSON key"):
+            verify_bundle(output)
 
     def test_compare_repeated_suites_requires_same_verified_scope_and_policy(self):
         self.write_plan_v2([self.case()])
@@ -497,13 +538,21 @@ class SuiteTests(unittest.TestCase):
     def test_resume_reuses_only_verified_current_children(self):
         self.write_plan_v2([self.case("first"), self.case("second")])
         workspace = self.root / "workspace"
-        run_suite(self.plan, self.root / "initial", workspace=workspace)
+        run_suite(
+            self.plan, self.root / "initial", workspace=workspace, workspace_owner=workspace_owner(self.root, workspace)
+        )
+        require_owned_workspace(self.root, workspace)
+        preview = preview_suite_recovery(self.plan, workspace)
+        self.assertEqual([case["reusable"] for case in preview["cases"]], [True, True])
         with patch("parison.suites.compare", side_effect=AssertionError("comparison should be reused")):
             resumed = run_suite(self.plan, self.root / "resumed", workspace=workspace, resume=True)
         self.assertEqual(resumed["outcome"], "PASS")
         self.assertEqual(verify_bundle(self.root / "resumed")["kind"], "suite")
 
         (self.root / "candidate.csv").write_text("id,value\na,2\n", encoding="utf-8")
+        self.assertEqual(
+            [case["reusable"] for case in preview_suite_recovery(self.plan, workspace)["cases"]], [False, False]
+        )
         calls = 0
         from parison.core import compare as real_compare
 
@@ -516,6 +565,22 @@ class SuiteTests(unittest.TestCase):
             changed = run_suite(self.plan, self.root / "changed", workspace=workspace, resume=True)
         self.assertEqual(calls, 2)
         self.assertEqual(changed["outcome"], "FAIL")
+        abandon_owned_workspace(self.root, workspace)
+        self.assertFalse(workspace.exists())
+
+    def test_recovery_abandonment_rejects_unmarked_and_symlinked_workspaces(self):
+        unmarked = self.root / "unmarked"
+        unmarked.mkdir()
+        with self.assertRaisesRegex(ParisonError, "missing or unsafe"):
+            abandon_owned_workspace(self.root, unmarked)
+        self.assertTrue(unmarked.exists())
+        marked = self.root / "marked"
+        marked.mkdir()
+        (marked / ".workbench-owner").write_text(workspace_owner(self.root, marked) + "\n", encoding="ascii")
+        (marked / "link").symlink_to(unmarked, target_is_directory=True)
+        with self.assertRaisesRegex(ParisonError, "contains a symlink"):
+            abandon_owned_workspace(self.root, marked)
+        self.assertTrue(marked.exists())
 
     def test_concurrent_resume_reuses_verified_children(self):
         self.write_plan_v2([self.case("first"), self.case("second"), self.case("third")])
