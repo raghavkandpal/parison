@@ -15,6 +15,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Record machine-specific 100k/250k two-table acquisition timing, adapter
+  memory, bundle bytes and source scan counters after feature 2 integration.
 - Freeze feature 2's coordinated two-table acquisition plan, common snapshot,
   canonical pair evidence, summary-safe verifier and adversarial gate.
 - Research feature 2's one-transaction, two-table acquisition boundary and

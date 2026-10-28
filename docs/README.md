@@ -14,6 +14,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Coordinated two-table PostgreSQL snapshot research](2.3/249-multi-table-snapshot-research.md)
 - [PostgreSQL coordinated two-table acquisition contract](2.3/250-postgresql-pair-acquisition-contract.md)
 - [Coordinated PostgreSQL pair operator notes](2.3/251-postgresql-pair-operator-notes.md)
+- [Pair acquisition budget checkpoint](2.3/252-pair-acquisition-budget-checkpoint.md)
 
 ## 2.2 — six-feature verification train — released
 

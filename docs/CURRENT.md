@@ -1,7 +1,7 @@
 # Current development state
 
 - Version: **2.2.0 released** at exact tested merge `bfb17a6`
-- Branch: `feature/postgres-pair-acquisition` (from research merge `c524c95`)
+- Branch: `docs/2.3-pair-integration-evidence` (from feature 2 merge `032069f`)
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
@@ -224,7 +224,8 @@
 - Integrated: [feature 1 implementation](2.3/248-one-table-ingress-implementation.md) merged through [PR #93](https://github.com/raghavkandpal/parison/pull/93) at `af23ebfe231facf543fda15bb0fde99fdad9515b`. Exact head `2856e54a7163c4b5e512fc51a2cebb0f7ada3c00` passed 509 local tests, independent Standards/Spec review, the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40649864507) on Python 3.11–3.14 Linux/macOS/Windows, and PR quality CI. The controlled PostgreSQL 18.6 gate passed snapshot/DDL lock, RLS, reserved null-marker, mid-COPY byte-limit cleanup, no-overwrite and source-removal checks. One of six 2.3 features is integrated; next gate is the feature 2 coordinated multi-table contract and adversarial corpus.
 - Research: [feature 2 snapshot coordination](2.3/249-multi-table-snapshot-research.md) favors one read-only transaction and connection, locks both reviewed tables before the first snapshot read, and defers exported snapshots until measured parallelism warrants them.
 - Contract frozen: [feature 2 coordinated pair](2.3/250-postgresql-pair-acquisition-contract.md) fixes a strict two-slot plan, one pre-snapshot lock order and transaction, unchanged feature 1 child receipts, private canonical coordination evidence, safe summary and all-or-nothing publication.
-- In progress: [feature 2 operator path](2.3/251-postgresql-pair-operator-notes.md) now exports two qualified tables under one source snapshot and verifies their pair evidence offline. The controlled PostgreSQL 18.6 gate passed concurrent writers, anchored pre-snapshot locks, aggregate row/byte limits, second-table interruption cleanup, commit failure, RLS, empty/quoted UTF-8 child, no-overwrite and source removal. Next gate: full local checks, review follow-up and exact-head matrix before integration.
+- Integrated: [feature 2 operator path](2.3/251-postgresql-pair-operator-notes.md) merged through [PR #96](https://github.com/raghavkandpal/parison/pull/96) at `032069f436518036b391c6e206e02c3e06c8262a`. Exact head `fecaa454513d36cb666e1b27ff073132aa2323ba` passed 520 local tests, independent Standards/Spec review, the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40689314201) on Python 3.11–3.14 Linux/macOS/Windows, and PR quality CI. The controlled PostgreSQL 18.6 gate passed concurrent writers, anchored pre-snapshot locks, aggregate row/byte limits, second-table interruption cleanup, commit failure, RLS, empty/quoted UTF-8 child, no-overwrite and source removal. Two of six 2.3 features are integrated; next gate is the feature 3 fast exact partition-discovery contract and reference corpus.
+- Measured: [pair acquisition budget checkpoint](2.3/252-pair-acquisition-budget-checkpoint.md) used three fresh adapter processes at 100k and 250k total rows on one Apple M1/PostgreSQL 18.6 source. Medians were 0.566 s and 1.127 s for acquisition plus local verification; this is not a complete migration rehearsal or universal capacity claim.
 
 ## Recorded next steps
 
