@@ -1,0 +1,11 @@
+{
+  "investigation_plan_version": 1,
+  "discovery_manifest_sha256": "b41168577c41312e451e48d345fbf6d4ccf9b187a0e2378c605a40e2765bbe9f",
+  "partition_indices": [0],
+  "limits": {
+    "max_cases_total": 10,
+    "max_cases_per_partition": 10,
+    "max_staged_bytes": 1000,
+    "max_output_bytes": 10000
+  }
+}

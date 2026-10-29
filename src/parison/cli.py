@@ -408,6 +408,11 @@ def parser() -> argparse.ArgumentParser:
             "partition-receipt",
             "partition-summary",
             "partition-manifest",
+            "investigation-plan",
+            "investigation-receipt",
+            "investigation-cases",
+            "investigation-summary",
+            "investigation-manifest",
         ),
     )
     schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")

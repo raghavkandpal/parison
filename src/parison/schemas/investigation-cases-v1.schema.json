@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/investigation-cases-v1.schema.json",
+  "title": "investigation-cases-v1",
+  "type": "object",
+  "required": [
+    "investigation_cases_version",
+    "sensitivity",
+    "items"
+  ],
+  "properties": {
+    "investigation_cases_version": {
+      "const": 1
+    },
+    "sensitivity": {
+      "const": "raw"
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "type": "object",
+        "required": [
+          "partition_index",
+          "item"
+        ],
+        "properties": {
+          "partition_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "item": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "key",
+                  "classification"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "record"
+                  },
+                  "key": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "classification": {
+                    "enum": [
+                      "baseline_only",
+                      "candidate_only"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "key",
+                  "field",
+                  "baseline",
+                  "candidate",
+                  "classification",
+                  "delta",
+                  "allowance"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "field"
+                  },
+                  "key": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "field": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "baseline": {
+                    "type": [
+                      "null",
+                      "boolean",
+                      "integer",
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "candidate": {
+                    "type": [
+                      "null",
+                      "boolean",
+                      "integer",
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "classification": {
+                    "enum": [
+                      "within_tolerance",
+                      "different"
+                    ]
+                  },
+                  "delta": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "allowance": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

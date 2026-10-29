@@ -6,6 +6,9 @@ All notable changes will be documented in this file.
 
 ### Added
 
+- Add selective exact investigation of source-verified suspect CSV ranges,
+  bounded private raw cases, explicit coverage/completion markers, and
+  source-free or source-backed verification.
 - Add bounded exact discovery over reviewed local integer-key CSV ranges,
   versioned private partition evidence, a summary-safe CLI and source-backed
   verification while preserving released comparison output bytes.

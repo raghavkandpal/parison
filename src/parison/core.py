@@ -138,6 +138,11 @@ _SCHEMAS = {
     "partition-receipt": "partition-receipt-v1.schema.json",
     "partition-summary": "partition-summary-v1.schema.json",
     "partition-manifest": "partition-manifest-v1.schema.json",
+    "investigation-plan": "investigation-plan-v1.schema.json",
+    "investigation-receipt": "investigation-receipt-v1.schema.json",
+    "investigation-cases": "investigation-cases-v1.schema.json",
+    "investigation-summary": "investigation-summary-v1.schema.json",
+    "investigation-manifest": "investigation-manifest-v1.schema.json",
 }
 
 _SUITE_LIMIT_DEFAULTS = {

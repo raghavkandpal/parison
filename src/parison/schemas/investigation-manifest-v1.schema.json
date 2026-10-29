@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/investigation-manifest-v1.schema.json",
+  "title": "investigation-manifest-v1",
+  "type": "object",
+  "required": [
+    "investigation_manifest_version",
+    "files"
+  ],
+  "properties": {
+    "investigation_manifest_version": {
+      "const": 1
+    },
+    "files": {
+      "type": "object",
+      "required": [
+        "plan.json",
+        "receipt.json",
+        "cases.json",
+        "summary.json"
+      ],
+      "properties": {
+        "plan.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "receipt.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "cases.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "summary.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
