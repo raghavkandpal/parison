@@ -312,3 +312,15 @@ class Dossier(unittest.TestCase):
         schema = load_schema("dossier-manifest")
         malicious = {"dossier_manifest_version": 1, "files": {"members/../../etc": "0" * 64}}
         self.assertFalse(Draft202012Validator(schema).is_valid(malicious))
+
+    @unittest.skipUnless(hasattr(__import__("os"), "mkfifo"), "FIFO unavailable")
+    def test_fifo_member_fails_without_blocking(self):
+        import os
+
+        from parison.decision_dossier import _tree
+
+        fifo = self.root / "fifo-root"
+        fifo.mkdir()
+        os.mkfifo(fifo / "untrusted")
+        with self.assertRaises(ParisonError):
+            _tree(fifo)

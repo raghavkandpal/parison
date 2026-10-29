@@ -112,18 +112,19 @@ def _tree(root: Path) -> dict[str, str]:
                 os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                 dir_fd=parent_fd,
             )
-            names = os.listdir(descriptor)
+            names = os.scandir(descriptor)
         else:
             descriptor = None
-            names = [path.name for path in directory.iterdir()]
+            names = os.scandir(directory)
         try:
-            for name in names:
+            for entry in names:
+                name = entry.name
                 entries += 1
                 if entries > 256:
                     raise ParisonError("dossier exceeds entry limit")
                 path = directory / name
                 if os.name == "posix":
-                    fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=descriptor)
+                    fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=descriptor)
                     mode = os.fstat(fd).st_mode
                 else:
                     if path.is_symlink():
@@ -154,6 +155,7 @@ def _tree(root: Path) -> dict[str, str]:
                     if fd is not None:
                         os.close(fd)
         finally:
+            names.close()
             if descriptor is not None:
                 os.close(descriptor)
 
