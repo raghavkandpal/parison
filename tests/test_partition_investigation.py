@@ -153,6 +153,28 @@ class PartitionInvestigationTests(unittest.TestCase):
         with self.assertRaises(ParisonError):
             self._run()
 
+    def test_malformed_case_and_unsafe_output_rejected(self) -> None:
+        self.plan["limits"]["max_output_bytes"] = 1
+        with self.assertRaises(ParisonError):
+            self._run()
+        self.assertFalse(self.output.exists())
+        self.plan["limits"]["max_output_bytes"] = 10000
+        self.output.symlink_to(self.root / "other", target_is_directory=True)
+        with self.assertRaises(ParisonError):
+            self._run()
+        self.output.unlink()
+        self._run()
+        cases_path = self.output / "cases.json"
+        cases = json.loads(cases_path.read_text())
+        cases["items"][0]["item"]["classification"] = ["different"]
+        cases_path.write_text(json.dumps(cases, sort_keys=True, separators=(",", ":")) + "\n")
+        manifest_path = self.output / "manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["files"]["cases.json"] = hashlib.sha256(cases_path.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n")
+        with self.assertRaises(ParisonError):
+            verify_investigation(self.output, self.discovery)
+
     def test_canonical_fixture_schemas_and_cli(self) -> None:
         discovery = self.root / "fixture-discovery"
         discover(

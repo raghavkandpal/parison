@@ -98,15 +98,21 @@ def _valid_raw_item(item: Any) -> bool:
     ):
         return False
     if item.get("kind") == "record":
-        return set(item) == {"kind", "key", "classification"} and item["classification"] in {
-            "baseline_only",
-            "candidate_only",
-        }
+        return (
+            set(item) == {"kind", "key", "classification"}
+            and type(item["classification"]) is str
+            and item["classification"]
+            in {
+                "baseline_only",
+                "candidate_only",
+            }
+        )
     if item.get("kind") == "field":
         return (
             set(item) == {"kind", "key", "field", "baseline", "candidate", "classification", "delta", "allowance"}
             and isinstance(item["field"], str)
             and bool(item["field"])
+            and type(item["classification"]) is str
             and item["classification"] in {"within_tolerance", "different"}
             and type(item["baseline"]) in {type(None), bool, int, float, str}
             and type(item["candidate"]) in {type(None), bool, int, float, str}
