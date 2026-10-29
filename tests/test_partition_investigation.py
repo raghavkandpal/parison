@@ -18,7 +18,7 @@ from parison.comparison import compare
 from parison.core import ParisonError, load_schema
 from parison.partition_discovery import discover
 from parison.partition_discovery import main as partition_main
-from parison.partition_investigation import investigate, validate_plan, verify_investigation
+from parison.partition_investigation import _population, investigate, validate_plan, verify_investigation
 
 FIXTURE = Path(__file__).parent / "fixtures" / "partition_discovery"
 INVESTIGATION_FIXTURE = Path(__file__).parent / "fixtures" / "partition_investigation"
@@ -78,6 +78,50 @@ class PartitionInvestigationTests(unittest.TestCase):
             ],
             "exact-source-backed",
         )
+
+    def test_adversarial_range_shapes_match_full_raw_reference(self) -> None:
+        scenarios = {
+            "low": ([(1, 1)], [(1, 2)]),
+            "high": ([(4, 1)], [(4, 2)]),
+            "skew": ([(key, 1) for key in range(1, 21)], [(20, 1)]),
+            "all-different": ([(key, 1) for key in range(1, 5)], [(key, 2) for key in range(1, 5)]),
+        }
+        routing = json.loads((FIXTURE / "plan.json").read_text())
+        routing["limits"] = {name: 10000 if "bytes" in name else 40 for name in routing["limits"]}
+        routing_path = self.root / "routing.json"
+        routing_path.write_text(json.dumps(routing))
+        raw_recipe = json.loads(self.recipe.read_text())
+        raw_recipe["output"] = {"sensitivity": "raw"}
+        raw_path = self.root / "raw.json"
+        raw_path.write_text(json.dumps(raw_recipe))
+        for name, (left, right) in scenarios.items():
+            with self.subTest(name=name):
+                left_path = self.root / f"{name}-left.csv"
+                right_path = self.root / f"{name}-right.csv"
+                for path, rows in ((left_path, left), (right_path, right)):
+                    path.write_text("id,amount\n" + "".join(f"{key},{amount}.00\n" for key, amount in rows))
+                discovery = self.root / f"{name}-discovery"
+                discover(routing_path, self.recipe, left_path, right_path, discovery)
+                receipt = json.loads((discovery / "receipt.json").read_text())
+                indices = [index for index, record in enumerate(receipt["partitions"]) if _population(record)]
+                plan = {
+                    **self.plan,
+                    "discovery_manifest_sha256": hashlib.sha256((discovery / "manifest.json").read_bytes()).hexdigest(),
+                    "partition_indices": indices,
+                }
+                plan["limits"] = {
+                    **self.plan["limits"],
+                    "max_cases_total": 100,
+                    "max_cases_per_partition": 100,
+                    "max_staged_bytes": 10000,
+                }
+                plan_path = self.root / f"{name}-plan.json"
+                plan_path.write_text(json.dumps(plan))
+                output = self.root / f"{name}-investigation"
+                investigate(plan_path, discovery, self.recipe, left_path, right_path, output)
+                cases = json.loads((output / "cases.json").read_text())["items"]
+                full = compare(raw_path, left_path, right_path, sample_limit=100, engine="memory")
+                self.assertEqual([item["item"] for item in cases], full["discrepancy_sample"])
 
     def test_subset_and_truncation_never_complete(self) -> None:
         self.plan["partition_indices"] = [0]
