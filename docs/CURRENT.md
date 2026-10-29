@@ -1,7 +1,8 @@
 # Current development state
 
 - Version: **2.2.0 released** at exact tested merge `bfb17a6`
-- Branch: `docs/2.3-pair-integration-evidence` (from feature 2 merge `032069f`)
+- Branch: `feature/2.3-postgresql-rehearsal` (from clean `d057ee918b9eb2964a7138cd87f7d68baa5c7654`)
+- Next gate: feature 5 exact-head CI and integration. Corrected head `ff7f691` passed 556 local tests and fresh independent Standards/Spec review. Final 100k/250k machine-specific PostgreSQL 16.15→18.6 measurements passed; see [budget](2.3/265-postgresql-rehearsal-budget-checkpoint.md). Four of six features remain integrated; PR #104 is not yet qualified for merge.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff

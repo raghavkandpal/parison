@@ -1,0 +1,1 @@
+{"limits":{"max_input_bytes":1000,"max_partition_bytes":500,"max_rows_per_input":10,"max_rows_per_partition_side":10,"max_staged_bytes":1000},"partition_plan_version":1,"ranges":[{"upper":2},{"upper":null}]}

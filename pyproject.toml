@@ -23,6 +23,7 @@ dev = ["ruff==0.17.1"]
 parison = "parison.cli:main"
 parison-postgres = "parison.postgres_ingress:main"
 parison-postgres-pair = "parison.postgres_pair:main"
+parison-rehearsal = "parison.postgres_rehearsal:main"
 parison-partitions = "parison.partition_discovery:main"
 
 [tool.setuptools.packages.find]

@@ -1,0 +1,947 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-rehearsal-receipt-v1.schema.json",
+  "title": "postgres-rehearsal-receipt-v1",
+  "type": "object",
+  "required": [
+    "postgres_rehearsal_receipt_version",
+    "plan_sha256",
+    "pairs",
+    "parity",
+    "relationships",
+    "conservation",
+    "outcome",
+    "complete",
+    "coverage",
+    "coordination"
+  ],
+  "properties": {
+    "postgres_rehearsal_receipt_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "pairs": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "candidate": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "parity": {
+      "type": "object",
+      "required": [
+        "orders",
+        "order_lines"
+      ],
+      "properties": {
+        "orders": {
+          "type": "object",
+          "required": [
+            "partition_receipt_version",
+            "policy_sha256",
+            "plan_sha256",
+            "inputs",
+            "route_rows",
+            "staged_bytes",
+            "counts",
+            "discrepancy_count",
+            "outcome",
+            "complete"
+          ],
+          "properties": {
+            "partition_receipt_version": {
+              "const": 1
+            },
+            "policy_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "plan_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "inputs": {
+              "type": "object",
+              "required": [
+                "baseline",
+                "candidate"
+              ],
+              "properties": {
+                "baseline": {
+                  "type": "object",
+                  "required": [
+                    "sha256",
+                    "bytes"
+                  ],
+                  "properties": {
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "bytes": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "candidate": {
+                  "type": "object",
+                  "required": [
+                    "sha256",
+                    "bytes"
+                  ],
+                  "properties": {
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "bytes": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "route_rows": {
+              "type": "object",
+              "required": [
+                "baseline",
+                "candidate"
+              ],
+              "properties": {
+                "baseline": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "candidate": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            },
+            "staged_bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "counts": {
+              "type": "object",
+              "required": [
+                "baseline",
+                "candidate",
+                "common_keys",
+                "baseline_only",
+                "candidate_only",
+                "matched_exact",
+                "matched_within_tolerance",
+                "matched_with_required_difference"
+              ],
+              "properties": {
+                "baseline": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "candidate": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "common_keys": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "baseline_only": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "candidate_only": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "matched_exact": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "matched_within_tolerance": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "matched_with_required_difference": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            },
+            "discrepancy_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "outcome": {
+              "enum": [
+                "PASS",
+                "FAIL",
+                "INCONCLUSIVE"
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "order_lines": {
+          "type": "object",
+          "required": [
+            "partition_receipt_version",
+            "policy_sha256",
+            "plan_sha256",
+            "inputs",
+            "route_rows",
+            "staged_bytes",
+            "counts",
+            "discrepancy_count",
+            "outcome",
+            "complete"
+          ],
+          "properties": {
+            "partition_receipt_version": {
+              "const": 1
+            },
+            "policy_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "plan_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "inputs": {
+              "type": "object",
+              "required": [
+                "baseline",
+                "candidate"
+              ],
+              "properties": {
+                "baseline": {
+                  "type": "object",
+                  "required": [
+                    "sha256",
+                    "bytes"
+                  ],
+                  "properties": {
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "bytes": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "candidate": {
+                  "type": "object",
+                  "required": [
+                    "sha256",
+                    "bytes"
+                  ],
+                  "properties": {
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "bytes": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "route_rows": {
+              "type": "object",
+              "required": [
+                "baseline",
+                "candidate"
+              ],
+              "properties": {
+                "baseline": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "candidate": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            },
+            "staged_bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "counts": {
+              "type": "object",
+              "required": [
+                "baseline",
+                "candidate",
+                "common_keys",
+                "baseline_only",
+                "candidate_only",
+                "matched_exact",
+                "matched_within_tolerance",
+                "matched_with_required_difference"
+              ],
+              "properties": {
+                "baseline": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "candidate": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "common_keys": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "baseline_only": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "candidate_only": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "matched_exact": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "matched_within_tolerance": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "matched_with_required_difference": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            },
+            "discrepancy_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "outcome": {
+              "enum": [
+                "PASS",
+                "FAIL",
+                "INCONCLUSIVE"
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "relationships": {
+      "type": "object",
+      "required": [
+        "relationship_result_version",
+        "outcome",
+        "reconciliation_sha256",
+        "sides",
+        "resource_limits"
+      ],
+      "properties": {
+        "relationship_result_version": {
+          "const": 1
+        },
+        "outcome": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "reconciliation_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sides": {
+          "type": "object",
+          "required": [
+            "baseline",
+            "candidate"
+          ],
+          "properties": {
+            "baseline": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "kind",
+                      "outcome",
+                      "counts"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "const": "identity"
+                      },
+                      "outcome": {
+                        "enum": [
+                          "PASS",
+                          "FAIL"
+                        ]
+                      },
+                      "counts": {
+                        "type": "object",
+                        "required": [
+                          "rows",
+                          "distinct_keys",
+                          "null_key_rows",
+                          "duplicate_keys"
+                        ],
+                        "properties": {
+                          "rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "distinct_keys": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "null_key_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "duplicate_keys": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "kind",
+                      "outcome",
+                      "counts"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "const": "reference"
+                      },
+                      "outcome": {
+                        "enum": [
+                          "PASS",
+                          "FAIL"
+                        ]
+                      },
+                      "counts": {
+                        "type": "object",
+                        "required": [
+                          "child_rows",
+                          "exempt_rows",
+                          "matched_rows",
+                          "orphan_rows",
+                          "ambiguous_parent_rows",
+                          "null_failure_rows"
+                        ],
+                        "properties": {
+                          "child_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "exempt_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "matched_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "orphan_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "ambiguous_parent_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "null_failure_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "candidate": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "kind",
+                      "outcome",
+                      "counts"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "const": "identity"
+                      },
+                      "outcome": {
+                        "enum": [
+                          "PASS",
+                          "FAIL"
+                        ]
+                      },
+                      "counts": {
+                        "type": "object",
+                        "required": [
+                          "rows",
+                          "distinct_keys",
+                          "null_key_rows",
+                          "duplicate_keys"
+                        ],
+                        "properties": {
+                          "rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "distinct_keys": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "null_key_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "duplicate_keys": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "kind",
+                      "outcome",
+                      "counts"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "const": "reference"
+                      },
+                      "outcome": {
+                        "enum": [
+                          "PASS",
+                          "FAIL"
+                        ]
+                      },
+                      "counts": {
+                        "type": "object",
+                        "required": [
+                          "child_rows",
+                          "exempt_rows",
+                          "matched_rows",
+                          "orphan_rows",
+                          "ambiguous_parent_rows",
+                          "null_failure_rows"
+                        ],
+                        "properties": {
+                          "child_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "exempt_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "matched_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "orphan_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "ambiguous_parent_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "null_failure_rows": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "resource_limits": {
+          "type": "object",
+          "required": [
+            "max_input_bytes",
+            "max_decoded_bytes",
+            "max_rows_per_input",
+            "max_keys_per_identity"
+          ],
+          "properties": {
+            "max_input_bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_decoded_bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_rows_per_input": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_keys_per_identity": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "conservation": {
+      "type": "object",
+      "required": [
+        "conservation_result_version",
+        "outcome",
+        "reconciliation_sha256",
+        "sides",
+        "resource_limits"
+      ],
+      "properties": {
+        "conservation_result_version": {
+          "const": 1
+        },
+        "outcome": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "reconciliation_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sides": {
+          "type": "object",
+          "required": [
+            "baseline",
+            "candidate"
+          ],
+          "properties": {
+            "baseline": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "kind",
+                  "outcome",
+                  "counts"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "conservation"
+                  },
+                  "outcome": {
+                    "enum": [
+                      "PASS",
+                      "FAIL"
+                    ]
+                  },
+                  "counts": {
+                    "type": "object",
+                    "required": [
+                      "parent_rows",
+                      "child_rows",
+                      "groups",
+                      "compared_groups",
+                      "exact_groups",
+                      "within_tolerance_groups",
+                      "different_groups",
+                      "child_only_groups",
+                      "parent_without_children_groups",
+                      "duplicate_parent_groups",
+                      "null_measure_rows"
+                    ],
+                    "properties": {
+                      "parent_rows": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "child_rows": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "compared_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "exact_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "within_tolerance_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "different_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "child_only_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "parent_without_children_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "duplicate_parent_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "null_measure_rows": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "candidate": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "kind",
+                  "outcome",
+                  "counts"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "conservation"
+                  },
+                  "outcome": {
+                    "enum": [
+                      "PASS",
+                      "FAIL"
+                    ]
+                  },
+                  "counts": {
+                    "type": "object",
+                    "required": [
+                      "parent_rows",
+                      "child_rows",
+                      "groups",
+                      "compared_groups",
+                      "exact_groups",
+                      "within_tolerance_groups",
+                      "different_groups",
+                      "child_only_groups",
+                      "parent_without_children_groups",
+                      "duplicate_parent_groups",
+                      "null_measure_rows"
+                    ],
+                    "properties": {
+                      "parent_rows": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "child_rows": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "compared_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "exact_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "within_tolerance_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "different_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "child_only_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "parent_without_children_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "duplicate_parent_groups": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "null_measure_rows": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "resource_limits": {
+          "type": "object",
+          "required": [
+            "max_input_bytes",
+            "max_decoded_bytes",
+            "max_rows_per_input",
+            "max_groups_per_check"
+          ],
+          "properties": {
+            "max_input_bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_decoded_bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_rows_per_input": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_groups_per_check": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "outcome": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCONCLUSIVE"
+      ]
+    },
+    "complete": {
+      "const": true
+    },
+    "coverage": {
+      "enum": [
+        "PASS",
+        "INCONCLUSIVE"
+      ]
+    },
+    "coordination": {
+      "enum": [
+        "source-owned",
+        "unestablished"
+      ]
+    }
+  },
+  "additionalProperties": false
+}
