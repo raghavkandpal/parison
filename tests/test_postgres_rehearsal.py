@@ -251,7 +251,18 @@ class PostgresRehearsal(unittest.TestCase):
         ):
             with self.subTest(mutation=mutation):
                 self.replace_pair("candidate", **mutation)
-                self.assertEqual(self.run_case()["outcome"], "FAIL")
+                summary = self.run_case()
+                self.assertEqual(summary["outcome"], "FAIL")
+                receipt = json.loads((self.root / "result" / "receipt.json").read_text())
+                for slot in ("orders", "order_lines"):
+                    exact = compare(
+                        self.args["orders_recipe" if slot == "orders" else "lines_recipe"],
+                        self.root / "baseline" / "tables" / slot / "data.csv",
+                        self.root / "candidate" / "tables" / slot / "data.csv",
+                    )
+                    self.assertEqual(exact["outcome"], summary["parity"][slot])
+                    self.assertEqual(exact["counts"], receipt["parity"][slot]["counts"])
+                    self.assertEqual(exact["discrepancy_count"], receipt["parity"][slot]["discrepancy_count"])
                 shutil.rmtree(self.root / "result")
 
     def test_duplicate_conversion_and_null_fail_closed(self):
@@ -290,7 +301,11 @@ class PostgresRehearsal(unittest.TestCase):
         receipt = self.root / "result" / "receipt.json"
         value = json.loads(receipt.read_text())
         value["coverage"] = "INCONCLUSIVE"
-        write(receipt, value)
+        digest = write(receipt, value)
+        manifest_path = self.root / "result" / "manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["files"]["receipt.json"] = digest
+        write(manifest_path, manifest)
         with self.assertRaises(ParisonError):
             verify(self.root / "result", **self.args)
         shutil.rmtree(self.root / "baseline")
@@ -435,3 +450,35 @@ class PostgresRehearsal(unittest.TestCase):
             self.root / "investigation", discovery, self.args["lines_recipe"], baseline, candidate
         )
         self.assertEqual(result["verification"], "exact-source-backed")
+
+    def test_discovery_substitution_cannot_publish_pass(self):
+        from parison.postgres_rehearsal import discover
+
+        self.replace_pair("candidate", orders="1,11.00\n2,20.00\n", lines="1,1,11.00\n2,2,20.00\n")
+
+        def substitute(plan, recipe, baseline, candidate, output):
+            original = candidate.read_bytes()
+            candidate.write_bytes(baseline.read_bytes())
+            try:
+                return discover(plan, recipe, baseline, candidate, output)
+            finally:
+                candidate.write_bytes(original)
+
+        with patch("parison.postgres_rehearsal.discover", side_effect=substitute):
+            with self.assertRaises(ParisonError):
+                self.run_case()
+        self.assertFalse((self.root / "result").exists())
+        self.assertFalse(list(self.root.glob(".result-*")))
+
+    def test_argument_errors_never_echo_values(self):
+        output, error = StringIO(), StringIO()
+        with redirect_stdout(output), redirect_stderr(error):
+            status = main(["run", "--secret", "RAW-CREDENTIAL-MARKER"])
+        self.assertEqual(status, 2)
+        self.assertNotIn("RAW-CREDENTIAL", output.getvalue() + error.getvalue())
+
+    def test_major_version_rejected(self):
+        shutil.rmtree(self.root / "baseline")
+        self.plan["pairs"]["baseline"] = pair(self.root / "baseline", 18)
+        with self.assertRaises(ParisonError):
+            self.run_case()

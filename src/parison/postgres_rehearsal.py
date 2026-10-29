@@ -206,6 +206,26 @@ def _summary(receipt: dict) -> dict:
 
 def _evaluate(plan: dict, pairs: dict, recipes: dict, reconciliation: Path, claim: Path | None, stage: Path) -> dict:
     coverage, identities = _bindings(plan, pairs, recipes, reconciliation, claim)
+    original_pairs, original_recipes, original_reconciliation, original_claim = pairs, recipes, reconciliation, claim
+    # Execute from private verified copies so changes to caller-owned source
+    # directories cannot split parity and relationship evaluation.
+    snapshots = stage / ".inputs"
+    snapshots.mkdir(mode=0o700)
+    pairs = {side: snapshots / side for side in SIDES}
+    for side in SIDES:
+        shutil.copytree(original_pairs[side], pairs[side], symlinks=True)
+    copied = {}
+    for index, source in enumerate((*recipes.values(), reconciliation, *((claim,) if claim is not None else ()))):
+        data = _bounded_bytes(source, 256 * 1024)
+        if hashlib.sha256(data).hexdigest() != identities[str(source)]:
+            raise ParisonError("rehearsal policy input changed")
+        destination = snapshots / f"policy-{index}.json"
+        destination.write_bytes(data)
+        copied[source] = destination
+    recipes = {slot: copied[path] for slot, path in recipes.items()}
+    reconciliation = copied[reconciliation]
+    claim = copied[claim] if claim is not None else None
+    _bindings(plan, pairs, recipes, reconciliation, claim)
     discovery = stage / "discovery"
     discovery.mkdir(mode=0o700)
     inputs = {
@@ -221,6 +241,17 @@ def _evaluate(plan: dict, pairs: dict, recipes: dict, reconciliation: Path, clai
             parity[slot] = discover(
                 partition_plan, recipes[slot], inputs[slot]["baseline"], inputs[slot]["candidate"], discovery / slot
             )
+            for side in SIDES:
+                acquired = _read_json(pairs[side] / "tables" / slot / "receipt.json")
+                if (
+                    parity[slot]["inputs"][side]
+                    != {
+                        "sha256": acquired["observed"]["output_sha256"],
+                        "bytes": acquired["observed"]["output_bytes"],
+                    }
+                    or parity[slot]["policy_sha256"] != plan["policies"][slot]
+                ):
+                    raise ParisonError("discovery differs from reviewed acquisition")
         # The released evaluators consume an internal declaration; no alignment is
         # evaluated or published as a rehearsal claim.
         declaration_path = workspace / "relationships.json"
@@ -237,7 +268,9 @@ def _evaluate(plan: dict, pairs: dict, recipes: dict, reconciliation: Path, clai
         }
         relationships = check_identity_references(declaration_path, inputs, max_keys=limits["max_keys"], **common)
         conservation = check_conservation(declaration_path, inputs, max_groups=limits["max_groups"], **common)
-    after_coverage, after = _bindings(plan, pairs, recipes, reconciliation, claim)
+    _bindings(plan, pairs, recipes, reconciliation, claim)
+    shutil.rmtree(snapshots)
+    after_coverage, after = _bindings(plan, original_pairs, original_recipes, original_reconciliation, original_claim)
     if after != identities or after_coverage != coverage:
         raise ParisonError("rehearsal inputs changed")
     outcomes = [coverage, relationships["outcome"], conservation["outcome"], *(p["outcome"] for p in parity.values())]
@@ -330,8 +363,13 @@ def verify(directory, baseline, candidate, orders_recipe, lines_recipe, reconcil
     return summary
 
 
+class _SafeParser(argparse.ArgumentParser):
+    def error(self, message):
+        raise ParisonError("invalid rehearsal arguments")
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="parison-rehearsal")
+    parser = _SafeParser(prog="parison-rehearsal")
     sub = parser.add_subparsers(dest="command", required=True)
     for command in ("run", "verify"):
         child = sub.add_parser(command)
@@ -343,9 +381,9 @@ def main(argv: list[str] | None = None) -> int:
         for name in ("baseline", "candidate", "orders-recipe", "lines-recipe", "reconciliation"):
             child.add_argument(f"--{name}", required=True)
         child.add_argument("--claim")
-    args = vars(parser.parse_args(argv))
-    command = args.pop("command")
     try:
+        args = vars(parser.parse_args(argv))
+        command = args.pop("command")
         if command == "run":
             args["plan_path"] = args.pop("plan")
         summary = (run if command == "run" else verify)(**args)
