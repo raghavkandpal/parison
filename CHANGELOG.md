@@ -18,6 +18,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Research and freeze feature 4's selective raw investigation boundary,
+  source-backed prerequisite, bounded sensitive artifact and adversarial gate.
 - Research and freeze feature 3's reviewed integer-range exact discovery
   contract, source-backed verification boundary, resource caps and adversarial
   reference-corpus gate.

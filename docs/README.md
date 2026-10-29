@@ -19,6 +19,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Exact partition discovery contract and adversarial gate](2.3/254-partition-discovery-contract.md)
 - [Exact partition discovery operator notes](2.3/255-partition-discovery-operator-notes.md)
 - [Exact partition discovery budget checkpoint](2.3/256-partition-discovery-budget-checkpoint.md)
+- [Selective exact investigation research](2.3/257-selective-investigation-research.md)
+- [Selective exact investigation contract and adversarial gate](2.3/258-selective-investigation-contract.md)
 
 ## 2.2 — six-feature verification train — released
 
