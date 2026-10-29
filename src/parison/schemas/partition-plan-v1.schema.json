@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/partition-plan-v1.schema.json",
+  "title": "partition-plan-v1",
+  "type": "object",
+  "required": ["partition_plan_version", "ranges", "limits"],
+  "properties": {
+    "partition_plan_version": {"const": 1},
+    "ranges": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": ["upper"],
+        "properties": {"upper": {"type": ["integer", "null"]}},
+        "additionalProperties": false
+      }
+    },
+    "limits": {
+      "type": "object",
+      "required": ["max_input_bytes", "max_rows_per_input", "max_rows_per_partition_side", "max_staged_bytes", "max_partition_bytes"],
+      "properties": {
+        "max_input_bytes": {"type": "integer", "minimum": 1, "maximum": 1000000000},
+        "max_rows_per_input": {"type": "integer", "minimum": 1, "maximum": 5000000},
+        "max_rows_per_partition_side": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "max_staged_bytes": {"type": "integer", "minimum": 1, "maximum": 2000000000},
+        "max_partition_bytes": {"type": "integer", "minimum": 1, "maximum": 1000000000}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -17,6 +17,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Pair acquisition budget checkpoint](2.3/252-pair-acquisition-budget-checkpoint.md)
 - [Exact partition discovery research](2.3/253-partition-discovery-research.md)
 - [Exact partition discovery contract and adversarial gate](2.3/254-partition-discovery-contract.md)
+- [Exact partition discovery operator notes](2.3/255-partition-discovery-operator-notes.md)
+- [Exact partition discovery budget checkpoint](2.3/256-partition-discovery-budget-checkpoint.md)
 
 ## 2.2 — six-feature verification train — released
 

@@ -134,6 +134,10 @@ _SCHEMAS = {
     "postgres-pair-receipt": "postgres-pair-receipt-v1.schema.json",
     "postgres-pair-summary": "postgres-pair-summary-v1.schema.json",
     "postgres-pair-manifest": "postgres-pair-manifest-v1.schema.json",
+    "partition-plan": "partition-plan-v1.schema.json",
+    "partition-receipt": "partition-receipt-v1.schema.json",
+    "partition-summary": "partition-summary-v1.schema.json",
+    "partition-manifest": "partition-manifest-v1.schema.json",
 }
 
 _SUITE_LIMIT_DEFAULTS = {

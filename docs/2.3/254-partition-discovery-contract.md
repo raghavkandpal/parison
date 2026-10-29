@@ -37,9 +37,11 @@ bounded by these declared caps, not by the mere existence of partitions.
 
 Before routing, bind each input's SHA-256 digest and size. Route each parsed
 row exactly once by its **normalized** integer key using the released CSV and
-policy parser. Null or invalid keys fail closed; duplicate normalized keys
-must remain in the same range and retain the released duplicate-key
-INCONCLUSIVE rule. Preserve every raw row field in private temporary CSV for
+policy parser. A null key has no integer range and fails closed with an
+explicit unsupported-input error; invalid keys retain the released parse
+error. Duplicate normalized keys must remain in the same range and retain
+the released duplicate-key INCONCLUSIVE rule. Preserve every raw row field in
+private temporary CSV for
 the exact comparison path. Rehash each source after routing; changed input
 fails. Count source rows and routed rows per side and require equality.
 
@@ -86,8 +88,8 @@ under the same plan, recipe and input identities.
   field classification and discrepancy count to the released SQLite engine
   for low-difference, high-difference, 95%-skewed and all-different cases.
   Include a passing case, empty individual ranges, a globally empty side,
-  duplicate and null keys, quoted CSV, side-specific null tokens and numeric
-  normalization at boundaries.
+  duplicate keys, quoted CSV, side-specific null tokens and numeric
+  normalization at boundaries. A null key must be rejected without PASS.
 - Show that plan gaps/overlap, omitted or swapped range records, changed
   recipe/input, altered staged bytes, a skewed range exceeding its cap,
   interrupted work, and output collision cannot yield a complete PASS.

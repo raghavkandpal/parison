@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/partition-receipt-v1.schema.json",
+  "title": "partition-receipt-v1",
+  "type": "object",
+  "required": [
+    "partition_receipt_version",
+    "policy_sha256",
+    "plan_sha256",
+    "inputs",
+    "route_rows",
+    "staged_bytes",
+    "counts",
+    "discrepancy_count",
+    "outcome",
+    "complete",
+    "partitions",
+    "field_counts"
+  ],
+  "properties": {
+    "partition_receipt_version": {
+      "const": 1
+    },
+    "policy_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "object",
+          "required": [
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "candidate": {
+          "type": "object",
+          "required": [
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "route_rows": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidate": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "staged_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "counts": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "candidate",
+        "common_keys",
+        "baseline_only",
+        "candidate_only",
+        "matched_exact",
+        "matched_within_tolerance",
+        "matched_with_required_difference"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidate": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "common_keys": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "baseline_only": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidate_only": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "matched_exact": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "matched_within_tolerance": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "matched_with_required_difference": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "discrepancy_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "outcome": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCONCLUSIVE"
+      ]
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "partitions": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": [
+          "upper",
+          "baseline",
+          "candidate",
+          "counts",
+          "field_counts",
+          "outcome",
+          "complete"
+        ],
+        "properties": {
+          "upper": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "baseline": {
+            "type": "object",
+            "required": [
+              "rows",
+              "bytes",
+              "sha256"
+            ],
+            "properties": {
+              "rows": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            },
+            "additionalProperties": false
+          },
+          "candidate": {
+            "type": "object",
+            "required": [
+              "rows",
+              "bytes",
+              "sha256"
+            ],
+            "properties": {
+              "rows": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            },
+            "additionalProperties": false
+          },
+          "counts": {
+            "type": "object",
+            "required": [
+              "baseline",
+              "candidate",
+              "common_keys",
+              "baseline_only",
+              "candidate_only",
+              "matched_exact",
+              "matched_within_tolerance",
+              "matched_with_required_difference"
+            ],
+            "properties": {
+              "baseline": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "candidate": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "common_keys": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "baseline_only": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "candidate_only": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "matched_exact": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "matched_within_tolerance": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "matched_with_required_difference": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "field_counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "exact",
+                "within_tolerance",
+                "different"
+              ],
+              "properties": {
+                "exact": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "within_tolerance": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "different": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "outcome": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "INCONCLUSIVE"
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "field_counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "exact",
+          "within_tolerance",
+          "different"
+        ],
+        "properties": {
+          "exact": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "within_tolerance": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "different": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
