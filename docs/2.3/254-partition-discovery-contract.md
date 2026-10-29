@@ -41,9 +41,9 @@ policy parser. A null key has no integer range and fails closed with an
 explicit unsupported-input error; invalid keys retain the released parse
 error. Duplicate normalized keys must remain in the same range and retain
 the released duplicate-key INCONCLUSIVE rule. Preserve every raw row field in
-private temporary CSV for
-the exact comparison path. Rehash each source after routing; changed input
-fails. Count source rows and routed rows per side and require equality.
+private temporary CSV for the exact comparison path. Rehash each source after
+routing; changed input fails. Count source rows and routed rows per side and
+require equality.
 
 For every range, run the released exact keyed classification under the
 original column policies, including zero-row ranges. An internal allowance
