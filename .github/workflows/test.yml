@@ -83,6 +83,10 @@ jobs:
       - run: parison schema preflight-v24
       - run: parison schema result-v2
       - run: parison schema result-v3
+      - run: parison schema partition-plan
+      - run: parison schema partition-receipt
+      - run: parison schema partition-summary
+      - run: parison schema partition-manifest
       - run: parison schema suite
       - run: parison schema suite-authoring
       - run: parison schema suite-v2
@@ -206,6 +210,9 @@ jobs:
       - run: python -m pip install 'psycopg[binary]==3.3.6'
       - run: parison-postgres --help
       - run: parison-postgres-pair --help
+      - run: parison-partitions --help
+      - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv --output ${{ runner.temp }}/parison-partition-smoke
+      - run: parison-partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
       - name: Check in-memory benchmark accuracy
         if: matrix.python-version == '3.14'
         run: |
@@ -248,6 +255,13 @@ jobs:
       - run: python -m pip install 'psycopg[binary]==3.3.6'
       - run: parison-postgres --help
       - run: parison-postgres-pair --help
+      - run: parison-partitions --help
+      - run: parison schema partition-plan
+      - run: parison schema partition-receipt
+      - run: parison schema partition-summary
+      - run: parison schema partition-manifest
+      - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv --output ${{ runner.temp }}/parison-partition-smoke
+      - run: parison-partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
       - run: parison --version
       - run: python tests/test_xlsx.py -v
       - run: parison schema recipe-v3

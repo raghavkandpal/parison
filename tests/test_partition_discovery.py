@@ -17,6 +17,8 @@ from parison.comparison import compare
 from parison.core import ParisonError, load_schema
 from parison.partition_discovery import discover, validate_plan, verify
 
+FIXTURE = Path(__file__).parent / "fixtures" / "partition_discovery"
+
 
 class PartitionDiscoveryTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -79,6 +81,12 @@ class PartitionDiscoveryTests(unittest.TestCase):
         self.assertEqual(result["discrepancy_count"], reference["discrepancy_count"])
         private = json.loads((self.output / "receipt.json").read_text())
         self.assertEqual(private["field_counts"], reference["field_counts"])
+        for name in ("receipt", "summary", "manifest"):
+            schema = load_schema(f"partition-{name}")
+            Draft202012Validator.check_schema(schema)
+            self.assertTrue(
+                Draft202012Validator(schema).is_valid(json.loads((self.output / f"{name}.json").read_text()))
+            )
         self.assertEqual(verify(self.output)["verification"], "integrity-only")
         self.assertEqual(
             verify(self.output, self.recipe_path, self.left, self.right)["verification"], "exact-source-backed"
@@ -214,6 +222,55 @@ class PartitionDiscoveryTests(unittest.TestCase):
             with self.assertRaisesRegex(ParisonError, "staging changed"):
                 discover(self.plan_path, self.recipe_path, self.left, self.right, self.output)
         self.assertFalse(self.output.exists())
+
+    def test_canonical_evidence_bytes(self) -> None:
+        discover(
+            FIXTURE / "plan.json",
+            FIXTURE / "recipe.json",
+            FIXTURE / "baseline.csv",
+            FIXTURE / "candidate.csv",
+            self.output,
+        )
+        for name in ("plan.json", "receipt.json", "summary.json", "manifest.json"):
+            self.assertEqual((self.output / name).read_bytes(), (FIXTURE / "expected" / name).read_bytes())
+
+    def test_missing_or_swapped_partition_record_rejected(self) -> None:
+        for change in ("missing", "swapped"):
+            with self.subTest(change=change):
+                self._run([(1, "1.00"), (250, "1.00")], [(1, "1.00"), (250, "1.00")])
+                receipt_path = self.output / "receipt.json"
+                manifest_path = self.output / "manifest.json"
+                receipt = json.loads(receipt_path.read_text())
+                if change == "missing":
+                    receipt["partitions"].pop()
+                else:
+                    receipt["partitions"].reverse()
+                receipt_path.write_text(json.dumps(receipt))
+                manifest = json.loads(manifest_path.read_text())
+                manifest["files"]["receipt.json"] = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+                manifest_path.write_text(json.dumps(manifest))
+                with self.assertRaises(ParisonError):
+                    verify(self.output)
+                shutil.rmtree(self.output)
+
+    def test_evidence_mutation_during_verification_rejected(self) -> None:
+        self._run([(1, "1.00")], [(1, "1.00")])
+        from parison import partition_discovery as module
+
+        original = module._parse_json
+        calls = 0
+
+        def mutate(data):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                with (self.output / "plan.json").open("ab") as handle:
+                    handle.write(b" ")
+            return original(data)
+
+        with patch("parison.partition_discovery._parse_json", side_effect=mutate):
+            with self.assertRaisesRegex(ParisonError, "changed during verification"):
+                verify(self.output)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ import io
 import json
 import os
 import shutil
+import stat
 import sys
 import tempfile
 from pathlib import Path
@@ -49,17 +50,35 @@ def _digest(path: Path) -> str:
     return value.hexdigest()
 
 
-def _read_json(path: Path, *, limit: int = 256 * 1024) -> Any:
-    if path.is_symlink() or not path.is_file() or path.stat().st_size > limit:
+def _bounded_bytes(path: Path, limit: int) -> bytes:
+    if path.is_symlink() or not path.is_file():
         raise ParisonError("partition evidence file is missing, unsafe or too large")
     try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(descriptor, "rb") as handle:
+            if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+                raise ParisonError("partition evidence file is not regular")
+            data = handle.read(limit + 1)
+        if len(data) > limit:
+            raise ParisonError("partition evidence file is missing, unsafe or too large")
+        return data
+    except OSError as exc:
+        raise ParisonError("cannot read partition evidence file") from exc
+
+
+def _parse_json(data: bytes) -> Any:
+    try:
         return json.loads(
-            path.read_text(encoding="utf-8"),
+            data.decode("utf-8"),
             object_pairs_hook=_strict_object,
             parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
         )
-    except (OSError, UnicodeError, ValueError) as exc:
+    except (UnicodeError, ValueError) as exc:
         raise ParisonError("invalid partition JSON") from exc
+
+
+def _read_json(path: Path, *, limit: int = 256 * 1024) -> Any:
+    return _parse_json(_bounded_bytes(path, limit))
 
 
 def validate_plan(value: Any) -> dict[str, Any]:
@@ -515,7 +534,8 @@ def verify(
         or {p.name for p in root.iterdir()} != {"plan.json", "receipt.json", "summary.json", "manifest.json"}
     ):
         raise ParisonError("invalid partition evidence directory")
-    manifest = _read_json(root / "manifest.json")
+    manifest_bytes = _bounded_bytes(root / "manifest.json", 256 * 1024)
+    manifest = _parse_json(manifest_bytes)
     if (
         not isinstance(manifest, dict)
         or set(manifest) != {"partition_manifest_version", "files"}
@@ -525,19 +545,34 @@ def verify(
         or set(manifest["files"]) != {"plan.json", "receipt.json", "summary.json"}
     ):
         raise ParisonError("invalid partition manifest")
+    captured: dict[str, Any] = {}
     for name, digest in manifest["files"].items():
         path = root / name
-        if path.is_symlink() or not path.is_file() or not _digest_text(digest):
+        if not _digest_text(digest):
             raise ParisonError("partition evidence file is unsafe")
-        if digest != _digest(path):
+        data = _bounded_bytes(path, 8 * 1024 * 1024 if name == "receipt.json" else 256 * 1024)
+        if digest != hashlib.sha256(data).hexdigest():
             raise ParisonError("partition evidence digest mismatch")
-    plan = validate_plan(_read_json(root / "plan.json"))
-    receipt = _read_json(root / "receipt.json", limit=8 * 1024 * 1024)
-    summary = _read_json(root / "summary.json")
+        captured[name] = _parse_json(data)
+    plan = validate_plan(captured["plan.json"])
+    receipt = captured["receipt.json"]
+    summary = captured["summary.json"]
     _validate_receipt(plan, receipt)
     if summary != _summary(receipt):
         raise ParisonError("inconsistent partition receipt")
+
+    def unchanged() -> bool:
+        return manifest_bytes == _bounded_bytes(root / "manifest.json", 256 * 1024) and all(
+            hashlib.sha256(
+                _bounded_bytes(root / name, 8 * 1024 * 1024 if name == "receipt.json" else 256 * 1024)
+            ).hexdigest()
+            == digest
+            for name, digest in manifest["files"].items()
+        )
+
     if recipe is None and baseline is None and candidate is None:
+        if not unchanged():
+            raise ParisonError("partition evidence changed during verification")
         return {**summary, "verification": "integrity-only"}
     if recipe is None or baseline is None or candidate is None:
         raise ParisonError("source-backed verification requires recipe and both inputs")
@@ -545,6 +580,8 @@ def verify(
         rerun = _run(plan, Path(recipe), baseline, candidate, Path(temp))
     if rerun != receipt:
         raise ParisonError("partition source-backed verification mismatch")
+    if not unchanged():
+        raise ParisonError("partition evidence changed during verification")
     return {**summary, "verification": "exact-source-backed"}
 
 

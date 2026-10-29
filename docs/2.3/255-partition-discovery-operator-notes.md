@@ -6,7 +6,7 @@ Status: feature 3 implementation checkpoint
 The optional `parison-partitions` command runs the [frozen reviewed-range
 contract](254-partition-discovery-contract.md) on two local CSV files. It does
 not contact PostgreSQL. Use a released keyed summary recipe with one integer
-key, no mappings, field projection or exclusions. Keep the original recipe
+key, no mappings, field projection, input projection or exclusions. Keep the original recipe
 unchanged; the command permits empty individual ranges internally and applies
 the original `scope.expected_empty` once to the total inputs.
 
