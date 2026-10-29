@@ -144,12 +144,21 @@ def _csv_bytes(values: list[Any], delimiter: str) -> bytes:
 
 
 def _route(
-    plan: dict[str, Any], recipe: dict[str, Any], sources: dict[str, Path], workspace: Path
+    plan: dict[str, Any],
+    recipe: dict[str, Any],
+    sources: dict[str, Path],
+    workspace: Path,
+    selected: set[int] | None = None,
+    staged_byte_limit: int | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, int], int]:
     uppers = [item["upper"] for item in plan["ranges"][:-1]]
     columns = list(recipe["columns"])
     key_name = recipe["keys"][0]
     limits = plan["limits"]
+    active = set(range(len(plan["ranges"]))) if selected is None else selected
+    if not active or any(type(index) is not int or index < 0 or index >= len(plan["ranges"]) for index in active):
+        raise ParisonError("invalid selected partition ranges")
+    stage_cap = min(limits["max_staged_bytes"], staged_byte_limit or limits["max_staged_bytes"])
     records = [{"upper": item["upper"], "baseline": {}, "candidate": {}} for item in plan["ranges"]]
     handles: dict[tuple[str, int], Any] = {}
     staged = 0
@@ -157,14 +166,14 @@ def _route(
     try:
         for side in ("baseline", "candidate"):
             delimiter = recipe["delimiters"][side]
-            for index in range(len(records)):
+            for index in sorted(active):
                 handle = (workspace / f"{side}-{index}.csv").open("wb")
                 handles[(side, index)] = handle
                 header = _csv_bytes(columns, delimiter)
                 handle.write(header)
                 records[index][side] = {"rows": 0, "bytes": len(header)}
                 staged += len(header)
-                if len(header) > limits["max_partition_bytes"] or staged > limits["max_staged_bytes"]:
+                if len(header) > limits["max_partition_bytes"] or staged > stage_cap:
                     raise ParisonError("partition staging exceeds byte limit")
             for raw in _iter_input_rows(sources[side], recipe, limits["max_rows_per_input"], side):
                 rows[side] += 1
@@ -173,6 +182,8 @@ def _route(
                 if key is None:
                     raise ParisonError("null integer key cannot be routed")
                 index = bisect.bisect_right(uppers, key)
+                if index not in active:
+                    continue
                 record = records[index][side]
                 null_token = recipe["null_tokens"][side][0] if recipe["null_tokens"][side] else None
                 line = _csv_bytes([null_token if raw.get(name) is None else raw[name] for name in columns], delimiter)
@@ -181,16 +192,17 @@ def _route(
                 staged += len(line)
                 if record["rows"] > limits["max_rows_per_partition_side"]:
                     raise ParisonError("partition row limit exceeded")
-                if record["bytes"] > limits["max_partition_bytes"] or staged > limits["max_staged_bytes"]:
+                if record["bytes"] > limits["max_partition_bytes"] or staged > stage_cap:
                     raise ParisonError("partition byte limit exceeded")
                 handles[(side, index)].write(line)
     finally:
         for handle in handles.values():
             handle.close()
     for side in ("baseline", "candidate"):
-        if sum(record[side]["rows"] for record in records) != rows[side]:
+        if selected is None and sum(record[side]["rows"] for record in records) != rows[side]:
             raise ParisonError("partition routing count mismatch")
-        for index, record in enumerate(records):
+        for index in sorted(active):
+            record = records[index]
             record[side]["sha256"] = _digest(workspace / f"{side}-{index}.csv")
     return records, rows, staged
 
@@ -521,12 +533,12 @@ def discover(
         raise
 
 
-def verify(
+def _verified_evidence(
     directory: str | Path,
     recipe: str | Path | None = None,
     baseline: str | Path | None = None,
     candidate: str | Path | None = None,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], str]:
     root = Path(directory)
     if (
         root.is_symlink()
@@ -573,7 +585,7 @@ def verify(
     if recipe is None and baseline is None and candidate is None:
         if not unchanged():
             raise ParisonError("partition evidence changed during verification")
-        return {**summary, "verification": "integrity-only"}
+        return plan, receipt, summary, hashlib.sha256(manifest_bytes).hexdigest()
     if recipe is None or baseline is None or candidate is None:
         raise ParisonError("source-backed verification requires recipe and both inputs")
     with tempfile.TemporaryDirectory(prefix="parison-partition-verify-") as temp:
@@ -582,7 +594,18 @@ def verify(
         raise ParisonError("partition source-backed verification mismatch")
     if not unchanged():
         raise ParisonError("partition evidence changed during verification")
-    return {**summary, "verification": "exact-source-backed"}
+    return plan, receipt, summary, hashlib.sha256(manifest_bytes).hexdigest()
+
+
+def verify(
+    directory: str | Path,
+    recipe: str | Path | None = None,
+    baseline: str | Path | None = None,
+    candidate: str | Path | None = None,
+) -> dict[str, Any]:
+    _, _, summary, _ = _verified_evidence(directory, recipe, baseline, candidate)
+    mode = "integrity-only" if recipe is None and baseline is None and candidate is None else "exact-source-backed"
+    return {**summary, "verification": mode}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -595,15 +618,30 @@ def main(argv: list[str] | None = None) -> int:
     check.add_argument("directory")
     for name in ("recipe", "baseline", "candidate"):
         check.add_argument(f"--{name}")
+    investigation = sub.add_parser("investigate")
+    for name in ("plan", "discovery", "recipe", "baseline", "candidate", "output"):
+        investigation.add_argument(f"--{name}", required=True)
+    investigation_check = sub.add_parser("verify-investigation")
+    investigation_check.add_argument("directory")
+    investigation_check.add_argument("--discovery", required=True)
+    for name in ("recipe", "baseline", "candidate"):
+        investigation_check.add_argument(f"--{name}")
     args = parser.parse_args(argv)
     try:
-        result = (
-            discover(args.plan, args.recipe, args.baseline, args.candidate, args.output)
-            if args.command == "discover"
-            else verify(args.directory, args.recipe, args.baseline, args.candidate)
-        )
+        if args.command == "discover":
+            result = discover(args.plan, args.recipe, args.baseline, args.candidate, args.output)
+        elif args.command == "verify":
+            result = verify(args.directory, args.recipe, args.baseline, args.candidate)
+        else:
+            from .partition_investigation import investigate, verify_investigation
+
+            result = (
+                investigate(args.plan, args.discovery, args.recipe, args.baseline, args.candidate, args.output)
+                if args.command == "investigate"
+                else verify_investigation(args.directory, args.discovery, args.recipe, args.baseline, args.candidate)
+            )
         print(json.dumps(result, sort_keys=True))
-        if args.command == "verify":
+        if args.command != "discover":
             return 0
         return 0 if result["outcome"] == "PASS" else 1 if result["outcome"] == "FAIL" else 2
     except (ParisonError, OSError, ValueError) as exc:

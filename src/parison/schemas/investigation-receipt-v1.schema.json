@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/investigation-receipt-v1.schema.json",
+  "title": "investigation-receipt-v1",
+  "type": "object",
+  "required": [
+    "investigation_receipt_version",
+    "kind",
+    "derivation",
+    "sensitivity",
+    "investigation_plan_sha256",
+    "discovery_manifest_sha256",
+    "policy_sha256",
+    "raw_policy_sha256",
+    "inputs",
+    "suspect_count",
+    "selected",
+    "population_count",
+    "returned_count",
+    "staged_bytes",
+    "scope_complete",
+    "enumeration_complete",
+    "complete"
+  ],
+  "properties": {
+    "investigation_receipt_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "selective-exact-investigation"
+    },
+    "derivation": {
+      "const": "raw-disclosure-v1"
+    },
+    "sensitivity": {
+      "const": "raw"
+    },
+    "investigation_plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "discovery_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "policy_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "raw_policy_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "object",
+          "required": [
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "candidate": {
+          "type": "object",
+          "required": [
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "suspect_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "selected": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": [
+          "partition_index",
+          "upper",
+          "counts",
+          "field_counts",
+          "population_count",
+          "returned_count",
+          "baseline",
+          "candidate"
+        ],
+        "properties": {
+          "partition_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "upper": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "counts": {
+            "type": "object",
+            "required": [
+              "baseline",
+              "candidate",
+              "common_keys",
+              "baseline_only",
+              "candidate_only",
+              "matched_exact",
+              "matched_within_tolerance",
+              "matched_with_required_difference"
+            ],
+            "properties": {
+              "baseline": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "candidate": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "common_keys": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "baseline_only": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "candidate_only": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "matched_exact": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "matched_within_tolerance": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "matched_with_required_difference": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "field_counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "exact",
+                "within_tolerance",
+                "different"
+              ],
+              "properties": {
+                "exact": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "within_tolerance": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "different": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "population_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "returned_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "baseline": {
+            "type": "object",
+            "required": [
+              "rows",
+              "bytes",
+              "sha256"
+            ],
+            "properties": {
+              "rows": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            },
+            "additionalProperties": false
+          },
+          "candidate": {
+            "type": "object",
+            "required": [
+              "rows",
+              "bytes",
+              "sha256"
+            ],
+            "properties": {
+              "rows": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "population_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "returned_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "staged_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "scope_complete": {
+      "type": "boolean"
+    },
+    "enumeration_complete": {
+      "type": "boolean"
+    },
+    "complete": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false
+}

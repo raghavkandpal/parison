@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/investigation-summary-v1.schema.json",
+  "title": "investigation-summary-v1",
+  "type": "object",
+  "required": [
+    "investigation_summary_version",
+    "kind",
+    "complete",
+    "scope_complete",
+    "enumeration_complete",
+    "suspect_count",
+    "selected_count",
+    "population_count",
+    "returned_count",
+    "discovery_manifest_sha256",
+    "policy_sha256",
+    "input_sha256"
+  ],
+  "properties": {
+    "investigation_summary_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "selective-exact-investigation"
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "scope_complete": {
+      "type": "boolean"
+    },
+    "enumeration_complete": {
+      "type": "boolean"
+    },
+    "suspect_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "selected_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "population_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "returned_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "discovery_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "policy_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_sha256": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "candidate": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
