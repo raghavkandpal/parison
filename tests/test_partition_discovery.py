@@ -8,11 +8,14 @@ import json
 import shutil
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
 
+from parison.cli import main as parison_main
 from parison.comparison import compare
 from parison.core import ParisonError, load_schema
 from parison.partition_discovery import discover, validate_plan, verify
@@ -233,6 +236,14 @@ class PartitionDiscoveryTests(unittest.TestCase):
         )
         for name in ("plan.json", "receipt.json", "summary.json", "manifest.json"):
             self.assertEqual((self.output / name).read_bytes(), (FIXTURE / "expected" / name).read_bytes())
+
+    def test_packaged_schema_command_names(self) -> None:
+        for name in ("plan", "receipt", "summary", "manifest"):
+            with self.subTest(name=name):
+                output = StringIO()
+                with redirect_stdout(output):
+                    self.assertEqual(parison_main(["schema", f"partition-{name}"]), 0)
+                self.assertEqual(json.loads(output.getvalue())["title"], f"partition-{name}-v1")
 
     def test_missing_or_swapped_partition_record_rejected(self) -> None:
         for change in ("missing", "swapped"):

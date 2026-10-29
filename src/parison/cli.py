@@ -404,6 +404,10 @@ def parser() -> argparse.ArgumentParser:
             "postgres-pair-receipt",
             "postgres-pair-summary",
             "postgres-pair-manifest",
+            "partition-plan",
+            "partition-receipt",
+            "partition-summary",
+            "partition-manifest",
         ),
     )
     schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
