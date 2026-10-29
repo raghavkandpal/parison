@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-rehearsal-manifest-v1.schema.json",
+  "title": "postgres-rehearsal-manifest-v1",
+  "type": "object",
+  "required": [
+    "postgres_rehearsal_manifest_version",
+    "files"
+  ],
+  "properties": {
+    "postgres_rehearsal_manifest_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "files": {
+      "type": "object",
+      "required": [
+        "plan.json",
+        "receipt.json",
+        "summary.json",
+        "orders",
+        "order_lines"
+      ],
+      "properties": {
+        "plan.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "receipt.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "summary.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "orders": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "order_lines": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

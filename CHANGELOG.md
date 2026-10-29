@@ -4,6 +4,9 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Add an offline PostgreSQL 16→18 order/line rehearsal binding reviewed acquisition pairs, exact partition parity and per-order reconciliation, with explicit upstream coordination and source-backed replay verification.
+
+
 ### Added
 
 - Add selective exact investigation of source-verified suspect CSV ranges,

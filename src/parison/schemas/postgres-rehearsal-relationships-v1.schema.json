@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-rehearsal-relationships-v1.schema.json",
+  "title": "postgres-rehearsal-relationships-v1",
+  "type": "object",
+  "required": [
+    "datasets",
+    "checks",
+    "postgres_rehearsal_relationships_version"
+  ],
+  "properties": {
+    "datasets": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "policy_sha256",
+          "columns"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+          },
+          "policy_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "columns": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "type"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+                },
+                "type": {
+                  "enum": [
+                    "string",
+                    "integer",
+                    "decimal",
+                    "float",
+                    "boolean",
+                    "date",
+                    "timestamp"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "maxItems": 2
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "dataset",
+              "columns",
+              "nulls"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+              },
+              "kind": {
+                "const": "identity"
+              },
+              "dataset": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+              },
+              "columns": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+                }
+              },
+              "nulls": {
+                "enum": [
+                  "forbid",
+                  "equal"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "child_dataset",
+              "child_columns",
+              "parent_identity",
+              "nulls"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+              },
+              "kind": {
+                "const": "reference"
+              },
+              "child_dataset": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+              },
+              "child_columns": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+                }
+              },
+              "parent_identity": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+              },
+              "nulls": {
+                "enum": [
+                  "forbid",
+                  "all-null-exempt",
+                  "match-null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "parent_dataset",
+              "parent_identity",
+              "parent_group_columns",
+              "child_dataset",
+              "child_group_columns",
+              "parent_measure",
+              "child_measure",
+              "operator",
+              "nulls",
+              "comparison",
+              "tolerance"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+              },
+              "kind": {
+                "const": "conservation"
+              },
+              "parent_dataset": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+              },
+              "parent_identity": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+              },
+              "parent_group_columns": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+                }
+              },
+              "child_dataset": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+              },
+              "child_group_columns": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+                }
+              },
+              "parent_measure": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+              },
+              "child_measure": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+              },
+              "operator": {
+                "const": "sum"
+              },
+              "nulls": {
+                "enum": [
+                  "forbid",
+                  "zero"
+                ]
+              },
+              "comparison": {
+                "enum": [
+                  "exact",
+                  "tolerance"
+                ]
+              },
+              "tolerance": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "formula": {
+                    "const": "symmetric-v1"
+                  },
+                  "absolute": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "relative": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "formula",
+                  "absolute",
+                  "relative"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "maxItems": 4
+    },
+    "postgres_rehearsal_relationships_version": {
+      "type": "integer",
+      "const": 1
+    }
+  },
+  "additionalProperties": false
+}
