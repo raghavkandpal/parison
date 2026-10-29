@@ -28,6 +28,11 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [PostgreSQL rehearsal operator notes](2.3/263-postgresql-rehearsal-operator-notes.md)
 - [PostgreSQL rehearsal budget checkpoint](2.3/265-postgresql-rehearsal-budget-checkpoint.md)
 - [Feature 5 integration checkpoint](2.3/266-postgresql-rehearsal-integration.md)
+- [Portable decision dossier research](2.3/267-decision-dossier-research.md)
+- [Portable decision dossier contract and adversarial gate](2.3/268-decision-dossier-contract.md)
+- [Portable decision dossier operator notes](2.3/269-decision-dossier-operator-notes.md)
+- [CLI consolidation follow-up after dossier](2.3/270-cli-consolidation-followup.md)
+- [Decision dossier implementation checkpoint](2.3/271-decision-dossier-implementation.md)
 
 ## 2.2 — six-feature verification train — released
 

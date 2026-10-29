@@ -172,6 +172,7 @@ def main():
     parser.add_argument("--worker", type=Path)
     parser.add_argument("--label", default="run")
     parser.add_argument("--adversarial", action="store_true")
+    parser.add_argument("--dossier", action="store_true")
     args = parser.parse_args()
     if args.worker:
         print(json.dumps(worker(args.worker, args.rows, args.label), sort_keys=True))
@@ -335,6 +336,39 @@ def main():
                 root / "relationships.json",
                 root / "claim.txt",
             )
+            dossier_offline = None
+            if args.dossier:
+                from parison.decision_dossier import create as create_dossier
+                from parison.decision_dossier import verify as verify_dossier
+
+                plan = {
+                    "dossier_plan_version": 1,
+                    "rehearsal_manifest_sha256": hashlib.sha256(
+                        (first / "result" / "manifest.json").read_bytes()
+                    ).hexdigest(),
+                    "investigations": {"orders": None, "order_lines": None},
+                    "exceptions": [],
+                    "signoffs": [],
+                }
+                (root / "dossier-plan.json").write_bytes(_canonical(plan) + b"\n")
+                dossier = root / "dossier"
+                safe = create_dossier(
+                    root / "dossier-plan.json",
+                    first / "result",
+                    first / "baseline",
+                    first / "candidate",
+                    root / "orders.json",
+                    root / "order_lines.json",
+                    root / "relationships.json",
+                    dossier,
+                    root / "claim.txt",
+                )
+                for path in (first / "result", first / "baseline", first / "candidate"):
+                    shutil.rmtree(path)
+                for name in ("orders.json", "order_lines.json", "relationships.json", "claim.txt"):
+                    (root / name).unlink()
+                assert verify_dossier(dossier) == safe
+                dossier_offline = True
             report = {
                 "machine": platform.platform(),
                 "python": sys.version,
@@ -342,6 +376,7 @@ def main():
                 "runs": records,
                 "adversarial": mutations,
                 "offline_after_shutdown": True,
+                "dossier_verified_after_source_removal": dossier_offline,
                 "dump_client": subprocess.check_output(
                     [str(args.pg18_bin / "pg_dump"), "--version"], text=True
                 ).strip(),

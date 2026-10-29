@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/dossier-manifest-v1.schema.json",
+  "title": "dossier-manifest-v1",
+  "type": "object",
+  "required": [
+    "dossier_manifest_version",
+    "files"
+  ],
+  "properties": {
+    "dossier_manifest_version": {
+      "const": 1
+    },
+    "files": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 128,
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^(plan\\.json|receipt\\.json|summary\\.json|members/(?!.*\\.\\.)[A-Za-z0-9._/-]+)$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    }
+  },
+  "additionalProperties": false
+}

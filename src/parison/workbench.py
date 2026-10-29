@@ -91,6 +91,16 @@ _COMMON_FIELDS = (
 
 def workbench_projection(bundle: str | Path) -> dict[str, Any]:
     """Verify a bundle and return the closed summary-safe workbench view."""
+    from .decision_dossier import _json as _dossier_json
+    from .decision_dossier import verify as verify_dossier
+
+    manifest = Path(bundle) / "manifest.json"
+    try:
+        dossier = _dossier_json(manifest)
+    except (ParisonError, OSError):
+        dossier = None
+    if isinstance(dossier, dict) and dossier.get("dossier_manifest_version") == 1:
+        return verify_dossier(bundle)
     inspected = inspect_bundle(bundle)
     return {name: inspected[name] for name in _COMMON_FIELDS if name in inspected}
 

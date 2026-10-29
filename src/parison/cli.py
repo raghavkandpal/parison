@@ -164,6 +164,8 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="parison", description="Compare data-pipeline outputs deterministically")
     root.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = root.add_subparsers(dest="command", required=True)
+    dossier = commands.add_parser("dossier", help="create or verify a portable decision dossier")
+    dossier.add_argument("dossier_args", nargs=argparse.REMAINDER)
     init = commands.add_parser("init", help="create a minimal keyed migration project")
     init.add_argument("directory")
     validate = commands.add_parser("validate-recipe", help="validate a JSON recipe")
@@ -409,6 +411,10 @@ def parser() -> argparse.ArgumentParser:
             "postgres-rehearsal-receipt",
             "postgres-rehearsal-summary",
             "postgres-rehearsal-manifest",
+            "dossier-plan",
+            "dossier-receipt",
+            "dossier-summary",
+            "dossier-manifest",
             "partition-plan",
             "partition-receipt",
             "partition-summary",
@@ -648,6 +654,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     recipe = None
     try:
+        if args.command == "dossier":
+            from .decision_dossier import main as dossier_main
+
+            return dossier_main(args.dossier_args)
         if args.command == "init":
             files = init_project(args.directory)
             print(json.dumps({"directory": args.directory, "files": files}))
