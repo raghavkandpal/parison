@@ -26,6 +26,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [PostgreSQL 16→18 rehearsal research](2.3/261-postgresql-rehearsal-research.md)
 - [PostgreSQL rehearsal contract and adversarial gate](2.3/262-postgresql-rehearsal-contract.md)
 - [PostgreSQL rehearsal operator notes](2.3/263-postgresql-rehearsal-operator-notes.md)
+- [PostgreSQL rehearsal budget checkpoint](2.3/265-postgresql-rehearsal-budget-checkpoint.md)
 
 ## 2.2 — six-feature verification train — released
 
