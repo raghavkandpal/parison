@@ -39,10 +39,10 @@ coordination claim and selected investigations. It calls existing verifiers
 before copying. It requires the plan to pin the exact rehearsal manifest and
 each selected investigation manifest; no implicit discovery or source search.
 All inputs must be regular, non-symlink local files/directories. Cap the
-package at 4 GiB total, 1 GiB per member file, 128 files and depth 8; JSON
+package at 4 GiB total, 1 GiB per member file, 128 files, 256 total entries and depth 8; JSON
 metadata files cap at 4 MiB and the claim at 256 KiB. The complete
 portable package remains private because it contains acquired rows and possibly
-raw discrepancy cases. A no-overwrite target is installed atomically from a
+raw discrepancy cases. The output must be outside every input directory. A no-overwrite target is installed atomically from a
 mode-0700 stage; any failure/interruption removes sensitive staging.
 
 ## Wire format and verification

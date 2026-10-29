@@ -100,26 +100,62 @@ def _tree(root: Path) -> dict[str, str]:
     if root.is_symlink() or not root.is_dir():
         raise ParisonError("unsafe dossier directory")
     files: dict[str, str] = {}
-    size = 0
+    size = entries = 0
 
-    def visit(directory: Path, depth: int) -> None:
-        nonlocal size
+    def visit(directory: Path, depth: int, parent_fd: int | None = None) -> None:
+        nonlocal size, entries
         if depth > 8:
             raise ParisonError("dossier nesting exceeds limit")
-        for path in directory.iterdir():
-            if path.is_symlink():
-                raise ParisonError("dossier contains symlink")
-            if path.is_dir():
-                visit(path, depth + 1)
-                continue
-            if not path.is_file() or not stat.S_ISREG(path.stat(follow_symlinks=False).st_mode):
-                raise ParisonError("dossier has unsafe member")
-            relative = path.relative_to(root).as_posix()
-            length = path.stat(follow_symlinks=False).st_size
-            size += length
-            if len(files) >= _MAX_FILES or length > _MAX_FILE_BYTES or size > _MAX_BYTES:
-                raise ParisonError("dossier exceeds member or byte limit")
-            files[relative] = _digest(path)
+        if os.name == "posix":
+            descriptor = os.open(
+                directory if parent_fd is None else directory.name,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                dir_fd=parent_fd,
+            )
+            names = os.listdir(descriptor)
+        else:
+            descriptor = None
+            names = [path.name for path in directory.iterdir()]
+        try:
+            for name in names:
+                entries += 1
+                if entries > 256:
+                    raise ParisonError("dossier exceeds entry limit")
+                path = directory / name
+                if os.name == "posix":
+                    fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=descriptor)
+                    mode = os.fstat(fd).st_mode
+                else:
+                    if path.is_symlink():
+                        raise ParisonError("dossier contains symlink")
+                    mode = path.stat(follow_symlinks=False).st_mode
+                    fd = None
+                try:
+                    if stat.S_ISDIR(mode):
+                        visit(path, depth + 1, descriptor)
+                        continue
+                    if not stat.S_ISREG(mode):
+                        raise ParisonError("dossier has unsafe member")
+                    length = os.fstat(fd).st_size if fd is not None else path.stat().st_size
+                    size += length
+                    if len(files) >= _MAX_FILES or length > _MAX_FILE_BYTES or size > _MAX_BYTES:
+                        raise ParisonError("dossier exceeds member or byte limit")
+                    if fd is not None:
+                        digest = hashlib.sha256()
+                        with os.fdopen(os.dup(fd), "rb") as handle:
+                            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                                digest.update(block)
+                        if os.fstat(fd).st_size != length:
+                            raise ParisonError("dossier member changed during read")
+                        files[path.relative_to(root).as_posix()] = digest.hexdigest()
+                    else:
+                        files[path.relative_to(root).as_posix()] = _digest(path)
+                finally:
+                    if fd is not None:
+                        os.close(fd)
+        finally:
+            if descriptor is not None:
+                os.close(descriptor)
 
     visit(root, 0)
     return files
@@ -272,6 +308,17 @@ def create(
     if any((choices[slot] is None) != (plan["investigations"][slot] is None) for slot in SLOTS):
         raise ParisonError("dossier investigation selection mismatch")
     check_output_parent(target.parent)
+    source_directories = [
+        Path(item)
+        for item in (rehearsal, baseline, candidate, orders_investigation, lines_investigation)
+        if item is not None
+    ]
+    absolute_target = target.absolute()
+    if any(
+        absolute_target == source.absolute() or absolute_target.is_relative_to(source.absolute())
+        for source in source_directories
+    ):
+        raise ParisonError("dossier output must be outside all input directories")
     if target.exists() or target.is_symlink():
         raise ParisonError("dossier output exists")
     original_dirs = {"rehearsal": Path(rehearsal), "baseline": Path(baseline), "candidate": Path(candidate)}
@@ -318,6 +365,7 @@ def create(
             **({"claim.txt": claim} if claim is not None else {}),
         }
         for name, source in files.items():
+            check_output_parent(Path(source).parent)
             (members / name).write_bytes(
                 _bounded_bytes(Path(source), 256 * 1024 if name == "claim.txt" else 4 * 1024**2)
             )

@@ -279,3 +279,36 @@ class Dossier(unittest.TestCase):
             server.shutdown()
             thread.join(timeout=5)
             server.server_close()
+
+    def test_output_inside_source_rejected_before_staging(self):
+        self.args["output"] = self.root / "baseline" / "nested" / "dossier"
+        save(self.root / "plan.json", self.plan)
+        with self.assertRaises(ParisonError):
+            create(**self.args)
+        self.assertFalse((self.root / "baseline" / "nested").exists())
+
+    def test_empty_directory_bomb_is_bounded(self):
+        from parison.decision_dossier import _tree
+
+        bomb = self.root / "bomb"
+        bomb.mkdir()
+        for number in range(257):
+            (bomb / str(number)).mkdir()
+        with self.assertRaises(ParisonError):
+            _tree(bomb)
+
+    def test_symlinked_recipe_parent_rejected(self):
+        alias = self.root / "alias"
+        try:
+            alias.symlink_to(self.root, target_is_directory=True)
+        except OSError:
+            self.skipTest("symlinks unavailable")
+        self.args["orders_recipe"] = alias / "orders.json"
+        with self.assertRaises(ParisonError):
+            self.publish()
+        self.assertFalse((self.root / "dossier").exists())
+
+    def test_manifest_schema_rejects_traversal(self):
+        schema = load_schema("dossier-manifest")
+        malicious = {"dossier_manifest_version": 1, "files": {"members/../../etc": "0" * 64}}
+        self.assertFalse(Draft202012Validator(schema).is_valid(malicious))

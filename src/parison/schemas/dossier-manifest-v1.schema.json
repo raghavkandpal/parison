@@ -17,7 +17,7 @@
       "maxProperties": 128,
       "propertyNames": {
         "type": "string",
-        "pattern": "^(plan\\.json|receipt\\.json|summary\\.json|members/[A-Za-z0-9._/-]+)$"
+        "pattern": "^(plan\\.json|receipt\\.json|summary\\.json|members/(?!.*\\.\\.)[A-Za-z0-9._/-]+)$"
       },
       "additionalProperties": {
         "type": "string",
