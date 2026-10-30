@@ -1,7 +1,7 @@
 # PostgreSQL 16→18 rehearsal operator notes
 
 Date: 29 October 2026
-Status: feature 5 implementation candidate; qualification in progress
+Status: feature 5 integrated through PR #104
 
 This offline workflow evaluates two reviewed acquisition pairs under explicit
 scope, policy and upstream coordination claims. A PASS is agreement under those

@@ -1,7 +1,7 @@
 # One-table PostgreSQL ingress implementation
 
 Date: 28 October 2026
-Status: feature 1 implementation under review
+Status: feature 1 integrated through PR #93
 
 The optional `parison-postgres` entry point reads a strict version 1 plan and
 connects using standard libpq environment or service settings. The plan has

@@ -1,7 +1,7 @@
 # Portable decision dossier implementation checkpoint
 
 Date: 29 October 2026
-Status: feature 6 candidate; independent review and exact-head CI pending
+Status: integrated through PR #106 at `f58f32ccf26dcbae0145dee4075e08ba621f9755`; combined 2.3 candidate source qualified
 
 `parison dossier create|verify` publishes a private, unsigned, self-contained
 package of one verified feature 5 rehearsal. It includes exact pair receipts
@@ -26,4 +26,5 @@ The owner asked to consolidate standalone installed commands after the dossier
 is done. This feature uses the existing `parison` command. See the
 [follow-up](270-cli-consolidation-followup.md) for a separately versioned
 migration of already shipped command contracts. The combined six-feature
-release gate remains pending until dossier integration and full qualification.
+release gate remains pending until full qualification and a separate release
+decision.

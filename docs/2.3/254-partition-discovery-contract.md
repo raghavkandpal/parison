@@ -1,6 +1,6 @@
 # Exact partitioned difference discovery contract
 
-Date: 28 October 2026  
+Date: 28 October 2026
 Status: frozen for 2.3 feature 3 implementation; not a release commitment
 
 This is capability 3 in the [six-feature roadmap](246-six-feature-roadmap.md).

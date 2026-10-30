@@ -1,7 +1,7 @@
 # Portable decision dossier: primary-source research
 
 Date and source access: 29 October 2026
-Status: design input for 2.3 feature 6; implementation contract pending
+Status: historical feature 6 research checkpoint; contract and implementation later integrated through PR #106
 
 ## Question and decision
 
