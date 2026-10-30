@@ -134,8 +134,18 @@ class CliConsolidation(unittest.TestCase):
                 self.assertEqual((code, stderr), (0, ""))
                 self.assertIn(expected, stdout)
         self.assertEqual(
-            _invoke(cli.main, ["postgres", "private-value"]), (2, "", "parison postgres: invalid command\n")
+            _invoke(cli.main, ["postgres", "private-value"]), (2, "", "parison postgres: invalid arguments\n")
         )
+        for args in (
+            ["postgres", "table", "--plan", "p", "--output", "o", "--unknown", "private-value"],
+            ["postgres", "pair", "--plan", "p", "--output", "o", "--unknown", "private-value"],
+            ["partitions", "verify", "d", "--unknown", "private-value"],
+        ):
+            with self.subTest(args=args[:2]):
+                code, stdout, stderr = _invoke(cli.main, args)
+                self.assertEqual((code, stdout), (2, ""))
+                self.assertIn("invalid arguments", stderr)
+                self.assertNotIn("private-value", stderr)
 
     def test_existing_dossier_route(self):
         with patch("parison.decision_dossier.verify", return_value={"outcome": "PASS"}):

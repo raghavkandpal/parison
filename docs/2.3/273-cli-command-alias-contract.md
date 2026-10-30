@@ -23,7 +23,7 @@ The first four shipped project scripts remain installed and retain their
 argument parsing, exit codes, stdout JSON, runtime error text, and `--help`
 behavior. New paths call the same underlying command implementation with the
 same arguments. New help and parser usage name the new command path; malformed
-arguments retain exit code 2. The new root and namespace help and generated
+arguments return a generic value-free error and exit code 2. The new root and namespace help and generated
 command reference list the task paths. No default, recipe, schema, bundle, canonical byte,
 verification or policy meaning changes. A future retirement of aliases needs
 a separately versioned breaking decision and migration window.

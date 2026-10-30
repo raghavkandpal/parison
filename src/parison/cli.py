@@ -655,7 +655,7 @@ operator and null policy. Suggestions are starting points, not approved policy."
 
 class _TaskParser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
-        self.exit(2, f"{self.prog}: invalid command\n")
+        self.exit(2, f"{self.prog}: invalid arguments\n")
 
 
 def postgres_parser() -> argparse.ArgumentParser:
@@ -679,7 +679,7 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 from .postgres_pair import main as postgres_main
 
-            return postgres_main(argv[2:], prog=f"parison postgres {argv[1]}")
+            return postgres_main(argv[2:], prog=f"parison postgres {argv[1]}", parser_class=_TaskParser)
         try:
             postgres_parser().parse_args(argv[1:])
         except SystemExit as exc:
@@ -688,7 +688,7 @@ def main(argv: list[str] | None = None) -> int:
     if argv and argv[0] == "partitions":
         from .partition_discovery import main as partitions_main
 
-        return partitions_main(argv[1:], prog="parison partitions")
+        return partitions_main(argv[1:], prog="parison partitions", parser_class=_TaskParser)
     if argv and argv[0] == "rehearsal":
         from .postgres_rehearsal import main as rehearsal_main
 
