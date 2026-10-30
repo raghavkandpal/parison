@@ -2,7 +2,7 @@
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
 - Branch: `develop`; post-release records reconcile the published 2.3.0 train.
-- Next gate: implement feature 1 collection validation, offline verification and acquisition under [contract 277](2.4/277-postgresql-collection-contract.md). The [wire gate](2.4/279-collection-wire-checkpoint.md) merged through PR #117 at `9e0e1a6`, after 579 local tests, independent review and full built-wheel CI. Enforce semantic-negative fixtures and pinned reads, then qualify all pending live rows in [matrix 278](2.4/278-postgresql-capability-matrix.md). No collection runtime exists yet. All ten 2.4 features remain required before a candidate; preserve 2.3 contracts, CLI aliases and local-first boundaries.
+- Next gate: review/integrate the [collection offline verifier slice](2.4/280-collection-verifier-checkpoint.md), then implement feature 1 acquisition under contract 277 and qualify all matrix 278 live lanes. The wire gate is integrated; offline verifier local tests pass, acquisition is not implemented and no live collection lane is qualified. All ten 2.4 features remain required before a candidate. Preserve 2.3 contracts, CLI aliases and local-first boundaries; account resets belong to the owner.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff

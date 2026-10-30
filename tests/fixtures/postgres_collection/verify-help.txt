@@ -1,0 +1,7 @@
+usage: parison verify-postgres-collection [-h] bundle
+
+positional arguments:
+  bundle
+
+options:
+  -h, --help  show this help message and exit

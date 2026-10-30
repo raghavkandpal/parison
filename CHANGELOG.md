@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Add strict offline PostgreSQL collection verification and semantic validation with compact safe CLI output.
+
 - Add PostgreSQL collection structural schemas and frozen canonical/negative fixtures ahead of feature 1 runtime implementation.
 
 - Research N-table acquisition lock/snapshot ordering, RLS, shared budgets and publication prerequisites; record a bounded continuation handoff.
