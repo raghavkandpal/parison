@@ -2,7 +2,7 @@
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
 - Branch: `develop`; post-release records reconcile the published 2.3.0 train.
-- Next gate: review/integrate the [collection offline verifier slice](2.4/280-collection-verifier-checkpoint.md), then implement feature 1 acquisition under contract 277 and qualify all matrix 278 live lanes. The wire gate is integrated; offline verifier local tests pass, acquisition is not implemented and no live collection lane is qualified. All ten 2.4 features remain required before a candidate. Preserve 2.3 contracts, CLI aliases and local-first boundaries; account resets belong to the owner.
+- Next gate: implement acquisition after the integrated [collection offline verifier slice](2.4/280-collection-verifier-checkpoint.md), under contract 277 and qualify all matrix 278 live lanes. Exact verifier head `b2269c8` passed 587 local tests, independent review and full built-wheel CI; PR #119 merged at `0938dd7`. The wire gate is integrated; offline verifier local tests pass, acquisition is not implemented and no live collection lane is qualified. All ten 2.4 features remain required before a candidate. Preserve 2.3 contracts, CLI aliases and local-first boundaries; account resets belong to the owner.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
