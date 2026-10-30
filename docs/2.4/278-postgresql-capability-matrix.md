@@ -14,7 +14,7 @@ An installed binary is not an executed collection qualification.
 
 | Exact server / `server_version_num` | Profile | Required fixture | Status / evidence |
 | --- | --- | --- | --- |
-| 16.15 / `160015` | `postgresql-base-table-csv-v1` | six-table full adversarial corpus and 16-table structural probe | pending; 2.3 pair/rehearsal evidence is not collection qualification |
+| 16.15 / `160015` | `postgresql-base-table-only-csv-v1` | six-table full adversarial corpus and 16-table structural probe | pending; 2.3 pair/rehearsal evidence is not collection qualification |
 | 17.11 / `170011` | same profile | same corpus and probe, without version-specific evaluator branches | pending; install isolated fixture binaries first |
 | 18.6 / `180006` | same profile | same corpus and probe | pending; local 18.6 binary presence is not qualification |
 
@@ -39,7 +39,7 @@ qualification commit, report or platform claim; those must be filled from tests.
 | Capability | Required observation / fail-closed behavior |
 | --- | --- |
 | Transaction | one connection; repeatable-read read-only settings; all relation locks before the first snapshot query; identical recorded snapshot for every child |
-| Relation/role | permanent ordinary base table, no partition/inheritance membership; exact schema/name; dedicated SELECT-only role; no owner membership, superuser, `BYPASSRLS` or inherited write access; row security off fails rather than silently filtering |
+| Relation/role | permanent ordinary base table, no observed partition/inheritance membership; ONLY selection prevents later attachment expanding scope; pinned pg_catalog search path; exact schema/name; dedicated SELECT-only role; no owner membership, superuser, `BYPASSRLS` or inherited write access; row security off fails rather than silently filtering |
 | Key | declared ordered primary key exactly equals valid, ready, immediate nondeferrable server primary key; all key columns selected |
 | Representation | built-in supported scalar types only; UTF-8 client, ISO/YMD dates, UTC timestamps, explicit CSV/null marker; collision scan and count/COPY agreement |
 | Bounds | reviewed per-child and collection rows/bytes; metadata/staging caps; lock/statement/shared deadline enforcement and all-or-nothing cleanup |

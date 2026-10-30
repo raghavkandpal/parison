@@ -58,7 +58,7 @@ exception text. No database connection is opened during offline verification.
    private staging under the destination parent using the existing safe filesystem
    primitives; the caller owns an explicitly trusted local parent.
 2. Open one connection, set UTF-8 client encoding, and begin one `REPEATABLE READ
-   READ ONLY` transaction. Apply transaction-local `DateStyle='ISO, YMD'`, UTC,
+   READ ONLY` transaction. Apply transaction-local `search_path=pg_catalog`, `DateStyle='ISO, YMD'`, UTC,
    `row_security=off`, statement timeout, derived lock timeout
    `min(10000, statement_timeout_ms)`, and 60,000 ms idle-in-transaction timeout.
 3. Acquire `ACCESS SHARE` locks on all declared relations in ascending Python
@@ -67,8 +67,8 @@ exception text. No database connection is opened during offline verification.
    may precede the final lock. Duplicate relations are already rejected.
 4. Qualify every relation and the live server against the matrix before copying
    any table: permanent ordinary base tables only; exact valid, ready, immediate,
-   nondeferrable primary key; no partition flag or `pg_inherits` membership as
-   parent or child (an unqualified `FROM` must not silently include descendants);
+   nondeferrable primary key; no partition flag or observed `pg_inherits` membership as
+   parent or child;
    SELECT-only non-owner role, no superuser or
    `BYPASSRLS`, including inherited owner membership and write privileges.
    Reject missing/unsupported columns and any late member that fails qualification.
@@ -84,6 +84,8 @@ exception text. No database connection is opened during offline verification.
 6. Require identical source/database/role/server version and snapshot facts
    across all children, count/COPY equality and successful transaction commit.
    Then write and verify all evidence before one atomic no-overwrite install.
+   Counts, collision scans and COPY use `ONLY` so later inheritance attachment
+   cannot expand the declared base-table row scope.
 
 `ACCESS SHARE` permits ordinary writers and blocks only conflicting lock modes;
 it is not a blanket schema freeze. Locks must precede the first snapshot-taking
@@ -111,12 +113,15 @@ post-publication wall time. Cleanup is required even after the deadline.
 
 The output has exactly `receipt.json`, `summary.json`, `manifest.json`, and
 `tables/`; `tables/` contains exactly the declared ID directories, each with
-unchanged source-v1 `data.csv`, `receipt.json`, `summary.json`, `manifest.json`.
+versioned source-v2 receipt and the existing source-v1 CSV/summary/manifest layouts.
+Source-v2 uses `postgres_source_receipt_version: 2` and `plan_version: 2`
+in its reconstructed child plan, with exact `FROM ONLY` selection SQL. Source-v1
+records and canonical fixtures remain readable and unchanged.
 All directories and members are private and reject symlinks. The filesystem
 checks must cover ancestors/parent policy as in existing publication helpers,
 regular files, exact membership, no-overwrite races and pinned reads on POSIX.
 
-For ID `i`, derive its source-v1 plan with exactly `plan_version: 1`, parent
+For ID `i`, derive its source-v2 plan with exactly `plan_version: 2`, parent
 `source_id`, the four selection fields at `tables[i]`, and identical parent
 `limits`. Its `plan_sha256` is SHA-256 of `_canonical(derived_plan)` without a
 newline. The collection plan digest is likewise SHA-256 of `_canonical(plan)`.
@@ -131,7 +136,7 @@ The collection receipt has exactly:
 | `postgres_collection_receipt_version` | integer `1` |
 | `kind` | `postgresql-table-collection-export` |
 | `collection_plan_sha256` | canonical reviewed plan digest |
-| `capability_profile` | `postgresql-base-table-csv-v1` |
+| `capability_profile` | `postgresql-base-table-only-csv-v1` |
 | `source` | exactly `source_id`, `database`, `role`, `server_version_num` |
 | `transaction` | exactly `isolation: "repeatable read"`, `read_only: true`, `row_security: "off"`, `snapshot` |
 | `table_manifests` | exact ID→SHA-256 mapping of each child's canonical manifest bytes |
@@ -163,7 +168,7 @@ All versions and complete flags require exact types, not truthy equivalents.
 
 Offline verification pins and checks exact directory membership, safe member
 handles, strict/canonical JSON, metadata/content size caps, CSV header/count,
-all child source-v1 verification, every digest, exact parent/child facts and
+version-aware child verification, every digest, exact parent/child facts and
 elapsed/limit consistency, reconstructed plan digest, totals and derived summary.
 Read child receipts and hash their manifests through the same pinned handles
 used for child verification. Reject mutation/substitution rather than combining
@@ -232,3 +237,28 @@ fixtures that have not yet been authored, implement runtime behavior, or claim
 any collection qualification. The next implementation step is to materialize
 these schemas and positive/negative canonical fixtures, review them against
 this contract, then deepen existing acquisition and offline verification seams.
+
+## Review amendment: inheritance and function resolution
+
+Independent live review found that `ACCESS SHARE` permits concurrent inheritance
+attachment. Stronger relation locks require privileges beyond SELECT under
+[PostgreSQL LOCK](https://www.postgresql.org/docs/18/sql-lock.html). Pinning a
+snapshot or repeating a catalog check cannot replace base-only SQL scope. New
+live collections therefore use source-v2 receipts with exact `FROM ONLY`,
+truthful version-2 child-plan digests and profile
+`postgresql-base-table-only-csv-v1`. The unchanged manifest-v1 and summary-v1
+layouts still bind the versioned receipt bytes; no released record is relabeled.
+The initial profile `postgresql-base-table-csv-v1` remains readable only for
+its source-v1 evidence; new acquisition never emits it. Reject mixed profiles
+and child receipt versions. Existing collection wire fixtures remain historical
+reader compatibility examples; add separate source-v2 canonical fixtures.
+
+Relation qualification rejects observed inheritance membership. This is not a
+lifetime catalog freeze: if a child is attached later, acquisition either fails
+or exports only the declared base table, never undeclared descendants. Every
+count, null-marker scan and COPY must use ONLY. All built-in metadata functions
+resolve under transaction-local `search_path=pg_catalog` before snapshot-taking
+queries, preventing hostile libpq search paths from spoofing recorded facts.
+Add live concurrent-attachment and hostile-function/search-path regressions.
+This amendment precedes its runtime implementation and preserves 2.3 contracts.
+Primary-source access: 30 October 2026.
