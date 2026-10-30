@@ -11,6 +11,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [N-table acquisition prerequisites and continuation handoff](2.4/276-collection-acquisition-prerequisites.md)
 - [Frozen PostgreSQL collection contract](2.4/277-postgresql-collection-contract.md)
 - [Explicit PostgreSQL collection version and capability matrix](2.4/278-postgresql-capability-matrix.md)
+- [Collection schemas and canonical fixture checkpoint](2.4/279-collection-wire-checkpoint.md)
 
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 
