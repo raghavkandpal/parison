@@ -2,7 +2,7 @@
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
 - Branch: `develop`; post-release records reconcile the published 2.3.0 train.
-- Next gate: select the next separately reviewable train from documented research under the through-v5.0 [release cadence](../RELEASING.md). Preserve 2.3 contracts and the four shipped standalone commands; any retirement needs a separate versioned decision.
+- Next gate: review the [2.4.0 ten-feature research proposal](2.4/275-ten-feature-research-and-roadmap.md), then freeze feature 1's bounded multi-table collection contract. The owner requested a broad ten-feature boundary: all ten must integrate and qualify before a 2.4.0 candidate. Preserve 2.3 contracts, shipped commands and the through-v5.0 cadence.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
