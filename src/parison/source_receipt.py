@@ -226,17 +226,17 @@ def _bundle_handles(root: Path, parent_fd: int | None = None):
         if os.name == "posix":
             directory_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd)
             stack.callback(os.close, directory_fd)
-            if set(os.listdir(directory_fd)) != FILES:
+            if _bundle_members(directory_fd) != FILES:
                 raise ParisonError("PostgreSQL export has invalid files")
             handles = {}
             for name in FILES:
-                fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fd)
+                fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory_fd)
                 handle = stack.enter_context(os.fdopen(fd, "rb"))
                 if not stat.S_ISREG(os.fstat(fd).st_mode):
                     raise ParisonError("PostgreSQL export has unsafe file")
                 handles[name] = handle
         else:
-            if root.is_symlink() or not root.is_dir() or {part.name for part in root.iterdir()} != FILES:
+            if root.is_symlink() or not root.is_dir() or _bundle_members(root) != FILES:
                 raise ParisonError("PostgreSQL export has invalid files")
             handles = {}
             for name in FILES:
@@ -245,6 +245,16 @@ def _bundle_handles(root: Path, parent_fd: int | None = None):
                     raise ParisonError("PostgreSQL export has unsafe file")
                 handles[name] = stack.enter_context(path.open("rb"))
         yield handles
+
+
+def _bundle_members(root: Path | int) -> set[str]:
+    names = set()
+    with os.scandir(root) as entries:
+        for entry in entries:
+            names.add(entry.name)
+            if len(names) > len(FILES):
+                raise ParisonError("PostgreSQL export has invalid files")
+    return names
 
 
 def verify_postgres_export(directory: str | Path) -> dict[str, Any]:
