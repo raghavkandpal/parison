@@ -1,8 +1,9 @@
 # 2.4.0: ten-feature migration verification workbench
 
 Date and primary-source access: 30 October 2026
-Status: researched proposal; ten-feature release boundary requested by owner;
-individual implementation contracts remain to be frozen
+Status: ten-feature release boundary requested by owner; feature 1 collection
+contract and version/capability matrix frozen in [277](277-postgresql-collection-contract.md)
+and [278](278-postgresql-capability-matrix.md); later contracts remain to be frozen
 
 ## Product decision
 
@@ -328,6 +329,7 @@ its stated user capability; do not silently drop it from the ten-feature boundar
 
 ## Next step
 
-Review this proposal as a whole, then freeze feature 1's collection plan,
-receipt, summary, manifest, table cap and live adversarial gate. No 2.4 runtime
-change is included in this research checkpoint.
+Materialize feature 1's strict schemas and canonical/negative fixtures from
+[contract 277](277-postgresql-collection-contract.md) and the explicit
+[matrix 278](278-postgresql-capability-matrix.md), then implement and qualify.
+No 2.4 runtime change is included in this documentation checkpoint.
