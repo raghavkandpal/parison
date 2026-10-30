@@ -1,7 +1,7 @@
 # Portable decision dossier implementation checkpoint
 
 Date: 29 October 2026
-Status: integrated through PR #106 at `f58f32ccf26dcbae0145dee4075e08ba621f9755`; combined 2.3 qualification pending
+Status: integrated through PR #106 at `f58f32ccf26dcbae0145dee4075e08ba621f9755`; combined 2.3 candidate source qualified
 
 `parison dossier create|verify` publishes a private, unsigned, self-contained
 package of one verified feature 5 rehearsal. It includes exact pair receipts

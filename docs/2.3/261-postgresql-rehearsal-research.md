@@ -1,7 +1,7 @@
 # PostgreSQL 16→18 rehearsal: primary-source findings
 
 Date and source access: 29 October 2026
-Status: design input for feature 5; implementation and qualification pending
+Status: historical feature 5 research checkpoint; implementation and qualification later integrated through PR #104
 
 ## Question and decision
 

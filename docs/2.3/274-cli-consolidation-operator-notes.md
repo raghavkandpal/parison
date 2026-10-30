@@ -1,7 +1,7 @@
 # Task-oriented 2.3 commands
 
 Date: 30 October 2026
-Status: implementation candidate
+Status: additive command aliases integrated through PR #109
 
 Use the existing `parison` command for the 2.3 PostgreSQL rehearsal workflow:
 

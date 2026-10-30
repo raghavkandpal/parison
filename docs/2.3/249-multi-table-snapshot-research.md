@@ -1,7 +1,7 @@
 # Coordinated two-table PostgreSQL acquisition: research
 
 Date and source access: 28 October 2026
-Status: research for 2.3 feature 2; contract and implementation are not frozen
+Status: historical feature 2 research checkpoint; contract and implementation later integrated through PR #96
 
 ## Question
 

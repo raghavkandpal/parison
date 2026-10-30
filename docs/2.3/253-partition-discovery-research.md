@@ -1,7 +1,7 @@
 # Exact partitioned difference discovery research
 
-Date and primary-source access: 28 October 2026  
-Status: research for 2.3 feature 3; implementation contract pending
+Date and primary-source access: 28 October 2026
+Status: historical feature 3 research checkpoint; contract and implementation later integrated through PR #99
 
 ## Boundary and existing semantics
 

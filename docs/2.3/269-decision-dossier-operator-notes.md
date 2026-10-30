@@ -1,7 +1,7 @@
 # Portable decision dossier operator notes
 
 Date: 29 October 2026
-Status: integrated through PR #106; combined 2.3 qualification pending
+Status: integrated through PR #106; combined 2.3 candidate source qualified
 
 The dossier packages one verified PostgreSQL 16→18 rehearsal, both acquisition
 pairs, policies, optional source-owned coordination claim and selected exact
