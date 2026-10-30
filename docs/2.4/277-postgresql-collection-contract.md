@@ -1,7 +1,7 @@
 # Bounded PostgreSQL snapshot collection contract
 
 Date and primary-source access: 30 October 2026
-Status: frozen feature 1 implementation contract; runtime and qualification pending
+Status: feature 1 implemented and integrated through PR #121 at `2f4ff18`
 
 This contract implements feature 1 of the [ten-feature roadmap](275-ten-feature-research-and-roadmap.md).
 It generalizes acquisition to 1–16 explicitly selected base tables in one database

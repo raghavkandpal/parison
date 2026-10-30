@@ -1,8 +1,8 @@
 # Current development state
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
-- Branch: `develop`; post-release records reconcile the published 2.3.0 train.
-- Next gate: complete feature 1 collection acquisition qualification under [operator notes 281](2.4/281-collection-acquisition-operator-notes.md), including exact-commit live evidence, independent review and full built-wheel CI. Offline verifier is integrated; acquisition is an implementation candidate. No 2.4 feature is integrated as complete yet; all ten remain required before a candidate. Preserve 2.3 contracts, CLI aliases and local-first boundaries; account resets belong to the owner.
+- Branch: `develop`; feature 1 bounded PostgreSQL collections integrated through PR #121 at `2f4ff18` (one of ten 2.4 features).
+- Next gate: freeze feature 2's versioned representation/schema assessment contract from [primary-source research 283](2.4/283-representation-assessment-research.md), including same-snapshot capture, bounded metadata, explicit compatibility and unknown-state rules before runtime changes. Feature 1 collections passed 599 local tests, independent Standards/Spec re-review, PostgreSQL 16.15/17.11/18.6 live gates and exact-head full built-wheel CI; see [qualification 282](2.4/282-collection-budget-and-qualification.md). Preserve source-v1 bytes and source-v2 ONLY scope, 2.3 contracts, CLI aliases and local-first boundaries. All ten 2.4 features must integrate and qualify before a candidate; account resets belong to the owner.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
