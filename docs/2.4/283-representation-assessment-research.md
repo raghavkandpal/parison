@@ -137,3 +137,13 @@ unknown-state handling, mapping-proposal format and command/exit behavior before
 runtime edits. No data repair, implicit conversion, policy approval, source
 truth, cross-instance snapshot equivalence or cutover authorization is introduced.
 All ten 2.4 capabilities remain required before a release candidate.
+
+## Bounded live prototype and contract decision
+
+A later disposable16.15/17.11/18.6 probe confirmed that information_schema
+reports numeric(2,-3) raw scale2045 on all three versions. The normalized signed
+scale must use the qualified PostgreSQL typmod algorithm, not that raw field.
+PG18 also exposed attnotnull=true/is_nullable=NO for an unvalidated constraint
+while an existing NULL remained. [Raw synthetic facts](../../benchmarks/results-2026-10-30-representation-probe.json)
+and the [feature2 contract](284-representation-assessment-contract.md) preserve
+these distinctions. The prototype is not runtime qualification.
