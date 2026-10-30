@@ -29,6 +29,7 @@ from .source_receipt import (
 
 KIND = "postgresql-table-collection-export"
 PROFILE = "postgresql-base-table-csv-v1"
+ONLY_PROFILE = "postgresql-base-table-only-csv-v1"
 CLAIM = "adapter-table-collection-one-source-snapshot"
 META_LIMIT = 256 * 1024
 _ID = re.compile(r"[a-z][a-z0-9_-]{0,31}")
@@ -77,7 +78,7 @@ def _receipt(receipt: Any, children: dict) -> None:
         "postgres_collection_receipt_version kind collection_plan_sha256 capability_profile source transaction table_manifests limits observed",
     )
     _integer(receipt["postgres_collection_receipt_version"], 1, 1)
-    if receipt["kind"] != KIND or receipt["capability_profile"] != PROFILE:
+    if receipt["kind"] != KIND or receipt["capability_profile"] not in (PROFILE, ONLY_PROFILE):
         raise ParisonError(_ERROR)
     _sha(receipt["collection_plan_sha256"])
     source = _object(receipt["source"], "source_id database role server_version_num")
@@ -99,6 +100,9 @@ def _receipt(receipt: Any, children: dict) -> None:
     plan = {"collection_plan_version": 1, "source_id": source["source_id"], "tables": {}, "limits": receipt["limits"]}
     rows = size = 0
     for table_id, (child, digest) in children.items():
+        expected_version = 2 if receipt["capability_profile"] == ONLY_PROFILE else 1
+        if child["postgres_source_receipt_version"] != expected_version:
+            raise ParisonError(_ERROR)
         _sha(receipt["table_manifests"][table_id])
         if receipt["table_manifests"][table_id] != digest:
             raise ParisonError(_ERROR)

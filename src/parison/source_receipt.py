@@ -68,11 +68,11 @@ def _quote(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
 
-def selection_sql(schema: str, table: str, columns: list[str], primary_key: list[str]) -> str:
+def selection_sql(schema: str, table: str, columns: list[str], primary_key: list[str], *, only: bool = False) -> str:
     """Generate the only supported, unfiltered and key-ordered selection."""
     return (
         f"SELECT {', '.join(_quote(name) for name in columns)} "
-        f"FROM {_quote(schema)}.{_quote(table)} "
+        f"FROM {'ONLY ' if only else ''}{_quote(schema)}.{_quote(table)} "
         f"ORDER BY {', '.join(_quote(name) for name in primary_key)}"
     )
 
@@ -98,6 +98,13 @@ def validate_postgres_plan(value: Any) -> dict[str, Any]:
     return plan
 
 
+def validate_postgres_only_plan(value: Any) -> dict[str, Any]:
+    plan = _object(value, "plan_version source_id schema table columns primary_key limits")
+    _integer(plan["plan_version"], 2, 2)
+    validate_postgres_plan({**plan, "plan_version": 1})
+    return plan
+
+
 def _read_json(handle: BinaryIO) -> tuple[dict[str, Any], bytes]:
     try:
         data = handle.read(256 * 1024 + 1)
@@ -116,7 +123,9 @@ def _receipt(value: Any) -> dict[str, Any]:
         value,
         "postgres_source_receipt_version kind plan_sha256 source transaction selection limits observed",
     )
-    if type(receipt["postgres_source_receipt_version"]) is not int or receipt["postgres_source_receipt_version"] != 1:
+    if type(receipt["postgres_source_receipt_version"]) is not int or receipt[
+        "postgres_source_receipt_version"
+    ] not in (1, 2):
         raise ParisonError("unsupported PostgreSQL source receipt")
     if receipt["kind"] != "postgresql-table-export":
         raise ParisonError("unsupported PostgreSQL source receipt")
@@ -153,18 +162,20 @@ def _receipt(value: Any) -> dict[str, Any]:
     _text(transaction["snapshot"])
     selection = _object(receipt["selection"], "sql format null_marker null_marker_collision")
     if selection != {
-        "sql": selection_sql(source["schema"], source["table"], columns, key),
+        "sql": selection_sql(
+            source["schema"], source["table"], columns, key, only=receipt["postgres_source_receipt_version"] == 2
+        ),
         "format": "csv-utf8-v1",
         "null_marker": NULL_MARKER,
         "null_marker_collision": False,
     }:
         raise ParisonError("PostgreSQL selection does not qualify coverage")
     plan = {
-        "plan_version": 1,
+        "plan_version": receipt["postgres_source_receipt_version"],
         **{name: source[name] for name in ("source_id", "schema", "table", "columns", "primary_key")},
         "limits": receipt["limits"],
     }
-    validate_postgres_plan(plan)
+    (validate_postgres_only_plan if plan["plan_version"] == 2 else validate_postgres_plan)(plan)
     if receipt["plan_sha256"] != hashlib.sha256(_canonical(plan)).hexdigest():
         raise ParisonError("PostgreSQL plan digest mismatch")
     observed = _object(receipt["observed"], "server_rows local_rows output_bytes output_sha256 elapsed_ms complete")
@@ -288,6 +299,12 @@ def _verify_handles(handles: dict[str, BinaryIO]) -> dict[str, Any]:
             summary,
             "postgres_source_summary_version kind complete coverage_claim rows bytes output_sha256 receipt_sha256",
         )
+        if receipt["postgres_source_receipt_version"] == 2:
+            _integer(summary["postgres_source_summary_version"], 1, 1)
+            _integer(summary["rows"], 0, receipt["limits"]["max_rows"])
+            _integer(summary["bytes"], 0, receipt["limits"]["max_output_bytes"])
+            if summary["complete"] is not True:
+                raise ParisonError("PostgreSQL source-v2 summary is incomplete")
         if summary != source_summary(receipt, receipt_data):
             raise ParisonError("PostgreSQL summary does not reconcile")
         if (

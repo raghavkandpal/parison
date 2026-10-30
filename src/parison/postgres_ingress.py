@@ -171,7 +171,7 @@ def _acquire_table(
     remaining_bytes: int | None = None,
 ) -> dict[str, Any]:
     source, snapshot = _metadata(cursor, plan)
-    relation = f"{_quote(plan['schema'])}.{_quote(plan['table'])}"
+    relation = f"{'ONLY ' if plan['plan_version'] == 2 else ''}{_quote(plan['schema'])}.{_quote(plan['table'])}"
     cursor.execute(f"SELECT COUNT(*) FROM {relation}")
     server_rows = cursor.fetchone()[0]
     if server_rows > min(
@@ -186,7 +186,9 @@ def _acquire_table(
         cursor.execute(f"SELECT EXISTS(SELECT 1 FROM {relation} WHERE {predicate})", [NULL_MARKER] * len(text_columns))
         if cursor.fetchone()[0]:
             raise ParisonError("PostgreSQL source contains reserved NULL marker")
-    selection = selection_sql(plan["schema"], plan["table"], plan["columns"], plan["primary_key"])
+    selection = selection_sql(
+        plan["schema"], plan["table"], plan["columns"], plan["primary_key"], only=plan["plan_version"] == 2
+    )
     copy_sql = f"COPY ({selection}) TO STDOUT WITH (FORMAT CSV, HEADER TRUE, NULL E'\\\\N', ENCODING 'UTF8')"
     digest = hashlib.sha256()
     size = 0
@@ -220,7 +222,7 @@ def _write_table_evidence(
     stage: Path, plan: dict[str, Any], acquired: dict[str, Any], elapsed_ms: int
 ) -> dict[str, Any]:
     receipt = {
-        "postgres_source_receipt_version": 1,
+        "postgres_source_receipt_version": plan["plan_version"],
         "kind": "postgresql-table-export",
         "plan_sha256": hashlib.sha256(_canonical(plan)).hexdigest(),
         "source": acquired["source"],

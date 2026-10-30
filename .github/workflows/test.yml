@@ -219,6 +219,7 @@ jobs:
       - run: parison postgres --help
       - run: parison postgres table --help
       - run: parison postgres pair --help
+      - run: parison postgres collection --help
       - run: parison partitions --help
       - run: parison rehearsal --help
       - run: parison dossier --help
@@ -274,6 +275,7 @@ jobs:
       - run: parison postgres --help
       - run: parison postgres table --help
       - run: parison postgres pair --help
+      - run: parison postgres collection --help
       - run: parison partitions --help
       - run: parison rehearsal --help
       - run: parison dossier --help

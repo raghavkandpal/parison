@@ -1,0 +1,8 @@
+usage: parison postgres collection [-h] --plan PLAN --output OUTPUT
+
+Acquire one bounded PostgreSQL snapshot collection
+
+options:
+  -h, --help       show this help message and exit
+  --plan PLAN
+  --output OUTPUT

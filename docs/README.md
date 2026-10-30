@@ -13,6 +13,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Explicit PostgreSQL collection version and capability matrix](2.4/278-postgresql-capability-matrix.md)
 - [Collection schemas and canonical fixture checkpoint](2.4/279-collection-wire-checkpoint.md)
 - [Collection offline verifier checkpoint](2.4/280-collection-verifier-checkpoint.md)
+- [PostgreSQL collection acquisition operator notes](2.4/281-collection-acquisition-operator-notes.md)
+- [Collection live qualification and measured budget](2.4/282-collection-budget-and-qualification.md)
 
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 

@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Add bounded one-snapshot PostgreSQL collection acquisition through `parison postgres collection`, retaining released table/pair commands and offline readers.
+
 - Add strict offline PostgreSQL collection verification and semantic validation with compact safe CLI output.
 
 - Add PostgreSQL collection structural schemas and frozen canonical/negative fixtures ahead of feature 1 runtime implementation.

@@ -177,6 +177,8 @@ def _verify_pair_receipt(receipt: Any, children: dict[str, tuple[dict[str, Any],
     rows = size = 0
     for slot in SLOTS:
         child = children[slot][0]
+        if child["postgres_source_receipt_version"] != 1:
+            raise ParisonError("PostgreSQL pair requires released source-v1 children")
         descriptor = child["source"]
         if (
             any(descriptor[name] != source[name] for name in ("source_id", "database", "role", "server_version_num"))

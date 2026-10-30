@@ -1,22 +1,22 @@
 # PostgreSQL collection version and capability matrix
 
 Date and primary-source access: 30 October 2026
-Status: frozen feature 1 qualification targets; no collection lane qualified
+Status: exact local live lanes qualified at `461b2d5`; final integration CI pending
 
 This matrix is normative for the live adapter in [contract 277](277-postgresql-collection-contract.md).
 It separates a target from successful qualification. The current official
 [versioning table](https://www.postgresql.org/support/versioning/) lists 16.15,
 17.11 and 18.6 as current minors. Local binaries independently report 16.15
-and 18.6 (Homebrew); 17.11 is not installed in this checkout's recorded evidence.
+and 18.6 (Homebrew); 17.11 was installed for the disposable qualification.
 An installed binary is not an executed collection qualification.
 
 ## Live server targets
 
 | Exact server / `server_version_num` | Profile | Required fixture | Status / evidence |
 | --- | --- | --- | --- |
-| 16.15 / `160015` | `postgresql-base-table-csv-v1` | six-table full adversarial corpus and 16-table structural probe | pending; 2.3 pair/rehearsal evidence is not collection qualification |
-| 17.11 / `170011` | same profile | same corpus and probe, without version-specific evaluator branches | pending; install isolated fixture binaries first |
-| 18.6 / `180006` | same profile | same corpus and probe | pending; local 18.6 binary presence is not qualification |
+| 16.15 / `160015` | `postgresql-base-table-only-csv-v1` | six-table full adversarial corpus and 16-table structural probe | qualified local candidate; [33 gates](../../benchmarks/results-2026-10-30-postgresql-collection-16.json) |
+| 17.11 / `170011` | same profile | same corpus and probe, without version-specific evaluator branches | qualified local candidate; [35 gates](../../benchmarks/results-2026-10-30-postgresql-collection-17.json) |
+| 18.6 / `180006` | same profile | same corpus and probe | qualified local candidate; [35 gates + measurements](../../benchmarks/results-2026-10-30-postgresql-collection-18.json) |
 
 All three rows must pass before feature 1 integrates. Their source acquisition
 roles are independent single-server lanes; this does not qualify every ordered
@@ -31,15 +31,17 @@ review, all capability checks and applicable live corpus before promotion.
 Changing support metadata does not change an evidence schema unless wire meaning
 changes. Future released majors and prerelease builds are rejected by this
 live profile until explicitly qualified. Do not promote a version just because
-its major sorts between known versions. No live lane currently has a feature 1
-qualification commit, report or platform claim; those must be filled from tests.
+its major sorts between known versions. The live qualification source commit is `461b2d5ec153f016c6ee3c46adcbff101c9f59b7`
+on MacBookPro17,1/macOS27.0.1, Python3.14.7 and Psycopg3.3.6.
+[Checkpoint 282](282-collection-budget-and-qualification.md) records commands,
+reports and machine-specific measurements. Final platform CI remains separate.
 
 ## Mandatory capability checks, independent of version
 
 | Capability | Required observation / fail-closed behavior |
 | --- | --- |
 | Transaction | one connection; repeatable-read read-only settings; all relation locks before the first snapshot query; identical recorded snapshot for every child |
-| Relation/role | permanent ordinary base table, no partition/inheritance membership; exact schema/name; dedicated SELECT-only role; no owner membership, superuser, `BYPASSRLS` or inherited write access; row security off fails rather than silently filtering |
+| Relation/role | permanent ordinary base table, no observed partition/inheritance membership; ONLY selection prevents later attachment expanding scope; pinned pg_catalog search path; exact schema/name; dedicated SELECT-only role; no owner membership, superuser, `BYPASSRLS` or inherited write access; row security off fails rather than silently filtering |
 | Key | declared ordered primary key exactly equals valid, ready, immediate nondeferrable server primary key; all key columns selected |
 | Representation | built-in supported scalar types only; UTF-8 client, ISO/YMD dates, UTC timestamps, explicit CSV/null marker; collision scan and count/COPY agreement |
 | Bounds | reviewed per-child and collection rows/bytes; metadata/staging caps; lock/statement/shared deadline enforcement and all-or-nothing cleanup |

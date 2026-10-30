@@ -165,8 +165,11 @@
       "additionalProperties": false
     },
     "capability_profile": {
-      "const": "postgresql-base-table-csv-v1",
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "postgresql-base-table-csv-v1",
+        "postgresql-base-table-only-csv-v1"
+      ]
     }
   },
   "additionalProperties": false,

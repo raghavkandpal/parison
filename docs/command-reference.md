@@ -417,7 +417,7 @@ options:
 
 ```text
 positional arguments:
-  {recipe,recipe-authoring,recipe-v2,recipe-v3,recipe-v4,recipe-v5,recipe-v6,result,result-v2,result-v3,manifest,preflight,preflight-v2,preflight-v3,preflight-v4,preflight-v5,preflight-v6,preflight-v7,preflight-v8,preflight-v9,preflight-v10,preflight-v11,preflight-v12,preflight-v13,preflight-v14,preflight-v15,preflight-v16,preflight-v17,preflight-v18,preflight-v19,preflight-v20,preflight-v21,preflight-v22,preflight-v23,preflight-v24,suite,suite-authoring,suite-v2,suite-result,suite-result-v2,suite-manifest,suite-manifest-v2,suite-manifest-v3,statement,statement-v2,schema-evolution,policy-diff,time-alignment,reconciliation,alignment-preflight,relationship-result,conservation-result,reconciliation-result,reconciliation-manifest-v2,dataset-manifest,dataset-manifest-v2,input-bindings-v1,manifest-result-v2,dataset-evidence-v2,reproducibility-diagnostic,reproducibility-diagnostic-v2,discrepancy-analysis,suite-series,discrepancy-drilldown,postgres-export-plan,postgres-source-receipt,postgres-source-summary,postgres-source-manifest,postgres-pair-plan,postgres-pair-receipt,postgres-pair-summary,postgres-pair-manifest,postgres-collection-plan,postgres-collection-receipt,postgres-collection-summary,postgres-collection-manifest,postgres-rehearsal-plan,postgres-rehearsal-relationships,postgres-rehearsal-receipt,postgres-rehearsal-summary,postgres-rehearsal-manifest,dossier-plan,dossier-receipt,dossier-summary,dossier-manifest,partition-plan,partition-receipt,partition-summary,partition-manifest,investigation-plan,investigation-receipt,investigation-cases,investigation-summary,investigation-manifest}
+  {recipe,recipe-authoring,recipe-v2,recipe-v3,recipe-v4,recipe-v5,recipe-v6,result,result-v2,result-v3,manifest,preflight,preflight-v2,preflight-v3,preflight-v4,preflight-v5,preflight-v6,preflight-v7,preflight-v8,preflight-v9,preflight-v10,preflight-v11,preflight-v12,preflight-v13,preflight-v14,preflight-v15,preflight-v16,preflight-v17,preflight-v18,preflight-v19,preflight-v20,preflight-v21,preflight-v22,preflight-v23,preflight-v24,suite,suite-authoring,suite-v2,suite-result,suite-result-v2,suite-manifest,suite-manifest-v2,suite-manifest-v3,statement,statement-v2,schema-evolution,policy-diff,time-alignment,reconciliation,alignment-preflight,relationship-result,conservation-result,reconciliation-result,reconciliation-manifest-v2,dataset-manifest,dataset-manifest-v2,input-bindings-v1,manifest-result-v2,dataset-evidence-v2,reproducibility-diagnostic,reproducibility-diagnostic-v2,discrepancy-analysis,suite-series,discrepancy-drilldown,postgres-export-plan,postgres-export-plan-v2,postgres-source-receipt,postgres-source-receipt-v2,postgres-source-summary,postgres-source-manifest,postgres-pair-plan,postgres-pair-receipt,postgres-pair-summary,postgres-pair-manifest,postgres-collection-plan,postgres-collection-receipt,postgres-collection-summary,postgres-collection-manifest,postgres-rehearsal-plan,postgres-rehearsal-relationships,postgres-rehearsal-receipt,postgres-rehearsal-summary,postgres-rehearsal-manifest,dossier-plan,dossier-receipt,dossier-summary,dossier-manifest,partition-plan,partition-receipt,partition-summary,partition-manifest,investigation-plan,investigation-receipt,investigation-cases,investigation-summary,investigation-manifest}
 
 options:
   -h, --help            show this help message and exit
@@ -853,12 +853,13 @@ options:
 Acquire local PostgreSQL evidence
 
 positional arguments:
-  {table,pair}
-    table       export one reviewed table
-    pair        export two tables from one source snapshot
+  {table,pair,collection}
+    table               export one reviewed table
+    pair                export two tables from one source snapshot
+    collection          export a bounded collection from one source snapshot
 
 options:
-  -h, --help    show this help message and exit
+  -h, --help            show this help message and exit
 ```
 
 ## `parison postgres table`
@@ -876,6 +877,17 @@ options:
 
 ```text
 Optional local two-table PostgreSQL evidence reader
+
+options:
+  -h, --help       show this help message and exit
+  --plan PLAN
+  --output OUTPUT
+```
+
+## `parison postgres collection`
+
+```text
+Acquire one bounded PostgreSQL snapshot collection
 
 options:
   -h, --help       show this help message and exit
