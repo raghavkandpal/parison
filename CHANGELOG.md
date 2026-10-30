@@ -2,7 +2,7 @@
 
 All notable changes will be documented in this file.
 
-## Unreleased
+## Unreleased (2.3.0 candidate)
 
 - Add task-oriented `parison postgres`, `parison partitions` and `parison rehearsal` paths while preserving the four shipped standalone commands and their JSON/exit-code behavior.
 - Add a private portable decision dossier with source-backed offline replay, optional exact investigations, summary-safe Workbench Results and opaque human reference counts.
