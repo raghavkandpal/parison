@@ -6,7 +6,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 
 ## 2.4 — ten-feature migration verification train — research
 
-- [Ten-feature primary-source research, scope and acceptance gates](2.4/275-ten-feature-research-and-roadmap.md)
+- [Ten-feature research, PostgreSQL lifecycle support, scope and acceptance gates](2.4/275-ten-feature-research-and-roadmap.md)
 
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 

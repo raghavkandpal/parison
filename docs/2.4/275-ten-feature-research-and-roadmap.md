@@ -23,6 +23,60 @@ across that project rather than from connector count. The accepted
 and [post-2.2 direction](../2.2/244-fast-diff-and-cutover-evidence-direction.md)
 remain authoritative.
 
+## Durable PostgreSQL support and the reference scenario
+
+The product capability is **verification of explicitly qualified PostgreSQL
+migration pairs**. PostgreSQL 16→18 is the retained reference scenario and
+regression corpus, rather than a permanent restriction on new project formats.
+The ten features and their release boundary are unchanged by this distinction.
+
+PostgreSQL normally releases a major version annually and supports each major
+for five years. Its policy table, accessed 30 October 2026, lists PostgreSQL 16
+support through 9 November 2028 and PostgreSQL 18 through 14 November 2030.
+This motivates a maintained qualification matrix rather than tying the product
+identity to either version. These are upstream support dates, not Parison
+support promises. [PostgreSQL versioning policy](https://www.postgresql.org/support/versioning/).
+
+Major upgrades can skip intervening majors, subject to reviewing intervening
+release notes. PostgreSQL 18's `pg_upgrade` checks cluster binary compatibility,
+but cannot validate external-module binary compatibility. `pg_dump` cannot
+read a server newer than its own major and offers no general guarantee of
+loading its output into an older major. Tool success therefore does not prove
+policy-level row or relationship agreement; migration tooling stays upstream
+of Parison. Record the actual source, target and transfer-tool versions used
+in qualification. [Versioning policy](https://www.postgresql.org/support/versioning/),
+[pg_upgrade](https://www.postgresql.org/docs/18/pgupgrade.html),
+[pg_dump compatibility](https://www.postgresql.org/docs/18/app-pgdump.html#APP-PGDUMP-NOTES).
+
+Before 2.4 implementation, freeze an explicit support matrix with source and
+target major, tested minor versions, acquisition capabilities, supported types,
+encoding/collation facts, transfer method, test platform, qualification commit
+and live evidence. The following are planned gates, not current support claims:
+
+| Qualification lane | Purpose and promotion gate |
+| --- | --- |
+| 16→18 retained | Replay the existing corpus and prove 2.3 bundle/CLI compatibility. |
+| 17→18 proposed additional pair | Run the same six-table live adversarial project through the new 2.4 contracts, without pair-specific evaluator code. |
+| Future released majors | Review upstream release notes and capabilities, then add explicit live acquisition, representation and offline replay qualification before advertising support. |
+
+Use exact server facts and capability checks in new versioned 2.4 collection
+and project contracts; reject unqualified live combinations rather than infer
+support from a numeric version range. A green 17→18 lane would establish only
+that tested configuration, not every minor, extension, collation or platform.
+Pre-release servers may be experimental lanes and confer no stable support.
+Update the matrix at each Parison release as upstream support evolves; removing
+an old live acquisition lane does not remove its offline evidence reader.
+
+The released 2.3 rehearsal contract requires baseline major 16 and candidate
+major 18. Preserve that validation and its canonical fixtures. Broader pairs
+belong in new 2.4 versions, with exact version facts bound in private evidence
+and only approved summary fields exposed. Keep old bundles readable offline
+after server end-of-life without requiring an old server or its credentials.
+That readability guarantee is distinct from maintaining a live adapter lane
+for an unsupported server. Freeze old-format replay tests independently from
+the evolving live-server matrix. No wildcard future-version compatibility,
+automatic migration execution or implicit conversion is introduced.
+
 ## Repository evidence and gaps
 
 2.3 supplies optional one-table and fixed two-slot acquisition, integer-range
@@ -93,7 +147,7 @@ across the collection; 16 is a proposed cap to freeze after a bounded prototype.
 **Gate:** six-table live source, concurrent writers and DDL, hostile names,
 RLS failure, empty member, missing member, final-table interruption and commit
 failure; no partial collection publishes and offline replay needs no server.
-**Dependency:** first. No parallel database acquisition in this feature.
+**Dependency:** first. Freeze the live acquisition support matrix and capability checks above. No parallel database acquisition in this feature.
 
 ### 2. Explicit database representation and schema assessment
 
@@ -102,7 +156,7 @@ keys and collation facts before comparing rows; export an unapproved mapping
 proposal and a deterministic compatibility assessment.
 **Seam:** ingress metadata plus existing evolution/preflight modules. Privately
 bind metadata to the acquisition selection; separate unknown from compatible.
-No automatic key, tolerance, conversion or exclusion approval.
+No automatic key, tolerance, conversion or exclusion approval. Assess actual recorded server/tool versions and capabilities; matching major versions alone cannot establish compatibility.
 **Gate:** dropped/renamed columns, widened/narrowed decimals, timestamp versus
 timestamptz, collation-provider/version changes, composite keys and unsupported
 types; forged metadata bindings fail, and equal metadata never implies data PASS.
@@ -185,7 +239,7 @@ sign-off references opaque and unsigned; package completeness is explicit.
 and original-source removal; recomputed-digest forgery, member substitution,
 wrong graph, missing scope and interrupted copy fail closed. Budget total files,
 bytes and nested verification to prevent decompression/recursion-style abuse.
-**Dependency:** 1–7.
+**Dependency:** 1–7. New project formats accept only explicitly qualified pairs; retain the 2.3 16→18 reader and offline replay fixtures independently.
 
 ### 9. Verified dossier comparison and explicit offline CI gates
 
@@ -216,7 +270,7 @@ adapter command; Workbench displays safe receipts and never stores credentials.
 runs, workspace escape, unsafe raw artifact links, source-path/token leakage,
 reload/resume and offline dossier reopening. Browser and CLI projections must
 match. No server-side source connection starts from viewing a project.
-**Dependency:** incrementally 1–9; final acceptance uses all ten capabilities.
+**Dependency:** incrementally 1–9; final acceptance uses all ten capabilities. Project setup presents the tested support matrix and rejects unqualified live pairs without silently rewriting an older project.
 
 ## Sequence and combined acceptance
 
@@ -228,7 +282,9 @@ contracts but earn no separate feature credit. Each feature needs narrow tests,
 built-wheel matrix on the exact PR head under the existing AGENTS contract.
 Docs-only research uses generated-doc and diff checks plus quality CI.
 
-The combined gate is a disposable PostgreSQL 16→18 six-table project with
+The combined gate retains a disposable PostgreSQL 16→18 six-table project and
+adds the proposed 17→18 qualification lane using the same project contracts.
+Both must pass before claiming their 2.4 support. Measure the reference lane with
 100k/250k total rows per side and a 1m stretch measurement. Existing 2.3 caps
 remain unchanged; any higher versioned caps need measured justification.
 Measure three cold runs, median/max time, process-tree RSS, staging disk,
