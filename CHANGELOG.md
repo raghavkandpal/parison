@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Research PostgreSQL lifecycle-aware 2.4 support: retain 16→18 as a regression scenario, qualify new pairs explicitly, and preserve offline old-evidence readers.
+
 ### Documentation
 
 - Research a broad ten-feature 2.4.0 migration verification train, with one all-ten release boundary, primary sources, architecture seams and adversarial gates.
