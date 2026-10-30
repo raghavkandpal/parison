@@ -16,6 +16,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Freeze feature 2 collection-v2 metadata capture and explicit representation-assessment boundaries, including qualified negative-scale decoding and PostgreSQL18 unvalidated-nullability handling.
+
 - Research feature 2 same-snapshot representation capture, PostgreSQL version/collation/nullability facts and explicit compatibility assessment boundaries.
 
 - Freeze 2.4 feature 1's bounded N-table collection wire contract, shared budgets, offline verification, adversarial gate and explicit pending PostgreSQL 16.15/17.11/18.6 qualification matrix.
