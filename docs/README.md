@@ -4,6 +4,10 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
+## 2.4 — ten-feature migration verification train — research
+
+- [Ten-feature primary-source research, scope and acceptance gates](2.4/275-ten-feature-research-and-roadmap.md)
+
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 
 - [2.3.0 release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.3.0)

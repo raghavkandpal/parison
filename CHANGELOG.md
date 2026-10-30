@@ -4,6 +4,10 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+### Documentation
+
+- Research a broad ten-feature 2.4.0 migration verification train, with one all-ten release boundary, primary sources, architecture seams and adversarial gates.
+
 ## 2.3.0 - 2026-10-30
 
 [Release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.3.0).
