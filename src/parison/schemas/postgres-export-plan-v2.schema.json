@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-export-plan-v2.schema.json",
+  "title": "postgres-export-plan-v2",
+  "type": "object",
+  "required": [
+    "plan_version",
+    "source_id",
+    "schema",
+    "table",
+    "columns",
+    "primary_key",
+    "limits"
+  ],
+  "properties": {
+    "plan_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 63
+    },
+    "table": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 63
+    },
+    "columns": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 63
+      }
+    },
+    "primary_key": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 63
+      }
+    },
+    "limits": {
+      "type": "object",
+      "required": [
+        "max_rows",
+        "max_output_bytes",
+        "statement_timeout_ms",
+        "wall_timeout_ms"
+      ],
+      "properties": {
+        "max_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300000
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1073741824
+        },
+        "statement_timeout_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300000
+        },
+        "wall_timeout_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600000
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "description": "Version2 fixes base-only FROM ONLY selection. Released version1 semantics remain unchanged."
+}

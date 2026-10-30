@@ -98,6 +98,39 @@ class CollectionVerification(unittest.TestCase):
             with self.assertRaises(ParisonError):
                 source_collection.verify_postgres_collection(self.bundle)
 
+    def test_child_profile_and_only_semantics_cannot_be_relabelled(self):
+        receipt = self.read("receipt.json")
+        receipt["capability_profile"] = source_collection.ONLY_PROFILE
+        self.write("receipt.json", receipt)
+        self.rehash()
+        with self.assertRaises(ParisonError):
+            source_collection.verify_postgres_collection(self.bundle)
+        shutil.rmtree(self.bundle)
+        shutil.copytree(FIXTURE / "only-expected", self.bundle)
+        child = self.bundle / "tables" / "orders" / "receipt.json"
+        value = json.loads(child.read_bytes())
+        value["selection"]["sql"] = value["selection"]["sql"].replace(" FROM ONLY ", " FROM ")
+        child.write_bytes(_canonical(value) + b"\n")
+        with self.assertRaises(ParisonError):
+            source_collection.verify_postgres_collection(self.bundle)
+
+    def test_only_child_summary_requires_exact_types(self):
+        from parison.source_receipt import verify_postgres_export
+
+        for field, value in (("postgres_source_summary_version", 1.0), ("rows", True), ("complete", 1)):
+            shutil.rmtree(self.bundle)
+            shutil.copytree(FIXTURE / "only-expected", self.bundle)
+            child = self.bundle / "tables" / "orders"
+            summary = json.loads((child / "summary.json").read_bytes())
+            summary[field] = value
+            data = _canonical(summary) + b"\n"
+            (child / "summary.json").write_bytes(data)
+            manifest = json.loads((child / "manifest.json").read_bytes())
+            manifest["files"]["summary.json"] = hashlib.sha256(data).hexdigest()
+            (child / "manifest.json").write_bytes(_canonical(manifest) + b"\n")
+            with self.assertRaises(ParisonError):
+                verify_postgres_export(child)
+
     def test_limits_and_noncanonical_or_extra_files(self):
         receipt = self.read("receipt.json")
         receipt["limits"]["max_output_bytes"] = 1

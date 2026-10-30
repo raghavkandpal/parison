@@ -248,7 +248,9 @@ live collections therefore use source-v2 receipts with exact `FROM ONLY`,
 truthful version-2 child-plan digests and profile
 `postgresql-base-table-only-csv-v1`. The unchanged manifest-v1 and summary-v1
 layouts still bind the versioned receipt bytes; no released record is relabeled.
-The initial profile `postgresql-base-table-csv-v1` remains readable only for
+The new derived plan and receipt have explicit `postgres-export-plan-v2` and
+`postgres-source-receipt-v2` installed schemas. The initial profile
+`postgresql-base-table-csv-v1` remains readable only for
 its source-v1 evidence; new acquisition never emits it. Reject mixed profiles
 and child receipt versions. Existing collection wire fixtures remain historical
 reader compatibility examples; add separate source-v2 canonical fixtures.

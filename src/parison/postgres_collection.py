@@ -29,7 +29,7 @@ from .postgres_ingress import (
 from .source_collection import (
     KIND,
     META_LIMIT,
-    PROFILE,
+    ONLY_PROFILE,
     _stat_stamp,
     collection_summary,
     validate_postgres_collection_plan,
@@ -116,7 +116,7 @@ def _qualify_table(cursor, plan: dict) -> tuple[dict, str]:
         raise ParisonError(_ERROR)
     # Force row-security planning on every member before any COPY. This also
     # observes each declared table under the already anchored shared snapshot.
-    cursor.execute(f"SELECT COUNT(*) FROM {_quote(plan['schema'])}.{_quote(plan['table'])}")
+    cursor.execute(f"SELECT COUNT(*) FROM ONLY {_quote(plan['schema'])}.{_quote(plan['table'])}")
     cursor.fetchone()
     return source, snapshot
 
@@ -153,7 +153,7 @@ def export_postgres_collection(plan_path: str | Path, output: str | Path) -> dic
         tables = stage / "tables"
         tables.mkdir(mode=0o700)
         children = {
-            table_id: {"plan_version": 1, "source_id": plan["source_id"], **selection, "limits": limits}
+            table_id: {"plan_version": 2, "source_id": plan["source_id"], **selection, "limits": limits}
             for table_id, selection in sorted(plan["tables"].items())
         }
         for table_id in children:
@@ -167,6 +167,7 @@ def export_postgres_collection(plan_path: str | Path, output: str | Path) -> dic
                     cursor.execute("SET client_encoding TO 'UTF8'")
                     cursor.execute("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY")
                     _configure_transaction(cursor, limits)
+                    cursor.execute("SET LOCAL search_path TO pg_catalog")
                     _remaining(started, limits)
                     _lock_tables(cursor, list(children.values()))
                     qualified = {}
@@ -215,7 +216,7 @@ def export_postgres_collection(plan_path: str | Path, output: str | Path) -> dic
             "postgres_collection_receipt_version": 1,
             "kind": KIND,
             "collection_plan_sha256": hashlib.sha256(_canonical(plan)).hexdigest(),
-            "capability_profile": PROFILE,
+            "capability_profile": ONLY_PROFILE,
             "source": {name: first_source[name] for name in ("source_id", "database", "role", "server_version_num")},
             "transaction": {
                 "isolation": "repeatable read",

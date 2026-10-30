@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-source-receipt-v2.schema.json",
+  "title": "postgres-source-receipt-v2",
+  "type": "object",
+  "required": [
+    "postgres_source_receipt_version",
+    "kind",
+    "plan_sha256",
+    "source",
+    "transaction",
+    "selection",
+    "limits",
+    "observed"
+  ],
+  "properties": {
+    "postgres_source_receipt_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "kind": {
+      "const": "postgresql-table-export"
+    },
+    "plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "source_id",
+        "database",
+        "schema",
+        "table",
+        "columns",
+        "primary_key",
+        "types",
+        "server_version_num",
+        "role",
+        "role_is_owner",
+        "role_bypassrls",
+        "role_superuser"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "database": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "table": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63
+          }
+        },
+        "primary_key": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63
+          }
+        },
+        "types": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "int2",
+              "int4",
+              "int8",
+              "numeric",
+              "bool",
+              "text",
+              "varchar",
+              "uuid",
+              "date",
+              "timestamp",
+              "timestamptz"
+            ]
+          }
+        },
+        "server_version_num": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role_is_owner": {
+          "const": false
+        },
+        "role_bypassrls": {
+          "const": false
+        },
+        "role_superuser": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "transaction": {
+      "type": "object",
+      "required": [
+        "isolation",
+        "read_only",
+        "row_security",
+        "snapshot",
+        "client_encoding",
+        "date_style",
+        "time_zone"
+      ],
+      "properties": {
+        "isolation": {
+          "const": "repeatable read"
+        },
+        "read_only": {
+          "const": true
+        },
+        "row_security": {
+          "const": "off"
+        },
+        "snapshot": {
+          "type": "string",
+          "minLength": 1
+        },
+        "client_encoding": {
+          "const": "UTF8"
+        },
+        "date_style": {
+          "const": "ISO, YMD"
+        },
+        "time_zone": {
+          "const": "UTC"
+        }
+      },
+      "additionalProperties": false
+    },
+    "selection": {
+      "type": "object",
+      "required": [
+        "sql",
+        "format",
+        "null_marker",
+        "null_marker_collision"
+      ],
+      "properties": {
+        "sql": {
+          "type": "string",
+          "minLength": 1
+        },
+        "format": {
+          "const": "csv-utf8-v1"
+        },
+        "null_marker": {
+          "const": "\\N"
+        },
+        "null_marker_collision": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "required": [
+        "max_rows",
+        "max_output_bytes",
+        "statement_timeout_ms",
+        "wall_timeout_ms"
+      ],
+      "properties": {
+        "max_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300000
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1073741824
+        },
+        "statement_timeout_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300000
+        },
+        "wall_timeout_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600000
+        }
+      },
+      "additionalProperties": false
+    },
+    "observed": {
+      "type": "object",
+      "required": [
+        "server_rows",
+        "local_rows",
+        "output_bytes",
+        "output_sha256",
+        "elapsed_ms",
+        "complete"
+      ],
+      "properties": {
+        "server_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300000
+        },
+        "local_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300000
+        },
+        "output_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1073741824
+        },
+        "output_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "elapsed_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600000
+        },
+        "complete": {
+          "const": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "description": "Version2 fixes base-only FROM ONLY selection. Released version1 semantics remain unchanged."
+}

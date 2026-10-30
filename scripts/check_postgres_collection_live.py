@@ -90,7 +90,8 @@ def qualify(binary, report, measure):
         "gates": [],
         "measurements": [],
     }
-    old_env = {name: os.environ.get(name) for name in ("PGHOST", "PGPORT", "PGUSER", "PGDATABASE")}
+    old_env = {name: os.environ.get(name) for name in ("PGHOST", "PGPORT", "PGUSER", "PGDATABASE", "PGOPTIONS")}
+    os.environ.pop("PGOPTIONS", None)
     with tempfile.TemporaryDirectory(prefix="parison-collection-live-") as temporary:
         root = Path(temporary)
         data = root / "data"
@@ -212,6 +213,37 @@ def qualify(binary, report, measure):
                     results["gates"].append("no-overwrite")
                 else:
                     raise AssertionError("overwrite")
+                admin.execute("CREATE SCHEMA spoof")
+                admin.execute("GRANT USAGE ON SCHEMA spoof TO collection_reader")
+                admin.execute("""CREATE FUNCTION spoof.current_setting(text) RETURNS text LANGUAGE SQL AS
+                    $$ SELECT CASE WHEN $1='server_version_num' THEN '160015'
+                       ELSE pg_catalog.current_setting($1) END $$""")
+                os.environ["PGOPTIONS"] = "-c search_path=spoof,pg_catalog"
+                export("hostile-search-path")
+                actual = json.loads((root / "hostile-search-path/receipt.json").read_text())
+                assert actual["source"]["server_version_num"] == int(results["server_version_num"])
+                results["gates"].append("hostile-search-path-facts")
+                if int(results["server_version_num"]) >= 170000:
+                    admin.execute("GRANT MAINTAIN ON gate.refunds TO collection_reader")
+                    fails("hostile-search-path-maintain")
+                    admin.execute("REVOKE MAINTAIN ON gate.refunds FROM collection_reader")
+                os.environ.pop("PGOPTIONS", None)
+                admin.execute("CREATE TABLE gate.late_child (id integer PRIMARY KEY, note text)")
+                admin.execute("INSERT INTO gate.late_child VALUES (999, %s)", (r"\N",))
+                attached = [False]
+
+                def attach_after_qualification(cursor, declared, stage, *args):
+                    if not attached[0]:
+                        admin.execute("ALTER TABLE gate.late_child INHERIT gate.customers")
+                        attached[0] = True
+                    return original(cursor, declared, stage, *args)
+
+                with patch.object(collection, "_acquire_table", side_effect=attach_after_qualification):
+                    assert export("concurrent-inheritance-only")["rows"] == 12
+                assert b"999" not in (root / "concurrent-inheritance-only/tables/customers/data.csv").read_bytes()
+                results["gates"].append("concurrent-inheritance-base-only")
+                admin.execute("ALTER TABLE gate.late_child NO INHERIT gate.customers")
+                admin.execute("DROP TABLE gate.late_child")
                 admin.execute("ALTER TABLE gate.refunds ENABLE ROW LEVEL SECURITY")
                 with patch.object(collection, "_acquire_table", wraps=original) as copied:
                     fails("late-rls")
@@ -280,6 +312,43 @@ def qualify(binary, report, measure):
                 admin.execute("CREATE TABLE gate.descendant (extra text) INHERITS (gate.orders)")
                 fails("inheritance-parent")
                 admin.execute("DROP TABLE gate.descendant")
+                admin.execute("CREATE FOREIGN DATA WRAPPER collection_dummy NO HANDLER")
+                admin.execute("CREATE SERVER collection_dummy FOREIGN DATA WRAPPER collection_dummy")
+                admin.execute("CREATE FOREIGN TABLE gate.foreign_member (id int, note text) SERVER collection_dummy")
+                save(
+                    {
+                        **plan,
+                        "tables": {
+                            "foreign_member": {
+                                "schema": "gate",
+                                "table": "foreign_member",
+                                "columns": ["id", "note"],
+                                "primary_key": ["id"],
+                            }
+                        },
+                    }
+                )
+                fails("foreign-table")
+                admin.execute("DROP FOREIGN TABLE gate.foreign_member")
+                admin.execute("CREATE TEMP TABLE temporary_member (id int PRIMARY KEY, note text)")
+                temporary_schema = admin.execute(
+                    "SELECT nspname FROM pg_catalog.pg_namespace WHERE oid=pg_catalog.pg_my_temp_schema()"
+                ).fetchone()[0]
+                save(
+                    {
+                        **plan,
+                        "tables": {
+                            "temporary_member": {
+                                "schema": temporary_schema,
+                                "table": "temporary_member",
+                                "columns": ["id", "note"],
+                                "primary_key": ["id"],
+                            }
+                        },
+                    }
+                )
+                fails("temporary-table")
+                save()
                 for ddl, label in (
                     ("CREATE VIEW gate.unsupported AS SELECT * FROM gate.orders", "view"),
                     ("CREATE UNLOGGED TABLE gate.unsupported (id int PRIMARY KEY, note text)", "unlogged"),

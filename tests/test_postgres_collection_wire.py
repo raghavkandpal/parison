@@ -10,6 +10,7 @@ from jsonschema import Draft202012Validator
 
 from parison.analysis import _canonical
 from parison.core import load_schema
+from parison.source_collection import verify_postgres_collection
 from parison.source_receipt import verify_postgres_export
 
 FIXTURE = Path(__file__).parent / "fixtures" / "postgres_collection"
@@ -25,6 +26,25 @@ def _sha(data):
 
 
 class CollectionWire(unittest.TestCase):
+    def test_base_only_v2_canonical_children_and_plan_binding(self):
+        root = FIXTURE / "only-expected"
+        plan = _read(FIXTURE / "plan.json")
+        self.assertEqual(verify_postgres_collection(root), _read(root / "summary.json"))
+        for table_id, selection in plan["tables"].items():
+            child = root / "tables" / table_id
+            receipt = _read(child / "receipt.json")
+            derived = {"plan_version": 2, "source_id": plan["source_id"], **selection, "limits": plan["limits"]}
+            Draft202012Validator(load_schema("postgres-export-plan-v2")).validate(derived)
+            Draft202012Validator(load_schema("postgres-source-receipt-v2")).validate(receipt)
+            self.assertEqual(receipt["plan_sha256"], _sha(_canonical(derived)))
+            self.assertIn(" FROM ONLY ", receipt["selection"]["sql"])
+            for member in child.iterdir():
+                if member.suffix == ".json":
+                    self.assertEqual(member.read_bytes(), _canonical(_read(member)) + b"\n")
+            self.assertEqual(
+                (child / "data.csv").read_bytes(), (EXPECTED / "tables" / table_id / "data.csv").read_bytes()
+            )
+
     def test_canonical_examples_and_child_bindings(self):
         plan = _read(FIXTURE / "plan.json")
         receipt = _read(EXPECTED / "receipt.json")

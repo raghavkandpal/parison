@@ -83,7 +83,7 @@ class CollectionAcquisition(unittest.TestCase):
         return {
             "source": source,
             "snapshot": snapshot,
-            "selection": selection_sql(plan["schema"], plan["table"], plan["columns"], plan["primary_key"]),
+            "selection": selection_sql(plan["schema"], plan["table"], plan["columns"], plan["primary_key"], only=True),
             "server_rows": 1,
             "local_rows": 1,
             "size": 18,
