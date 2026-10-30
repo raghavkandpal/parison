@@ -2,7 +2,7 @@
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
 - Branch: `develop`; post-release records reconcile the published 2.3.0 train.
-- Next gate: review the [2.4.0 ten-feature research proposal](2.4/275-ten-feature-research-and-roadmap.md), read the [collection prerequisites and continuation handoff](2.4/276-collection-acquisition-prerequisites.md), then freeze feature 1's bounded multi-table collection contract and explicit PostgreSQL version/capability support matrix. Retain 16→18 as the reference corpus and qualify broader pairs through new versioned contracts. The owner requested a broad ten-feature boundary: all ten must integrate and qualify before a 2.4.0 candidate. Preserve 2.3 contracts, shipped commands and the through-v5.0 cadence.
+- Next gate: materialize and review schemas, canonical byte fixtures and negative fixtures for feature 1's [frozen N-table collection contract](2.4/277-postgresql-collection-contract.md) and [PostgreSQL version/capability matrix](2.4/278-postgresql-capability-matrix.md), then implement through the existing acquisition/verifier seams. No collection runtime or live lane is qualified yet. Retain 16→18 regression and qualify 17→18 separately. All ten [2.4 capabilities](2.4/275-ten-feature-research-and-roadmap.md) must integrate and qualify before a candidate. Preserve 2.3 contracts, shipped commands and the through-v5.0 cadence.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff

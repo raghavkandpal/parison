@@ -10,6 +10,7 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Freeze 2.4 feature 1's bounded N-table collection wire contract, shared budgets, offline verification, adversarial gate and explicit pending PostgreSQL 16.15/17.11/18.6 qualification matrix.
 - Research a broad ten-feature 2.4.0 migration verification train, with one all-ten release boundary, primary sources, architecture seams and adversarial gates.
 
 ## 2.3.0 - 2026-10-30
