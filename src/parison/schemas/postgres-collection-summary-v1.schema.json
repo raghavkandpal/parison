@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-collection-summary-v1.schema.json",
+  "title": "postgres-collection-summary-v1",
+  "type": "object",
+  "required": [
+    "postgres_collection_summary_version",
+    "kind",
+    "complete",
+    "coverage_claim",
+    "tables",
+    "rows",
+    "bytes",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "postgres_collection_summary_version": {
+      "const": 1,
+      "type": "integer"
+    },
+    "kind": {
+      "const": "postgresql-table-collection-export"
+    },
+    "complete": {
+      "const": true,
+      "type": "boolean"
+    },
+    "coverage_claim": {
+      "const": "adapter-table-collection-one-source-snapshot"
+    },
+    "tables": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16
+    },
+    "rows": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 300000
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1073741824
+    },
+    "receipt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "minLength": 64,
+      "maxLength": 64
+    }
+  },
+  "additionalProperties": false,
+  "description": "Structural schema only. Strict JSON token types, canonical bytes, printable text, UTF-8 identifier byte limits, cross-field bindings and filesystem safety require contract 277 runtime validation."
+}
