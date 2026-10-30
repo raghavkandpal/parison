@@ -1,7 +1,7 @@
 # Parison 2.3.0 release checklist
 
 Date: 30 October 2026
-Status: candidate qualification in progress; no release decision
+Status: candidate qualified; no release decision
 
 ## Completed train
 
@@ -47,8 +47,13 @@ not a seventh feature credit.
   imported Parison from site-packages and passed all 575 tests (11 optional
   Polars skips). Its installed `parison` command verified the portable dossier
   fixture offline and exposed the new PostgreSQL, partition and rehearsal help.
-- [ ] Merge this qualification record to `develop` through a green PR with the
-  exact record head passing the full built-wheel matrix.
+- [x] [Qualification PR #108](https://github.com/raghavkandpal/parison/pull/108)
+  merged to `develop` at `853ba219ba553d5c8fb580d2b57075bdd92b4db9`.
+  Its exact record head `1991393bd25d6ee217558f93421dce154c5a8c44`
+  passed PR quality CI and the [full built-wheel
+  matrix](https://github.com/raghavkandpal/parison/actions/runs/41008901275).
+  The exact integration merge also passed the [full built-wheel
+  matrix](https://github.com/raghavkandpal/parison/actions/runs/41009134595).
 
 ## Publication decision and later gates
 
