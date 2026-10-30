@@ -20,10 +20,11 @@ The 2.3 CLI adds a task-oriented path beneath the existing `parison` command:
 | `parison dossier create|verify ...` | Already under `parison`; unchanged |
 
 The first four shipped project scripts remain installed and retain their
-argument parsing, exit codes, stdout JSON, safe stderr, and `--help` behavior.
-New paths call the same underlying command implementation with the same
-arguments. The new root and namespace help and generated command reference
-list the task paths. No default, recipe, schema, bundle, canonical byte,
+argument parsing, exit codes, stdout JSON, runtime error text, and `--help`
+behavior. New paths call the same underlying command implementation with the
+same arguments. New help and parser usage name the new command path; malformed
+arguments retain exit code 2. The new root and namespace help and generated
+command reference list the task paths. No default, recipe, schema, bundle, canonical byte,
 verification or policy meaning changes. A future retirement of aliases needs
 a separately versioned breaking decision and migration window.
 
@@ -34,7 +35,7 @@ and does not weaken the six-feature release boundary.
 ## Gate
 
 Freeze exact old/new equivalence fixtures for each command path: accepted
-arguments, stdout JSON, exit code and safe stderr match. Check malformed
+arguments, stdout JSON, exit code and runtime error stderr match. Check malformed
 arguments and `--help` for every namespace. Run narrow CLI tests and
 `make check`, independent Standards/Spec review, exact-head quality CI and the
 full built-wheel Python 3.11–3.14 Linux/macOS/Windows matrix before merging

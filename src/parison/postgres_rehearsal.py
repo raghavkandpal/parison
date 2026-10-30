@@ -368,8 +368,8 @@ class _SafeParser(argparse.ArgumentParser):
         raise ParisonError("invalid rehearsal arguments")
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = _SafeParser(prog="parison-rehearsal")
+def parser(prog: str = "parison-rehearsal") -> argparse.ArgumentParser:
+    parser = _SafeParser(prog=prog)
     sub = parser.add_subparsers(dest="command", required=True)
     for command in ("run", "verify"):
         child = sub.add_parser(command)
@@ -381,8 +381,12 @@ def main(argv: list[str] | None = None) -> int:
         for name in ("baseline", "candidate", "orders-recipe", "lines-recipe", "reconciliation"):
             child.add_argument(f"--{name}", required=True)
         child.add_argument("--claim")
+    return parser
+
+
+def main(argv: list[str] | None = None, *, prog: str = "parison-rehearsal") -> int:
     try:
-        args = vars(parser.parse_args(argv))
+        args = vars(parser(prog).parse_args(argv))
         command = args.pop("command")
         if command == "run":
             args["plan_path"] = args.pop("plan")

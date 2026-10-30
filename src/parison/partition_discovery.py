@@ -608,8 +608,8 @@ def verify(
     return {**summary, "verification": mode}
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="parison-partitions")
+def parser(prog: str = "parison-partitions") -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog=prog)
     sub = parser.add_subparsers(dest="command", required=True)
     create = sub.add_parser("discover")
     for name in ("plan", "recipe", "baseline", "candidate", "output"):
@@ -626,7 +626,11 @@ def main(argv: list[str] | None = None) -> int:
     investigation_check.add_argument("--discovery", required=True)
     for name in ("recipe", "baseline", "candidate"):
         investigation_check.add_argument(f"--{name}")
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(argv: list[str] | None = None, *, prog: str = "parison-partitions") -> int:
+    args = parser(prog).parse_args(argv)
     try:
         if args.command == "discover":
             result = discover(args.plan, args.recipe, args.baseline, args.candidate, args.output)

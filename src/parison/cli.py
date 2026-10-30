@@ -166,6 +166,9 @@ def parser() -> argparse.ArgumentParser:
     commands = root.add_subparsers(dest="command", required=True)
     dossier = commands.add_parser("dossier", help="create or verify a portable decision dossier")
     dossier.add_argument("dossier_args", nargs=argparse.REMAINDER)
+    commands.add_parser("postgres", help="acquire one or two PostgreSQL tables")
+    commands.add_parser("partitions", help="discover or investigate exact partitions")
+    commands.add_parser("rehearsal", help="run or verify a PostgreSQL migration rehearsal")
     init = commands.add_parser("init", help="create a minimal keyed migration project")
     init.add_argument("directory")
     validate = commands.add_parser("validate-recipe", help="validate a JSON recipe")
@@ -650,14 +653,49 @@ operator and null policy. Suggestions are starting points, not approved policy."
     return root
 
 
+class _TaskParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        self.exit(2, f"{self.prog}: invalid command\n")
+
+
+def postgres_parser() -> argparse.ArgumentParser:
+    root = _TaskParser(prog="parison postgres", description="Acquire local PostgreSQL evidence")
+    commands = root.add_subparsers(dest="command", required=True, parser_class=_TaskParser)
+    commands.add_parser("table", help="export one reviewed table")
+    commands.add_parser("pair", help="export two tables from one source snapshot")
+    return root
+
+
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "dossier":
+        from .decision_dossier import main as dossier_main
+
+        return dossier_main(argv[1:])
+    if argv and argv[0] == "postgres":
+        if len(argv) > 1 and argv[1] in ("table", "pair"):
+            if argv[1] == "table":
+                from .postgres_ingress import main as postgres_main
+            else:
+                from .postgres_pair import main as postgres_main
+
+            return postgres_main(argv[2:], prog=f"parison postgres {argv[1]}")
+        try:
+            postgres_parser().parse_args(argv[1:])
+        except SystemExit as exc:
+            return int(exc.code)
+        return 2
+    if argv and argv[0] == "partitions":
+        from .partition_discovery import main as partitions_main
+
+        return partitions_main(argv[1:], prog="parison partitions")
+    if argv and argv[0] == "rehearsal":
+        from .postgres_rehearsal import main as rehearsal_main
+
+        return rehearsal_main(argv[1:], prog="parison rehearsal")
     args = parser().parse_args(argv)
     recipe = None
     try:
-        if args.command == "dossier":
-            from .decision_dossier import main as dossier_main
-
-            return dossier_main(args.dossier_args)
         if args.command == "init":
             files = init_project(args.directory)
             print(json.dumps({"directory": args.directory, "files": files}))

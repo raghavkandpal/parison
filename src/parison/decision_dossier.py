@@ -406,8 +406,8 @@ class _SafeParser(argparse.ArgumentParser):
         raise ParisonError("invalid dossier arguments")
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = _SafeParser(prog="parison-dossier")
+def parser() -> argparse.ArgumentParser:
+    parser = _SafeParser(prog="parison dossier")
     sub = parser.add_subparsers(dest="command", required=True, parser_class=_SafeParser)
     create_parser = sub.add_parser("create")
     for name in (
@@ -425,8 +425,12 @@ def main(argv: list[str] | None = None) -> int:
         create_parser.add_argument("--" + name)
     verify_parser = sub.add_parser("verify")
     verify_parser.add_argument("directory")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
     try:
-        args = vars(parser.parse_args(argv))
+        args = vars(parser().parse_args(argv))
         command = args.pop("command")
         if command == "create":
             args["plan_path"] = args.pop("plan")
