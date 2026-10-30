@@ -1,6 +1,6 @@
 # 2.3 additive CLI command aliases
 
-Date: 30 October 2026  
+Date: 30 October 2026
 Status: frozen before implementation
 
 ## Decision
