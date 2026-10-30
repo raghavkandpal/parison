@@ -1,12 +1,12 @@
 # Parison 2.3.0 release checklist
 
-Date: 30 October 2026  
+Date: 30 October 2026
 Status: candidate qualification in progress; no release decision
 
 ## Completed train
 
 All six substantial capabilities in the [roadmap](246-six-feature-roadmap.md)
-are integrated on `develop` at `5994500af984b9983c991ed98f78eac3ee195bd1`:
+are integrated on `develop` at `92c9799`:
 
 1. PostgreSQL one-table evidence ingress: [PR #93](https://github.com/raghavkandpal/parison/pull/93).
 2. Coordinated multi-table acquisition: [PR #96](https://github.com/raghavkandpal/parison/pull/96).
@@ -15,14 +15,18 @@ are integrated on `develop` at `5994500af984b9983c991ed98f78eac3ee195bd1`:
 5. PostgreSQL 16→18 rehearsal: [PR #104](https://github.com/raghavkandpal/parison/pull/104).
 6. Portable decision dossier: [PR #106](https://github.com/raghavkandpal/parison/pull/106).
 
-The four shipped standalone commands remain supported. The
-[CLI consolidation follow-up](270-cli-consolidation-followup.md) is a separate
-versioned compatibility task, not release scope.
+The additive [CLI command-name migration](273-cli-command-alias-contract.md)
+merged through [PR #109](https://github.com/raghavkandpal/parison/pull/109)
+before candidate qualification. Its exact head `e448218` passed 575 local
+tests, independent Standards/Spec review, quality CI and the [full built-wheel
+matrix](https://github.com/raghavkandpal/parison/actions/runs/41008120189).
+The four shipped standalone commands remain supported. CLI consolidation is
+not a seventh feature credit.
 
 ## Candidate qualification
 
-- [x] Integrated `develop` at `5994500` passed `make check` with Python 3.14:
-  Ruff, generated command reference, 572 tests and diff checks. Workbench
+- [x] The rebased 2.3 candidate passes `make check` with Python 3.14:
+  Ruff, generated command reference, 575 tests and diff checks. Workbench
   tests required local loopback socket permission.
 - [ ] Full built-wheel Python 3.11–3.14 Linux/macOS/Windows matrix passes on
   the exact candidate head.

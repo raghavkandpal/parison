@@ -1,7 +1,7 @@
 # CLI consolidation after the portable dossier
 
 Date: 29 October 2026
-Status: owner requested completion before the 2.3 release; additive command-alias contract frozen in [273](273-cli-command-alias-contract.md)
+Status: additive command aliases integrated through PR #109; shipped standalone commands preserved under the [frozen contract](273-cli-command-alias-contract.md)
 
 The five standalone project entry points added across the 2.3 train now make
 installation and documentation harder to navigate:
