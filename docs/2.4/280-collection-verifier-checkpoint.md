@@ -1,7 +1,7 @@
 # Collection offline verifier checkpoint
 
 Date: 30 October 2026
-Status: implementation slice; acquisition and live qualification pending
+Status: offline verifier integrated through PR #119; acquisition and live qualification pending
 
 `parison verify-postgres-collection DIR` now verifies local contract-277
 collections without importing Psycopg or connecting to a server. Plan validation
@@ -20,8 +20,15 @@ reject FIFOs without hanging, and enumeration stops after excess membership;
 released ordinary bundles and bytes remain unchanged. Full local gate: 587 tests.
 
 No acquisition command or collection live-support claim is introduced. Next:
-review/integrate this verifier slice, then implement bounded collection acquisition
+implement bounded collection acquisition
 through existing ingress/pair helpers and materialize acquisition help/error
 fixtures. Prequalify every table before COPY, enforce shared deadlines/budgets,
 and run all pending PostgreSQL16.15/17.11/18.6 rows in matrix278. All ten features
 remain required before a 2.4 candidate. Never reset account usage automatically.
+
+Exact head `b2269c855e15875d1e9631745a0e87bb12a0e8fb` passed 587 local tests,
+independent Standards/Spec re-review after a directory-mutation correction,
+quality CI and the [full built-wheel Python 3.11–3.14 Linux/macOS/Windows matrix](https://github.com/raghavkandpal/parison/actions/runs/41046849467).
+[PR #119](https://github.com/raghavkandpal/parison/pull/119) merged at
+`0938dd7db4ae45a82befe1892b4f3daf35a1b31a`. Weekly usage reached 99%; no reset
+was performed. Resume acquisition from clean develop after this handoff.
