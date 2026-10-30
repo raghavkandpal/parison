@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Research N-table acquisition lock/snapshot ordering, RLS, shared budgets and publication prerequisites; record a bounded continuation handoff.
+
 - Research PostgreSQL lifecycle-aware 2.4 support: retain 16→18 as a regression scenario, qualify new pairs explicitly, and preserve offline old-evidence readers.
 
 ### Documentation
