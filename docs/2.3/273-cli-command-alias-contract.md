@@ -1,7 +1,7 @@
 # 2.3 additive CLI command aliases
 
 Date: 30 October 2026
-Status: frozen before implementation; additive aliases integrated through PR #109
+Status: additive aliases released in 2.3.0 through PR #109; shipped commands retained
 
 ## Decision
 

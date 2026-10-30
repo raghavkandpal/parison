@@ -1,7 +1,7 @@
 # PostgreSQL coordinated two-table acquisition contract
 
 Date: 28 October 2026
-Status: frozen for 2.3 feature 2 implementation; not a release commitment
+Status: released in 2.3.0; source claims remain qualified adapter evidence
 
 This is capability 2 in the [six-feature roadmap](246-six-feature-roadmap.md).
 It narrows coordination to one `orders`/`order_lines` source pair. The names are

@@ -1,7 +1,7 @@
 # Selective exact difference investigation contract
 
 Date: 29 October 2026
-Status: frozen for 2.3 feature 4 implementation; not a release commitment
+Status: released in 2.3.0; sensitive case evidence remains local
 
 This is capability 4 in the [six-feature roadmap](246-six-feature-roadmap.md).
 It discloses bounded raw discrepancy items from selected suspect ranges of a

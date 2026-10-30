@@ -5,7 +5,7 @@ then produces deterministic evidence that can be verified elsewhere. A `PASS`
 means agreement under that policy. It does not prove extraction truth, approve
 the policy or authorize a cutover.
 
-This is the maintained guide for the released 2.2.0 line. The
+This is the maintained guide for the released 2.3.0 line. The
 [generated command reference](command-reference.md) lists every option; frozen
 version contracts remain the normative record for artifact semantics.
 
@@ -14,7 +14,7 @@ version contracts remain the normative record for artifact semantics.
 Python 3.11 or newer is required.
 
 ```sh
-python -m pip install /path/to/parison-2.2.0-py3-none-any.whl
+python -m pip install /path/to/parison-2.3.0-py3-none-any.whl
 parison --version
 parison init migration-check
 cd migration-check
@@ -23,6 +23,18 @@ cd migration-check
 The generated project is a smoke test. Replace its inputs and review every
 field in `recipe.json`; initialization and drafting suggest policy but never
 approve it.
+
+## Rehearse a PostgreSQL 16→18 migration
+
+The optional 2.3 workflow acquires reviewed one- or two-table local evidence,
+discovers exact differences over bounded partitions, investigates selected
+differences, verifies an offline order/line rehearsal, and packages a portable
+decision dossier. Use `parison postgres`, `parison partitions`,
+`parison rehearsal`, and `parison dossier`; the four shipped standalone
+commands remain supported. Follow the [2.3 operator notes](2.3/274-cli-consolidation-operator-notes.md)
+and each linked contract for required plans and source-owned coordination.
+PASS means agreement under the reviewed policy, never extraction truth or
+cutover authorization.
 
 ## Choose the smallest workflow that establishes the needed claim
 

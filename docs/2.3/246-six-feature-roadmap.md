@@ -1,8 +1,8 @@
 # 2.3 six-feature roadmap
 
 Date: 28 October 2026
-Status: all six features integrated through PR #106; combined 2.3 candidate
-qualification recorded in the [release checklist](272-release-checklist.md)
+Status: all six features released in 2.3.0; qualification and publication
+recorded in the [release checklist](272-release-checklist.md)
 
 This roadmap turns the [post-2.2 direction](../2.2/244-fast-diff-and-cutover-evidence-direction.md)
 into six substantial, separately reviewable capabilities. The first target is

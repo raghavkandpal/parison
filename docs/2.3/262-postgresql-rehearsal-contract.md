@@ -1,7 +1,7 @@
 # PostgreSQL 16→18 rehearsal contract
 
 Date: 29 October 2026
-Status: frozen implementation gate for feature 5; not release qualification
+Status: released in 2.3.0; rehearsal remains verification, not cutover approval
 
 ## Boundary and reviewed inputs
 

@@ -1,7 +1,7 @@
 # Coordinated PostgreSQL pair: operator notes
 
 Date: 28 October 2026
-Status: feature 2 integrated through PR #96
+Status: feature 2 released in 2.3.0 through PR #96
 
 Install the optional adapter with `pip install 'parison[postgres]'`. Create a
 strict `postgres-pair-plan-v1` JSON file with reviewed `orders` and
