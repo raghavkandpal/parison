@@ -33,6 +33,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Portable decision dossier operator notes](2.3/269-decision-dossier-operator-notes.md)
 - [CLI consolidation follow-up after dossier](2.3/270-cli-consolidation-followup.md)
 - [Decision dossier implementation checkpoint](2.3/271-decision-dossier-implementation.md)
+- [Additive CLI command-alias contract](2.3/273-cli-command-alias-contract.md)
 
 ## 2.2 — six-feature verification train — released
 
