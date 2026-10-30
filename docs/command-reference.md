@@ -853,12 +853,13 @@ options:
 Acquire local PostgreSQL evidence
 
 positional arguments:
-  {table,pair}
-    table       export one reviewed table
-    pair        export two tables from one source snapshot
+  {table,pair,collection}
+    table               export one reviewed table
+    pair                export two tables from one source snapshot
+    collection          export a bounded collection from one source snapshot
 
 options:
-  -h, --help    show this help message and exit
+  -h, --help            show this help message and exit
 ```
 
 ## `parison postgres table`
@@ -876,6 +877,17 @@ options:
 
 ```text
 Optional local two-table PostgreSQL evidence reader
+
+options:
+  -h, --help       show this help message and exit
+  --plan PLAN
+  --output OUTPUT
+```
+
+## `parison postgres collection`
+
+```text
+Acquire one bounded PostgreSQL snapshot collection
 
 options:
   -h, --help       show this help message and exit

@@ -7,6 +7,7 @@ from pathlib import Path
 from parison.cli import parser, postgres_parser
 from parison.decision_dossier import parser as dossier_parser
 from parison.partition_discovery import parser as partitions_parser
+from parison.postgres_collection import parser as collection_parser
 from parison.postgres_ingress import parser as postgres_table_parser
 from parison.postgres_pair import parser as postgres_pair_parser
 from parison.postgres_rehearsal import parser as rehearsal_parser
@@ -30,6 +31,7 @@ def _walk(current: argparse.ArgumentParser):
                     "parison postgres",
                     "parison postgres table",
                     "parison postgres pair",
+                    "parison postgres collection",
                     "parison partitions",
                     "parison rehearsal",
                 }:
@@ -51,6 +53,7 @@ def render() -> str:
         postgres_parser(),
         postgres_table_parser("parison postgres table"),
         postgres_pair_parser("parison postgres pair"),
+        collection_parser(),
         partitions_parser("parison partitions"),
         rehearsal_parser("parison rehearsal"),
     )

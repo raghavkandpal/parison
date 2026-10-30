@@ -669,6 +669,7 @@ def postgres_parser() -> argparse.ArgumentParser:
     commands = root.add_subparsers(dest="command", required=True, parser_class=_TaskParser)
     commands.add_parser("table", help="export one reviewed table")
     commands.add_parser("pair", help="export two tables from one source snapshot")
+    commands.add_parser("collection", help="export a bounded collection from one source snapshot")
     return root
 
 
@@ -683,6 +684,10 @@ def main(argv: list[str] | None = None) -> int:
 
         return dossier_main(argv[1:])
     if argv and argv[0] == "postgres":
+        if len(argv) > 1 and argv[1] == "collection":
+            from .postgres_collection import main as collection_main
+
+            return collection_main(argv[2:])
         if len(argv) > 1 and argv[1] in ("table", "pair"):
             if argv[1] == "table":
                 from .postgres_ingress import main as postgres_main
