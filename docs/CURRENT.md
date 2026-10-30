@@ -1,8 +1,8 @@
 # Current development state
 
-- Version: **2.2.0 released** at exact tested merge `bfb17a6`; **2.3.0 candidate qualified** on `develop`.
-- Branch: `develop`; all six 2.3 features and the additive CLI command aliases are integrated.
-- Next gate: a separate 2.3.0 release decision under [RELEASING.md](../RELEASING.md). No release PR, tag or publication has begun.
+- Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
+- Branch: `develop`; post-release records reconcile the published 2.3.0 train.
+- Next gate: select the next separately reviewable train from documented research under the through-v5.0 [release cadence](../RELEASING.md). Preserve 2.3 contracts and the four shipped standalone commands; any retirement needs a separate versioned decision.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
@@ -235,12 +235,13 @@
 - Integrated: additive [CLI command aliases](2.3/273-cli-command-alias-contract.md) through [PR #109](https://github.com/raghavkandpal/parison/pull/109) at `92c9799764243284cdd4ef8f7ecde4bfe394caf6`. Exact head `e44821843892e010b9db3bdf7b1c392621e1539c` passed 575 local tests, independent Standards/Spec re-review, PR quality CI and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/41008120189). Shipped standalone scripts remain supported; command retirement remains a future separately versioned decision.
 - Candidate-qualified: exact source `c6d0f7e5bfb3ea16dee70971f0fdf947d8bfa4d8` passed the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/41008538770), a clean-archive wheel/source build, fresh Python 3.14 installed-wheel 575-test run and offline dossier verification. Combined Standards/Spec review found no code blocker; [the 2.3 checklist](2.3/272-release-checklist.md) records hashes and integration. Internal evidence does not approve migration or cutover.
 - Integrated: the [2.3 candidate qualification record](2.3/272-release-checklist.md) merged through [PR #108](https://github.com/raghavkandpal/parison/pull/108) at `853ba219ba553d5c8fb580d2b57075bdd92b4db9`. Exact record head `1991393bd25d6ee217558f93421dce154c5a8c44` passed PR quality CI and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/41008901275); the exact integration merge passed the [full matrix](https://github.com/raghavkandpal/parison/actions/runs/41009134595). Release merge, tag and publication remain a separate decision.
+- Released: [PR #111](https://github.com/raghavkandpal/parison/pull/111) merged to `main` at `a2884534d3ffa7364e3344dc3d514aa775ac79a9`, passing [quality CI](https://github.com/raghavkandpal/parison/actions/runs/41009685519) and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/41009685413). Annotated [2.3.0 release](https://github.com/raghavkandpal/parison/releases/tag/2.3.0) assets were re-downloaded, checksum-verified and the public wheel passed 575 tests in a fresh Python 3.14 environment plus offline dossier verification. See the [release checklist](2.3/272-release-checklist.md); none of this authorizes migration or cutover.
 
 
 
 ## Recorded next steps
 
-- Parison 2.2.0 is published. Internal review and test evidence never
+- Parison 2.3.0 is published. Internal review and test evidence never
   establishes operational policy or cutover approval.
 
 - When an autonomous session stops near its usage limit, return a copy-ready

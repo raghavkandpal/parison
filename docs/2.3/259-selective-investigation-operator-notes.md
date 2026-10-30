@@ -1,7 +1,7 @@
 # Selective exact investigation operator notes
 
 Date: 29 October 2026
-Status: feature 4 integrated through PR #102
+Status: feature 4 released in 2.3.0 through PR #102
 
 This command starts from a complete, source-backed [feature 3 discovery](255-partition-discovery-operator-notes.md). It scans the original local CSV inputs, stages only chosen suspect integer-key ranges, and publishes bounded raw discrepancy items in a private directory. It cannot approve policy or authorize cutover. A subset or truncated list remains incomplete even when its selected exact comparisons finish.
 

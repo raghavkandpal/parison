@@ -4,7 +4,9 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
-## Post-2.2 direction — research
+## 2.3 — six-feature PostgreSQL rehearsal train — released
+
+- [2.3.0 release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.3.0)
 
 - [Fast differences and defensible cutover evidence: chosen first target and gates](2.2/244-fast-diff-and-cutover-evidence-direction.md)
 - [PostgreSQL evidence ingress primary-source research](2.3/245-postgresql-ingress-research.md)
@@ -33,7 +35,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Portable decision dossier operator notes](2.3/269-decision-dossier-operator-notes.md)
 - [CLI consolidation follow-up after dossier](2.3/270-cli-consolidation-followup.md)
 - [Decision dossier implementation checkpoint](2.3/271-decision-dossier-implementation.md)
-- [2.3.0 candidate qualification and release checklist](2.3/272-release-checklist.md)
+- [2.3.0 release checklist](2.3/272-release-checklist.md)
 - [Additive CLI command-alias contract](2.3/273-cli-command-alias-contract.md)
 - [Task-oriented 2.3 command operator notes](2.3/274-cli-consolidation-operator-notes.md)
 

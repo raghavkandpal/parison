@@ -1,7 +1,7 @@
 # Portable decision dossier contract
 
 Date: 29 October 2026
-Status: frozen for feature 6 implementation; not release authorization
+Status: released in 2.3.0; dossier and sign-off references remain non-authorizing
 
 ## Claim and boundary
 

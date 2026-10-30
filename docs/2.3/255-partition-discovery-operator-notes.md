@@ -1,7 +1,7 @@
 # Exact partition discovery operator notes
 
 Date: 28 October 2026
-Status: feature 3 integrated through PR #99
+Status: feature 3 released in 2.3.0 through PR #99
 
 The optional `parison-partitions` command runs the [frozen reviewed-range
 contract](254-partition-discovery-contract.md) on two local CSV files. It does

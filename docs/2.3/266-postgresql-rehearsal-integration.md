@@ -1,7 +1,7 @@
 # Feature 5 integration checkpoint
 
 Date: 29 October 2026
-Status: integrated into develop; five of six 2.3 features complete
+Status: historical feature 5 integration checkpoint; later released in 2.3.0
 
 [PR #104](https://github.com/raghavkandpal/parison/pull/104) merged feature 5
 at `4dd03eeabcfc81ac6aadb56cf03ebfa0ba794c68` from exact reviewed head

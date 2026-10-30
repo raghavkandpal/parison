@@ -1,7 +1,7 @@
 # Exact partitioned difference discovery contract
 
 Date: 28 October 2026
-Status: frozen for 2.3 feature 3 implementation; not a release commitment
+Status: released in 2.3.0; exact scope and policy remain explicit
 
 This is capability 3 in the [six-feature roadmap](246-six-feature-roadmap.md).
 It compares two local CSV files under one reviewed keyed recipe. It does not

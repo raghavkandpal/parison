@@ -1,7 +1,7 @@
 # PostgreSQL one-table evidence ingress contract
 
 Date: 28 October 2026
-Status: frozen for feature 1 implementation; not a release commitment
+Status: released in 2.3.0; source claims remain qualified adapter evidence
 
 This is the first capability in the [2.3 roadmap](246-six-feature-roadmap.md).
 It is an opt-in, one-table acquisition path outside core comparison execution.
