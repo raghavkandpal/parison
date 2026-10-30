@@ -1,7 +1,7 @@
 # PostgreSQL collection version and capability matrix
 
 Date and primary-source access: 30 October 2026
-Status: exact local live lanes qualified at `461b2d5`; final integration CI pending
+Status: exact local live lanes qualified at `461b2d5`; feature 1 integrated through PR #121
 
 This matrix is normative for the live adapter in [contract 277](277-postgresql-collection-contract.md).
 It separates a target from successful qualification. The current official
@@ -92,3 +92,9 @@ cannot be treated as proof a listed server was actually used.
 [Versioning policy](https://www.postgresql.org/support/versioning/),
 [pg_upgrade](https://www.postgresql.org/docs/18/pgupgrade.html),
 [pg_dump](https://www.postgresql.org/docs/18/app-pgdump.html).
+
+Feature 1 final head `591f24db806ad445b3a0576eacfea87773471659` passed
+quality CI and the [full installed-wheel Python 3.11–3.14 Linux/macOS/Windows matrix](https://github.com/raghavkandpal/parison/actions/runs/41050332917)
+before [PR #121](https://github.com/raghavkandpal/parison/pull/121) merged at
+`2f4ff188392aa53b4344b3639c4b3db689300e19`. Live-server platform claims remain
+limited to the named macOS fixture; portable offline/unit CI is a separate gate.

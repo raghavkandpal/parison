@@ -1,7 +1,7 @@
 # Collection acquisition qualification and machine-specific budget
 
 Date: 30 October 2026
-Status: live candidate qualified at source commit `461b2d5ec153f016c6ee3c46adcbff101c9f59b7`; exact-head CI pending
+Status: live candidate qualified at source commit `461b2d5ec153f016c6ee3c46adcbff101c9f59b7`; integrated through PR #121
 
 ## Reproduced live gates
 
@@ -53,9 +53,10 @@ not a general capacity or latency guarantee. Existing 300k-row/1GiB limits remai
 
 ## Integration gate
 
-The corrected source passes599 local tests and independent Standards/Spec re-review.
-The final PR head must pass quality CI and the full built-wheel Python 3.11–3.14
-Linux/macOS/Windows matrix before integration. Live PostgreSQL qualification and
+The corrected source passes 599 local tests and independent Standards/Spec re-review.
+Final PR head `591f24db806ad445b3a0576eacfea87773471659` passed quality CI and
+the [full built-wheel Python 3.11–3.14 Linux/macOS/Windows matrix](https://github.com/raghavkandpal/parison/actions/runs/41050332917)
+before PR #121 integrated at `2f4ff188392aa53b4344b3639c4b3db689300e19`. Live PostgreSQL qualification and
 installed-wheel platform coverage are distinct evidence. All ten 2.4 features
 remain together before a release candidate; this checkpoint does not authorize
 source extraction truth, cross-instance coordination, migration or cutover.

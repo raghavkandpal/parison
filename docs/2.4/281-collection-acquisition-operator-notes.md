@@ -1,7 +1,7 @@
 # PostgreSQL snapshot collection acquisition
 
 Date: 30 October 2026
-Status: feature 1 implementation candidate; independent review and final CI pending
+Status: feature 1 integrated through PR #121 at `2f4ff18`
 
 ```text
 parison postgres collection --plan collection-plan.json --output collection
@@ -44,7 +44,7 @@ is excluded. Measurements are machine-specific and do not establish capacity.
 
 All three exact live rows in [matrix 278](278-postgresql-capability-matrix.md),
 independent Standards/Spec review, full local checks and exact-head built-wheel
-CI must pass before feature 1 integration. This acquisition is adapter evidence;
+CI passed before feature 1 integration. This acquisition is adapter evidence;
 source truth, cross-instance coordination and migration/cutover approval remain
 upstream. All ten 2.4 features stay together before a release candidate.
 
@@ -64,3 +64,9 @@ See the contract-277 review amendment for the privilege/locking rationale.
 The live corpus includes hostile search-path server/MAINTAIN facts and a child
 attached after qualification containing an otherwise forbidden null-marker value.
 New base-only export excludes that undeclared row while retaining correct counts.
+
+Exact final head `591f24d` passed 599 local tests, fresh Standards/Spec re-review,
+quality CI and [full built-wheel CI](https://github.com/raghavkandpal/parison/actions/runs/41050332917).
+Live qualification source `461b2d5` and measurements are recorded in
+[checkpoint 282](282-collection-budget-and-qualification.md). One of ten 2.4
+features is integrated; schema/representation assessment is next.
