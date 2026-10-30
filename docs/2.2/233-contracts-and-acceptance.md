@@ -1,7 +1,11 @@
 # Six-feature contracts and acceptance gates
 
 Date: 23 October 2026
-Status: contract freeze in progress; no implementation checkpoint qualified
+Status: six contracts implemented and released in 2.2.0
+
+The publication hold recorded below applied to the implementation decision.
+The user separately approved the 2.2.0 release on 28 October 2026; see the
+[release checklist](243-release-checklist.md) for exact tested assets.
 
 The accepted scope is [232](232-accepted-roadmap.md). These gates bind all six
 capabilities before implementation. Wire schemas and canonical fixtures must be

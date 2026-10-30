@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/dossier-receipt-v1.schema.json",
+  "title": "dossier-receipt-v1",
+  "type": "object",
+  "required": [
+    "dossier_receipt_version",
+    "rehearsal_manifest_sha256",
+    "pair_manifests",
+    "investigation_manifests",
+    "outcome",
+    "coverage",
+    "coordination",
+    "complete",
+    "exception_count",
+    "open_exception_count",
+    "signoff_count",
+    "verification"
+  ],
+  "properties": {
+    "dossier_receipt_version": {
+      "const": 1
+    },
+    "rehearsal_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "pair_manifests": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "candidate": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "investigation_manifests": {
+      "type": "object",
+      "required": [
+        "orders",
+        "order_lines"
+      ],
+      "properties": {
+        "orders": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "order_lines": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "outcome": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCONCLUSIVE"
+      ]
+    },
+    "coverage": {
+      "enum": [
+        "PASS",
+        "INCONCLUSIVE"
+      ]
+    },
+    "coordination": {
+      "enum": [
+        "source-owned",
+        "unestablished"
+      ]
+    },
+    "complete": {
+      "const": true
+    },
+    "exception_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "open_exception_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "signoff_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "verification": {
+      "const": "source-backed-local"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-rehearsal-summary-v1.schema.json",
+  "title": "postgres-rehearsal-summary-v1",
+  "type": "object",
+  "required": [
+    "postgres_rehearsal_summary_version",
+    "outcome",
+    "complete",
+    "coverage",
+    "coordination",
+    "parity",
+    "relationships",
+    "conservation",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "postgres_rehearsal_summary_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "outcome": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCONCLUSIVE"
+      ]
+    },
+    "complete": {
+      "const": true
+    },
+    "coverage": {
+      "enum": [
+        "PASS",
+        "INCONCLUSIVE"
+      ]
+    },
+    "coordination": {
+      "enum": [
+        "source-owned",
+        "unestablished"
+      ]
+    },
+    "parity": {
+      "type": "object",
+      "required": [
+        "orders",
+        "order_lines"
+      ],
+      "properties": {
+        "orders": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "INCONCLUSIVE"
+          ]
+        },
+        "order_lines": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "INCONCLUSIVE"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "relationships": {
+      "enum": [
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "conservation": {
+      "enum": [
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "receipt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

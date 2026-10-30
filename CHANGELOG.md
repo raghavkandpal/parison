@@ -2,10 +2,54 @@
 
 All notable changes will be documented in this file.
 
-## Unreleased
+## Unreleased (2.3.0 candidate)
 
-The six-feature 2.2.0 train is integrated on `develop`; candidate qualification
-is in progress. The released version remains 2.1.0.
+- Add task-oriented `parison postgres`, `parison partitions` and `parison rehearsal` paths while preserving the four shipped standalone commands and their JSON/exit-code behavior.
+- Add a private portable decision dossier with source-backed offline replay, optional exact investigations, summary-safe Workbench Results and opaque human reference counts.
+- Add an offline PostgreSQL 16→18 order/line rehearsal binding reviewed acquisition pairs, exact partition parity and per-order reconciliation, with explicit upstream coordination and source-backed replay verification.
+
+
+### Added
+
+- Add selective exact investigation of source-verified suspect CSV ranges,
+  bounded private raw cases, explicit coverage/completion markers, and
+  source-free or source-backed verification.
+- Add bounded exact discovery over reviewed local integer-key CSV ranges,
+  versioned private partition evidence, a summary-safe CLI and source-backed
+  verification while preserving released comparison output bytes.
+- Add an optional coordinated two-table PostgreSQL reader with one source
+  snapshot, unchanged per-table receipts, a private pair coordination record,
+  summary-safe output and offline pair verification.
+- Add an optional, bounded one-table PostgreSQL reader with a qualified
+  repeatable-read snapshot claim, canonical private receipt, safe summary,
+  atomic local bundle, and offline verification command and schemas.
+
+### Documentation
+
+- Research and freeze feature 4's selective raw investigation boundary,
+  source-backed prerequisite, bounded sensitive artifact and adversarial gate.
+- Research and freeze feature 3's reviewed integer-range exact discovery
+  contract, source-backed verification boundary, resource caps and adversarial
+  reference-corpus gate.
+- Record machine-specific 100k/250k two-table acquisition timing, adapter
+  memory, bundle bytes and source scan counters after feature 2 integration.
+- Freeze feature 2's coordinated two-table acquisition plan, common snapshot,
+  canonical pair evidence, summary-safe verifier and adversarial gate.
+- Research feature 2's one-transaction, two-table acquisition boundary and
+  define the next contract and hostile concurrency gate.
+- Select the first post-2.2 evidence-ingress target through blind review:
+  PostgreSQL 16→18 order/ledger migration, with provisional measured budgets,
+  an adversarial coverage corpus and an independently reviewed snapshot and
+  credential boundary.
+- Expand the selected post-2.2 sequence into six separately reviewable 2.3
+  capabilities with acceptance gates; the first is one-table PostgreSQL
+  evidence ingress.
+- Freeze feature 1's private PostgreSQL source receipt, summary-safe projection,
+  read-only snapshot and local publication contract before runtime changes.
+
+## 2.2.0 - 2026-10-28
+
+[Release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.2.0).
 
 ### Added
 
@@ -46,12 +90,12 @@ is in progress. The released version remains 2.1.0.
 ### Fixed
 
 - Harden reconciliation evidence count shapes, arithmetic and derived outcomes
-  against internally inconsistent preserved results (qualification pending).
+  against internally inconsistent preserved results.
 
 ### Documentation
 
 - Record authoritative dataset-v2 declaration/input-binding normalization and
-  hostile substitution qualification; complete feature delivery remains pending.
+  hostile substitution qualification.
 
 - Draft explicit dataset evidence v2 physical/logical bindings and versioned
   semantic selector records with canonical declaration acceptance inputs.

@@ -1,0 +1,1 @@
+{"investigation_cases_version":1,"items":[{"item":{"allowance":"1.00","baseline":"1.00","candidate":"1.50","classification":"within_tolerance","delta":"0.50","field":"amount","key":[1],"kind":"field"},"partition_index":0}],"sensitivity":"raw"}

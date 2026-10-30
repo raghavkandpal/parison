@@ -1,0 +1,19 @@
+{
+  "recipe_version": 1,
+  "comparison_mode": "keyed",
+  "keys": ["id"],
+  "scope": {
+    "snapshot": "fixture-v1",
+    "cutoff": "2026-10-29T00:00:00Z",
+    "filters": [],
+    "completeness": "full",
+    "expected_empty": false
+  },
+  "identity": {"null_keys": "reject", "duplicates": "reject"},
+  "nulls_equal": true,
+  "columns": {
+    "id": {"type": "integer", "comparison": "exact"},
+    "amount": {"type": "decimal", "scale": 2, "comparison": "exact"}
+  },
+  "output": {"sensitivity": "summary"}
+}

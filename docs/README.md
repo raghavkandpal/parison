@@ -4,9 +4,43 @@ Documentation is grouped by the version it describes. Released-version folders a
 
 Start with [the current development state](CURRENT.md) for the active version and next gate.
 
-## 2.2 — accepted six-feature train
+## Post-2.2 direction — research
 
-- [2.2.0 release candidate checklist](2.2/243-release-checklist.md)
+- [Fast differences and defensible cutover evidence: chosen first target and gates](2.2/244-fast-diff-and-cutover-evidence-direction.md)
+- [PostgreSQL evidence ingress primary-source research](2.3/245-postgresql-ingress-research.md)
+- [2.3 six-feature roadmap and acceptance gates](2.3/246-six-feature-roadmap.md)
+- [PostgreSQL one-table ingress contract](2.3/247-postgresql-one-table-ingress-contract.md)
+- [One-table ingress implementation and operator commands](2.3/248-one-table-ingress-implementation.md)
+- [Coordinated two-table PostgreSQL snapshot research](2.3/249-multi-table-snapshot-research.md)
+- [PostgreSQL coordinated two-table acquisition contract](2.3/250-postgresql-pair-acquisition-contract.md)
+- [Coordinated PostgreSQL pair operator notes](2.3/251-postgresql-pair-operator-notes.md)
+- [Pair acquisition budget checkpoint](2.3/252-pair-acquisition-budget-checkpoint.md)
+- [Exact partition discovery research](2.3/253-partition-discovery-research.md)
+- [Exact partition discovery contract and adversarial gate](2.3/254-partition-discovery-contract.md)
+- [Exact partition discovery operator notes](2.3/255-partition-discovery-operator-notes.md)
+- [Exact partition discovery budget checkpoint](2.3/256-partition-discovery-budget-checkpoint.md)
+- [Selective exact investigation research](2.3/257-selective-investigation-research.md)
+- [Selective exact investigation contract and adversarial gate](2.3/258-selective-investigation-contract.md)
+- [Selective exact investigation operator notes](2.3/259-selective-investigation-operator-notes.md)
+- [Selective investigation budget checkpoint](2.3/260-selective-investigation-budget-checkpoint.md)
+- [PostgreSQL 16→18 rehearsal research](2.3/261-postgresql-rehearsal-research.md)
+- [PostgreSQL rehearsal contract and adversarial gate](2.3/262-postgresql-rehearsal-contract.md)
+- [PostgreSQL rehearsal operator notes](2.3/263-postgresql-rehearsal-operator-notes.md)
+- [PostgreSQL rehearsal budget checkpoint](2.3/265-postgresql-rehearsal-budget-checkpoint.md)
+- [Feature 5 integration checkpoint](2.3/266-postgresql-rehearsal-integration.md)
+- [Portable decision dossier research](2.3/267-decision-dossier-research.md)
+- [Portable decision dossier contract and adversarial gate](2.3/268-decision-dossier-contract.md)
+- [Portable decision dossier operator notes](2.3/269-decision-dossier-operator-notes.md)
+- [CLI consolidation follow-up after dossier](2.3/270-cli-consolidation-followup.md)
+- [Decision dossier implementation checkpoint](2.3/271-decision-dossier-implementation.md)
+- [2.3.0 candidate qualification and release checklist](2.3/272-release-checklist.md)
+- [Additive CLI command-alias contract](2.3/273-cli-command-alias-contract.md)
+- [Task-oriented 2.3 command operator notes](2.3/274-cli-consolidation-operator-notes.md)
+
+## 2.2 — six-feature verification train — released
+
+- [2.2.0 release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.2.0)
+- [2.2.0 release checklist](2.2/243-release-checklist.md)
 - [Complete reconciliation workflow and typed handoff contract](2.2/242-reconciliation-handoff-contract.md)
 - [Verified suite rehearsal series contract](2.2/241-suite-series-contract.md)
 

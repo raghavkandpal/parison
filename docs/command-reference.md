@@ -9,7 +9,11 @@ end-to-end tasks, use the [current user guide](user-guide.md). Do not edit this 
 Compare data-pipeline outputs deterministically
 
 positional arguments:
-  {init,validate-recipe,explain,validate-evolution,explain-evolution,compile-evolution,diff-policy,validate-time-alignment,explain-time-alignment,validate-reconciliation,explain-reconciliation,preflight-alignment,check-identity-references,check-conservation,reconcile,verify-reconciliation,inspect-reconciliation,diagnose-reconciliation,create-dataset-manifest,validate-dataset-manifest,explain-dataset-manifest,verify-dataset-manifest,publish-dataset-evidence,capture-reproducibility,diff-reproducibility,schema,export-editor-schemas,validate-suite,list-suite,run-suite,assemble-suite,report-ci,validate-inputs,draft-recipe,verify,inspect,compare-suites,workbench,analyze,analyze-suites,verify-analysis,drilldown,verify-drilldown,statement,verify-statement,report-cutover,catalog,export-evidence,compare}
+  {dossier,postgres,partitions,rehearsal,init,validate-recipe,explain,validate-evolution,explain-evolution,compile-evolution,diff-policy,validate-time-alignment,explain-time-alignment,validate-reconciliation,explain-reconciliation,preflight-alignment,check-identity-references,check-conservation,reconcile,verify-reconciliation,inspect-reconciliation,diagnose-reconciliation,create-dataset-manifest,validate-dataset-manifest,explain-dataset-manifest,verify-dataset-manifest,publish-dataset-evidence,capture-reproducibility,diff-reproducibility,verify-postgres-export,verify-postgres-pair,schema,export-editor-schemas,validate-suite,list-suite,run-suite,assemble-suite,report-ci,validate-inputs,draft-recipe,verify,inspect,compare-suites,workbench,analyze,analyze-suites,verify-analysis,drilldown,verify-drilldown,statement,verify-statement,report-cutover,catalog,export-evidence,compare}
+    dossier             create or verify a portable decision dossier
+    postgres            acquire one or two PostgreSQL tables
+    partitions          discover or investigate exact partitions
+    rehearsal           run or verify a PostgreSQL migration rehearsal
     init                create a minimal keyed migration project
     validate-recipe     validate a JSON recipe
     explain             print the effective recipe policy without reading inputs
@@ -51,6 +55,10 @@ positional arguments:
                         record bounded runtime facts for one dataset manifest
     diff-reproducibility
                         compare two diagnostics for the same dataset manifest
+    verify-postgres-export
+                        verify a local PostgreSQL source export
+    verify-postgres-pair
+                        verify a coordinated two-table PostgreSQL export
     schema              print an installed JSON Schema
     export-editor-schemas
                         export offline recipe and suite editor schemas
@@ -373,11 +381,31 @@ options:
   -h, --help  show this help message and exit
 ```
 
+## `parison verify-postgres-export`
+
+```text
+positional arguments:
+  bundle
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `parison verify-postgres-pair`
+
+```text
+positional arguments:
+  bundle
+
+options:
+  -h, --help  show this help message and exit
+```
+
 ## `parison schema`
 
 ```text
 positional arguments:
-  {recipe,recipe-authoring,recipe-v2,recipe-v3,recipe-v4,recipe-v5,recipe-v6,result,result-v2,result-v3,manifest,preflight,preflight-v2,preflight-v3,preflight-v4,preflight-v5,preflight-v6,preflight-v7,preflight-v8,preflight-v9,preflight-v10,preflight-v11,preflight-v12,preflight-v13,preflight-v14,preflight-v15,preflight-v16,preflight-v17,preflight-v18,preflight-v19,preflight-v20,preflight-v21,preflight-v22,preflight-v23,preflight-v24,suite,suite-authoring,suite-v2,suite-result,suite-result-v2,suite-manifest,suite-manifest-v2,suite-manifest-v3,statement,statement-v2,schema-evolution,policy-diff,time-alignment,reconciliation,alignment-preflight,relationship-result,conservation-result,reconciliation-result,reconciliation-manifest-v2,dataset-manifest,dataset-manifest-v2,input-bindings-v1,manifest-result-v2,dataset-evidence-v2,reproducibility-diagnostic,reproducibility-diagnostic-v2,discrepancy-analysis,suite-series,discrepancy-drilldown}
+  {recipe,recipe-authoring,recipe-v2,recipe-v3,recipe-v4,recipe-v5,recipe-v6,result,result-v2,result-v3,manifest,preflight,preflight-v2,preflight-v3,preflight-v4,preflight-v5,preflight-v6,preflight-v7,preflight-v8,preflight-v9,preflight-v10,preflight-v11,preflight-v12,preflight-v13,preflight-v14,preflight-v15,preflight-v16,preflight-v17,preflight-v18,preflight-v19,preflight-v20,preflight-v21,preflight-v22,preflight-v23,preflight-v24,suite,suite-authoring,suite-v2,suite-result,suite-result-v2,suite-manifest,suite-manifest-v2,suite-manifest-v3,statement,statement-v2,schema-evolution,policy-diff,time-alignment,reconciliation,alignment-preflight,relationship-result,conservation-result,reconciliation-result,reconciliation-manifest-v2,dataset-manifest,dataset-manifest-v2,input-bindings-v1,manifest-result-v2,dataset-evidence-v2,reproducibility-diagnostic,reproducibility-diagnostic-v2,discrepancy-analysis,suite-series,discrepancy-drilldown,postgres-export-plan,postgres-source-receipt,postgres-source-summary,postgres-source-manifest,postgres-pair-plan,postgres-pair-receipt,postgres-pair-summary,postgres-pair-manifest,postgres-rehearsal-plan,postgres-rehearsal-relationships,postgres-rehearsal-receipt,postgres-rehearsal-summary,postgres-rehearsal-manifest,dossier-plan,dossier-receipt,dossier-summary,dossier-manifest,partition-plan,partition-receipt,partition-summary,partition-manifest,investigation-plan,investigation-receipt,investigation-cases,investigation-summary,investigation-manifest}
 
 options:
   -h, --help            show this help message and exit
@@ -767,4 +795,181 @@ options:
                         workspace
   --expected-policy-sha256 EXPECTED_POLICY_SHA256
                         require this effective-policy fingerprint before reading inputs
+```
+
+## `parison dossier`
+
+```text
+positional arguments:
+  {create,verify}
+
+options:
+  -h, --help       show this help message and exit
+```
+
+## `parison dossier create`
+
+```text
+options:
+  -h, --help            show this help message and exit
+  --plan PLAN
+  --rehearsal REHEARSAL
+  --baseline BASELINE
+  --candidate CANDIDATE
+  --orders-recipe ORDERS_RECIPE
+  --lines-recipe LINES_RECIPE
+  --relationships RELATIONSHIPS
+  --output OUTPUT
+  --claim CLAIM
+  --orders-investigation ORDERS_INVESTIGATION
+  --lines-investigation LINES_INVESTIGATION
+```
+
+## `parison dossier verify`
+
+```text
+positional arguments:
+  directory
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `parison postgres`
+
+```text
+Acquire local PostgreSQL evidence
+
+positional arguments:
+  {table,pair}
+    table       export one reviewed table
+    pair        export two tables from one source snapshot
+
+options:
+  -h, --help    show this help message and exit
+```
+
+## `parison postgres table`
+
+```text
+Optional local PostgreSQL evidence reader
+
+options:
+  -h, --help       show this help message and exit
+  --plan PLAN
+  --output OUTPUT
+```
+
+## `parison postgres pair`
+
+```text
+Optional local two-table PostgreSQL evidence reader
+
+options:
+  -h, --help       show this help message and exit
+  --plan PLAN
+  --output OUTPUT
+```
+
+## `parison partitions`
+
+```text
+positional arguments:
+  {discover,verify,investigate,verify-investigation}
+
+options:
+  -h, --help            show this help message and exit
+```
+
+## `parison partitions discover`
+
+```text
+options:
+  -h, --help            show this help message and exit
+  --plan PLAN
+  --recipe RECIPE
+  --baseline BASELINE
+  --candidate CANDIDATE
+  --output OUTPUT
+```
+
+## `parison partitions verify`
+
+```text
+positional arguments:
+  directory
+
+options:
+  -h, --help            show this help message and exit
+  --recipe RECIPE
+  --baseline BASELINE
+  --candidate CANDIDATE
+```
+
+## `parison partitions investigate`
+
+```text
+options:
+  -h, --help            show this help message and exit
+  --plan PLAN
+  --discovery DISCOVERY
+  --recipe RECIPE
+  --baseline BASELINE
+  --candidate CANDIDATE
+  --output OUTPUT
+```
+
+## `parison partitions verify-investigation`
+
+```text
+positional arguments:
+  directory
+
+options:
+  -h, --help            show this help message and exit
+  --discovery DISCOVERY
+  --recipe RECIPE
+  --baseline BASELINE
+  --candidate CANDIDATE
+```
+
+## `parison rehearsal`
+
+```text
+positional arguments:
+  {run,verify}
+
+options:
+  -h, --help    show this help message and exit
+```
+
+## `parison rehearsal run`
+
+```text
+options:
+  -h, --help            show this help message and exit
+  --plan PLAN
+  --output OUTPUT
+  --baseline BASELINE
+  --candidate CANDIDATE
+  --orders-recipe ORDERS_RECIPE
+  --lines-recipe LINES_RECIPE
+  --reconciliation RECONCILIATION
+  --claim CLAIM
+```
+
+## `parison rehearsal verify`
+
+```text
+positional arguments:
+  directory
+
+options:
+  -h, --help            show this help message and exit
+  --baseline BASELINE
+  --candidate CANDIDATE
+  --orders-recipe ORDERS_RECIPE
+  --lines-recipe LINES_RECIPE
+  --reconciliation RECONCILIATION
+  --claim CLAIM
 ```

@@ -1,0 +1,228 @@
+{
+  "machine": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "python": "3.14.7 (main, Aug  5 2026, 10:29:49) [Clang 21.0.0 (clang-2100.1.1.101)]",
+  "rows_per_side": 100000,
+  "runs": [
+    {
+      "elapsed_seconds": 17.708675834001042,
+      "label": "cold-0",
+      "retained_bytes": 5539028,
+      "rows_per_side": 100000,
+      "source_load": [
+        {
+          "bytes": 2756728,
+          "elapsed_ms": 152,
+          "rows": 100000,
+          "server_version_num": 160015,
+          "side": "baseline",
+          "table_copy_scans": 2,
+          "table_count_scans": 2
+        },
+        {
+          "bytes": 2756728,
+          "elapsed_ms": 164,
+          "rows": 100000,
+          "server_version_num": 180006,
+          "side": "candidate",
+          "table_copy_scans": 2,
+          "table_count_scans": 2
+        }
+      ],
+      "summary": {
+        "complete": true,
+        "conservation": "PASS",
+        "coordination": "source-owned",
+        "coverage": "PASS",
+        "outcome": "PASS",
+        "parity": {
+          "order_lines": "PASS",
+          "orders": "PASS"
+        },
+        "postgres_rehearsal_summary_version": 1,
+        "receipt_sha256": "f1c2fbd35ee6811db911df2480feb953fcecca26fe0a497d82b76fa99fac040c",
+        "relationships": "PASS"
+      },
+      "worker_peak_rss_bytes": 73498624,
+      "sampled_peak_output_bytes": 19969156,
+      "sampled_peak_temporary_bytes": 14443696,
+      "disk_sampling_interval_ms": 10
+    },
+    {
+      "elapsed_seconds": 15.920538582999143,
+      "label": "cold-1",
+      "retained_bytes": 5539028,
+      "rows_per_side": 100000,
+      "source_load": [
+        {
+          "bytes": 2756728,
+          "elapsed_ms": 144,
+          "rows": 100000,
+          "server_version_num": 160015,
+          "side": "baseline",
+          "table_copy_scans": 2,
+          "table_count_scans": 2
+        },
+        {
+          "bytes": 2756728,
+          "elapsed_ms": 143,
+          "rows": 100000,
+          "server_version_num": 180006,
+          "side": "candidate",
+          "table_copy_scans": 2,
+          "table_count_scans": 2
+        }
+      ],
+      "summary": {
+        "complete": true,
+        "conservation": "PASS",
+        "coordination": "source-owned",
+        "coverage": "PASS",
+        "outcome": "PASS",
+        "parity": {
+          "order_lines": "PASS",
+          "orders": "PASS"
+        },
+        "postgres_rehearsal_summary_version": 1,
+        "receipt_sha256": "72d0e10e96aba57ddda9598b9cb1f2f00b178f6ee0a340b996f346c276f06e39",
+        "relationships": "PASS"
+      },
+      "worker_peak_rss_bytes": 71237632,
+      "sampled_peak_output_bytes": 19969156,
+      "sampled_peak_temporary_bytes": 14443696,
+      "disk_sampling_interval_ms": 10
+    },
+    {
+      "elapsed_seconds": 15.694749957998283,
+      "label": "cold-2",
+      "retained_bytes": 5539028,
+      "rows_per_side": 100000,
+      "source_load": [
+        {
+          "bytes": 2756728,
+          "elapsed_ms": 147,
+          "rows": 100000,
+          "server_version_num": 160015,
+          "side": "baseline",
+          "table_copy_scans": 2,
+          "table_count_scans": 2
+        },
+        {
+          "bytes": 2756728,
+          "elapsed_ms": 144,
+          "rows": 100000,
+          "server_version_num": 180006,
+          "side": "candidate",
+          "table_copy_scans": 2,
+          "table_count_scans": 2
+        }
+      ],
+      "summary": {
+        "complete": true,
+        "conservation": "PASS",
+        "coordination": "source-owned",
+        "coverage": "PASS",
+        "outcome": "PASS",
+        "parity": {
+          "order_lines": "PASS",
+          "orders": "PASS"
+        },
+        "postgres_rehearsal_summary_version": 1,
+        "receipt_sha256": "2882b70c8ce5360c9b8de0b3429dca877b123b172095357155e10c036eb25063",
+        "relationships": "PASS"
+      },
+      "worker_peak_rss_bytes": 71106560,
+      "sampled_peak_output_bytes": 19969156,
+      "sampled_peak_temporary_bytes": 14443696,
+      "disk_sampling_interval_ms": 10
+    }
+  ],
+  "adversarial": [
+    {
+      "case": "orphan",
+      "summary": {
+        "complete": true,
+        "conservation": "FAIL",
+        "coordination": "source-owned",
+        "coverage": "PASS",
+        "outcome": "FAIL",
+        "parity": {
+          "order_lines": "FAIL",
+          "orders": "PASS"
+        },
+        "postgres_rehearsal_summary_version": 1,
+        "receipt_sha256": "48a82f6a66103adad6a2c6172597284ad44c88c59abb9606fc2e1f4b04d29ad4",
+        "relationships": "FAIL"
+      }
+    },
+    {
+      "case": "offsetting",
+      "summary": {
+        "complete": true,
+        "conservation": "FAIL",
+        "coordination": "source-owned",
+        "coverage": "PASS",
+        "outcome": "FAIL",
+        "parity": {
+          "order_lines": "FAIL",
+          "orders": "PASS"
+        },
+        "postgres_rehearsal_summary_version": 1,
+        "receipt_sha256": "da8ff3228f48778d98615db33d22a6c8256e4a86ebd0697f3a63dfb1a3c1e953",
+        "relationships": "PASS"
+      }
+    },
+    {
+      "case": "timestamp",
+      "summary": {
+        "complete": true,
+        "conservation": "PASS",
+        "coordination": "source-owned",
+        "coverage": "PASS",
+        "outcome": "FAIL",
+        "parity": {
+          "order_lines": "PASS",
+          "orders": "FAIL"
+        },
+        "postgres_rehearsal_summary_version": 1,
+        "receipt_sha256": "ab4f48e9b431d45caa3dcbbf1d4679d5e546cdd5ac40abf10bec4c15db4495f4",
+        "relationships": "PASS"
+      }
+    },
+    {
+      "case": "unicode",
+      "summary": {
+        "complete": true,
+        "conservation": "PASS",
+        "coordination": "source-owned",
+        "coverage": "PASS",
+        "outcome": "FAIL",
+        "parity": {
+          "order_lines": "PASS",
+          "orders": "FAIL"
+        },
+        "postgres_rehearsal_summary_version": 1,
+        "receipt_sha256": "0cd7be3359c0917a08b5c01396427e2004be6c28ded8aac8a471d2b4bc51246a",
+        "relationships": "PASS"
+      }
+    },
+    {
+      "case": "partial",
+      "summary": {
+        "complete": true,
+        "conservation": "FAIL",
+        "coordination": "source-owned",
+        "coverage": "INCONCLUSIVE",
+        "outcome": "FAIL",
+        "parity": {
+          "order_lines": "FAIL",
+          "orders": "PASS"
+        },
+        "postgres_rehearsal_summary_version": 1,
+        "receipt_sha256": "db15aa7ebe8da82add778c2279b8b0317f5abeb3a072a5552d05bcfe90435f3c",
+        "relationships": "PASS"
+      }
+    }
+  ],
+  "offline_after_shutdown": true,
+  "dump_client": "pg_dump (PostgreSQL) 18.6 (Homebrew)"
+}

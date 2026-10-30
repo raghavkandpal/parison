@@ -1,7 +1,7 @@
-# Parison 2.2.0 release candidate checklist
+# Parison 2.2.0 release checklist
 
 Date: 27 October 2026  
-Status: **candidate qualified on `develop`**; 2.1.0 remains the published release
+Status: **released** at exact tested merge `bfb17a6baf26cde2930f12f4dfe4ff5f8c8c93c4`
 
 ## Completed train
 
@@ -53,9 +53,34 @@ The first manual matrix attempt at this candidate head ended with a cancelled
 queued macOS 3.12 job; the successful rerun above completed every required
 lane. The smoke used the installed wheel, not the source checkout.
 
-## Publication boundary
+## Publication
 
-The [accepted 2.2 contract](233-contracts-and-acceptance.md) does not authorize
-a release merge, tag or publication. Candidate evidence does not approve a
-user's policy, extraction, migration or cutover. Follow [RELEASING.md](../../RELEASING.md)
-if release publication is later authorized.
+- [x] The user approved the release on 28 October 2026, superseding the
+  [accepted contract's](233-contracts-and-acceptance.md) earlier publication
+  hold without changing product policy or evidence semantics.
+- [x] [Release PR #89](https://github.com/raghavkandpal/parison/pull/89)
+  merged `develop` to `main` at exact commit
+  `bfb17a6baf26cde2930f12f4dfe4ff5f8c8c93c4`. It passed
+  [quality CI](https://github.com/raghavkandpal/parison/actions/runs/40643582338)
+  and the [full built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/40643616772)
+  on Python 3.11–3.14 across Linux, macOS and Windows.
+- [x] A clean `git archive` of that exact merge built and inspected
+  `parison-2.2.0-py3-none-any.whl` (SHA-256
+  `672547462348be9faf1c52b00f353ace8f725ce935ea47040e72da5aa9087dc9`)
+  and `parison-2.2.0.tar.gz` (SHA-256
+  `85a23fb2ef75a2a2b085d63f29662c8fe7884b589d40d41001a9382dec413f50`).
+  Wheel metadata reports 2.2.0 and Python >=3.11; it contains 23 Python
+  modules and 64 schemas. The source archive contains 49 test files. A fresh
+  Python 3.14 wheel install passed 88 focused synthetic tests across all six
+  capabilities. No release-specific external gate was required.
+- [x] Annotated tag [`2.2.0`](https://github.com/raghavkandpal/parison/releases/tag/2.2.0)
+  peels to that tested merge. The public GitHub release contains the wheel,
+  source archive and `SHA256SUMS`; PyPI was not requested.
+- [x] All three public assets were re-downloaded. Both archives matched the
+  published checksum file. A fresh Python 3.14 install of the public wheel
+  imported from site-packages and passed the same 88 focused synthetic tests.
+- [x] Reconcile this checklist, changelog, documentation index, user guide,
+  README and current state in a post-release records pull request to `develop`.
+
+Internal qualification and public release do not establish extraction truth,
+policy approval, signer identity, migration approval or cutover authorization.

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/dossier-summary-v1.schema.json",
+  "title": "dossier-summary-v1",
+  "type": "object",
+  "required": [
+    "dossier_summary_version",
+    "kind",
+    "outcome",
+    "coverage",
+    "coordination",
+    "complete",
+    "exception_count",
+    "open_exception_count",
+    "signoff_count",
+    "authorization",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "dossier_summary_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "decision-dossier"
+    },
+    "outcome": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCONCLUSIVE"
+      ]
+    },
+    "coverage": {
+      "enum": [
+        "PASS",
+        "INCONCLUSIVE"
+      ]
+    },
+    "coordination": {
+      "enum": [
+        "source-owned",
+        "unestablished"
+      ]
+    },
+    "complete": {
+      "const": true
+    },
+    "exception_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "open_exception_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "signoff_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "authorization": {
+      "const": "external-required"
+    },
+    "receipt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

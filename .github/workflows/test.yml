@@ -83,6 +83,15 @@ jobs:
       - run: parison schema preflight-v24
       - run: parison schema result-v2
       - run: parison schema result-v3
+      - run: parison schema partition-plan
+      - run: parison schema partition-receipt
+      - run: parison schema partition-summary
+      - run: parison schema partition-manifest
+      - run: parison schema investigation-plan
+      - run: parison schema investigation-receipt
+      - run: parison schema investigation-cases
+      - run: parison schema investigation-summary
+      - run: parison schema investigation-manifest
       - run: parison schema suite
       - run: parison schema suite-authoring
       - run: parison schema suite-v2
@@ -201,6 +210,24 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - run: python -m unittest discover -s tests -v
+      - run: parison verify-postgres-export tests/fixtures/postgres_ingress
+      - run: parison verify-postgres-pair tests/fixtures/postgres_pair
+      - run: python -m pip install 'psycopg[binary]==3.3.6'
+      - run: parison-postgres --help
+      - run: parison-postgres-pair --help
+      - run: parison-partitions --help
+      - run: parison postgres --help
+      - run: parison postgres table --help
+      - run: parison postgres pair --help
+      - run: parison partitions --help
+      - run: parison rehearsal --help
+      - run: parison dossier --help
+      - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv --output ${{ runner.temp }}/parison-partition-smoke
+      - run: parison-partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
+      - run: parison partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
+      - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv --output ${{ runner.temp }}/parison-investigation-discovery
+      - run: parison-partitions investigate --plan tests/fixtures/partition_investigation/plan.json --discovery ${{ runner.temp }}/parison-investigation-discovery --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv --output ${{ runner.temp }}/parison-investigation-smoke
+      - run: parison-partitions verify-investigation ${{ runner.temp }}/parison-investigation-smoke --discovery ${{ runner.temp }}/parison-investigation-discovery --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv
       - name: Check in-memory benchmark accuracy
         if: matrix.python-version == '3.14'
         run: |
@@ -238,6 +265,33 @@ jobs:
       - run: python -m pip install 'polars==1.44.2' 'openpyxl==3.1.5' 'jsonschema>=4,<5'
       - name: Install built wheel
         run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', *glob.glob('dist/parison-*.whl')])"
+      - run: parison verify-postgres-export tests/fixtures/postgres_ingress
+      - run: parison verify-postgres-pair tests/fixtures/postgres_pair
+      - run: python -m pip install 'psycopg[binary]==3.3.6'
+      - run: parison-postgres --help
+      - run: parison-postgres-pair --help
+      - run: parison-partitions --help
+      - run: parison postgres --help
+      - run: parison postgres table --help
+      - run: parison postgres pair --help
+      - run: parison partitions --help
+      - run: parison rehearsal --help
+      - run: parison dossier --help
+      - run: parison schema partition-plan
+      - run: parison schema partition-receipt
+      - run: parison schema partition-summary
+      - run: parison schema partition-manifest
+      - run: parison schema investigation-plan
+      - run: parison schema investigation-receipt
+      - run: parison schema investigation-cases
+      - run: parison schema investigation-summary
+      - run: parison schema investigation-manifest
+      - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv --output ${{ runner.temp }}/parison-partition-smoke
+      - run: parison-partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
+      - run: parison partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
+      - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv --output ${{ runner.temp }}/parison-investigation-discovery
+      - run: parison-partitions investigate --plan tests/fixtures/partition_investigation/plan.json --discovery ${{ runner.temp }}/parison-investigation-discovery --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv --output ${{ runner.temp }}/parison-investigation-smoke
+      - run: parison-partitions verify-investigation ${{ runner.temp }}/parison-investigation-smoke --discovery ${{ runner.temp }}/parison-investigation-discovery --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv
       - run: parison --version
       - run: python tests/test_xlsx.py -v
       - run: parison schema recipe-v3

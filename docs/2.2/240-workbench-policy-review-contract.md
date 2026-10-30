@@ -1,7 +1,7 @@
 # Workbench policy-change review contract
 
 Date: 26 October 2026
-Status: frozen before implementation
+Status: released in 2.2.0
 
 Feature 4 of the accepted six-feature train deepens Compare with a read-only
 recipe-pair review. The operator explicitly selects two workspace-relative

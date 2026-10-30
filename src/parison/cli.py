@@ -87,6 +87,8 @@ from .reconciliation import (
     summarize_reconciliation_result,
     verify_reconciliation_bundle,
 )
+from .source_pair import verify_postgres_pair
+from .source_receipt import verify_postgres_export
 from .suite_series import analyze_suite_series
 from .suites import compare_suites
 from .workbench_host import serve_workbench
@@ -162,6 +164,11 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="parison", description="Compare data-pipeline outputs deterministically")
     root.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = root.add_subparsers(dest="command", required=True)
+    dossier = commands.add_parser("dossier", help="create or verify a portable decision dossier")
+    dossier.add_argument("dossier_args", nargs=argparse.REMAINDER)
+    commands.add_parser("postgres", help="acquire one or two PostgreSQL tables")
+    commands.add_parser("partitions", help="discover or investigate exact partitions")
+    commands.add_parser("rehearsal", help="run or verify a PostgreSQL migration rehearsal")
     init = commands.add_parser("init", help="create a minimal keyed migration project")
     init.add_argument("directory")
     validate = commands.add_parser("validate-recipe", help="validate a JSON recipe")
@@ -320,6 +327,12 @@ def parser() -> argparse.ArgumentParser:
     )
     diff_diagnostic.add_argument("left")
     diff_diagnostic.add_argument("right")
+    postgres_verify = commands.add_parser("verify-postgres-export", help="verify a local PostgreSQL source export")
+    postgres_verify.add_argument("bundle")
+    postgres_pair_verify = commands.add_parser(
+        "verify-postgres-pair", help="verify a coordinated two-table PostgreSQL export"
+    )
+    postgres_pair_verify.add_argument("bundle")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
     schema.add_argument(
         "name",
@@ -388,6 +401,32 @@ def parser() -> argparse.ArgumentParser:
             "discrepancy-analysis",
             "suite-series",
             "discrepancy-drilldown",
+            "postgres-export-plan",
+            "postgres-source-receipt",
+            "postgres-source-summary",
+            "postgres-source-manifest",
+            "postgres-pair-plan",
+            "postgres-pair-receipt",
+            "postgres-pair-summary",
+            "postgres-pair-manifest",
+            "postgres-rehearsal-plan",
+            "postgres-rehearsal-relationships",
+            "postgres-rehearsal-receipt",
+            "postgres-rehearsal-summary",
+            "postgres-rehearsal-manifest",
+            "dossier-plan",
+            "dossier-receipt",
+            "dossier-summary",
+            "dossier-manifest",
+            "partition-plan",
+            "partition-receipt",
+            "partition-summary",
+            "partition-manifest",
+            "investigation-plan",
+            "investigation-receipt",
+            "investigation-cases",
+            "investigation-summary",
+            "investigation-manifest",
         ),
     )
     schema_export = commands.add_parser("export-editor-schemas", help="export offline recipe and suite editor schemas")
@@ -614,7 +653,46 @@ operator and null policy. Suggestions are starting points, not approved policy."
     return root
 
 
+class _TaskParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        self.exit(2, f"{self.prog}: invalid arguments\n")
+
+
+def postgres_parser() -> argparse.ArgumentParser:
+    root = _TaskParser(prog="parison postgres", description="Acquire local PostgreSQL evidence")
+    commands = root.add_subparsers(dest="command", required=True, parser_class=_TaskParser)
+    commands.add_parser("table", help="export one reviewed table")
+    commands.add_parser("pair", help="export two tables from one source snapshot")
+    return root
+
+
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "dossier":
+        from .decision_dossier import main as dossier_main
+
+        return dossier_main(argv[1:])
+    if argv and argv[0] == "postgres":
+        if len(argv) > 1 and argv[1] in ("table", "pair"):
+            if argv[1] == "table":
+                from .postgres_ingress import main as postgres_main
+            else:
+                from .postgres_pair import main as postgres_main
+
+            return postgres_main(argv[2:], prog=f"parison postgres {argv[1]}", parser_class=_TaskParser)
+        try:
+            postgres_parser().parse_args(argv[1:])
+        except SystemExit as exc:
+            return int(exc.code)
+        return 2
+    if argv and argv[0] == "partitions":
+        from .partition_discovery import main as partitions_main
+
+        return partitions_main(argv[1:], prog="parison partitions", parser_class=_TaskParser)
+    if argv and argv[0] == "rehearsal":
+        from .postgres_rehearsal import main as rehearsal_main
+
+        return rehearsal_main(argv[1:], prog="parison rehearsal")
     args = parser().parse_args(argv)
     recipe = None
     try:
@@ -991,6 +1069,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "diff-reproducibility":
             print(json.dumps(diff_reproducibility_diagnostics(args.left, args.right), indent=2, sort_keys=True))
             print("Runtime differences are informational and do not change verification outcomes.", file=sys.stderr)
+            return 0
+        if args.command == "verify-postgres-export":
+            print(json.dumps(verify_postgres_export(args.bundle), sort_keys=True))
+            return 0
+        if args.command == "verify-postgres-pair":
+            print(json.dumps(verify_postgres_pair(args.bundle), sort_keys=True))
             return 0
         if args.command == "schema":
             print(json.dumps(load_schema(args.name), indent=2, sort_keys=True))

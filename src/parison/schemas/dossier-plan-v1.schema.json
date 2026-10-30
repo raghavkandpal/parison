@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/dossier-plan-v1.schema.json",
+  "title": "dossier-plan-v1",
+  "type": "object",
+  "required": [
+    "dossier_plan_version",
+    "rehearsal_manifest_sha256",
+    "investigations",
+    "exceptions",
+    "signoffs"
+  ],
+  "properties": {
+    "dossier_plan_version": {
+      "const": 1
+    },
+    "rehearsal_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "investigations": {
+      "type": "object",
+      "required": [
+        "orders",
+        "order_lines"
+      ],
+      "properties": {
+        "orders": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "order_lines": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "exceptions": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "reference_sha256",
+          "disposition"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+          },
+          "reference_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "disposition": {
+            "enum": [
+              "open",
+              "accepted",
+              "rejected"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "signoffs": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "reference_sha256"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+          },
+          "reference_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

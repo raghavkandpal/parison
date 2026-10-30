@@ -1,0 +1,142 @@
+{
+  "machine": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "python": "3.14.7 (main, Aug  5 2026, 10:29:49) [Clang 21.0.0 (clang-2100.1.1.101)]",
+  "rows_per_side": 250000,
+  "runs": [
+    {
+      "elapsed_seconds": 42.01531629200326,
+      "label": "cold-0",
+      "retained_bytes": 14059135,
+      "rows_per_side": 250000,
+      "source_load": [
+        {
+          "bytes": 7016731,
+          "elapsed_ms": 356,
+          "rows": 250000,
+          "server_version_num": 160015,
+          "side": "baseline",
+          "table_copy_scans": 2,
+          "table_count_scans": 2
+        },
+        {
+          "bytes": 7016731,
+          "elapsed_ms": 362,
+          "rows": 250000,
+          "server_version_num": 180006,
+          "side": "candidate",
+          "table_copy_scans": 2,
+          "table_count_scans": 2
+        }
+      ],
+      "summary": {
+        "complete": true,
+        "conservation": "PASS",
+        "coordination": "source-owned",
+        "coverage": "PASS",
+        "outcome": "PASS",
+        "parity": {
+          "order_lines": "PASS",
+          "orders": "PASS"
+        },
+        "postgres_rehearsal_summary_version": 1,
+        "receipt_sha256": "56178bd25e8c3be187bc97afd5a54284445698951aa7258eb03a03537e55ff1a",
+        "relationships": "PASS"
+      },
+      "worker_peak_rss_bytes": 94994432,
+      "sampled_peak_output_bytes": 50534237,
+      "sampled_peak_temporary_bytes": 36488751,
+      "disk_sampling_interval_ms": 10
+    },
+    {
+      "elapsed_seconds": 41.06753616700007,
+      "label": "cold-1",
+      "retained_bytes": 14059135,
+      "rows_per_side": 250000,
+      "source_load": [
+        {
+          "bytes": 7016731,
+          "elapsed_ms": 358,
+          "rows": 250000,
+          "server_version_num": 160015,
+          "side": "baseline",
+          "table_copy_scans": 2,
+          "table_count_scans": 2
+        },
+        {
+          "bytes": 7016731,
+          "elapsed_ms": 359,
+          "rows": 250000,
+          "server_version_num": 180006,
+          "side": "candidate",
+          "table_copy_scans": 2,
+          "table_count_scans": 2
+        }
+      ],
+      "summary": {
+        "complete": true,
+        "conservation": "PASS",
+        "coordination": "source-owned",
+        "coverage": "PASS",
+        "outcome": "PASS",
+        "parity": {
+          "order_lines": "PASS",
+          "orders": "PASS"
+        },
+        "postgres_rehearsal_summary_version": 1,
+        "receipt_sha256": "a5df6661d3a1544a775e298a3172cb64d595f6ee2de5d04e730217ed0ee9a4f9",
+        "relationships": "PASS"
+      },
+      "worker_peak_rss_bytes": 95846400,
+      "sampled_peak_output_bytes": 50534237,
+      "sampled_peak_temporary_bytes": 36488751,
+      "disk_sampling_interval_ms": 10
+    },
+    {
+      "elapsed_seconds": 40.22284258300351,
+      "label": "cold-2",
+      "retained_bytes": 14059135,
+      "rows_per_side": 250000,
+      "source_load": [
+        {
+          "bytes": 7016731,
+          "elapsed_ms": 355,
+          "rows": 250000,
+          "server_version_num": 160015,
+          "side": "baseline",
+          "table_copy_scans": 2,
+          "table_count_scans": 2
+        },
+        {
+          "bytes": 7016731,
+          "elapsed_ms": 355,
+          "rows": 250000,
+          "server_version_num": 180006,
+          "side": "candidate",
+          "table_copy_scans": 2,
+          "table_count_scans": 2
+        }
+      ],
+      "summary": {
+        "complete": true,
+        "conservation": "PASS",
+        "coordination": "source-owned",
+        "coverage": "PASS",
+        "outcome": "PASS",
+        "parity": {
+          "order_lines": "PASS",
+          "orders": "PASS"
+        },
+        "postgres_rehearsal_summary_version": 1,
+        "receipt_sha256": "9f4e6beecbd33baf7716d82befa9ea653ff4b488f6c90b6abf94aa5d36ca1b35",
+        "relationships": "PASS"
+      },
+      "worker_peak_rss_bytes": 93782016,
+      "sampled_peak_output_bytes": 50534237,
+      "sampled_peak_temporary_bytes": 36488751,
+      "disk_sampling_interval_ms": 10
+    }
+  ],
+  "adversarial": [],
+  "offline_after_shutdown": true,
+  "dump_client": "pg_dump (PostgreSQL) 18.6 (Homebrew)"
+}
