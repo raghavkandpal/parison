@@ -321,11 +321,22 @@ def export_postgres(plan_path: str | Path, output: str | Path) -> dict[str, Any]
             shutil.rmtree(stage, ignore_errors=True)
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="parison-postgres", description="Optional local PostgreSQL evidence reader")
+def parser(
+    prog: str = "parison-postgres", parser_class: type[argparse.ArgumentParser] = argparse.ArgumentParser
+) -> argparse.ArgumentParser:
+    parser = parser_class(prog=prog, description="Optional local PostgreSQL evidence reader")
     parser.add_argument("--plan", required=True)
     parser.add_argument("--output", required=True)
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(
+    argv: list[str] | None = None,
+    *,
+    prog: str = "parison-postgres",
+    parser_class: type[argparse.ArgumentParser] = argparse.ArgumentParser,
+) -> int:
+    args = parser(prog, parser_class).parse_args(argv)
     try:
         summary = export_postgres(args.plan, args.output)
     except ParisonError as exc:

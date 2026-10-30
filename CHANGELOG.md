@@ -4,6 +4,7 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Add task-oriented `parison postgres`, `parison partitions` and `parison rehearsal` paths while preserving the four shipped standalone commands and their JSON/exit-code behavior.
 - Add a private portable decision dossier with source-backed offline replay, optional exact investigations, summary-safe Workbench Results and opaque human reference counts.
 - Add an offline PostgreSQL 16→18 order/line rehearsal binding reviewed acquisition pairs, exact partition parity and per-order reconciliation, with explicit upstream coordination and source-backed replay verification.
 

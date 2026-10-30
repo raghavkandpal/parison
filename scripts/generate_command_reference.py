@@ -4,7 +4,12 @@ import argparse
 import sys
 from pathlib import Path
 
-from parison.cli import parser
+from parison.cli import parser, postgres_parser
+from parison.decision_dossier import parser as dossier_parser
+from parison.partition_discovery import parser as partitions_parser
+from parison.postgres_ingress import parser as postgres_table_parser
+from parison.postgres_pair import parser as postgres_pair_parser
+from parison.postgres_rehearsal import parser as rehearsal_parser
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "docs" / "command-reference.md"
@@ -20,6 +25,15 @@ def _walk(current: argparse.ArgumentParser):
     for action in current._actions:
         if isinstance(action, argparse._SubParsersAction):
             for child in action.choices.values():
+                if child.prog in {
+                    "parison dossier",
+                    "parison postgres",
+                    "parison postgres table",
+                    "parison postgres pair",
+                    "parison partitions",
+                    "parison rehearsal",
+                }:
+                    continue
                 yield from _walk(child)
 
 
@@ -32,7 +46,15 @@ def render() -> str:
     ]
     root = parser()
     root.prog = "parison"
-    for command in _walk(root):
+    task_parsers = (
+        dossier_parser(),
+        postgres_parser(),
+        postgres_table_parser("parison postgres table"),
+        postgres_pair_parser("parison postgres pair"),
+        partitions_parser("parison partitions"),
+        rehearsal_parser("parison rehearsal"),
+    )
+    for command in (*_walk(root), *(child for task in task_parsers for child in _walk(task))):
         _, _, stable_help = command.format_help().partition("\n\n")
         sections.extend(("", f"## `{command.prog}`", "", "```text", stable_help.rstrip(), "```"))
     return "\n".join(sections) + "\n"

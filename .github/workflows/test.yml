@@ -216,8 +216,15 @@ jobs:
       - run: parison-postgres --help
       - run: parison-postgres-pair --help
       - run: parison-partitions --help
+      - run: parison postgres --help
+      - run: parison postgres table --help
+      - run: parison postgres pair --help
+      - run: parison partitions --help
+      - run: parison rehearsal --help
+      - run: parison dossier --help
       - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv --output ${{ runner.temp }}/parison-partition-smoke
       - run: parison-partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
+      - run: parison partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
       - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv --output ${{ runner.temp }}/parison-investigation-discovery
       - run: parison-partitions investigate --plan tests/fixtures/partition_investigation/plan.json --discovery ${{ runner.temp }}/parison-investigation-discovery --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv --output ${{ runner.temp }}/parison-investigation-smoke
       - run: parison-partitions verify-investigation ${{ runner.temp }}/parison-investigation-smoke --discovery ${{ runner.temp }}/parison-investigation-discovery --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv
@@ -264,6 +271,12 @@ jobs:
       - run: parison-postgres --help
       - run: parison-postgres-pair --help
       - run: parison-partitions --help
+      - run: parison postgres --help
+      - run: parison postgres table --help
+      - run: parison postgres pair --help
+      - run: parison partitions --help
+      - run: parison rehearsal --help
+      - run: parison dossier --help
       - run: parison schema partition-plan
       - run: parison schema partition-receipt
       - run: parison schema partition-summary
@@ -275,6 +288,7 @@ jobs:
       - run: parison schema investigation-manifest
       - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv --output ${{ runner.temp }}/parison-partition-smoke
       - run: parison-partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
+      - run: parison partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
       - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv --output ${{ runner.temp }}/parison-investigation-discovery
       - run: parison-partitions investigate --plan tests/fixtures/partition_investigation/plan.json --discovery ${{ runner.temp }}/parison-investigation-discovery --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv --output ${{ runner.temp }}/parison-investigation-smoke
       - run: parison-partitions verify-investigation ${{ runner.temp }}/parison-investigation-smoke --discovery ${{ runner.temp }}/parison-investigation-discovery --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv
