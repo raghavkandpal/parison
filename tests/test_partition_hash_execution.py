@@ -586,3 +586,44 @@ class HashExecution(unittest.TestCase):
                 self.fail("substituted replay root admitted")
         self.assertEqual({p.name for p in replacement.iterdir()}, {"owner"})
         self.assertFalse(list((self.root / "replay-moved").rglob("snapshot-*.csv")))
+
+    def test_windows_guard_requests_directory_data_access_for_delete_sharing(self):
+        from contextlib import ExitStack
+        from unittest.mock import Mock
+
+        kernel = Mock()
+        kernel.CreateFileW.return_value = 123
+        with patch.object(discovery.ctypes, "WinDLL", return_value=kernel, create=True):
+            with ExitStack() as stack:
+                discovery._windows_directory_pin(stack, self.root)
+                self.assertEqual(kernel.CreateFileW.call_args.args[1] & 1, 1)
+                kernel.CloseHandle.assert_not_called()
+            kernel.CloseHandle.assert_called_once_with(123)
+
+    def test_path_and_handle_ctime_representations_may_differ_without_weakening_binding(self):
+        original = discovery.os.stat
+        source_names = {
+            "recipe.json",
+            "baseline.csv",
+            "candidate.csv",
+            "plan.json",
+            "receipt.json",
+            "summary.json",
+            "manifest.json",
+        }
+
+        class PathTime:
+            def __init__(self, info):
+                self.info = info
+                self.st_ctime_ns = info.st_ctime_ns + 1000000000
+
+            def __getattr__(self, name):
+                return getattr(self.info, name)
+
+        def path_stat(path, *args, **kwargs):
+            info = original(path, *args, **kwargs)
+            return PathTime(info) if Path(path).name in source_names else info
+
+        with patch.object(discovery.os, "stat", side_effect=path_stat):
+            self.assertEqual(self.run_discovery()["outcome"], "FAIL")
+            self.assertEqual(self.replay()["verification"], "exact-source-backed")

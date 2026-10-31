@@ -90,3 +90,29 @@ and3.14.7. Three native Windows tests are skipped on this macOS host and must
 run in the exact-head manual Windows matrix. Eight CI contract tests confirm
 one shared built wheel, targeted hash coverage and no full-suite discovery in
 platform smoke. Corrected-head independent review and CI remain pending.
+
+## Native Windows qualification correction
+
+Exact head886c709 passed Linux/macOS and quality, but failed the new native
+Windows tests on all four Python versions; it is not qualified. The native
+rename assertion exposed an attributes-only CreateFile handle that does not
+establish the intended sharing protection. Request LIST_DIRECTORY together with
+READ_ATTRIBUTES so delete sharing applies. Microsoft's
+[share-access rules](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-iochecklinkshareaccess)
+and [access-right constants](https://learn.microsoft.com/en-us/windows/win32/fileio/file-access-rights-constants)
+(accessed31October2026) distinguish data access from metadata access.
+
+Windows3.12–3.14 also exposed comparing pathname creation-time values against
+handle change-time values. CPython's [reported stat/fstat inconsistency](https://github.com/python/cpython/issues/157671)
+documents the mismatch. Named-file identity rechecks now reopen a bounded regular
+file handle and compare the same handle metadata representation, retaining full
+change-time checks and original pinned handles. No released source-collection
+helper or serialized bytes change. Local regression probes first reproduced both
+failures and then passed after the independent corrections; fresh native CI and
+review remain required before integration.
+
+Post-native-correction local gate:683 tests pass under `make check`;43 hash tests
+pass on all four local Python versions, with the same three native Windows
+skips on macOS. The two minimal regression probes pass; no temporary production
+debug instrumentation was added. Exact corrected-head review and fresh native
+full-matrix CI remain required. No release or completed feature3 is claimed.

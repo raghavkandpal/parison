@@ -380,6 +380,17 @@ def _compare_ranges(
     return totals, field_counts, differences, outcome, complete
 
 
+def _named_file_stamp(path):
+    """Compare handle metadata with handle metadata, including Windows change time."""
+    if path.is_symlink():
+        raise ParisonError(_HASH_ERROR)
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+    with os.fdopen(descriptor, "rb") as handle:
+        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            raise ParisonError(_HASH_ERROR)
+        return _stamp(handle)
+
+
 def _pinned_hash_input(stack, path, limit):
     path = Path(path)
     check_output_parent(path.parent)
@@ -394,7 +405,7 @@ def _pinned_hash_input(stack, path, limit):
 
     def unchanged():
         check_output_parent(path.parent)
-        if path.is_symlink() or _stat_stamp(path.stat()) != before or _stamp(handle) != before:
+        if _named_file_stamp(path) != before or _stamp(handle) != before:
             raise ParisonError(_HASH_ERROR)
 
     unchanged()
@@ -932,9 +943,9 @@ def _windows_directory_pin(stack, path):
     create.restype = ctypes.c_void_p
     close = kernel.CloseHandle
     close.argtypes, close.restype = [ctypes.c_void_p], ctypes.c_int
-    # READ_ATTRIBUTES, SHARE_READ|SHARE_WRITE (no DELETE), OPEN_EXISTING,
+    # LIST_DIRECTORY|READ_ATTRIBUTES, SHARE_READ|SHARE_WRITE (no DELETE), OPEN_EXISTING,
     # BACKUP_SEMANTICS|OPEN_REPARSE_POINT: pin the directory itself, never its target.
-    handle = create(str(path.absolute()), 0x80, 0x3, None, 3, 0x02200000, None)
+    handle = create(str(path.absolute()), 0x81, 0x3, None, 3, 0x02200000, None)
     if handle == ctypes.c_void_p(-1).value:
         raise ctypes.WinError(ctypes.get_last_error())
     stack.callback(close, handle)
@@ -1195,9 +1206,7 @@ def _verified_hash_evidence(root, recipe, baseline, candidate):
                 or (fd is not None and (root.is_symlink() or _stat_stamp(root.stat()) != directory_stamp))
             ):
                 raise ParisonError(_HASH_ERROR)
-            if fd is None and any(
-                (root / name).is_symlink() or _stat_stamp((root / name).stat()) != stamps[name] for name in names
-            ):
+            if fd is None and any(_named_file_stamp(root / name) != stamps[name] for name in names):
                 raise ParisonError(_HASH_ERROR)
             return plan, receipt, summary, hashlib.sha256(data["manifest.json"]).hexdigest()
     except KeyboardInterrupt:
