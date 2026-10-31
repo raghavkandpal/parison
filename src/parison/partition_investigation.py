@@ -133,6 +133,8 @@ def _compute(
     discovery_plan, discovery_receipt, _, discovery_sha = _verified_evidence(
         discovery, recipe_path, baseline, candidate
     )
+    if discovery_plan["partition_plan_version"] != 1:
+        raise ParisonError("investigation-v1 requires range-v1 discovery")
     if plan["discovery_manifest_sha256"] != discovery_sha or not discovery_receipt["complete"]:
         raise ParisonError("investigation requires complete source-backed discovery")
     selected = set(plan["partition_indices"])
@@ -326,7 +328,9 @@ def verify_investigation(
 ) -> dict[str, Any]:
     values = _read_artifact(directory)
     plan = validate_plan(values["plan.json"])
-    _, discovery_receipt, _, discovery_sha = _verified_evidence(discovery)
+    discovery_plan, discovery_receipt, _, discovery_sha = _verified_evidence(discovery)
+    if discovery_plan["partition_plan_version"] != 1:
+        raise ParisonError("investigation-v1 requires range-v1 discovery")
     receipt = values["receipt.json"]
     cases = values["cases.json"]
     summary = values["summary.json"]

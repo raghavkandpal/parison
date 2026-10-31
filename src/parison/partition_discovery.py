@@ -1,4 +1,4 @@
-"""Exact local keyed comparison over operator-reviewed integer ranges."""
+"""Versioned local exact partition discovery and integrity verification."""
 
 from __future__ import annotations
 
@@ -9,10 +9,12 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import stat
 import sys
 import tempfile
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +23,8 @@ from .analysis import _canonical, _strict_object
 from .comparison import compare
 from .core import ParisonError, _checked_policy_sha256, _parse_row, load_recipe
 from .inputs import _iter_input_rows
+from .source_collection import _directory, _members, _stamp, _stat_stamp
+from .source_receipt import _read_json as _canonical_json
 
 _LIMIT_CAPS = {
     "max_input_bytes": 1_000_000_000,
@@ -54,7 +58,7 @@ def _bounded_bytes(path: Path, limit: int) -> bytes:
     if path.is_symlink() or not path.is_file():
         raise ParisonError("partition evidence file is missing, unsafe or too large")
     try:
-        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
         with os.fdopen(descriptor, "rb") as handle:
             if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
                 raise ParisonError("partition evidence file is not regular")
@@ -81,7 +85,61 @@ def _read_json(path: Path, *, limit: int = 256 * 1024) -> Any:
     return _parse_json(_bounded_bytes(path, limit))
 
 
+_HASH_ERROR = "invalid or incomplete hash partition evidence"
+
+
+class _HashInterrupted(KeyboardInterrupt):
+    pass
+
+
+def _hash_context(value):
+    if (
+        not isinstance(value, dict)
+        or set(value) != {"implementation", "python_version", "unicode_version"}
+        or value["implementation"] != "CPython"
+    ):
+        raise ParisonError(_HASH_ERROR)
+    for name, pattern in (
+        ("python_version", r"[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,3}"),
+        ("unicode_version", r"[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}"),
+    ):
+        if not isinstance(value[name], str) or re.fullmatch(pattern, value[name]) is None:
+            raise ParisonError(_HASH_ERROR)
+
+
+def _hash_plan(value):
+    if (
+        not isinstance(value, dict)
+        or set(value) != {"partition_plan_version", "routing", "limits"}
+        or type(value["partition_plan_version"]) is not int
+        or value["partition_plan_version"] != 2
+    ):
+        raise ParisonError(_HASH_ERROR)
+    routing = value["routing"]
+    if (
+        not isinstance(routing, dict)
+        or set(routing) != {"kind", "hash", "encoding", "buckets"}
+        or routing["kind"] != "hash-v1"
+        or routing["hash"] != "sha256"
+        or routing["encoding"] != "typed-key-v1"
+        or type(routing["buckets"]) is not int
+        or not 2 <= routing["buckets"] <= 128
+    ):
+        raise ParisonError(_HASH_ERROR)
+    limits = value["limits"]
+    caps = {**_LIMIT_CAPS, "max_key_bytes": 65536}
+    if (
+        not isinstance(limits, dict)
+        or set(limits) != set(caps)
+        or any(type(limits[name]) is not int or not 0 < limits[name] <= cap for name, cap in caps.items())
+    ):
+        raise ParisonError(_HASH_ERROR)
+    return value
+
+
 def validate_plan(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict) and value.get("partition_plan_version") == 2:
+        return _hash_plan(value)
     if not isinstance(value, dict) or set(value) != {"partition_plan_version", "ranges", "limits"}:
         raise ParisonError("invalid partition plan fields")
     if type(value["partition_plan_version"]) is not int or value["partition_plan_version"] != 1:
@@ -303,7 +361,7 @@ def _run(
 
 
 def _summary(receipt: dict[str, Any]) -> dict[str, Any]:
-    return {
+    result = {
         name: receipt[name]
         for name in (
             "partition_receipt_version",
@@ -318,6 +376,10 @@ def _summary(receipt: dict[str, Any]) -> dict[str, Any]:
             "complete",
         )
     }
+
+    if receipt["partition_receipt_version"] == 2:
+        result.update(routing=receipt["routing"], normalization_runtime=receipt["normalization_runtime"])
+    return result
 
 
 def _digest_text(value: Any) -> bool:
@@ -359,6 +421,9 @@ def _consistent_counts(counts: dict[str, int], fields: dict[str, dict[str, int]]
 
 
 def _validate_receipt(plan: dict[str, Any], receipt: Any) -> None:
+    version = plan["partition_plan_version"]
+    is_hash = version == 2
+    extras = {"routing", "normalization_runtime", "derived_recipe_bytes"} if is_hash else set()
     if (
         not isinstance(receipt, dict)
         or set(receipt)
@@ -376,8 +441,9 @@ def _validate_receipt(plan: dict[str, Any], receipt: Any) -> None:
             "outcome",
             "complete",
         }
+        | extras
         or type(receipt["partition_receipt_version"]) is not int
-        or receipt["partition_receipt_version"] != 1
+        or receipt["partition_receipt_version"] != version
         or not _digest_text(receipt["policy_sha256"])
         or receipt["plan_sha256"] != hashlib.sha256(_canonical(plan)).hexdigest()
         or not _counts(receipt["counts"])
@@ -390,6 +456,16 @@ def _validate_receipt(plan: dict[str, Any], receipt: Any) -> None:
         or receipt["outcome"] not in {"PASS", "FAIL", "INCONCLUSIVE"}
     ):
         raise ParisonError("invalid partition receipt")
+    if is_hash:
+        _hash_plan({"partition_plan_version": 2, "routing": receipt["routing"], "limits": plan["limits"]})
+        _hash_context(receipt["normalization_runtime"])
+        if (
+            receipt["routing"] != plan["routing"]
+            or type(receipt["derived_recipe_bytes"]) is not int
+            or not 1 <= receipt["derived_recipe_bytes"] <= 262144
+            or len(receipt["field_counts"]) > 100
+        ):
+            raise ParisonError(_HASH_ERROR)
     if (
         not isinstance(receipt["inputs"], dict)
         or set(receipt["inputs"]) != {"baseline", "candidate"}
@@ -410,18 +486,21 @@ def _validate_receipt(plan: dict[str, Any], receipt: Any) -> None:
         ):
             raise ParisonError("invalid partition source identity")
     partitions = receipt["partitions"]
-    if not isinstance(partitions, list) or len(partitions) != len(plan["ranges"]):
+    count = plan["routing"]["buckets"] if is_hash else len(plan["ranges"])
+    if not isinstance(partitions, list) or len(partitions) != count:
         raise ParisonError("partition record count mismatch")
     totals = {name: 0 for name in _COUNT_NAMES}
     field_totals = {name: {classification: 0 for classification in _CLASS_NAMES} for name in receipt["field_counts"]}
-    staged = 0
+    staged = sum(v["bytes"] for v in receipt["inputs"].values()) + receipt["derived_recipe_bytes"] if is_hash else 0
     incomplete = False
     for index, record in enumerate(partitions):
+        label = "bucket" if is_hash else "upper"
+        expected_label = index if is_hash else plan["ranges"][index]["upper"]
         if (
             not isinstance(record, dict)
             or set(record)
             != {
-                "upper",
+                label,
                 "baseline",
                 "candidate",
                 "counts",
@@ -429,8 +508,8 @@ def _validate_receipt(plan: dict[str, Any], receipt: Any) -> None:
                 "outcome",
                 "complete",
             }
-            or type(record["upper"]) is not type(plan["ranges"][index]["upper"])
-            or record["upper"] != plan["ranges"][index]["upper"]
+            or type(record[label]) is not type(expected_label)
+            or record[label] != expected_label
             or not _counts(record["counts"])
             or not _field_counts(record["field_counts"])
             or set(record["field_counts"]) != set(field_totals)
@@ -485,6 +564,13 @@ def _validate_receipt(plan: dict[str, Any], receipt: Any) -> None:
         or (receipt["outcome"] == "INCONCLUSIVE") != (not receipt["complete"])
     ):
         raise ParisonError("partition receipt arithmetic mismatch")
+    if (
+        is_hash
+        and not incomplete
+        and all(totals[side] > 0 for side in ("baseline", "candidate"))
+        and not receipt["complete"]
+    ):
+        raise ParisonError(_HASH_ERROR)
     if not _consistent_counts(totals, field_totals, not incomplete):
         raise ParisonError("partition receipt arithmetic mismatch")
     differences = (
@@ -508,6 +594,8 @@ def discover(
     plan_path: str | Path, recipe_path: str | Path, baseline: str | Path, candidate: str | Path, output: str | Path
 ) -> dict[str, Any]:
     plan = validate_plan(_read_json(Path(plan_path)))
+    if plan["partition_plan_version"] == 2:
+        raise ParisonError(_HASH_ERROR)  # Producer follows the independently qualified reader.
     target = Path(output)
     check_output_parent(target.parent)
     if target.exists() or target.is_symlink():
@@ -533,6 +621,75 @@ def discover(
         raise
 
 
+def _verified_hash_evidence(root, recipe, baseline, candidate):
+    """Integrity-only v2 reader; source-backed execution is not enabled yet."""
+    try:
+        check_output_parent(root.parent)
+        names = {"plan.json", "receipt.json", "summary.json", "manifest.json"}
+        with ExitStack() as stack:
+            fd = _directory(stack, root)
+            if _members(root, fd) != names:
+                raise ParisonError(_HASH_ERROR)
+            directory_stamp = _stat_stamp(os.fstat(fd)) if fd is not None else None
+            handles = {}
+            for name in sorted(names):
+                if fd is not None:
+                    descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
+                    handle = stack.enter_context(os.fdopen(descriptor, "rb"))
+                else:
+                    path = root / name
+                    if path.is_symlink() or not path.is_file():
+                        raise ParisonError(_HASH_ERROR)
+                    handle = stack.enter_context(path.open("rb"))
+                info = os.fstat(handle.fileno())
+                if not stat.S_ISREG(info.st_mode) or info.st_size > (
+                    8 * 1024 * 1024 if name == "receipt.json" else 262144
+                ):
+                    raise ParisonError(_HASH_ERROR)
+                handles[name] = handle
+            stamps = {name: _stamp(handle) for name, handle in handles.items()}
+            values, data = {}, {}
+            for name, handle in handles.items():
+                values[name], data[name] = _canonical_json(
+                    handle, 8 * 1024 * 1024 if name == "receipt.json" else 262144
+                )
+            manifest = values["manifest.json"]
+            if (
+                set(manifest) != {"partition_manifest_version", "files"}
+                or type(manifest["partition_manifest_version"]) is not int
+                or manifest["partition_manifest_version"] != 2
+                or manifest["files"]
+                != {
+                    name: hashlib.sha256(data[name]).hexdigest()
+                    for name in ("plan.json", "receipt.json", "summary.json")
+                }
+            ):
+                raise ParisonError(_HASH_ERROR)
+            plan = _hash_plan(values["plan.json"])
+            receipt, summary = values["receipt.json"], values["summary.json"]
+            _validate_receipt(plan, receipt)
+            if data["summary.json"] != _canonical(_summary(receipt)) + b"\n":
+                raise ParisonError(_HASH_ERROR)
+            if (
+                any(_stamp(handle) != stamps[name] for name, handle in handles.items())
+                or _members(root, fd) != names
+                or (fd is None and root.is_symlink())
+                or (fd is not None and _stat_stamp(os.fstat(fd)) != directory_stamp)
+            ):
+                raise ParisonError(_HASH_ERROR)
+            if fd is None and any(
+                (root / name).is_symlink() or _stat_stamp((root / name).stat()) != stamps[name] for name in names
+            ):
+                raise ParisonError(_HASH_ERROR)
+            if any(value is not None for value in (recipe, baseline, candidate)):
+                raise ParisonError(_HASH_ERROR)  # Exact replay follows the hash producer.
+            return plan, receipt, summary, hashlib.sha256(data["manifest.json"]).hexdigest()
+    except KeyboardInterrupt:
+        raise _HashInterrupted from None
+    except (ParisonError, OSError, UnicodeError, ValueError, TypeError, KeyError, OverflowError, RecursionError):
+        raise ParisonError(_HASH_ERROR) from None
+
+
 def _verified_evidence(
     directory: str | Path,
     recipe: str | Path | None = None,
@@ -548,6 +705,13 @@ def _verified_evidence(
         raise ParisonError("invalid partition evidence directory")
     manifest_bytes = _bounded_bytes(root / "manifest.json", 256 * 1024)
     manifest = _parse_json(manifest_bytes)
+    # Version sniff only: v2 captures and validates its own pinned bytes afresh.
+    if (
+        isinstance(manifest, dict)
+        and type(manifest.get("partition_manifest_version")) is int
+        and manifest["partition_manifest_version"] == 2
+    ):
+        return _verified_hash_evidence(root, recipe, baseline, candidate)
     if (
         not isinstance(manifest, dict)
         or set(manifest) != {"partition_manifest_version", "files"}
@@ -655,6 +819,9 @@ def main(
         if args.command != "discover":
             return 0
         return 0 if result["outcome"] == "PASS" else 1 if result["outcome"] == "FAIL" else 2
+    except _HashInterrupted:
+        print("parison-partitions: hash evidence verification interrupted", file=sys.stderr)
+        return 130
     except (ParisonError, OSError, ValueError) as exc:
         print(f"parison-partitions: {exc}", file=sys.stderr)
         return 2

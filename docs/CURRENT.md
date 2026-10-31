@@ -1,8 +1,8 @@
 # Current development state
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
-- Branch: `feature/2.4-key-discovery-wire`, from develop `974a3d4`; feature 3 contract frozen through PR #129; features 1 and 2 integrated (2/10).
-- Next gate: independently review and qualify feature 3 structural schemas, canonical/negative fixtures and typed-key vectors in [checkpoint 292](2.4/292-key-discovery-wire-checkpoint.md), then implement sequential hash discovery under [contract 291](2.4/291-composite-key-discovery-contract.md). The contract is frozen and quality-qualified; no hash runtime exists. Preserve released range-v1/investigation-v1, canonical bytes, CLI aliases and local-first boundaries. All ten 2.4 features must integrate and qualify before a candidate.
+- Branch: `feature/2.4-hash-evidence-reader`, from develop `d68e1bb`; feature 3 contract and wire gate integrated through PRs #129/#130; features 1 and 2 remain integrated (2/10).
+- Next gate: independently review and qualify the bounded hash-v2 integrity reader in [checkpoint 293](2.4/293-hash-integrity-reader-checkpoint.md), then implement pinned source snapshots, sequential hash discovery and exact replay under [contract 291](2.4/291-composite-key-discovery-contract.md). The wire gate passed 646 tests, independent review and exact-head full CI. Hash creation/source-backed replay remain explicitly disabled; feature 3 is incomplete. Preserve released range-v1/investigation-v1, canonical bytes, CLI aliases and local-first boundaries. All ten 2.4 features must qualify before a candidate.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
