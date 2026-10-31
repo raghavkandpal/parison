@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-collection-plan-v2.schema.json",
+  "title": "postgres-collection-plan-v2",
+  "description": "Structural schema. Strict token types, UTF-8 byte caps, canonical bytes, normalization and cross-record bindings require contract284 runtime validation.",
+  "type": "object",
+  "required": [
+    "collection_plan_version",
+    "source_id",
+    "tables",
+    "limits"
+  ],
+  "properties": {
+    "collection_plan_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tables": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 16,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 32,
+        "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+        "not": {
+          "pattern": "[^a-z0-9_-]"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/selection"
+      }
+    },
+    "limits": {
+      "type": "object",
+      "required": [
+        "max_rows",
+        "max_output_bytes",
+        "statement_timeout_ms",
+        "wall_timeout_ms",
+        "max_representation_bytes"
+      ],
+      "properties": {
+        "max_rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300000
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1073741824
+        },
+        "statement_timeout_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300000
+        },
+        "wall_timeout_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "max_representation_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "selection": {
+      "type": "object",
+      "required": [
+        "schema",
+        "table",
+        "columns",
+        "primary_key"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "table": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63
+          }
+        },
+        "primary_key": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

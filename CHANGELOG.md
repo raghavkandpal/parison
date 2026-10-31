@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Add feature 2 structural representation schemas and frozen capture/assessment/proposal fixtures; runtime capture and assessment remain pending.
+
 - Add bounded one-snapshot PostgreSQL collection acquisition through `parison postgres collection`, retaining released table/pair commands and offline readers.
 
 - Add strict offline PostgreSQL collection verification and semantic validation with compact safe CLI output.

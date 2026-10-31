@@ -1,0 +1,1 @@
+[{"expected":"ACCEPT","findings":[]},{"expected":"ACCEPT","findings":["ACCEPT"]},{"expected":"INCONCLUSIVE","findings":["ACCEPT","INCONCLUSIVE"]},{"expected":"DENY","findings":["INCONCLUSIVE","DENY"]},{"expected":"DENY","findings":["DENY","ACCEPT"]}]

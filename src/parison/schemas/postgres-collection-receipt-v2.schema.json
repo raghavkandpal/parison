@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-collection-receipt-v2.schema.json",
+  "title": "postgres-collection-receipt-v2",
+  "description": "Structural schema. Strict token types, UTF-8 byte caps, canonical bytes, normalization and cross-record bindings require contract284 runtime validation.",
+  "type": "object",
+  "required": [
+    "postgres_collection_receipt_version",
+    "kind",
+    "collection_plan_sha256",
+    "capability_profile",
+    "source",
+    "transaction",
+    "table_manifests",
+    "limits",
+    "observed",
+    "representation_sha256"
+  ],
+  "properties": {
+    "postgres_collection_receipt_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "kind": {
+      "const": "postgresql-table-collection-export"
+    },
+    "collection_plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "source_id",
+        "database",
+        "role",
+        "server_version_num"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "database": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "server_version_num": {
+          "type": "integer",
+          "minimum": 160000,
+          "maximum": 999999
+        }
+      },
+      "additionalProperties": false
+    },
+    "transaction": {
+      "type": "object",
+      "required": [
+        "isolation",
+        "read_only",
+        "row_security",
+        "snapshot"
+      ],
+      "properties": {
+        "isolation": {
+          "const": "repeatable read"
+        },
+        "read_only": {
+          "const": true
+        },
+        "row_security": {
+          "const": "off"
+        },
+        "snapshot": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "table_manifests": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 16,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 32,
+        "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+        "not": {
+          "pattern": "[^a-z0-9_-]"
+        }
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 64,
+        "maxLength": 64,
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "limits": {
+      "type": "object",
+      "required": [
+        "max_rows",
+        "max_output_bytes",
+        "statement_timeout_ms",
+        "wall_timeout_ms",
+        "max_representation_bytes"
+      ],
+      "properties": {
+        "max_rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300000
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1073741824
+        },
+        "statement_timeout_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300000
+        },
+        "wall_timeout_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "max_representation_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        }
+      },
+      "additionalProperties": false
+    },
+    "observed": {
+      "type": "object",
+      "required": [
+        "rows",
+        "bytes",
+        "elapsed_ms",
+        "complete",
+        "representation_bytes"
+      ],
+      "properties": {
+        "rows": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300000
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1073741824
+        },
+        "elapsed_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600000
+        },
+        "complete": {
+          "const": true
+        },
+        "representation_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        }
+      },
+      "additionalProperties": false
+    },
+    "capability_profile": {
+      "type": "string",
+      "const": "postgresql-base-table-only-representation-v1"
+    },
+    "representation_sha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}
