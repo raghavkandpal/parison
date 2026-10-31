@@ -341,6 +341,10 @@ class HashExecution(unittest.TestCase):
                 else:
                     with self.assertRaises(ParisonError):
                         self.run_discovery()
+            if not replacement.exists():
+                self.assert_clean()  # Windows rejects the stage rename while owned.
+                self.assertFalse(moved.exists())
+                continue
             self.assertEqual((replacement / "owner").read_bytes(), b"keep")
             self.assertFalse(list(moved.rglob("snapshot-*.csv")))
             self.assertFalse(self.output.exists())
@@ -434,3 +438,151 @@ class HashExecution(unittest.TestCase):
             self.assertRaises(ParisonError),
         ):
             self.replay()
+
+    def test_stage_substitution_before_workspace_creation_cannot_chmod_unrelated_directory(self):
+        unrelated = self.root / "unrelated-mode"
+        unrelated.mkdir(mode=0o755)
+        original = discovery._directory
+        before = unrelated.stat().st_mode
+        changed = False
+
+        def replace(stack, path, *args, **kwargs):
+            nonlocal changed
+            result = original(stack, path, *args, **kwargs)
+            if not changed and Path(path).name.startswith(".evidence-"):
+                changed = True
+                Path(path).rename(self.root / "moved-before-workspace")
+                try:
+                    Path(path).symlink_to(unrelated, target_is_directory=True)
+                except OSError:
+                    Path(path).mkdir()
+            return result
+
+        with patch.object(discovery, "_directory", side_effect=replace), self.assertRaises(ParisonError):
+            self.run_discovery()
+        self.assertEqual(unrelated.stat().st_mode, before)
+        self.assertEqual(list(unrelated.iterdir()), [])
+
+    @unittest.skipUnless(discovery.os.name == "posix", "POSIX fallback capability reacquisition")
+    def test_cleanup_fallback_reacquires_identity_after_deletion_boundary_substitution(self):
+        stage = self.root / "cleanup-owned"
+        stage.mkdir()
+        (stage / "snapshot.csv").write_bytes(b"private")
+        identity = stage.stat().st_dev, stage.stat().st_ino
+        moved = self.root / "cleanup-moved"
+        original = discovery.os.open
+        changed = False
+
+        def replace(path, *args, **kwargs):
+            nonlocal changed
+            if not changed and Path(path) == stage:
+                changed = True
+                stage.rename(moved)
+                stage.mkdir()
+                (stage / "owner").write_bytes(b"keep")
+            return original(path, *args, **kwargs)
+
+        with patch.object(discovery.os, "open", side_effect=replace):
+            discovery._cleanup_hash_stage(stage, identity, None)
+        self.assertEqual((stage / "owner").read_bytes(), b"keep")
+        self.assertFalse((moved / "snapshot.csv").exists())
+
+    @unittest.skipUnless(discovery.os.name == "nt", "native Windows directory delete-share lock")
+    def test_windows_directory_pin_prevents_directory_rename(self):
+        from contextlib import ExitStack
+
+        stage = self.root / "windows-owned"
+        stage.mkdir()
+        (stage / "snapshot.csv").write_bytes(b"private")
+        with ExitStack() as stack:
+            discovery._windows_directory_pin(stack, stage)
+            with self.assertRaises(OSError):
+                stage.rename(self.root / "windows-moved")
+        identity = stage.stat().st_dev, stage.stat().st_ino
+        discovery._cleanup_hash_stage(stage, identity, None)
+        self.assertFalse(stage.exists())
+
+    @unittest.skipUnless(discovery.os.name == "posix", "POSIX metadata uses a verified directory capability")
+    def test_metadata_open_substitution_cannot_redirect_even_with_path_mode_reader(self):
+        unrelated = self.root / "unrelated-metadata"
+        unrelated.mkdir()
+        original = discovery.os.open
+        changed = False
+
+        def replace(path, flags, *args, **kwargs):
+            nonlocal changed
+            if not changed and Path(path).name == "plan.json" and flags & discovery.os.O_EXCL:
+                changed = True
+                stage = next(self.root.glob(".evidence-*"))
+                stage.rename(self.root / "moved-at-open")
+                stage.symlink_to(unrelated, target_is_directory=True)
+            return original(path, flags, *args, **kwargs)
+
+        with (
+            patch.object(discovery, "_directory", return_value=None),
+            patch.object(discovery.os, "open", side_effect=replace),
+            self.assertRaises(ParisonError),
+        ):
+            self.run_discovery()
+        self.assertTrue(changed)
+        self.assertEqual(list(unrelated.iterdir()), [])
+        self.assertFalse(list((self.root / "moved-at-open").iterdir()))
+
+    @unittest.skipUnless(discovery.os.name == "nt", "native Windows metadata ownership pin")
+    def test_windows_metadata_write_holds_directory_rename_lock(self):
+        original = discovery.os.open
+        checked = False
+
+        def attempt(path, flags, *args, **kwargs):
+            nonlocal checked
+            if not checked and Path(path).name == "plan.json" and flags & discovery.os.O_EXCL:
+                checked = True
+                stage = next(self.root.glob(".evidence-*"))
+                with self.assertRaises(OSError):
+                    stage.rename(self.root / "windows-metadata-moved")
+            return original(path, flags, *args, **kwargs)
+
+        with patch.object(discovery.os, "open", side_effect=attempt):
+            self.assertEqual(self.run_discovery()["outcome"], "FAIL")
+        self.assertTrue(checked)
+        self.assertEqual(self.replay()["verification"], "exact-source-backed")
+
+    @unittest.skipUnless(discovery.os.name == "nt", "native Windows sensitive workspace ownership pin")
+    def test_windows_snapshot_and_bucket_writes_hold_workspace_rename_lock(self):
+        original = discovery.os.open
+        checked = set()
+
+        def attempt(path, flags, *args, **kwargs):
+            name = Path(path).name
+            if name in {"snapshot-baseline.csv", "baseline-0.csv"} and flags & discovery.os.O_EXCL:
+                checked.add(name)
+                workspace = Path(path).parent
+                with self.assertRaises(OSError):
+                    workspace.rename(self.root / "windows-workspace-moved")
+            return original(path, flags, *args, **kwargs)
+
+        with patch.object(discovery.os, "open", side_effect=attempt):
+            self.assertEqual(self.run_discovery()["outcome"], "FAIL")
+        self.assertEqual(checked, {"snapshot-baseline.csv", "baseline-0.csv"})
+        self.assertEqual(self.replay()["verification"], "exact-source-backed")
+
+    def test_replay_setup_root_substitution_preserves_unrelated_replacement(self):
+        original = discovery._hash_directory
+        replacement = None
+
+        def replace(stack, root):
+            nonlocal replacement
+            result = original(stack, root)
+            if root.name.startswith("parison-hash-replay-"):
+                root.rename(self.root / "replay-moved")
+                root.mkdir()
+                (root / "owner").write_bytes(b"keep")
+                replacement = root
+                self.addCleanup(shutil.rmtree, root)
+            return result
+
+        with patch.object(discovery, "_hash_directory", side_effect=replace), self.assertRaises(ParisonError):
+            with discovery._hash_replay_workspace():
+                self.fail("substituted replay root admitted")
+        self.assertEqual({p.name for p in replacement.iterdir()}, {"owner"})
+        self.assertFalse(list((self.root / "replay-moved").rglob("snapshot-*.csv")))

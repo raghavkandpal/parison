@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import bisect
 import csv
+import ctypes
 import hashlib
 import io
 import json
@@ -16,7 +17,7 @@ import stat
 import sys
 import tempfile
 import unicodedata
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -423,19 +424,44 @@ def _stage_guard(workspace, expected, stamps):
     return unchanged
 
 
-def _run_hash(plan, recipe_path, baseline, candidate, workspace, stack):
+def _hash_directory(stack, path):
+    """Use an available descriptor even when a caller uses path-mode reading."""
+    before = path.lstat()
+    if not stat.S_ISDIR(before.st_mode) or getattr(before, "st_file_attributes", 0) & 0x400:
+        raise ParisonError(_HASH_ERROR)
+    fd = _directory(stack, path)
+    if fd is None and os.name == "posix":
+        fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        stack.callback(os.close, fd)
+    if _stat_stamp(path.lstat()) != _stat_stamp(before) or (
+        fd is not None and _stat_stamp(os.fstat(fd)) != _stat_stamp(before)
+    ):
+        raise ParisonError(_HASH_ERROR)
+    return fd
+
+
+def _run_hash(plan, recipe_path, baseline, candidate, workspace, stack, *, parent_identity):
     context = _execution_context()
-    workspace_fd = _directory(stack, workspace)
+    if _stat_stamp(workspace.parent.lstat())[:2] != parent_identity:
+        raise ParisonError(_HASH_ERROR)
+    workspace_fd = _hash_directory(stack, workspace)
     workspace_identity = workspace.stat().st_dev, workspace.stat().st_ino
     parent_stamp = _stat_stamp(workspace.parent.stat())
+    workspace_ownership = ExitStack()
+    stack.callback(workspace_ownership.close)
+    if os.name == "nt":
+        _windows_directory_pin(workspace_ownership, workspace)
 
     def workspace_check():
         check_output_parent(workspace)
-        if (workspace.stat().st_dev, workspace.stat().st_ino) != workspace_identity or _stat_stamp(
-            workspace.parent.stat()
-        ) != parent_stamp:
+        if (
+            (workspace.stat().st_dev, workspace.stat().st_ino) != workspace_identity
+            or _stat_stamp(workspace.parent.stat()) != parent_stamp
+            or _stat_stamp(workspace.parent.lstat())[:2] != parent_identity
+        ):
             raise ParisonError(_HASH_ERROR)
 
+    workspace_check()
     recipe_handle, recipe_check = _pinned_hash_input(stack, recipe_path, 262144)
     recipe_bytes = recipe_handle.read(262145)
     recipe_check()
@@ -564,6 +590,7 @@ def _run_hash(plan, recipe_path, baseline, candidate, workspace, stack):
             check()
 
     source_check()
+    workspace_ownership.close()
     return {
         "partition_receipt_version": 2,
         "policy_sha256": _checked_policy_sha256(recipe, None),
@@ -889,6 +916,33 @@ def discover(
         raise
 
 
+def _windows_directory_pin(stack, path):
+    """Deny directory rename/delete while path-mode cleanup removes its children."""
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    create = kernel.CreateFileW
+    create.argtypes = [
+        ctypes.c_wchar_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+    ]
+    create.restype = ctypes.c_void_p
+    close = kernel.CloseHandle
+    close.argtypes, close.restype = [ctypes.c_void_p], ctypes.c_int
+    # READ_ATTRIBUTES, SHARE_READ|SHARE_WRITE (no DELETE), OPEN_EXISTING,
+    # BACKUP_SEMANTICS|OPEN_REPARSE_POINT: pin the directory itself, never its target.
+    handle = create(str(path.absolute()), 0x80, 0x3, None, 3, 0x02200000, None)
+    if handle == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    stack.callback(close, handle)
+    info = path.lstat()
+    if not stat.S_ISDIR(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+        raise ParisonError(_HASH_ERROR)
+
+
 def _cleanup_hash_stage(stage, identity, fd):
     """Remove owned contents through their pinned directory, never a replacement."""
     if fd is not None:
@@ -900,16 +954,49 @@ def _cleanup_hash_stage(stage, identity, fd):
         if not stage.is_symlink() and (stage.stat().st_dev, stage.stat().st_ino) == identity:
             stage.rmdir()
         return
-    # Platforms without directory descriptors: locate only the owned identity.
-    for path in stage.parent.iterdir():
-        if not path.is_symlink() and path.is_dir() and (path.stat().st_dev, path.stat().st_ino) == identity:
-            shutil.rmtree(path)
+    # Reacquire a deletion capability for the owned identity, not a checked name.
+    for _ in range(2):
+        for path in stage.parent.iterdir():
+            try:
+                info = path.lstat()
+            except FileNotFoundError:
+                continue
+            if (
+                not stat.S_ISDIR(info.st_mode)
+                or path.is_symlink()
+                or getattr(info, "st_file_attributes", 0) & 0x400
+                or (info.st_dev, info.st_ino) != identity
+            ):
+                continue
+            with ExitStack() as pin:
+                if os.name == "posix":
+                    owned_fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                    pin.callback(os.close, owned_fd)
+                    if _stat_stamp(os.fstat(owned_fd))[:2] != identity:
+                        continue
+                    _cleanup_hash_stage(path, identity, owned_fd)
+                    return
+                _windows_directory_pin(pin, path)
+                info = path.lstat()
+                if getattr(info, "st_file_attributes", 0) & 0x400 or (info.st_dev, info.st_ino) != identity:
+                    continue
+                for child in path.iterdir():
+                    child_info = child.lstat()
+                    if stat.S_ISDIR(child_info.st_mode):
+                        if getattr(child_info, "st_file_attributes", 0) & 0x400:
+                            child.rmdir()  # Remove a junction itself without traversing it.
+                        else:
+                            _cleanup_hash_stage(child, (child_info.st_dev, child_info.st_ino), None)
+                    else:
+                        child.unlink()
+            path.rmdir()  # The name may change after unlock; never recursively delete it.
             return
 
 
 def _discover_hash(plan, recipe, baseline, candidate, output):
     stage = None
     stage_stack = ExitStack()
+    stage_ownership = ExitStack()
     stage_fd = None
     identity = None
     try:
@@ -920,12 +1007,16 @@ def _discover_hash(plan, recipe, baseline, candidate, output):
             raise ParisonError(_HASH_ERROR)
         stage = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent))
         identity = stage.stat().st_dev, stage.stat().st_ino
-        stage_fd = _directory(stage_stack, stage)
-        os.chmod(stage, 0o700)
+        stage_fd = _hash_directory(stage_stack, stage)
 
         def stage_check():
             check_output_parent(stage)
-            if stage.is_symlink() or (stage.stat().st_dev, stage.stat().st_ino) != identity:
+            info = stage.lstat()
+            if (
+                not stat.S_ISDIR(info.st_mode)
+                or getattr(info, "st_file_attributes", 0) & 0x400
+                or (info.st_dev, info.st_ino) != identity
+            ):
                 raise ParisonError(_HASH_ERROR)
 
         def metadata(name, data):
@@ -947,6 +1038,8 @@ def _discover_hash(plan, recipe, baseline, candidate, output):
             return _stat_stamp(info)
 
         workspace = stage / "temporary"
+        if os.name == "nt":
+            _windows_directory_pin(stage_ownership, stage)
         stage_check()
         if stage_fd is not None:
             os.mkdir("temporary", mode=0o700, dir_fd=stage_fd)
@@ -954,7 +1047,9 @@ def _discover_hash(plan, recipe, baseline, candidate, output):
             workspace.mkdir(mode=0o700)
         stage_check()
         with ExitStack() as stack:
-            receipt, source_check = _run_hash(plan, recipe, baseline, candidate, workspace, stack)
+            receipt, source_check = _run_hash(
+                plan, recipe, baseline, candidate, workspace, stack, parent_identity=identity
+            )
             stage_check()
             if stage_fd is not None:
                 shutil.rmtree("temporary", dir_fd=stage_fd)
@@ -977,6 +1072,7 @@ def _discover_hash(plan, recipe, baseline, candidate, output):
             _verified_hash_evidence(stage, None, None, None)
             source_check()
             metadata_check()
+            stage_ownership.close()
             stage_check()
             rename_no_replace(stage, target)
             stage = None
@@ -987,12 +1083,44 @@ def _discover_hash(plan, recipe, baseline, candidate, output):
         raise ParisonError(_HASH_ERROR) from None
     finally:
         try:
+            stage_ownership.close()
             if stage is not None and identity is not None:
                 _cleanup_hash_stage(stage, identity, stage_fd)
         except OSError:
             pass
         finally:
             stage_stack.close()
+
+
+@contextmanager
+def _hash_replay_workspace():
+    root = Path(tempfile.mkdtemp(prefix="parison-hash-replay-"))
+    identity = root.stat().st_dev, root.stat().st_ino
+    descriptors, ownership = ExitStack(), ExitStack()
+    fd = None
+    try:
+        fd = _hash_directory(descriptors, root)
+        if os.name == "nt":
+            _windows_directory_pin(ownership, root)
+        info = root.lstat()
+        if (
+            not stat.S_ISDIR(info.st_mode)
+            or getattr(info, "st_file_attributes", 0) & 0x400
+            or (info.st_dev, info.st_ino) != identity
+        ):
+            raise ParisonError(_HASH_ERROR)
+        workspace = root / "temporary"
+        if fd is not None:
+            os.mkdir("temporary", mode=0o700, dir_fd=fd)
+        else:
+            workspace.mkdir(mode=0o700)
+        yield workspace, identity
+    finally:
+        ownership.close()
+        try:
+            _cleanup_hash_stage(root, identity, fd)
+        finally:
+            descriptors.close()
 
 
 def _verified_hash_evidence(root, recipe, baseline, candidate):
@@ -1050,11 +1178,11 @@ def _verified_hash_evidence(root, recipe, baseline, candidate):
                     or _execution_context() != receipt["normalization_runtime"]
                 ):
                     raise ParisonError(_HASH_ERROR)
-                with tempfile.TemporaryDirectory(prefix="parison-hash-replay-") as temporary:
-                    workspace = Path(temporary) / "temporary"
-                    workspace.mkdir(mode=0o700)
+                with _hash_replay_workspace() as (workspace, parent_identity):
                     with ExitStack() as sources:
-                        replay, source_check = _run_hash(plan, recipe, baseline, candidate, workspace, sources)
+                        replay, source_check = _run_hash(
+                            plan, recipe, baseline, candidate, workspace, sources, parent_identity=parent_identity
+                        )
                         if replay != receipt:
                             raise ParisonError(_HASH_ERROR)
                         source_check()

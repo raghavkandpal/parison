@@ -55,3 +55,38 @@ Corrected local gate:674 repository tests pass with lint, formatting, generated
 command documentation and whitespace checks;34 execution/reader/wire tests pass
 on CPython3.11.18,3.12.5,3.13.18 and3.14.7. These local results do not replace
 independent corrected-head review or the manual full built-wheel matrix.
+
+A second review found a redundant pathname chmod and a remaining path-mode
+cleanup check/delete race. Remove the chmod: Python documents that
+[mkdtemp creates a private directory](https://docs.python.org/3.11/library/tempfile.html#tempfile.mkdtemp).
+Cleanup now reacquires and checks the owned POSIX directory descriptor even
+in emulated path mode. Windows pins the directory with CreateFileW while
+excluding delete sharing, rejects reparse points and removes only an empty root
+after releasing the pin; see Microsoft's [directory handles and sharing rules](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)
+(accessed31October2026). Regression tests exercise substitution at capability
+reacquisition, unchanged unrelated permissions and native Windows rename denial.
+The manual matrix explicitly runs all hash tests from the built wheel on macOS
+and Windows for every supported Python version, in addition to Linux tests.
+Earlier head3d61067 is superseded and cannot qualify these final corrections.
+
+Publication itself also retains the native Windows ownership pin throughout
+workspace/metadata operations and releases it immediately before the final
+identity check and atomic rename. POSIX producers reacquire directory capabilities
+even when the evidence reader uses its path fallback. This closes redirected
+writes between a pathname pre-check and open, rather than merely detecting the
+outside write afterward. Native Windows and emulated-reader metadata-open
+regressions exercise that boundary. Platform CI retains targeted hash tests;
+it does not add full-suite discovery to the macOS/Windows smoke jobs.
+
+The Windows ownership pin also protects the sensitive child workspace throughout
+snapshot creation, routing and exact comparison, and replay's private parent.
+Workspace ownership closes on success before deletion while original source
+handles stay pinned through publication; exception cleanup closes both. Native
+Windows tests attempt workspace rename at snapshot and bucket file-open phases.
+
+Final correction local gate:681 repository tests pass under `make check`, and41
+hash execution/reader/wire tests pass on each of CPython3.11.18,3.12.5,3.13.18
+and3.14.7. Three native Windows tests are skipped on this macOS host and must
+run in the exact-head manual Windows matrix. Eight CI contract tests confirm
+one shared built wheel, targeted hash coverage and no full-suite discovery in
+platform smoke. Corrected-head independent review and CI remain pending.

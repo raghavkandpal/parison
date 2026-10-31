@@ -2,7 +2,7 @@
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
 - Branch: `feature/2.4-hash-discovery-execution`, from develop `5b5c413`; corrected reader PR #131 is integrated after independent review and exact-head quality/full built-wheel CI.
-- Next gate: qualify feature 3's bounded hash producer and exact source-backed replay under [contract291](2.4/291-composite-key-discovery-contract.md). Run local/cross-Python gates, independent Standards/Spec review and exact-head quality/manual full built-wheel CI before merging. [Checkpoint294](2.4/294-hash-discovery-execution-checkpoint.md) records the implementation. Feature3 remains incomplete (2/10 integrated); preserve all-ten candidate boundary and released contracts. Check usage and stop near95%; never reset automatically.
+- Next gate: qualify [PR #132](https://github.com/raghavkandpal/parison/pull/132), feature 3's bounded hash producer and exact source-backed replay under [contract291](2.4/291-composite-key-discovery-contract.md). Run local/cross-Python gates, independent Standards/Spec review and exact-head quality/manual full built-wheel CI before merging. [Checkpoint294](2.4/294-hash-discovery-execution-checkpoint.md) records the implementation. Feature3 remains incomplete (2/10 integrated); preserve all-ten candidate boundary and released contracts. Check usage and stop near95%; never reset automatically.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
