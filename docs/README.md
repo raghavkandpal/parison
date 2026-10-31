@@ -29,6 +29,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Feature 3 exact hash discovery execution](2.4/294-hash-discovery-execution-checkpoint.md)
 - [Feature 4 recoverable partition session research](2.4/295-partition-recovery-research.md)
 - [Feature 4 recoverable partition session contract](2.4/296-partition-recovery-contract.md)
+- [Feature 4 recovery continuation and next structural gate](2.4/297-partition-recovery-continuation.md)
 
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 
