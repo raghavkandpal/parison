@@ -1,7 +1,7 @@
 # Feature 2 offline assessment and replay gate
 
 Date: 31 October 2026
-Status: PR #127 unmerged; built-wheel CI found cross-Python help wrapping differences; stopped at usage limit
+Status: integrated through PR #127; cross-Python usage correction and exact-head qualification passed
 
 Capture [287](287-representation-capture-checkpoint.md) merged through PR #126
 at `2c6652ef4838e9cd2ef960b6f41f6a9d086a9588`. Its final head
@@ -137,3 +137,12 @@ A regression checks the frozen subcommand help at terminal widths60 and120.
 The full local gate passes640 tests on Python3.14, and all19 focused assessment
 tests pass on Python3.11.18,3.12.5,3.13.18 and3.14.7. Independent correction
 review and fresh exact-head CI remain before integration.
+
+## Integration
+
+PR #127 merged at `7c18ee5f65a0e7a1b76b797fff8d9759580489ee` after corrected
+head `4bdfe023d09e6d8e2451daa6d78ed2a16e6455f8` passed independent review,
+[quality](https://github.com/raghavkandpal/parison/actions/runs/41192428350) and
+[full built-wheel CI](https://github.com/raghavkandpal/parison/actions/runs/41192426180).
+The current state and next contract gate are in [handoff289](289-feature2-integration-handoff.md);
+earlier pending/failed states above are historical correction evidence.

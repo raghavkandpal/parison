@@ -1,8 +1,8 @@
 # Current development state
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
-- Branch: `feature/2.4-representation-assessment`, from develop `2c6652e`; feature 1 integrated (1/10), feature 2 schemas, offline collection-v2 verifier and live capture merged through PRs #124–#126.
-- Next gate: qualify the explicit representation CLI usage correction in PR #127 (`feature/2.4-representation-assessment`) across Python 3.11–3.14, independent review and fresh exact-head quality/full built-wheel CI, then merge only if qualified. The frozen help bytes are preserved; 640 local tests pass. Assessment source `04a2ded` retains 639-test review and 18 live gates/10 cases across 16→18 and 17→18. The earlier head `a55d990` failed Python3.11/3.12 help wrapping; see [checkpoint 288](2.4/288-representation-assessment-runtime.md). Feature 2 remains incomplete; 1/10 features integrated. All ten must qualify before a 2.4 candidate; preserve 2.3 contracts, canonical bytes, CLI aliases and local-first boundaries.
+- Branch: `develop`; feature 2 integrated through PR #127 at `7c18ee5f65a0e7a1b76b797fff8d9759580489ee` (2/10 features qualified for 2.4).
+- Next gate: research and freeze feature 3 exact discovery for composite/text keys from current clean develop; define bounded tuple hash routing and collision/Unicode/null/duplicate/skew gates before implementation, preserving released range-v1 and exact comparison authority. [Handoff 289](2.4/289-feature2-integration-handoff.md) records feature 2 integration: 640 tests, independent Standards/Spec clearance, qualified capture/pair live evidence and passing exact-head quality/full built-wheel CI at `4bdfe02`. All ten features must integrate and qualify before any 2.4 candidate. Preserve released 2.3 contracts, source-v2 ONLY scope, canonical bytes, CLI aliases and local-first boundaries.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
