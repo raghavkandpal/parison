@@ -587,13 +587,25 @@ class _SafeParser(argparse.ArgumentParser):
 def parser():
     root = _SafeParser(prog="parison representation", description="Assess native PostgreSQL representation evidence")
     commands = root.add_subparsers(dest="command", required=True, parser_class=_SafeParser)
-    propose_parser = commands.add_parser("propose", help="suggest exact unapproved field matches")
+    propose_parser = commands.add_parser(
+        "propose",
+        help="suggest exact unapproved field matches",
+        usage="%(prog)s [-h] --baseline BASELINE\n                                      --candidate CANDIDATE --output OUTPUT",
+    )
     for name in ("baseline", "candidate", "output"):
         propose_parser.add_argument("--" + name, required=True)
-    assess_parser = commands.add_parser("assess", help="assess explicitly declared native representation rules")
+    assess_parser = commands.add_parser(
+        "assess",
+        help="assess explicitly declared native representation rules",
+        usage="%(prog)s [-h] --plan PLAN --baseline BASELINE\n                                     --candidate CANDIDATE --output OUTPUT",
+    )
     for name in ("plan", "baseline", "candidate", "output"):
         assess_parser.add_argument("--" + name, required=True)
-    verify_parser = commands.add_parser("verify", help="replay an assessment against both verified parents")
+    verify_parser = commands.add_parser(
+        "verify",
+        help="replay an assessment against both verified parents",
+        usage="%(prog)s [-h] --baseline BASELINE\n                                     --candidate CANDIDATE\n                                     directory",
+    )
     verify_parser.add_argument("directory")
     for name in ("baseline", "candidate"):
         verify_parser.add_argument("--" + name, required=True)

@@ -127,3 +127,13 @@ Useful local environment: `/private/tmp/parison24-feature2-venv/bin/python`
 packages into system Python. Local CI failure output is
 `/private/tmp/parison24-assessment-ci-failed.log`; all public qualification evidence
 is committed in this version folder and benchmarks. No reset was consumed.
+
+## Cross-Python usage correction
+
+The continuation makes the three subcommand usage strings explicit, preserving
+all frozen help/error bytes instead of depending on Python-specific argparse
+wrapping. No policy, artifact, summary, exit code or installed command changes.
+A regression checks the frozen subcommand help at terminal widths60 and120.
+The full local gate passes640 tests on Python3.14, and all19 focused assessment
+tests pass on Python3.11.18,3.12.5,3.13.18 and3.14.7. Independent correction
+review and fresh exact-head CI remain before integration.

@@ -203,6 +203,16 @@ class RepresentationAssessment(unittest.TestCase):
         for value in ("public", "orders", "note", "hello", str(self.root)):
             self.assertNotIn(value, out.getvalue())
 
+    def test_subcommand_help_usage_is_independent_of_terminal_width(self):
+        for width in (60, 120):
+            for action in ("propose", "assess", "verify"):
+                with self.subTest(width=width, action=action), patch.dict(os.environ, {"COLUMNS": str(width)}):
+                    out = io.StringIO()
+                    with redirect_stdout(out), self.assertRaises(SystemExit) as raised:
+                        cli.main(["representation", action, "--help"])
+                    self.assertEqual(raised.exception.code, 0)
+                    self.assertEqual(out.getvalue(), (ROOT / f"{action}-help.txt").read_text())
+
     def test_cli_denial_unknown_replay_and_proposal_statuses(self):
         proposal = self.root / "proposal.json"
         out = io.StringIO()

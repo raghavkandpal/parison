@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Stabilize representation subcommand usage across supported Python versions while preserving frozen help bytes.
+
 - Add explicit offline native representation assessment, unapproved exact-name proposals and bound-parent replay through `parison representation`, without implying row parity or cutover approval.
 
 - Add explicit collection-plan-v2 capture with bounded same-snapshot native representation inventories and version-specific PostgreSQL capability qualification.
