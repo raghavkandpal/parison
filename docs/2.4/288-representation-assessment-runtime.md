@@ -1,7 +1,7 @@
 # Feature 2 offline assessment and replay gate
 
 Date: 31 October 2026
-Status: source-head tests, live pair gates and independent reviews passed; final-head CI pending
+Status: PR #127 unmerged; built-wheel CI found cross-Python help wrapping differences; stopped at usage limit
 
 Capture [287](287-representation-capture-checkpoint.md) merged through PR #126
 at `2c6652ef4838e9cd2ef960b6f41f6a9d086a9588`. Its final head
@@ -97,3 +97,33 @@ plans. All prior capture gates and source profiles remain qualified separately;
 this pair gate adds no future PostgreSQL version to either live allowlist.
 Final PR-head built-wheel/quality CI is still required before integration and
 before recording feature2 as the second of ten integrated features.
+
+## Graceful handoff at 95% usage
+
+PR [#127](https://github.com/raghavkandpal/parison/pull/127) remains unmerged.
+Head `a55d99090a4fecf813364a2fd307d21f89605e8c` passed independent final-head
+reviews and [quality CI](https://github.com/raghavkandpal/parison/actions/runs/41176713818).
+The manually dispatched [built-wheel matrix](https://github.com/raghavkandpal/parison/actions/runs/41176711494)
+failed `test_cli_help_errors_and_safe_stdout` on Python3.11 and3.12. The confirmed
+difference is argparse usage line wrapping for `representation propose`:
+older Python places `--candidate` at the end of the first usage line, while the
+frozen Python3.14 fixture puts that complete option on the next line. No merge
+is authorized by these failed results. The existing source-head qualification
+and44 clean-archive tests remain evidence, not an overall cross-version pass.
+
+Next make usage formatting deterministic across supported Python versions,
+preferably explicit stable usage text rather than weakening the byte fixture.
+Run the focused help/error tests on3.11–3.14, `make check`, independent review of
+the correction and fresh quality/full built-wheel CI on the exact updated head.
+Merge only when qualified. Then update the changing handoff on a scoped docs
+branch from current develop and record feature2 as2/10. Feature3 is exact
+discovery for composite/text keys; research/freeze its bounded hash-routing
+contract and collision/adversarial gate before implementation. No2.4 candidate
+until all ten features integrate and qualify.
+
+Useful local environment: `/private/tmp/parison24-feature2-venv/bin/python`
+(Python3.14 with test/dev/parquet/postgres extras). The older
+`/private/tmp/parison-goal-venv` lacks venv metadata and must not be used to install
+packages into system Python. Local CI failure output is
+`/private/tmp/parison24-assessment-ci-failed.log`; all public qualification evidence
+is committed in this version folder and benchmarks. No reset was consumed.
