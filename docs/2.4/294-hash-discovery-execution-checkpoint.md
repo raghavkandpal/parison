@@ -116,3 +116,15 @@ pass on all four local Python versions, with the same three native Windows
 skips on macOS. The two minimal regression probes pass; no temporary production
 debug instrumentation was added. Exact corrected-head review and fresh native
 full-matrix CI remain required. No release or completed feature3 is claimed.
+
+## Qualified integration
+
+Exact head `88997d50ae268a2d872d5f7653a2daae77449f58` received final independent
+Standards and Spec clearance and passed [quality41219792891](https://github.com/raghavkandpal/parison/actions/runs/41219792891)
+and [manual full built-wheel41219790371](https://github.com/raghavkandpal/parison/actions/runs/41219790371).
+All four Python versions passed on Linux/macOS/Windows, including the new hash
+and native Windows ownership tests. PR132 integrated at
+`95d434de117aed800aabbb775a33ef64f8fa97c2`. Feature3 is complete (3/10 integrated).
+Earlier pending/failed-head notes above are history, not the current gate. Next
+freeze feature4's recovery contract before implementation; no release/candidate
+until all ten features integrate and qualify.
