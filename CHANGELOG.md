@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Add explicit collection-plan-v2 capture with bounded same-snapshot native representation inventories and version-specific PostgreSQL capability qualification.
+
 - Extend offline PostgreSQL collection verification to version 2 with bounded representation metadata and replayed native normalization; live v2 capture and compatibility assessment remain pending.
 
 - Add feature 2 structural representation schemas and frozen capture/assessment/proposal fixtures; runtime capture and assessment remain pending.
