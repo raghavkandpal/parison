@@ -276,11 +276,10 @@ class RepresentationVerification(unittest.TestCase):
             with self.assertRaises(ParisonError):
                 self.verify()
 
-    def test_v2_plan_validation_does_not_enable_unqualified_live_writer(self):
+    def test_v2_plan_validation_preserves_explicit_limits(self):
         plan = json.loads((FIXTURE / "capture-plan.json").read_bytes())
         self.assertEqual(source_collection.validate_postgres_collection_plan(plan), plan)
-        with self.assertRaises(ParisonError):
-            postgres_collection._load_plan(FIXTURE / "capture-plan.json")
+        self.assertEqual(postgres_collection._load_plan(FIXTURE / "capture-plan.json"), plan)
         for maximum in (False, 0, 16777217, 1.0):
             with self.subTest(maximum=maximum):
                 value = copy.deepcopy(plan)

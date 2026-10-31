@@ -1,8 +1,8 @@
 # Current development state
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
-- Branch: `feature/2.4-representation-verification`, from develop `6d051bb`; feature 1 integrated (1/10), feature 2 structural gate merged through PR #124.
-- Next gate: review and qualify the feature 2 offline collection-v2 verifier in [checkpoint 286](2.4/286-representation-offline-verification.md), then implement same-snapshot capture and offline proposals/assessment under [contract 284](2.4/284-representation-assessment-contract.md). Structural schemas/fixtures passed 605 tests, independent reviews and exact-head full CI. The reader extension is local and unqualified; live collection-v2 writing remains disabled. All ten features must integrate and qualify before a 2.4 candidate; preserve 2.3 contracts, source-v2 ONLY scope, CLI aliases and local-first boundaries.
+- Branch: `feature/2.4-representation-capture`, from develop `9b71e64`; feature 1 integrated (1/10), feature 2 schemas and offline collection-v2 verifier merged through PRs #124/#125.
+- Next gate: review and qualify same-snapshot collection-v2 capture in [checkpoint 287](2.4/287-representation-capture-checkpoint.md), then implement private proposals, explicit assessment and replay under [contract 284](2.4/284-representation-assessment-contract.md). The offline reader passed 615 tests, independent review and exact-head full CI. Capture live probes pass on 16.15/17.11/18.6; final source-head gates/CI remain pending. Feature 2 is incomplete. All ten features must qualify before a 2.4 candidate; preserve 2.3 contracts, source-v2 ONLY scope, CLI aliases and local-first boundaries.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
