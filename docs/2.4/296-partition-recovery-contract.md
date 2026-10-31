@@ -74,7 +74,7 @@ Completed session commands return a new closed `partition_session_result_version
 object with exactly `action`, `state`, `execution_assurance`, `reused_routing`,
 `reused_partitions`, `computed_partitions`, `sensitive_retained` and `summary`.
 Action is `discover|resume|preview|abandon`; state is
-`initializing|routed|comparing|ready|published|abandoned`.
+`initializing|routed|comparing|ready|published|abandoning|abandoned`.
 Assurance is `fresh-exact|reused-integrity-checked|not-executed`.
 Counts are exact nonnegative integers<=128; booleans are exact JSON booleans.
 Summary is the released safe discovery summary only for successful publication
@@ -105,19 +105,30 @@ Recheck its identity and the root identity before mutations. Reject a second
 owner and substituted lock/root names. Preview takes the same lock while reading
 so it cannot observe a writer's half-transition. Kernel lock release after process
 exit permits resume; never infer ownership from a PID, timestamp or stale flag.
+Read/revalidate journal and root metadata after acquiring ownership, including
+when another invocation just released it; pre-lock data cannot authorize reuse.
 Support local filesystems with the qualified identity/locking semantics; no
 network/distributed locking or unconditional power-loss durability promise.
 
 Session JSON is strict, canonical LF JSON<=1MiB, duplicate/nonfinite-free and
 closed. It has exactly: `partition_session_version:1`, `state`, `identity`,
 `max_session_bytes`, `routing`, `results`, `published_manifest_sha256`.
-Persist only states initializing/routed/comparing/ready/published. A result array
+Persist only states initializing/routed/comparing/ready/published/abandoning. A result array
 has exactly N slots, ordered by original plan index, each null or a descriptor
 with exact `sha256` and `bytes`; no sparse map or caller-selected cache path.
 Published manifest hash is null until ready, then a lowercase SHA256 digest.
 Initializing requires routing:null and all results:null; routed requires routing
 and all results:null; comparing allows partially committed results. Ready/published
 require routing and every result slot, including valid incomplete final results.
+
+Only valid session.json is committed authority. If it is missing, malformed or
+oversized, reject reuse; never recover authority from session.next. With a valid
+primary journal, a bounded regular fixed-slot session.next is uncommitted and
+may be discarded under ownership regardless of whether its bytes are partial or
+canonical. Never promote it by timestamp, state ordering or apparent completion.
+Symlink/reparse/oversized replacement slots reject before deletion. Initializing
+permits only missing/partial files at recognized routing names; routed and later
+require exact committed routing coverage.
 
 Identity has exactly `plan_sha256`, `policy_sha256`, `derived_recipe_sha256`,
 `inputs`, `columns`, `normalization_runtime`, `engine`.
@@ -183,8 +194,10 @@ resume. Reject unexpected files instead of treating them as reusable work.
 
 `comparing -> ready` requires N valid current or reused results. Aggregate with
 the unchanged exact engine's counts/field suppression and original global empty
-policy, in plan order. Every ordinary final file must be byte-identical to a clean
-run under the same admitted context. Prepare the exact expected manifest hash;
+policy, in plan order. For legitimate unmodified checkpoints, every ordinary final file must be
+byte-identical to a clean run under the same admitted context. Coherently forged
+cache has only the weaker unsigned-integrity assurance defined in section1; byte
+equality to a fresh run is not asserted for it. Prepare the exact expected manifest hash;
 never add resume counters, timestamps, cache provenance or session IDs to those
 four released files. The session wrapper carries assurance/counters separately.
 
@@ -196,6 +209,18 @@ published only when the supplied output verifies and its manifest hash equals
 the ready checkpoint. Other existing outputs reject, without deletion/overwrite.
 Report existing output with reused-integrity-checked assurance; do not claim a
 fresh comparison because a prior invocation published it.
+
+Abandon first commits state abandoning under ownership. That state cannot
+resume comparisons; repeated abandon may safely finish deletion, and preview
+reports it without execution authority. Only known owned files may disappear
+while abandoning; unexpected members/substitutions still reject. Keep the journal
+and lock until all sensitive routing/results content is removed, then remove
+non-lock metadata. Close/release the lock only after the primary journal is gone;
+a newly admitted owner must reread metadata after its lock acquisition and reject
+the missing journal. Finally unlink the owned lock and remove only the empty
+owned root, preserving replacement directories. Interruption before metadata
+removal leaves a recognized abandoning session; later interruption can leave
+only an empty/unrecognized root, never retained raw content behind that state.
 
 ## 5. Adversarial completion gate
 
