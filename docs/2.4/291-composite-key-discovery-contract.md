@@ -1,7 +1,7 @@
 # Exact hash-bucket discovery contract
 
 Date: 31 October 2026
-Status: proposed feature 3 contract; independent review required before freeze
+Status: frozen feature 3 contract after independent Standards and Spec review; schemas/fixtures/runtime pending
 
 This implements feature3 of [roadmap275](275-ten-feature-research-and-roadmap.md),
 using [primary-source research290](290-composite-key-discovery-research.md).
