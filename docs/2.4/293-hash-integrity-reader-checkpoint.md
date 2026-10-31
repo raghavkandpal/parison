@@ -51,8 +51,14 @@ validator must not implicitly enable creation by falling into the range router.
 Only after all those gates pass may feature3 be recorded as3/10. No release or
 candidate is proposed here.
 
-Local gate:655 repository tests pass under `make check` on Python3.14.7;
-all15 reader/wire tests pass on3.11.18,3.12.5,3.13.18 and3.14.7. Path-mode
+Local gate:657 repository tests pass under `make check` on Python3.14.7;
+all17 reader/wire tests pass on3.11.18,3.12.5,3.13.18 and3.14.7. Path-mode
 replacement is checked against pinned file identities when directory descriptors
 are unavailable; interruption coverage runs on every platform. These are reader
 checks only and do not qualify hash creation or source-backed replay.
+
+Review corrected a mixed-version dispatch bypass: a version1 manifest cannot
+admit a version2 plan/receipt through legacy validation, including noncanonical
+or float-substituted summaries, and it cannot start source replay. Complete v2
+bucket counts must account for every side row exactly; incomplete duplicate/null
+records retain bounded inequality. Rehashed regressions cover both corrections.

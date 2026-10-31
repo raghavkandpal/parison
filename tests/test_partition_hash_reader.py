@@ -173,6 +173,46 @@ class HashIntegrityReader(unittest.TestCase):
             with self.assertRaises(ParisonError):
                 discovery.verify(self.root)
 
+    def test_manifest_v1_cannot_dispatch_v2_contents_or_bypass_canonical_checks(self):
+        manifest = self.read("manifest.json")
+        manifest["partition_manifest_version"] = 1
+        self.write("manifest.json", manifest)
+        for malformed in (False, True):
+            with self.subTest(malformed=malformed):
+                if malformed:
+                    summary = self.read("summary.json")
+                    summary["counts"]["baseline"] = float(summary["counts"]["baseline"])
+                    (self.root / "summary.json").write_text(json.dumps(summary, indent=2))
+                    self.rehash()
+                with self.assertRaises(ParisonError):
+                    discovery.verify(self.root)
+                with patch.object(discovery, "_run") as run, patch.object(discovery, "_source") as source:
+                    with self.assertRaises(ParisonError):
+                        discovery.verify(self.root, "private-recipe", "private-left", "private-right")
+                    run.assert_not_called()
+                    source.assert_not_called()
+
+    def test_complete_hash_counts_must_account_for_every_source_row(self):
+        receipt = self.read("receipt.json")
+        for partition in receipt["partitions"]:
+            partition["counts"] = {name: 1 if name in {"baseline", "candidate"} else 0 for name in partition["counts"]}
+            for side in ("baseline", "candidate"):
+                partition[side]["rows"] = 1
+            partition["field_counts"] = {
+                name: {label: 0 for label in labels} for name, labels in partition["field_counts"].items()
+            }
+            partition.update(complete=True, outcome="PASS")
+        receipt["counts"] = {name: 3 if name in {"baseline", "candidate"} else 0 for name in receipt["counts"]}
+        receipt["field_counts"] = {
+            name: {label: 0 for label in labels} for name, labels in receipt["field_counts"].items()
+        }
+        receipt.update(complete=True, outcome="PASS", discrepancy_count=0)
+        self.write("receipt.json", receipt)
+        self.write("summary.json", discovery._summary(receipt))
+        self.rehash()
+        with self.assertRaises(ParisonError):
+            discovery.verify(self.root)
+
     def test_investigation_v1_explicitly_rejects_hash_evidence(self):
         released = FIXTURE.parent / "partition_investigation" / "expected"
         with self.assertRaisesRegex(ParisonError, "range-v1"):

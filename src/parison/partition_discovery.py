@@ -520,6 +520,15 @@ def _validate_receipt(plan: dict[str, Any], receipt: Any) -> None:
         incomplete |= not record["complete"]
         if not _consistent_counts(record["counts"], record["field_counts"], record["complete"]):
             raise ParisonError("partition record arithmetic mismatch")
+        if (
+            is_hash
+            and record["complete"]
+            and any(
+                record["counts"]["common_keys"] + record["counts"][f"{side}_only"] != record["counts"][side]
+                for side in ("baseline", "candidate")
+            )
+        ):
+            raise ParisonError(_HASH_ERROR)
         expected_outcome = (
             "INCONCLUSIVE"
             if not record["complete"]
@@ -731,6 +740,8 @@ def _verified_evidence(
             raise ParisonError("partition evidence digest mismatch")
         captured[name] = _parse_json(data)
     plan = validate_plan(captured["plan.json"])
+    if plan["partition_plan_version"] != 1:
+        raise ParisonError("partition evidence version mismatch")
     receipt = captured["receipt.json"]
     summary = captured["summary.json"]
     _validate_receipt(plan, receipt)
