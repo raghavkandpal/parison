@@ -1,8 +1,8 @@
 # Current development state
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
-- Branch: `develop`; feature 2 integrated through PR #127 at `7c18ee5f65a0e7a1b76b797fff8d9759580489ee` (2/10 features qualified for 2.4).
-- Next gate: research and freeze feature 3 exact discovery for composite/text keys from current clean develop; define bounded tuple hash routing and collision/Unicode/null/duplicate/skew gates before implementation, preserving released range-v1 and exact comparison authority. [Handoff 289](2.4/289-feature2-integration-handoff.md) records feature 2 integration: 640 tests, independent Standards/Spec clearance, qualified capture/pair live evidence and passing exact-head quality/full built-wheel CI at `4bdfe02`. All ten features must integrate and qualify before any 2.4 candidate. Preserve released 2.3 contracts, source-v2 ONLY scope, canonical bytes, CLI aliases and local-first boundaries.
+- Branch: `docs/2.4-key-discovery-contract`, from clean develop `26302f3`; features 1 and 2 integrated (2/10).
+- Next gate: materialize and independently review feature 3 schemas, canonical/negative fixtures and encoding/hash vectors for hash-bucket discovery in [contract 291](2.4/291-composite-key-discovery-contract.md), backed by [primary-source research 290](2.4/290-composite-key-discovery-research.md). Contract review is clear after explicitly pinning execution admission to CPython3.11–3.14; keep runtime-bound replay, snapshot/staging budgets and collision/null/Unicode/duplicate gates. Implement only after the wire gate qualifies. Released range-v1 and single-integer investigation-v1 remain unchanged; hash-v2 raw investigation requires separate versioning. No feature 3 runtime exists. All ten 2.4 features must integrate and qualify before a candidate; preserve released contracts, canonical bytes, CLI aliases and local-first boundaries.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff

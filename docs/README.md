@@ -22,6 +22,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Feature 2 same-snapshot collection-v2 capture](2.4/287-representation-capture-checkpoint.md)
 - [Feature 2 offline assessment, replay and CLI qualification](2.4/288-representation-assessment-runtime.md)
 - [Feature 2 integration and feature 3 contract handoff](2.4/289-feature2-integration-handoff.md)
+- [Feature 3 composite/text-key discovery research](2.4/290-composite-key-discovery-research.md)
+- [Feature 3 exact hash-bucket discovery contract](2.4/291-composite-key-discovery-contract.md)
 
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 
