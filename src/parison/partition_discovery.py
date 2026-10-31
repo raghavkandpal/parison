@@ -9,20 +9,23 @@ import hashlib
 import io
 import json
 import os
+import platform
 import re
 import shutil
 import stat
 import sys
 import tempfile
+import unicodedata
 from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
 from ._safe_fs import check_output_parent, rename_no_replace
 from .analysis import _canonical, _strict_object
-from .comparison import compare
+from .comparison import _multiset_encoding, compare
 from .core import ParisonError, _checked_policy_sha256, _parse_row, load_recipe
 from .inputs import _iter_input_rows
+from .policies import load_recipe_text
 from .source_collection import _directory, _members, _stamp, _stat_stamp
 from .source_receipt import _read_json as _canonical_json
 
@@ -60,9 +63,12 @@ def _bounded_bytes(path: Path, limit: int) -> bytes:
     try:
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
         with os.fdopen(descriptor, "rb") as handle:
+            before = _stamp(handle)
             if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
                 raise ParisonError("partition evidence file is not regular")
             data = handle.read(limit + 1)
+            if _stamp(handle) != before:
+                raise ParisonError("partition evidence file changed during reading")
         if len(data) > limit:
             raise ParisonError("partition evidence file is missing, unsafe or too large")
         return data
@@ -105,6 +111,51 @@ def _hash_context(value):
     ):
         if not isinstance(value[name], str) or re.fullmatch(pattern, value[name]) is None:
             raise ParisonError(_HASH_ERROR)
+
+
+def _execution_context():
+    context = {
+        "implementation": platform.python_implementation(),
+        "python_version": platform.python_version(),
+        "unicode_version": unicodedata.unidata_version,
+    }
+    _hash_context(context)
+    if tuple(map(int, context["python_version"].split(".")[:2])) not in {(3, 11), (3, 12), (3, 13), (3, 14)}:
+        raise ParisonError(_HASH_ERROR)
+    return context
+
+
+def _hash_key(parsed, recipe, limit):
+    """Bound the entire typed frame before constructing the composite buffer."""
+    names = recipe["keys"]
+    size = len(b"parison-key-v1\0") + 2 + 9 * len(names)
+    if size > limit:
+        raise ParisonError(_HASH_ERROR)
+    for name in names:
+        value = parsed[name]
+        if value is None:
+            continue
+        kind = recipe["columns"][name]["type"]
+        if (kind == "integer" and type(value) is not int) or (kind == "string" and type(value) is not str):
+            raise ParisonError(_HASH_ERROR)
+        if kind not in {"integer", "string"}:
+            raise ParisonError(_HASH_ERROR)
+        text = str(value) if kind == "integer" else value
+        if len(text) > limit - size:
+            raise ParisonError(_HASH_ERROR)
+        size += len(text.encode("utf-8", errors="strict"))
+        if size > limit:
+            raise ParisonError(_HASH_ERROR)
+    return (
+        b"parison-key-v1\0"
+        + len(names).to_bytes(2, "big")
+        + _multiset_encoding(tuple(parsed[name] for name in names), names, recipe)
+    )
+
+
+def _hash_bucket(encoded, buckets):
+    """Routing-only seam: collisions must still use the exact comparator."""
+    return int.from_bytes(hashlib.sha256(encoded).digest(), "big") % buckets
 
 
 def _hash_plan(value):
@@ -274,7 +325,11 @@ def _compare_ranges(
 ) -> tuple[dict[str, int], dict[str, dict[str, int]], int, str, bool]:
     derived = {**recipe, "scope": {**recipe["scope"], "expected_empty": True}}
     derived_path = workspace / "derived-recipe.json"
-    derived_path.write_bytes(_canonical(derived))
+    if plan["partition_plan_version"] == 2:
+        if _bounded_bytes(derived_path, 262144) != _canonical(derived):
+            raise ParisonError(_HASH_ERROR)
+    else:
+        derived_path.write_bytes(_canonical(derived))
     totals = {name: 0 for name in _COUNT_NAMES}
     field_counts = {
         name: {classification: 0 for classification in _CLASS_NAMES}
@@ -322,6 +377,210 @@ def _compare_ranges(
         + sum(field_counts[name]["different"] + field_counts[name]["within_tolerance"] for name in field_counts)
     )
     return totals, field_counts, differences, outcome, complete
+
+
+def _pinned_hash_input(stack, path, limit):
+    path = Path(path)
+    check_output_parent(path.parent)
+    if path.is_symlink():
+        raise ParisonError(_HASH_ERROR)
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+    handle = stack.enter_context(os.fdopen(descriptor, "rb"))
+    info = os.fstat(handle.fileno())
+    before = _stat_stamp(info)
+    if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+        raise ParisonError(_HASH_ERROR)
+
+    def unchanged():
+        check_output_parent(path.parent)
+        if path.is_symlink() or _stat_stamp(path.stat()) != before or _stamp(handle) != before:
+            raise ParisonError(_HASH_ERROR)
+
+    unchanged()
+    return handle, unchanged
+
+
+def _stage_guard(workspace, expected, stamps):
+    """Bind private file bytes, names and directory identity across semantic reads."""
+    check_output_parent(workspace)
+    directory = _stat_stamp(workspace.stat())
+    parent = _stat_stamp(workspace.parent.stat())
+
+    def unchanged():
+        check_output_parent(workspace)
+        if (
+            _stat_stamp(workspace.stat()) != directory
+            or _stat_stamp(workspace.parent.stat()) != parent
+            or {p.name for p in workspace.iterdir()} != set(expected)
+        ):
+            raise ParisonError(_HASH_ERROR)
+        for name, digest in expected.items():
+            path = workspace / name
+            if path.is_symlink() or _stat_stamp(path.stat()) != stamps[name] or _digest(path) != digest:
+                raise ParisonError(_HASH_ERROR)
+
+    unchanged()
+    return unchanged
+
+
+def _run_hash(plan, recipe_path, baseline, candidate, workspace, stack):
+    context = _execution_context()
+    workspace_fd = _directory(stack, workspace)
+    workspace_identity = workspace.stat().st_dev, workspace.stat().st_ino
+    parent_stamp = _stat_stamp(workspace.parent.stat())
+
+    def workspace_check():
+        check_output_parent(workspace)
+        if (workspace.stat().st_dev, workspace.stat().st_ino) != workspace_identity or _stat_stamp(
+            workspace.parent.stat()
+        ) != parent_stamp:
+            raise ParisonError(_HASH_ERROR)
+
+    recipe_handle, recipe_check = _pinned_hash_input(stack, recipe_path, 262144)
+    recipe_bytes = recipe_handle.read(262145)
+    recipe_check()
+    if len(recipe_bytes) > 262144:
+        raise ParisonError(_HASH_ERROR)
+    _parse_json(recipe_bytes)
+    recipe = load_recipe_text(recipe_bytes.decode("utf-8"))
+    if (
+        recipe["comparison_mode"] != "keyed"
+        or not 1 <= len(recipe["keys"]) <= 16
+        or len(recipe["columns"]) > 100
+        or any(recipe["columns"][name]["type"] not in {"integer", "string"} for name in recipe["keys"])
+        or recipe["output"]["sensitivity"] != "summary"
+        or any(
+            recipe.get(name) for name in ("column_mappings", "field_projection", "input_projection", "excluded_columns")
+        )
+    ):
+        raise ParisonError(_HASH_ERROR)
+    derived = _canonical({**recipe, "scope": {**recipe["scope"], "expected_empty": True}})
+    if len(derived) > 262144:
+        raise ParisonError(_HASH_ERROR)
+    limits, expected, checks, identities, sources = plan["limits"], {}, [recipe_check], {}, {}
+    file_stamps = {}
+    staged = 0
+
+    def write(handle, data):
+        nonlocal staged
+        if len(data) > limits["max_staged_bytes"] - staged:
+            raise ParisonError(_HASH_ERROR)
+        handle.write(data)
+        staged += len(data)
+
+    def create(name):
+        workspace_check()
+        descriptor = os.open(
+            name if workspace_fd is not None else workspace / name,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+            dir_fd=workspace_fd,
+        )
+        return os.fdopen(descriptor, "wb")
+
+    with create("derived-recipe.json") as handle:
+        write(handle, derived)
+    expected["derived-recipe.json"] = hashlib.sha256(derived).hexdigest()
+    file_stamps["derived-recipe.json"] = _stat_stamp((workspace / "derived-recipe.json").stat())
+    for side, original in (("baseline", baseline), ("candidate", candidate)):
+        if Path(original).suffix.lower() != ".csv":
+            raise ParisonError(_HASH_ERROR)
+        source, check = _pinned_hash_input(stack, original, limits["max_input_bytes"])
+        checks.append(check)
+        name, size, digest = f"snapshot-{side}.csv", 0, hashlib.sha256()
+        with create(name) as handle:
+            while block := source.read(1024 * 1024):
+                size += len(block)
+                if size > limits["max_input_bytes"]:
+                    raise ParisonError(_HASH_ERROR)
+                write(handle, block)
+                digest.update(block)
+        check()
+        identities[side] = {"sha256": digest.hexdigest(), "bytes": size}
+        expected[name], sources[side] = digest.hexdigest(), workspace / name
+        file_stamps[name] = _stat_stamp(sources[side].stat())
+
+    def snapshots_check():
+        workspace_check()
+        for side, path in sources.items():
+            if (
+                path.is_symlink()
+                or _stat_stamp(path.stat()) != file_stamps[path.name]
+                or _digest(path) != identities[side]["sha256"]
+            ):
+                raise ParisonError(_HASH_ERROR)
+
+    count = plan["routing"]["buckets"]
+    columns = sorted(recipe["columns"])
+    records = [{"bucket": index, "baseline": {}, "candidate": {}} for index in range(count)]
+    rows = {"baseline": 0, "candidate": 0}
+    for side in ("baseline", "candidate"):
+        snapshots_check()
+        with ExitStack() as writers:
+            handles, digests = [], []
+            header = _csv_bytes(columns, recipe["delimiters"][side])
+            for index in range(count):
+                if len(header) > limits["max_partition_bytes"]:
+                    raise ParisonError(_HASH_ERROR)
+                handles.append(writers.enter_context(create(f"{side}-{index}.csv")))
+                write(handles[-1], header)
+                digests.append(hashlib.sha256(header))
+                records[index][side] = {"rows": 0, "bytes": len(header)}
+            # Directory entries remain fixed while this side is parsed and written.
+            directory = _stat_stamp(workspace.stat())
+            for raw in _iter_input_rows(sources[side], recipe, limits["max_rows_per_input"], side):
+                rows[side] += 1
+                parsed = _parse_row(raw, recipe, side)
+                index = _hash_bucket(_hash_key(parsed, recipe, limits["max_key_bytes"]), count)
+                record = records[index][side]
+                null_token = recipe["null_tokens"][side][0] if recipe["null_tokens"][side] else None
+                line = _csv_bytes(
+                    [null_token if raw.get(name) is None else raw[name] for name in columns], recipe["delimiters"][side]
+                )
+                if (
+                    record["rows"] >= limits["max_rows_per_partition_side"]
+                    or len(line) > limits["max_partition_bytes"] - record["bytes"]
+                ):
+                    raise ParisonError(_HASH_ERROR)
+                write(handles[index], line)
+                digests[index].update(line)
+                record["rows"] += 1
+                record["bytes"] += len(line)
+            if _stat_stamp(workspace.stat()) != directory:
+                raise ParisonError(_HASH_ERROR)
+        for index in range(count):
+            digest = digests[index].hexdigest()
+            records[index][side]["sha256"] = digest
+            expected[f"{side}-{index}.csv"] = digest
+            file_stamps[f"{side}-{index}.csv"] = _stat_stamp((workspace / f"{side}-{index}.csv").stat())
+        snapshots_check()
+    staged_check = _stage_guard(workspace, expected, file_stamps)
+    counts, fields, differences, outcome, complete = _compare_ranges(plan, recipe, records, rows, workspace)
+    staged_check()
+    workspace_check()
+
+    def source_check():
+        for check in checks:
+            check()
+
+    source_check()
+    return {
+        "partition_receipt_version": 2,
+        "policy_sha256": _checked_policy_sha256(recipe, None),
+        "plan_sha256": hashlib.sha256(_canonical(plan)).hexdigest(),
+        "routing": plan["routing"],
+        "normalization_runtime": context,
+        "derived_recipe_bytes": len(derived),
+        "inputs": identities,
+        "route_rows": rows,
+        "staged_bytes": staged,
+        "partitions": records,
+        "counts": counts,
+        "field_counts": fields,
+        "discrepancy_count": differences,
+        "outcome": outcome,
+        "complete": complete,
+    }, source_check
 
 
 def _run(
@@ -604,7 +863,7 @@ def discover(
 ) -> dict[str, Any]:
     plan = validate_plan(_read_json(Path(plan_path)))
     if plan["partition_plan_version"] == 2:
-        raise ParisonError(_HASH_ERROR)  # Producer follows the independently qualified reader.
+        return _discover_hash(plan, recipe_path, baseline, candidate, output)
     target = Path(output)
     check_output_parent(target.parent)
     if target.exists() or target.is_symlink():
@@ -630,8 +889,61 @@ def discover(
         raise
 
 
+def _discover_hash(plan, recipe, baseline, candidate, output):
+    stage = None
+    try:
+        _execution_context()
+        target = Path(output)
+        check_output_parent(target.parent)
+        if target.exists() or target.is_symlink():
+            raise ParisonError(_HASH_ERROR)
+        stage = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent))
+        os.chmod(stage, 0o700)
+        identity = stage.stat().st_dev, stage.stat().st_ino
+        workspace = stage / "temporary"
+        workspace.mkdir(mode=0o700)
+        with ExitStack() as stack:
+            receipt, source_check = _run_hash(plan, recipe, baseline, candidate, workspace, stack)
+            shutil.rmtree(workspace)
+            values = {"plan.json": plan, "receipt.json": receipt, "summary.json": _summary(receipt)}
+            digests, stamps = {}, {}
+            for name, value in values.items():
+                data = _canonical(value) + b"\n"
+                if len(data) > (8 * 1024 * 1024 if name == "receipt.json" else 262144):
+                    raise ParisonError(_HASH_ERROR)
+                descriptor = os.open(stage / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(descriptor, "wb") as handle:
+                    handle.write(data)
+                digests[name] = hashlib.sha256(data).hexdigest()
+                stamps[name] = _stat_stamp((stage / name).stat())
+            manifest = _canonical({"partition_manifest_version": 2, "files": digests}) + b"\n"
+            descriptor = os.open(stage / "manifest.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(manifest)
+            stamps["manifest.json"] = _stat_stamp((stage / "manifest.json").stat())
+            metadata_check = _stage_guard(
+                stage, {**digests, "manifest.json": hashlib.sha256(manifest).hexdigest()}, stamps
+            )
+            _verified_hash_evidence(stage, None, None, None)
+            source_check()
+            metadata_check()
+            check_output_parent(stage)
+            if (stage.stat().st_dev, stage.stat().st_ino) != identity:
+                raise ParisonError(_HASH_ERROR)
+            rename_no_replace(stage, target)
+            stage = None
+        return values["summary.json"]
+    except KeyboardInterrupt:
+        raise _HashInterrupted from None
+    except (ParisonError, OSError, UnicodeError, ValueError, TypeError, KeyError, OverflowError, RecursionError):
+        raise ParisonError(_HASH_ERROR) from None
+    finally:
+        if stage is not None and stage.exists():
+            shutil.rmtree(stage, ignore_errors=True)
+
+
 def _verified_hash_evidence(root, recipe, baseline, candidate):
-    """Integrity-only v2 reader; source-backed execution is not enabled yet."""
+    """Pinned v2 integrity verification and optional complete exact replay."""
     try:
         check_output_parent(root.parent)
         names = {"plan.json", "receipt.json", "summary.json", "manifest.json"}
@@ -679,19 +991,32 @@ def _verified_hash_evidence(root, recipe, baseline, candidate):
             _validate_receipt(plan, receipt)
             if data["summary.json"] != _canonical(_summary(receipt)) + b"\n":
                 raise ParisonError(_HASH_ERROR)
+            if any(value is not None for value in (recipe, baseline, candidate)):
+                if (
+                    any(value is None for value in (recipe, baseline, candidate))
+                    or _execution_context() != receipt["normalization_runtime"]
+                ):
+                    raise ParisonError(_HASH_ERROR)
+                with tempfile.TemporaryDirectory(prefix="parison-hash-replay-") as temporary:
+                    workspace = Path(temporary) / "temporary"
+                    workspace.mkdir(mode=0o700)
+                    with ExitStack() as sources:
+                        replay, source_check = _run_hash(plan, recipe, baseline, candidate, workspace, sources)
+                        if replay != receipt:
+                            raise ParisonError(_HASH_ERROR)
+                        source_check()
             if (
                 any(_stamp(handle) != stamps[name] for name, handle in handles.items())
                 or _members(root, fd) != names
                 or (fd is None and root.is_symlink())
                 or (fd is not None and _stat_stamp(os.fstat(fd)) != directory_stamp)
+                or (fd is not None and (root.is_symlink() or _stat_stamp(root.stat()) != directory_stamp))
             ):
                 raise ParisonError(_HASH_ERROR)
             if fd is None and any(
                 (root / name).is_symlink() or _stat_stamp((root / name).stat()) != stamps[name] for name in names
             ):
                 raise ParisonError(_HASH_ERROR)
-            if any(value is not None for value in (recipe, baseline, candidate)):
-                raise ParisonError(_HASH_ERROR)  # Exact replay follows the hash producer.
             return plan, receipt, summary, hashlib.sha256(data["manifest.json"]).hexdigest()
     except KeyboardInterrupt:
         raise _HashInterrupted from None
