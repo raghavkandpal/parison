@@ -1,7 +1,7 @@
 # Feature 2 offline assessment and replay gate
 
 Date: 31 October 2026
-Status: runtime implemented; source-head review, live rerun and exact-head CI pending
+Status: source-head tests, live pair gates and independent reviews passed; final-head CI pending
 
 Capture [287](287-representation-capture-checkpoint.md) merged through PR #126
 at `2c6652ef4838e9cd2ef960b6f41f6a9d086a9588`. Its final head
@@ -75,3 +75,25 @@ Recorded and actual observations retain their distinct meanings: corresponding
 cross-parent changes differ from an identical intrinsic mismatch in both inputs.
 The contract clarifies that distinction, with reason-specific regressions. Returned
 not_assessed lists are independent copies, preserving deterministic later runs.
+
+## Qualified source evidence
+
+Corrected source `04a2ded3eb822f5ac191797c5d5847b2a70788be` passed639 local
+tests, independent Standards and Spec review, and the exact-source disposable
+pair rerun. The [raw pair report](../../benchmarks/results-2026-10-31-representation-assessment-pairs.json)
+records PostgreSQL16.15/17.11/18.6, Python/driver/platform,18 gates and10 pair cases.
+Every server stopped before assessment, proposal creation or replay.
+
+| Scenario for both16→18 and17→18 | Expected compatibility |
+| --- | --- |
+| Equal native metadata, deliberately different CSV rows | ACCEPT, no row parity claim |
+| Widened native bounds under exact rules | DENY |
+| Same changes under explicit widen rules | ACCEPT with all change findings |
+| PG18 unvalidated native guarantee | INCONCLUSIVE |
+| Observed provider drift plus unknown native guarantee | DENY |
+
+Both pairs also produce visibly unapproved proposals that cannot execute as
+plans. All prior capture gates and source profiles remain qualified separately;
+this pair gate adds no future PostgreSQL version to either live allowlist.
+Final PR-head built-wheel/quality CI is still required before integration and
+before recording feature2 as the second of ten integrated features.
