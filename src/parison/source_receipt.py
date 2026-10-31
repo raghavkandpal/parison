@@ -105,10 +105,10 @@ def validate_postgres_only_plan(value: Any) -> dict[str, Any]:
     return plan
 
 
-def _read_json(handle: BinaryIO) -> tuple[dict[str, Any], bytes]:
+def _read_json(handle: BinaryIO, limit: int = 256 * 1024) -> tuple[dict[str, Any], bytes]:
     try:
-        data = handle.read(256 * 1024 + 1)
-        if len(data) > 256 * 1024:
+        data = handle.read(limit + 1)
+        if len(data) > limit:
             raise ParisonError("PostgreSQL evidence JSON is too large")
         value = json.loads(data.decode("utf-8"), object_pairs_hook=_strict_object)
         if not isinstance(value, dict) or data != _canonical(value) + b"\n":

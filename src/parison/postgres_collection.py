@@ -60,7 +60,11 @@ def _load_plan(path: Path) -> dict:
         object_pairs_hook=_strict_object,
         parse_constant=lambda _: (_ for _ in ()).throw(ValueError()),
     )
-    return validate_postgres_collection_plan(value)
+    plan = validate_postgres_collection_plan(value)
+    # Collection-v2 offline reading precedes the separately qualified live writer.
+    if plan["collection_plan_version"] != 1:
+        raise ParisonError(_ERROR)
+    return plan
 
 
 def _remaining(started: float, limits: dict) -> float:

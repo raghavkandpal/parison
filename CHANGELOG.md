@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Extend offline PostgreSQL collection verification to version 2 with bounded representation metadata and replayed native normalization; live v2 capture and compatibility assessment remain pending.
+
 - Add feature 2 structural representation schemas and frozen capture/assessment/proposal fixtures; runtime capture and assessment remain pending.
 
 - Add bounded one-snapshot PostgreSQL collection acquisition through `parison postgres collection`, retaining released table/pair commands and offline readers.
