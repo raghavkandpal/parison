@@ -137,7 +137,10 @@ summary output. Private field_counts may retain approved recipe field names.
 ## 4. Version2 evidence and runtime context
 
 Root remains exactly plan.json, receipt.json, summary.json and manifest.json.
-All published JSON is canonical _canonical plus one LF. User plan/recipe files
+All published JSON is canonical _canonical plus one LF. Plan_sha256 hashes
+_canonical(plan) without LF; manifest/member digests hash the exact published
+bytes including LF. The private derived recipe uses _canonical(derived) without
+LF, matching the existing comparison seam. User plan/recipe files
 need not already be canonical, but duplicate members/nonfinite constants and
 invalid exact types are errors. Version2 readers require canonical member bytes;
 range-v1 reader acceptance and all released byte fixtures are unchanged.

@@ -4,3 +4,4 @@ tests/fixtures/postgres_pair/tables/*/data.csv -text
 tests/fixtures/postgres_collection/expected/tables/*/data.csv -text
 tests/fixtures/postgres_collection/only-expected/tables/*/data.csv -text
 tests/fixtures/postgres_representation/*/tables/*/data.csv -text
+tests/fixtures/partition_hash/*.csv -text
