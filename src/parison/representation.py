@@ -46,7 +46,7 @@ def _version(value, allowed):
         raise ParisonError(_ERROR)
 
 
-def _collation(value, kind, supported):
+def _collation(value, kind, supported, major):
     _object(
         value,
         "state origin schema name provider encoding deterministic collate ctype locale rules recorded_version actual_version",
@@ -66,6 +66,8 @@ def _collation(value, kind, supported):
     for key in ("schema", "name"):
         _identifier(value[key])
     _enum(value["provider"], {"libc", "icu", "builtin"})
+    if value["provider"] == "builtin" and major < 17:
+        raise ParisonError(_ERROR)
     _integer(value["encoding"], -1, 2147483647)
     _boolean(value["deterministic"])
     for key in ("collate", "ctype", "locale", "rules"):
@@ -228,7 +230,7 @@ def validate_representation(metadata, receipt, children):
             _enum(materialization["identity"], {"none", "always", "by-default"})
             _enum(materialization["generated"], {"none", "stored", "virtual"} if major == 18 else {"none", "stored"})
             _boolean(materialization["has_default"])
-            _collation(column["collation"], type_fact["name"], supported)
+            _collation(column["collation"], type_fact["name"], supported, major)
         if (
             len(set(names)) != len(names)
             or ordinals != sorted(set(ordinals))

@@ -186,6 +186,35 @@ class RepresentationVerification(unittest.TestCase):
         with self.assertRaises(ParisonError):
             self.verify()
 
+    def test_builtin_provider_version_profiles(self):
+        original = self.read("representation.json")
+        metadata = copy.deepcopy(original)
+        collation = metadata["tables"]["orders"]["columns"][1]["collation"]
+        collation.update(provider="builtin", origin="explicit", name="pg_c", collate=None, ctype=None, locale="C")
+        for key in ("recorded_version", "actual_version"):
+            collation[key] = {"state": "known", "value": "1"}
+        known = copy.deepcopy(collation)
+        self.write("representation.json", metadata)
+        self.rehash()
+        self.verify()
+        # Missing observations stay unknown; they cannot claim not-versioned.
+        for key in ("recorded_version", "actual_version"):
+            collation[key] = {"state": "unknown", "value": None}
+        self.write("representation.json", metadata)
+        self.rehash()
+        self.verify()
+        collation["actual_version"] = {"state": "not-versioned", "value": None}
+        self.write("representation.json", metadata)
+        self.rehash()
+        with self.assertRaises(ParisonError):
+            self.verify()
+        # The native builtin provider was introduced after the PG16 profile.
+        shutil.rmtree(self.root)
+        shutil.copytree(FIXTURE / "baseline", self.root)
+        self.mutate(["tables", "orders", "columns", 1, "collation"], known)
+        with self.assertRaises(ParisonError):
+            self.verify()
+
     def test_metadata_over_old_json_limit_and_physical_inventory_cap(self):
         metadata = self.read("representation.json")
         table = metadata["tables"]["orders"]

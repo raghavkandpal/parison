@@ -32,6 +32,14 @@ versus semantic -3; varchar length and timestamp precision are reconstructed.
 PG18 non-key unvalidated not-null remains unknown, and unsupported unselected
 native types retain unknown guarantees. Collation states, resolved/version shapes
 and legitimately non-versioned libc C/POSIX observations remain typed.
+Builtin is admitted only under PG17/18 profiles. Primary-source recheck on
+31 October found their supported builtin locales report version "1" in
+[PG17](https://github.com/postgres/postgres/blob/REL_17_STABLE/src/backend/utils/adt/pg_locale.c)
+and [PG18](https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/utils/adt/pg_locale_builtin.c).
+No unversioned builtin locale is qualified here; the contract's conditional
+allowance does not invent one. Absent builtin observations remain unknown,
+never a compatibility wildcard. Review added a PG16 provider rejection and
+regressions for known, unknown and falsely unversioned PG18 builtin facts.
 
 The reader does not establish extraction truth or invent missing inventories.
 It verifies the declared record and its internal bindings. Capture still requires
