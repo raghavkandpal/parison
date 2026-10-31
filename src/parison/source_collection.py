@@ -179,7 +179,7 @@ def _stat_stamp(info):
     return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
 
 
-def verify_postgres_collection(directory: str | Path) -> dict[str, Any]:
+def _verified_collection(directory: str | Path) -> dict[str, Any]:
     """Verify bounded pinned local evidence without a driver or server."""
     root = Path(directory)
     try:
@@ -285,7 +285,7 @@ def verify_postgres_collection(directory: str | Path) -> dict[str, Any]:
                 _, data = _read_json(handles["manifest.json"])
                 children[table_id] = child_receipt, hashlib.sha256(data).hexdigest()
             _receipt(receipt, children)
-            representation_data = None
+            representation = representation_data = None
             if version == 2:
                 representation, representation_data = _read_json(metadata["representation.json"], representation_limit)
                 if (
@@ -308,7 +308,7 @@ def verify_postgres_collection(directory: str | Path) -> dict[str, Any]:
             _integer(summary["bytes"], 0, limits["max_output_bytes"])
             if summary["complete"] is not True or summary != collection_summary(receipt, receipt_data):
                 raise ParisonError(_ERROR)
-            manifest, _ = _read_json(metadata["manifest.json"])
+            manifest, manifest_data = _read_json(metadata["manifest.json"])
             _object(manifest, "postgres_collection_manifest_version kind complete files table_manifests")
             _integer(manifest["postgres_collection_manifest_version"], version, version)
             if (
@@ -335,7 +335,12 @@ def verify_postgres_collection(directory: str | Path) -> dict[str, Any]:
                     raise ParisonError(_ERROR)
             if any(_stat_stamp(os.fstat(fd)) != before for fd, before in directory_stamps):
                 raise ParisonError(_ERROR)
-            return summary
+            return {
+                "summary": summary,
+                "receipt": receipt,
+                "representation": representation,
+                "manifest_sha256": hashlib.sha256(manifest_data).hexdigest(),
+            }
     except (
         ParisonError,
         OSError,
@@ -348,6 +353,11 @@ def verify_postgres_collection(directory: str | Path) -> dict[str, Any]:
         csv.Error,
     ):
         raise ParisonError(_ERROR) from None
+
+
+def verify_postgres_collection(directory: str | Path) -> dict[str, Any]:
+    """Return only the released safe projection of a pinned verified collection."""
+    return _verified_collection(directory)["summary"]
 
 
 class _SafeParser(argparse.ArgumentParser):

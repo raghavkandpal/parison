@@ -20,6 +20,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Feature 2 structural schemas and canonical wire checkpoint](2.4/285-representation-wire-checkpoint.md)
 - [Feature 2 offline collection-v2 verification](2.4/286-representation-offline-verification.md)
 - [Feature 2 same-snapshot collection-v2 capture](2.4/287-representation-capture-checkpoint.md)
+- [Feature 2 offline assessment, replay and CLI qualification](2.4/288-representation-assessment-runtime.md)
 
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 

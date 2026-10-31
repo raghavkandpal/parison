@@ -1,0 +1,8 @@
+usage: parison representation propose [-h] --baseline BASELINE
+                                      --candidate CANDIDATE --output OUTPUT
+
+options:
+  -h, --help            show this help message and exit
+  --baseline BASELINE
+  --candidate CANDIDATE
+  --output OUTPUT

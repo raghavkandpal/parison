@@ -333,6 +333,7 @@ def parser() -> argparse.ArgumentParser:
         "verify-postgres-pair", help="verify a coordinated two-table PostgreSQL export"
     )
     postgres_pair_verify.add_argument("bundle")
+    commands.add_parser("representation", help="assess native PostgreSQL representation evidence")
     collection_verify = commands.add_parser("verify-postgres-collection", help="verify a local snapshot collection")
     collection_verify.add_argument("bundle")
     schema = commands.add_parser("schema", help="print an installed JSON Schema")
@@ -688,6 +689,10 @@ def postgres_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "representation":
+        from .representation_assessment import main as representation_main
+
+        return representation_main(argv[1:])
     if argv and argv[0] == "verify-postgres-collection":
         from .source_collection import main as collection_verify_main
 
