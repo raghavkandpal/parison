@@ -277,8 +277,8 @@ def qualify(binary, report, measure, representation=False):
                         copied.assert_not_called()
                     real_rows = collection._capture_rows
 
-                    def incomplete(cursor, query, parameters, names, maximum):
-                        rows = real_rows(cursor, query, parameters, names, maximum)
+                    def incomplete(cursor, query, parameters, names, maximum, started, limits):
+                        rows = real_rows(cursor, query, parameters, names, maximum, started, limits)
                         return rows[:-1] if "FROM information_schema.columns" in query else rows
 
                     save()
@@ -288,6 +288,23 @@ def qualify(binary, report, measure, representation=False):
                     ):
                         fails("representation-inventory-mismatch-before-copy")
                         copied.assert_not_called()
+                    delayed_metadata = []
+
+                    def metadata_pause(cursor, query, parameters, names, maximum, started, limits):
+                        rows = real_rows(cursor, query, parameters, names, maximum, started, limits)
+                        if "FROM information_schema.columns" in query:
+                            delayed_metadata.append(True)
+                            time.sleep(2.1)
+                        return rows
+
+                    save({**plan, "limits": {**plan["limits"], "wall_timeout_ms": 2000}})
+                    with (
+                        patch.object(collection, "_capture_rows", side_effect=metadata_pause),
+                        patch.object(collection, "_acquire_table") as copied,
+                    ):
+                        fails("representation-wall-deadline-between-catalog-queries")
+                        copied.assert_not_called()
+                    assert delayed_metadata
                 save()
 
                 def interrupted(cursor, declared, stage, *args):
@@ -462,6 +479,18 @@ def qualify(binary, report, measure, representation=False):
                                 sql.Identifier(typed)
                             )
                         )
+                    if int(results["server_version_num"]) >= 180000:
+                        try:
+                            admin.execute(
+                                sql.SQL(
+                                    "ALTER TABLE gate.{} ADD CONSTRAINT neg_unenforced NOT NULL neg NOT ENFORCED"
+                                ).format(sql.Identifier(typed))
+                            )
+                        except psycopg.errors.FeatureNotSupported:
+                            pass
+                        else:
+                            raise AssertionError("native NOT NULL NOT ENFORCED unexpectedly supported")
+                        results["gates"].append("pg18-native-not-null-not-enforced-unsupported")
                     if int(results["server_version_num"]) >= 180000:
                         admin.execute(
                             sql.SQL("ALTER TABLE gate.{} ADD virtual_col int GENERATED ALWAYS AS (b+1) VIRTUAL").format(

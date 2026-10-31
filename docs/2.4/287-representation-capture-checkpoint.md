@@ -25,7 +25,11 @@ before COPY. Missing/extra rows, unsupported selected types, non-UTF8 databases,
 physical column overflow and impossible normalized observations abort capture.
 Unsupported unselected domain identity is retained without inferring semantics.
 
-Each query bounds rows; potentially large catalog locale/version/rule strings
+Every metadata query checks the shared deadline before and after execution,
+and its statement timeout is capped by remaining wall time. This prevents a
+one-shot cancellation fired during Python processing from allowing a later
+long catalog query. A live idle-between-statements expiry gate rejects before
+COPY. Each query bounds rows; potentially large catalog locale/version/rule strings
 are truncated to one character beyond their scalar cap on the server, then
 rejected by byte validation rather than silently accepted as shortened facts.
 Native constraints, identity/generated/default flags, default/explicit collation
@@ -47,7 +51,13 @@ set and adds inventory mismatch/byte caps before COPY, full native type replay,
 signed and excess numeric scale, bounded text/time precision, unsupported
 unselected domains, identity/stored/default flags, ICU definitions and observed
 provider-version mismatch, PG17/18 builtin observations, PG18 virtual generation
-and unvalidated native not-null, plus the physical 100-column cap. Repeated
+and unvalidated native not-null, plus the physical 100-column cap.
+Primary-source review on 31 October corrected contract 284's ambiguous
+not-enforced not-null gate: [PG18 CREATE TABLE](https://www.postgresql.org/docs/18/sql-createtable.html)
+permits NOT ENFORCED only for CHECK/foreign-key constraints. The live gate
+therefore requires PostgreSQL to reject native NOT NULL NOT ENFORCED, rather
+than inventing such a source observation. This does not broaden capture or
+interpret the explicitly unassessed CHECK/foreign-key semantics. Repeated
 100k/250k measurements remain machine-specific evidence, never capacity promises.
 
 Narrow gate: `make test TEST='tests.test_representation_capture tests.test_representation tests.test_postgres_collection_acquisition'`.

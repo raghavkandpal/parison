@@ -37,7 +37,7 @@ class RepresentationCapture(unittest.TestCase):
     def test_metadata_admitted_after_all_locks_before_copy(self):
         events = []
 
-        def capture(cursor, children, qualified):
+        def capture(cursor, children, qualified, started, limits):
             self.assertEqual(len([s for s in cursor.statements if s.startswith("LOCK TABLE")]), 2)
             self.assertEqual(set(children), set(qualified))
             self.assertEqual(events, [])
@@ -114,7 +114,15 @@ class RepresentationCapture(unittest.TestCase):
 
         cursor = Cursor()
         with self.assertRaises(ParisonError):
-            collection._capture_rows(cursor, "query", (), "name", 2)
+            collection._capture_rows(
+                cursor,
+                "query",
+                (),
+                "name",
+                2,
+                collection.time.monotonic(),
+                {"statement_timeout_ms": 1000, "wall_timeout_ms": 2000},
+            )
         self.assertEqual(cursor.count, 3)
         self.assertEqual(
             collection._provider_version(None, "libc", "C", "C"), {"state": "not-versioned", "value": None}
@@ -124,6 +132,30 @@ class RepresentationCapture(unittest.TestCase):
                 collection._provider_version(None, provider, "C", "C"), {"state": "unknown", "value": None}
             )
         self.assertEqual(collection._provider_version("1", "builtin", None, None), {"state": "known", "value": "1"})
+
+    def test_expired_deadline_never_starts_another_catalog_query(self):
+        from unittest.mock import Mock
+
+        cursor = Mock()
+        cursor.fetchmany.return_value = [("value",)]
+        limits = {"statement_timeout_ms": 1000, "wall_timeout_ms": 2000}
+        now = [0.0]
+        with patch.object(collection.time, "monotonic", side_effect=lambda: now[0]):
+            collection._capture_rows(cursor, "query", (), "name", 2, 0.0, limits)
+            self.assertEqual(cursor.execute.call_count, 2)
+            now[0] = 3.0
+            with self.assertRaises(ParisonError):
+                collection._capture_rows(cursor, "later query", (), "name", 2, 0.0, limits)
+            self.assertEqual(cursor.execute.call_count, 2)
+            now[0] = 0.0
+
+            def delayed_fetch(count):
+                now[0] = 3.0
+                return [("value",)]
+
+            cursor.fetchmany.side_effect = delayed_fetch
+            with self.assertRaises(ParisonError):
+                collection._capture_rows(cursor, "query", (), "name", 2, 0.0, limits)
 
     def test_v1_writer_never_collects_representation(self):
         self.harness.plan = json.loads((FIXTURE.parent / "postgres_collection" / "plan.json").read_bytes())

@@ -337,7 +337,8 @@ and negative fixtures for both envelopes, assessment and proposal. Independent
 review must challenge this contract's rule precedence and all unknown states.
 Live capture must pass all three exact PostgreSQL rows, both 16→18/17→18 metadata
 assessment pairs, negative/greater-than-precision/unbounded numeric,0/6 timestamp
-precision, PG18 invalid/not-enforced not-null, PK order and explicit/default
+precision, PG18 unvalidated native not-null and rejection of unsupported
+NOT ENFORCED native not-null, PK order and explicit/default
 collations. Include hostile search paths, post-qualification DDL/ONLY scope,
 post-acquisition DDL, substituted children, wrong plan/snapshot/session, metadata
 oversize and provider drift. Equal metadata with different rows must never be

@@ -125,9 +125,14 @@ def _qualify_table(cursor, plan: dict) -> tuple[dict, str]:
     return source, snapshot
 
 
-def _capture_rows(cursor, query, parameters, names, maximum):
+def _capture_rows(cursor, query, parameters, names, maximum, started, limits):
+    # Cancellation may already have fired while Python was between statements.
+    timeout_ms = min(limits["statement_timeout_ms"], max(1, ceil(_remaining(started, limits) * 1000)))
+    cursor.execute(f"SET LOCAL statement_timeout TO '{timeout_ms}ms'")
+    _remaining(started, limits)
     cursor.execute(query, parameters)
     rows = cursor.fetchmany(maximum + 1)
+    _remaining(started, limits)
     if len(rows) > maximum:
         raise ParisonError(_ERROR)
     return [dict(zip(names.split(), row, strict=True)) for row in rows]
@@ -187,7 +192,7 @@ def _capture_collation(row, database):
     }
 
 
-def _capture_inventory(cursor, children, qualified):
+def _capture_inventory(cursor, children, qualified, started, limits):
     from .representation import _normal_facts
 
     major = next(iter(qualified.values()))[0]["server_version_num"] // 10000
@@ -198,6 +203,8 @@ def _capture_inventory(cursor, children, qualified):
         (),
         "provider collate ctype locale rules recorded_version actual_version server_encoding",
         1,
+        started,
+        limits,
     )
     if len(database_rows) != 1 or database_rows[0]["server_encoding"] != "UTF8":
         raise ParisonError(_ERROR)
@@ -205,6 +212,7 @@ def _capture_inventory(cursor, children, qualified):
     locale = "co.colliculocale" if major == 16 else "co.colllocale"
     result = {}
     for table_id, plan in children.items():
+        _remaining(started, limits)
         parameters = (plan["schema"], plan["table"])
         attributes = _capture_rows(
             cursor,
@@ -229,6 +237,8 @@ def _capture_inventory(cursor, children, qualified):
             parameters,
             "name ordinal type_schema type_name type_oid typmod display declared_not_null identity generated has_default collation_oid collation_schema collation_name provider encoding deterministic collate ctype locale rules recorded_version actual_version",
             100,
+            started,
+            limits,
         )
         accessible = _capture_rows(
             cursor,
@@ -243,6 +253,8 @@ def _capture_inventory(cursor, children, qualified):
             parameters,
             "name ordinal type_schema type_name precision radix raw_scale max_length datetime_precision information_schema_nullable",
             100,
+            started,
+            limits,
         )
         if (
             not attributes
@@ -268,6 +280,8 @@ def _capture_inventory(cursor, children, qualified):
                 parameters,
                 "name validated enforced columns",
                 10000,
+                started,
+                limits,
             )
             for row in rows:
                 if (
@@ -428,7 +442,7 @@ def export_postgres_collection(plan_path: str | Path, output: str | Path) -> dic
                     if plan["collection_plan_version"] == 2:
                         if first_source["server_version_num"] not in REPRESENTATION_LIVE_VERSIONS:
                             raise ParisonError(_ERROR)
-                        captured = _capture_inventory(cursor, children, qualified)
+                        captured = _capture_inventory(cursor, children, qualified, started, limits)
                         temporary_manifests = {table_id: "0" * 64 for table_id in children}
                         record = _representation_record(
                             plan, first_source, first_snapshot, captured, temporary_manifests
