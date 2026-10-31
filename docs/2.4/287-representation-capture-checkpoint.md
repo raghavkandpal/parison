@@ -1,7 +1,7 @@
 # Feature 2 same-snapshot collection-v2 capture
 
 Date: 31 October 2026
-Status: implemented; final source-head live evidence, independent review and CI pending
+Status: source-head tests, live gates and independent reviews passed; exact PR-head CI pending
 
 The offline verifier [286](286-representation-offline-verification.md) merged
 through PR #125 at `9b71e64`. Exact source head
@@ -71,3 +71,29 @@ replay, CLI execution fixtures and both 16→18/17→18 assessment live/adversar
 qualification pass. All ten 2.4 features must integrate and qualify before a
 candidate. Capture evidence establishes neither data parity nor approval/cutover
 authority.
+
+## Qualified source evidence
+
+Exact source head `0edccd231d948d7eba8ab62762128791a265690b` passed 621 local
+tests, independent Standards and Spec clearance, and all disposable live gates:
+40 on PostgreSQL16.15, 42 on17.11, 43 on18.6. Raw reports:
+[16](../../benchmarks/results-2026-10-31-postgresql16-representation-capture.json),
+[17](../../benchmarks/results-2026-10-31-postgresql17-representation-capture.json),
+[18](../../benchmarks/results-2026-10-31-postgresql18-representation-capture.json).
+
+The reviewed deadline finding is fixed and the unsupported native constraint
+probe returns FeatureNotSupported. Both review axes cleared the corrected head.
+
+Three repeats per row count/version ran sequentially on this machine; database
+server memory is excluded from worker RSS. These observations are not universal
+capacity or latency promises. Every report records Python, driver, server and
+platform. Each run uses six tables; published bytes include metadata and children.
+
+| PostgreSQL version | Rows | Median seconds | Median worker RSS MiB | Published MiB |
+| --- | ---: | ---: | ---: | ---: |
+| 160015 | 100,000 | 0.249 | 48.2 | 1.61 |
+| 160015 | 250,000 | 0.544 | 49.1 | 4.19 |
+| 170011 | 100,000 | 0.244 | 48.3 | 1.61 |
+| 170011 | 250,000 | 0.548 | 49.2 | 4.19 |
+| 180006 | 100,000 | 0.248 | 48.4 | 1.61 |
+| 180006 | 250,000 | 0.540 | 49.2 | 4.19 |
