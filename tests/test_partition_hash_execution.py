@@ -268,6 +268,7 @@ class HashExecution(unittest.TestCase):
 
     def test_interruption_in_each_phase_and_raced_target_are_clean(self):
         for seam in (
+            "_directory",
             "_pinned_hash_input",
             "_iter_input_rows",
             "compare",
@@ -317,3 +318,119 @@ class HashExecution(unittest.TestCase):
             self.assertEqual(discovery.main(args), 2)
         self.assertEqual(out.getvalue(), "")
         self.assertEqual(err.getvalue(), "parison-partitions: " + discovery._HASH_ERROR + "\n")
+
+    def test_owned_stage_cleanup_preserves_replacement_and_removes_snapshots(self):
+        original_run = discovery._run_hash
+        for path_mode in (False, True):
+            moved = self.root / "moved-stage"
+            replacement = None
+
+            def replace(*args, moved=moved, **kwargs):
+                nonlocal replacement
+                result = original_run(*args, **kwargs)
+                replacement = Path(args[4]).parent
+                replacement.rename(moved)
+                replacement.mkdir()
+                (replacement / "owner").write_bytes(b"keep")
+                return result
+
+            with patch.object(discovery, "_run_hash", side_effect=replace):
+                if path_mode:
+                    with patch.object(discovery, "_directory", return_value=None), self.assertRaises(ParisonError):
+                        self.run_discovery()
+                else:
+                    with self.assertRaises(ParisonError):
+                        self.run_discovery()
+            self.assertEqual((replacement / "owner").read_bytes(), b"keep")
+            self.assertFalse(list(moved.rglob("snapshot-*.csv")))
+            self.assertFalse(self.output.exists())
+            shutil.rmtree(replacement)
+            if moved.exists():
+                shutil.rmtree(moved)
+
+    def test_stage_substitution_cannot_write_metadata_into_unrelated_directory(self):
+        unrelated = self.root / "unrelated"
+        unrelated.mkdir()
+        (unrelated / "owner").write_bytes(b"keep")
+        original_remove = discovery.shutil.rmtree
+        substituted = False
+
+        def replace(path, *args, **kwargs):
+            nonlocal substituted
+            result = original_remove(path, *args, **kwargs)
+            if not substituted and Path(path).name == "temporary":
+                substituted = True
+                stage = next(self.root.glob(".evidence-*"))
+                stage.rename(self.root / "moved-stage")
+                try:
+                    stage.symlink_to(unrelated, target_is_directory=True)
+                except OSError:
+                    stage.mkdir()
+                    (stage / "owner").write_bytes(b"keep")
+            return result
+
+        with patch.object(discovery.shutil, "rmtree", side_effect=replace), self.assertRaises(ParisonError):
+            self.run_discovery()
+        self.assertEqual({p.name for p in unrelated.iterdir()}, {"owner"})
+        self.assertFalse(self.output.exists())
+        self.assertFalse(list((self.root / "moved-stage").rglob("snapshot-*.csv")))
+
+    def test_partial_snapshot_interruption_and_candidate_only_failure_clean_sensitive_files(self):
+        original_pin = discovery._pinned_hash_input
+        for side in ("baseline", "candidate"):
+
+            def interrupt(stack, path, limit, side=side):
+                handle, check = original_pin(stack, path, limit)
+                if Path(path).name != f"{side}.csv":
+                    return handle, check
+
+                class PartialRead:
+                    reads = 0
+
+                    def read(self, size):
+                        self.reads += 1
+                        if self.reads > 1:
+                            raise KeyboardInterrupt
+                        return handle.read(5)
+
+                return PartialRead(), check
+
+            with (
+                patch.object(discovery, "_pinned_hash_input", side_effect=interrupt),
+                self.assertRaises(discovery._HashInterrupted),
+            ):
+                self.run_discovery()
+            self.assert_clean()
+        self.plan["limits"]["max_rows_per_input"] = 3
+        candidate = self.root / "candidate.csv"
+        candidate.write_bytes(candidate.read_bytes() + b"extra,8,8.00\r\n")
+        with self.assertRaises(ParisonError):
+            self.run_discovery()
+        self.assert_clean()
+
+    def test_path_mode_replay_rejects_directory_substitution_with_identical_hardlinks(self):
+        self.run_discovery()
+        clone = self.root / "clone"
+        clone.mkdir()
+        for path in self.output.iterdir():
+            try:
+                (clone / path.name).hardlink_to(path)
+            except OSError:
+                self.skipTest("hardlinks unavailable")
+        original_compare = discovery.compare
+        replaced = False
+
+        def replace(*args, **kwargs):
+            nonlocal replaced
+            if not replaced:
+                replaced = True
+                self.output.rename(self.root / "saved")
+                clone.rename(self.output)
+            return original_compare(*args, **kwargs)
+
+        with (
+            patch.object(discovery, "_directory", return_value=None),
+            patch.object(discovery, "compare", side_effect=replace),
+            self.assertRaises(ParisonError),
+        ):
+            self.replay()

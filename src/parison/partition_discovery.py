@@ -889,8 +889,29 @@ def discover(
         raise
 
 
+def _cleanup_hash_stage(stage, identity, fd):
+    """Remove owned contents through their pinned directory, never a replacement."""
+    if fd is not None:
+        for entry in os.scandir(fd):
+            if entry.is_dir(follow_symlinks=False):
+                shutil.rmtree(entry.name, dir_fd=fd)
+            else:
+                os.unlink(entry.name, dir_fd=fd)
+        if not stage.is_symlink() and (stage.stat().st_dev, stage.stat().st_ino) == identity:
+            stage.rmdir()
+        return
+    # Platforms without directory descriptors: locate only the owned identity.
+    for path in stage.parent.iterdir():
+        if not path.is_symlink() and path.is_dir() and (path.stat().st_dev, path.stat().st_ino) == identity:
+            shutil.rmtree(path)
+            return
+
+
 def _discover_hash(plan, recipe, baseline, candidate, output):
     stage = None
+    stage_stack = ExitStack()
+    stage_fd = None
+    identity = None
     try:
         _execution_context()
         target = Path(output)
@@ -898,38 +919,65 @@ def _discover_hash(plan, recipe, baseline, candidate, output):
         if target.exists() or target.is_symlink():
             raise ParisonError(_HASH_ERROR)
         stage = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent))
-        os.chmod(stage, 0o700)
         identity = stage.stat().st_dev, stage.stat().st_ino
+        stage_fd = _directory(stage_stack, stage)
+        os.chmod(stage, 0o700)
+
+        def stage_check():
+            check_output_parent(stage)
+            if stage.is_symlink() or (stage.stat().st_dev, stage.stat().st_ino) != identity:
+                raise ParisonError(_HASH_ERROR)
+
+        def metadata(name, data):
+            stage_check()
+            descriptor = os.open(
+                name if stage_fd is not None else stage / name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+                0o600,
+                dir_fd=stage_fd,
+            )
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(data)
+                handle.flush()
+                file_identity = _stamp(handle)[:2]
+            stage_check()
+            info = os.stat(name if stage_fd is not None else stage / name, dir_fd=stage_fd, follow_symlinks=False)
+            if not stat.S_ISREG(info.st_mode) or _stat_stamp(info)[:2] != file_identity:
+                raise ParisonError(_HASH_ERROR)
+            return _stat_stamp(info)
+
         workspace = stage / "temporary"
-        workspace.mkdir(mode=0o700)
+        stage_check()
+        if stage_fd is not None:
+            os.mkdir("temporary", mode=0o700, dir_fd=stage_fd)
+        else:
+            workspace.mkdir(mode=0o700)
+        stage_check()
         with ExitStack() as stack:
             receipt, source_check = _run_hash(plan, recipe, baseline, candidate, workspace, stack)
-            shutil.rmtree(workspace)
+            stage_check()
+            if stage_fd is not None:
+                shutil.rmtree("temporary", dir_fd=stage_fd)
+            else:
+                shutil.rmtree(workspace)
+            stage_check()
             values = {"plan.json": plan, "receipt.json": receipt, "summary.json": _summary(receipt)}
             digests, stamps = {}, {}
             for name, value in values.items():
                 data = _canonical(value) + b"\n"
                 if len(data) > (8 * 1024 * 1024 if name == "receipt.json" else 262144):
                     raise ParisonError(_HASH_ERROR)
-                descriptor = os.open(stage / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-                with os.fdopen(descriptor, "wb") as handle:
-                    handle.write(data)
+                stamps[name] = metadata(name, data)
                 digests[name] = hashlib.sha256(data).hexdigest()
-                stamps[name] = _stat_stamp((stage / name).stat())
             manifest = _canonical({"partition_manifest_version": 2, "files": digests}) + b"\n"
-            descriptor = os.open(stage / "manifest.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(descriptor, "wb") as handle:
-                handle.write(manifest)
-            stamps["manifest.json"] = _stat_stamp((stage / "manifest.json").stat())
+            stamps["manifest.json"] = metadata("manifest.json", manifest)
             metadata_check = _stage_guard(
                 stage, {**digests, "manifest.json": hashlib.sha256(manifest).hexdigest()}, stamps
             )
             _verified_hash_evidence(stage, None, None, None)
             source_check()
             metadata_check()
-            check_output_parent(stage)
-            if (stage.stat().st_dev, stage.stat().st_ino) != identity:
-                raise ParisonError(_HASH_ERROR)
+            stage_check()
             rename_no_replace(stage, target)
             stage = None
         return values["summary.json"]
@@ -938,8 +986,13 @@ def _discover_hash(plan, recipe, baseline, candidate, output):
     except (ParisonError, OSError, UnicodeError, ValueError, TypeError, KeyError, OverflowError, RecursionError):
         raise ParisonError(_HASH_ERROR) from None
     finally:
-        if stage is not None and stage.exists():
-            shutil.rmtree(stage, ignore_errors=True)
+        try:
+            if stage is not None and identity is not None:
+                _cleanup_hash_stage(stage, identity, stage_fd)
+        except OSError:
+            pass
+        finally:
+            stage_stack.close()
 
 
 def _verified_hash_evidence(root, recipe, baseline, candidate):
@@ -951,7 +1004,7 @@ def _verified_hash_evidence(root, recipe, baseline, candidate):
             fd = _directory(stack, root)
             if _members(root, fd) != names:
                 raise ParisonError(_HASH_ERROR)
-            directory_stamp = _stat_stamp(os.fstat(fd)) if fd is not None else None
+            directory_stamp = _stat_stamp(os.fstat(fd) if fd is not None else root.stat())
             handles = {}
             for name in sorted(names):
                 if fd is not None:
@@ -1008,7 +1061,8 @@ def _verified_hash_evidence(root, recipe, baseline, candidate):
             if (
                 any(_stamp(handle) != stamps[name] for name, handle in handles.items())
                 or _members(root, fd) != names
-                or (fd is None and root.is_symlink())
+                or root.is_symlink()
+                or _stat_stamp(root.stat()) != directory_stamp
                 or (fd is not None and _stat_stamp(os.fstat(fd)) != directory_stamp)
                 or (fd is not None and (root.is_symlink() or _stat_stamp(root.stat()) != directory_stamp))
             ):

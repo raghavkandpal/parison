@@ -40,3 +40,18 @@ checks, cross-Python execution tests, independent Standards/Spec reviews and
 exact-head quality/manual full built-wheel CI must pass before integration.
 Feature3 remains incomplete until then; features1/2 are integrated (2/10).
 All ten features must integrate and qualify before any2.4 candidate.
+
+Independent review found publication redirection through a replaced staging
+path and cleanup that trusted the replaced name. The correction anchors metadata
+writes and sensitive cleanup to the owned directory descriptor where available,
+checks directory identity around path-mode operations and preserves unrelated
+replacement directories. Replay now also binds the root directory identity in
+path mode, rejecting a substituted root containing identical hardlinked members.
+Regressions cover both publication attacks, partial-copy interruption on each
+side and a candidate-only final-side failure. Corrected-head review/CI remain
+required; earlier head f4b0187 cannot qualify this correction.
+
+Corrected local gate:674 repository tests pass with lint, formatting, generated
+command documentation and whitespace checks;34 execution/reader/wire tests pass
+on CPython3.11.18,3.12.5,3.13.18 and3.14.7. These local results do not replace
+independent corrected-head review or the manual full built-wheel matrix.
