@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/representation-assessment-result-v1.schema.json",
+  "title": "representation-assessment-result-v1",
+  "description": "Structural schema. Strict token types, UTF-8 byte caps, canonical bytes, normalization and cross-record bindings require contract284 runtime validation.",
+  "type": "object",
+  "required": [
+    "representation_assessment_version",
+    "kind",
+    "scope",
+    "plan_sha256",
+    "inputs",
+    "complete",
+    "compatibility",
+    "findings",
+    "not_assessed"
+  ],
+  "properties": {
+    "representation_assessment_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "kind": {
+      "type": "string",
+      "const": "representation-assessment"
+    },
+    "scope": {
+      "type": "string",
+      "const": "native-column-representation-v1"
+    },
+    "plan_sha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "candidate": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "compatibility": {
+      "type": "string",
+      "enum": [
+        "ACCEPT",
+        "DENY",
+        "INCONCLUSIVE"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "table_id",
+          "field_id",
+          "compatibility",
+          "reason"
+        ],
+        "properties": {
+          "table_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32,
+            "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+            "not": {
+              "pattern": "[^a-z0-9_-]"
+            }
+          },
+          "field_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 32,
+                "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+                "not": {
+                  "pattern": "[^a-z0-9_-]"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "compatibility": {
+            "type": "string",
+            "enum": [
+              "ACCEPT",
+              "DENY",
+              "INCONCLUSIVE"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "table_membership_changed",
+              "field_membership_changed",
+              "key_changed",
+              "declaration_mismatch",
+              "unsupported_representation",
+              "type_changed",
+              "numeric_changed",
+              "character_length_changed",
+              "datetime_precision_changed",
+              "nullability_changed",
+              "nullability_unknown",
+              "collation_changed",
+              "collation_version_mismatch",
+              "collation_unknown",
+              "materialization_changed",
+              "upstream_materialization_required",
+              "metadata_unavailable"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 20000
+    },
+    "not_assessed": {
+      "type": "array",
+      "const": [
+        "check-constraints",
+        "default-expression-semantics",
+        "generated-expression-semantics",
+        "triggers",
+        "indexes-except-primary-key",
+        "extension-behavior"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

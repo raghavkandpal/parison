@@ -2,7 +2,7 @@
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
 - Branch: `develop`; feature 1 bounded PostgreSQL collections integrated through PR #121 at `2f4ff18` (one of ten 2.4 features).
-- Next gate: materialize and independently review feature 2 schemas, canonical/negative fixtures and rule-precedence cases under [contract 284](2.4/284-representation-assessment-contract.md), then implement collection-v2 capture and offline assessment. Primary-source research/prototype found negative numeric scale and PG18 not-null validation traps; preserve typed unknowns. Feature 1 is integrated (1/10) with 599 tests and full live/platform qualification. No feature 2 runtime exists. All ten features must integrate and qualify before a 2.4 candidate; preserve 2.3 contracts, source-v2 ONLY scope, CLI aliases and local-first boundaries.
+- Next gate: independently review and qualify feature 2 structural schemas and canonical/negative fixtures on `feature/2.4-representation-wire`, then implement collection-v2 capture and offline representation assessment under [contract 284](2.4/284-representation-assessment-contract.md). [Checkpoint 285](2.4/285-representation-wire-checkpoint.md) records the structural gate and runtime obligations. Feature 1 is integrated (1/10); no feature 2 runtime exists. All ten features must integrate and qualify before a 2.4 candidate; preserve 2.3 contracts, source-v2 ONLY scope, CLI aliases and local-first boundaries.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff

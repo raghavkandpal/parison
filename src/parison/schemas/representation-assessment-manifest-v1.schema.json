@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/representation-assessment-manifest-v1.schema.json",
+  "title": "representation-assessment-manifest-v1",
+  "description": "Structural schema. Strict token types, UTF-8 byte caps, canonical bytes, normalization and cross-record bindings require contract284 runtime validation.",
+  "type": "object",
+  "required": [
+    "representation_assessment_manifest_version",
+    "kind",
+    "files"
+  ],
+  "properties": {
+    "representation_assessment_manifest_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "kind": {
+      "type": "string",
+      "const": "representation-assessment"
+    },
+    "files": {
+      "type": "object",
+      "required": [
+        "effective-plan.json",
+        "assessment.json",
+        "summary.json"
+      ],
+      "properties": {
+        "effective-plan.json": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "assessment.json": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "summary.json": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

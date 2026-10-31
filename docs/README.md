@@ -17,6 +17,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Collection live qualification and measured budget](2.4/282-collection-budget-and-qualification.md)
 - [Feature 2 PostgreSQL representation assessment research](2.4/283-representation-assessment-research.md)
 - [Feature 2 same-snapshot representation and assessment contract](2.4/284-representation-assessment-contract.md)
+- [Feature 2 structural schemas and canonical wire checkpoint](2.4/285-representation-wire-checkpoint.md)
 
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 

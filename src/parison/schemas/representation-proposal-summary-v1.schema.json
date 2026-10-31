@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/representation-proposal-summary-v1.schema.json",
+  "title": "representation-proposal-summary-v1",
+  "description": "Structural schema. Strict token types, UTF-8 byte caps, canonical bytes, normalization and cross-record bindings require contract284 runtime validation.",
+  "type": "object",
+  "required": [
+    "proposal_version",
+    "status",
+    "table_suggestions",
+    "field_suggestions",
+    "unresolved_tables",
+    "unresolved_fields",
+    "proposal_sha256"
+  ],
+  "properties": {
+    "proposal_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "status": {
+      "type": "string",
+      "const": "unapproved"
+    },
+    "table_suggestions": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 16
+    },
+    "field_suggestions": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1600
+    },
+    "unresolved_tables": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 32
+    },
+    "unresolved_fields": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3200
+    },
+    "proposal_sha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

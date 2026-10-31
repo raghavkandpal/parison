@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-collection-summary-v2.schema.json",
+  "title": "postgres-collection-summary-v2",
+  "description": "Structural schema. Strict token types, UTF-8 byte caps, canonical bytes, normalization and cross-record bindings require contract284 runtime validation.",
+  "type": "object",
+  "required": [
+    "postgres_collection_summary_version",
+    "kind",
+    "complete",
+    "coverage_claim",
+    "tables",
+    "rows",
+    "bytes",
+    "receipt_sha256",
+    "representation_bytes"
+  ],
+  "properties": {
+    "postgres_collection_summary_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "kind": {
+      "const": "postgresql-table-collection-export"
+    },
+    "complete": {
+      "const": true,
+      "type": "boolean"
+    },
+    "coverage_claim": {
+      "const": "adapter-table-collection-one-source-snapshot"
+    },
+    "tables": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16
+    },
+    "rows": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 300000
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1073741824
+    },
+    "receipt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "representation_bytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16777216
+    }
+  },
+  "additionalProperties": false
+}

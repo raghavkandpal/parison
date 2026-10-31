@@ -1,0 +1,1 @@
+{"numeric_negative_scale":{"precision":2,"raw_scale":2045,"scale":-3,"typmod":133121},"pg18_not_valid":{"constraints":[{"enforced":true,"name":"note_nn","validated":false}],"declared_not_null":true,"guarantee":"unknown","information_schema_nullable":"NO"}}

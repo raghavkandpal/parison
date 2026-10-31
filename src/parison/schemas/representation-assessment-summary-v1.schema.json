@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/representation-assessment-summary-v1.schema.json",
+  "title": "representation-assessment-summary-v1",
+  "description": "Structural schema. Strict token types, UTF-8 byte caps, canonical bytes, normalization and cross-record bindings require contract284 runtime validation.",
+  "type": "object",
+  "required": [
+    "representation_summary_version",
+    "kind",
+    "scope",
+    "complete",
+    "compatibility",
+    "tables",
+    "fields",
+    "reason_counts",
+    "assessment_sha256",
+    "not_assessed"
+  ],
+  "properties": {
+    "representation_summary_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "kind": {
+      "type": "string",
+      "const": "representation-assessment"
+    },
+    "scope": {
+      "type": "string",
+      "const": "native-column-representation-v1"
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "compatibility": {
+      "type": "string",
+      "enum": [
+        "ACCEPT",
+        "DENY",
+        "INCONCLUSIVE"
+      ]
+    },
+    "tables": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 16
+    },
+    "fields": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3200
+    },
+    "reason_counts": {
+      "type": "object",
+      "required": [
+        "table_membership_changed",
+        "field_membership_changed",
+        "key_changed",
+        "declaration_mismatch",
+        "unsupported_representation",
+        "type_changed",
+        "numeric_changed",
+        "character_length_changed",
+        "datetime_precision_changed",
+        "nullability_changed",
+        "nullability_unknown",
+        "collation_changed",
+        "collation_version_mismatch",
+        "collation_unknown",
+        "materialization_changed",
+        "upstream_materialization_required",
+        "metadata_unavailable"
+      ],
+      "properties": {
+        "table_membership_changed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "field_membership_changed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "key_changed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "declaration_mismatch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "unsupported_representation": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "type_changed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "numeric_changed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "character_length_changed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "datetime_precision_changed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "nullability_changed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "nullability_unknown": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "collation_changed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "collation_version_mismatch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "collation_unknown": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "materialization_changed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "upstream_materialization_required": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "metadata_unavailable": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        }
+      },
+      "additionalProperties": false
+    },
+    "assessment_sha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "not_assessed": {
+      "type": "array",
+      "const": [
+        "check-constraints",
+        "default-expression-semantics",
+        "generated-expression-semantics",
+        "triggers",
+        "indexes-except-primary-key",
+        "extension-behavior"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

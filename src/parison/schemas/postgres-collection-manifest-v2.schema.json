@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/postgres-collection-manifest-v2.schema.json",
+  "title": "postgres-collection-manifest-v2",
+  "description": "Structural schema. Strict token types, UTF-8 byte caps, canonical bytes, normalization and cross-record bindings require contract284 runtime validation.",
+  "type": "object",
+  "required": [
+    "postgres_collection_manifest_version",
+    "kind",
+    "complete",
+    "files",
+    "table_manifests"
+  ],
+  "properties": {
+    "postgres_collection_manifest_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "kind": {
+      "const": "postgresql-table-collection-export"
+    },
+    "complete": {
+      "const": true,
+      "type": "boolean"
+    },
+    "files": {
+      "type": "object",
+      "required": [
+        "receipt.json",
+        "summary.json",
+        "representation.json"
+      ],
+      "properties": {
+        "receipt.json": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "summary.json": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "representation.json": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "table_manifests": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 16,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 32,
+        "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+        "not": {
+          "pattern": "[^a-z0-9_-]"
+        }
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 64,
+        "maxLength": 64,
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/representation-proposal-v1.schema.json",
+  "title": "representation-proposal-v1",
+  "description": "Structural schema. Strict token types, UTF-8 byte caps, canonical bytes, normalization and cross-record bindings require contract284 runtime validation.",
+  "type": "object",
+  "required": [
+    "representation_proposal_version",
+    "status",
+    "inputs",
+    "tables",
+    "unresolved_tables"
+  ],
+  "properties": {
+    "representation_proposal_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "status": {
+      "type": "string",
+      "const": "unapproved"
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "candidate": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "baseline_id",
+          "candidate_id",
+          "fields",
+          "unresolved_baseline",
+          "unresolved_candidate"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32,
+            "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+            "not": {
+              "pattern": "[^a-z0-9_-]"
+            }
+          },
+          "baseline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32,
+            "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+            "not": {
+              "pattern": "[^a-z0-9_-]"
+            }
+          },
+          "candidate_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32,
+            "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+            "not": {
+              "pattern": "[^a-z0-9_-]"
+            }
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "baseline_name",
+                "candidate_name",
+                "reason"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32,
+                  "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+                  "not": {
+                    "pattern": "[^a-z0-9_-]"
+                  }
+                },
+                "baseline_name": {
+                  "type": "string",
+                  "maxLength": 63,
+                  "not": {
+                    "pattern": "[\\u0000\\uD800-\\uDFFF]"
+                  },
+                  "minLength": 1
+                },
+                "candidate_name": {
+                  "type": "string",
+                  "maxLength": 63,
+                  "not": {
+                    "pattern": "[\\u0000\\uD800-\\uDFFF]"
+                  },
+                  "minLength": 1
+                },
+                "reason": {
+                  "type": "string",
+                  "const": "exact-name-only"
+                }
+              },
+              "additionalProperties": false
+            },
+            "minItems": 0,
+            "maxItems": 100
+          },
+          "unresolved_baseline": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 63,
+              "not": {
+                "pattern": "[\\u0000\\uD800-\\uDFFF]"
+              },
+              "minLength": 1
+            },
+            "minItems": 0,
+            "maxItems": 100,
+            "uniqueItems": true
+          },
+          "unresolved_candidate": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 63,
+              "not": {
+                "pattern": "[\\u0000\\uD800-\\uDFFF]"
+              },
+              "minLength": 1
+            },
+            "minItems": 0,
+            "maxItems": 100,
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 16
+    },
+    "unresolved_tables": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32,
+            "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+            "not": {
+              "pattern": "[^a-z0-9_-]"
+            }
+          },
+          "minItems": 0,
+          "maxItems": 16,
+          "uniqueItems": true
+        },
+        "candidate": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32,
+            "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+            "not": {
+              "pattern": "[^a-z0-9_-]"
+            }
+          },
+          "minItems": 0,
+          "maxItems": 16,
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
