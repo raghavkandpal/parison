@@ -161,8 +161,11 @@ Implementation is "CPython" for this initial capability. Python_version has the
 bounded ASCII grammar `[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,3}`; Unicode_version uses
 `[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}`. Capture actual platform.python_implementation(),
 platform.python_version() and unicodedata.unidata_version; a runtime outside this
-profile is a controlled unsupported error. Current qualification covers CPython
-3.11–3.14. There is no OS, hostname, architecture, file path or user value here.
+profile is a controlled unsupported error. Creation and exact source-backed replay admit CPython minor versions3.11,
+3.12,3.13 and3.14 only; other minor/major versions remain unsupported until
+explicitly qualified. Integrity-only reading does not apply this execution
+allowlist. Full patch versions are still captured and matched exactly for replay.
+There is no OS, hostname, architecture, file path or user value here.
 All member shapes are closed and context strings cannot become arbitrary safe
 output text. Integrity-only reading accepts otherwise valid unfamiliar numeric
 versions; it does not claim reproducibility on the current interpreter.
