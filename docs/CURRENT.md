@@ -1,8 +1,8 @@
 # Current development state
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
-- Branch: `feature/2.4-representation-capture`, from develop `9b71e64`; feature 1 integrated (1/10), feature 2 schemas and offline collection-v2 verifier merged through PRs #124/#125.
-- Next gate: review and qualify same-snapshot collection-v2 capture in [checkpoint 287](2.4/287-representation-capture-checkpoint.md), then implement private proposals, explicit assessment and replay under [contract 284](2.4/284-representation-assessment-contract.md). The offline reader passed 615 tests, independent review and exact-head full CI. Capture source head `0edccd2` passed 621 tests, independent reviews and 40/42/43 live gates on 16.15/17.11/18.6 with repeated 100k/250k measurements; exact PR-head CI remains pending. Feature 2 is incomplete. All ten features must qualify before a 2.4 candidate; preserve 2.3 contracts, source-v2 ONLY scope, CLI aliases and local-first boundaries.
+- Branch: `feature/2.4-representation-assessment`, from develop `2c6652e`; feature 1 integrated (1/10), feature 2 schemas, offline collection-v2 verifier and live capture merged through PRs #124–#126.
+- Next gate: finish and qualify offline proposals, explicit representation assessment and bound-parent replay in [checkpoint 288](2.4/288-representation-assessment-runtime.md). Capture passed 621 tests, independent reviews, 40/42/43 PostgreSQL 16.15/17.11/18.6 gates, repeated 100k/250k measurements and exact-head full CI. Assessment runtime is local and unqualified; live 16→18/17→18 pairs and review/CI remain pending. Feature 2 is incomplete. All ten features must qualify before a 2.4 candidate; preserve 2.3 contracts, canonical bytes, CLI aliases and local-first boundaries.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff

@@ -1,0 +1,9 @@
+usage: parison representation assess [-h] --plan PLAN --baseline BASELINE
+                                     --candidate CANDIDATE --output OUTPUT
+
+options:
+  -h, --help            show this help message and exit
+  --plan PLAN
+  --baseline BASELINE
+  --candidate CANDIDATE
+  --output OUTPUT

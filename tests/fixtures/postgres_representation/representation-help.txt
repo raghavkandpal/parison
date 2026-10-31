@@ -1,0 +1,12 @@
+usage: parison representation [-h] {propose,assess,verify} ...
+
+Assess native PostgreSQL representation evidence
+
+positional arguments:
+  {propose,assess,verify}
+    propose             suggest exact unapproved field matches
+    assess              assess explicitly declared native representation rules
+    verify              replay an assessment against both verified parents
+
+options:
+  -h, --help            show this help message and exit

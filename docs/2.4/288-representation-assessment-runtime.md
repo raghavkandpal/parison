@@ -1,0 +1,69 @@
+# Feature 2 offline assessment and replay gate
+
+Date: 31 October 2026
+Status: runtime implemented; source-head review, live rerun and exact-head CI pending
+
+Capture [287](287-representation-capture-checkpoint.md) merged through PR #126
+at `2c6652ef4838e9cd2ef960b6f41f6a9d086a9588`. Its final head
+`122035782eab5a555f4aa082937f51e9e17018b2` passed independent reviews,
+[quality](https://github.com/raghavkandpal/parison/actions/runs/41174087640),
+[full built-wheel CI](https://github.com/raghavkandpal/parison/actions/runs/41174085509)
+and 41 clean-archive tests; source `0edccd2` passed 621 full local tests and
+40/42/43 live capture gates. Feature 2 still lacks derived runtime operations.
+
+Implement the remaining offline scope of [contract 284](284-representation-assessment-contract.md)
+through `parison representation propose|assess|verify`, with no new project
+script. The four help fixtures and `cli-errors.json` are frozen in
+`tests/fixtures/postgres_representation/` before writing this runtime. Unknown or
+missing actions use the parent fixed error prefix; known actions use their exact
+contract prefix. No source paths or parser echo appear in errors. Interrupts
+return130; assess/verify map ACCEPT/DENY/INCONCLUSIVE to0/1/3, invalid input to2.
+Proposal succeeds only with two fully verified collection-v2 parents and remains
+unapproved, without keys or executable rules.
+
+Deepen the collection verifier to return private verified facts and the parent
+manifest digest from the same pinned handles; retain its released public safe
+summary interface. Reopening source metadata paths after verification is not an
+authorized evidence boundary. Derive exact artifact bytes from these observations
+and the explicit bounded plan. Verification must replay against both bound local
+parents, not merely accept internally consistent output digests.
+
+The gate requires exact frozen proposal and ACCEPT assessment bytes, runtime
+rejection of the semantic-negative corpus, actual evaluator coverage of all rule
+and precedence cases, full-inventory lineage/key and unknown-state checks,
+legacy-parent fallback, 32-entry disjoint union handling, bounded publication,
+symlink/mutation/interrupt/no-overwrite defenses and compact safe CLI output.
+Known DENY outranks unknown facts. Allowed widening still emits findings. A
+selection membership change has no implicit exclusion permission; it is a known
+field membership change. Column selection order alone does not change logical
+identity; ordered primary-key roles remain exact.
+
+Live 16→18 and 17→18 pairs must qualify explicit equality/widening/denial,
+unknown PG18 guarantees, provider drift and offline replay after shutdown.
+Equal metadata with different rows can establish only representation compatibility,
+never parity PASS. All features remain subject to the fixed not_assessed scope.
+Independent Standards and Spec review, full local checks and exact-head quality/
+full built-wheel CI are required before feature 2 is declared integrated. All ten
+features must qualify before a 2.4 candidate.
+
+## Implementation checkpoint
+
+The frozen proposal/ACCEPT artifact bytes match actual generated output. All31
+rule cases run through the real comparator/evaluator. The runtime rejects the
+schema-valid negative obligations, checks full lineage and unknown semantics,
+keeps legacy inventories unavailable, and replays every expected member byte
+against both verified parents. Proposal numbering is generated deterministically;
+proposals are never accepted as assessment plans. Safe unresolved-field counts
+sum the explicit unmatched column lists under suggested table pairs; unmatched
+table IDs are counted separately.
+
+Publication uses private staging, exclusive file creation and atomic no-overwrite
+rename; assessment staging is replay-verified before publication. The verifier
+returns source facts from its pinned handles rather than re-reading paths. Safe
+CLI tests cover0/1/2/3/130, frozen help/errors and summary-only stdout.
+
+Initial `make check` passed635 tests. The disposable live pair script passed18
+gates with10 cases across16→18 and17→18; final frozen-source rerun and independent
+reviews remain before qualification. The helper starts only fresh clusters and
+stops all of them before deriving or replaying any evidence. Its source records
+are synthetic; no confidential values or user credentials are published.

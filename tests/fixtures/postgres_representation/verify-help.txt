@@ -1,0 +1,11 @@
+usage: parison representation verify [-h] --baseline BASELINE
+                                     --candidate CANDIDATE
+                                     directory
+
+positional arguments:
+  directory
+
+options:
+  -h, --help            show this help message and exit
+  --baseline BASELINE
+  --candidate CANDIDATE

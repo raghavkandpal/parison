@@ -9,7 +9,7 @@ end-to-end tasks, use the [current user guide](user-guide.md). Do not edit this 
 Compare data-pipeline outputs deterministically
 
 positional arguments:
-  {dossier,postgres,partitions,rehearsal,init,validate-recipe,explain,validate-evolution,explain-evolution,compile-evolution,diff-policy,validate-time-alignment,explain-time-alignment,validate-reconciliation,explain-reconciliation,preflight-alignment,check-identity-references,check-conservation,reconcile,verify-reconciliation,inspect-reconciliation,diagnose-reconciliation,create-dataset-manifest,validate-dataset-manifest,explain-dataset-manifest,verify-dataset-manifest,publish-dataset-evidence,capture-reproducibility,diff-reproducibility,verify-postgres-export,verify-postgres-pair,verify-postgres-collection,schema,export-editor-schemas,validate-suite,list-suite,run-suite,assemble-suite,report-ci,validate-inputs,draft-recipe,verify,inspect,compare-suites,workbench,analyze,analyze-suites,verify-analysis,drilldown,verify-drilldown,statement,verify-statement,report-cutover,catalog,export-evidence,compare}
+  {dossier,postgres,partitions,rehearsal,init,validate-recipe,explain,validate-evolution,explain-evolution,compile-evolution,diff-policy,validate-time-alignment,explain-time-alignment,validate-reconciliation,explain-reconciliation,preflight-alignment,check-identity-references,check-conservation,reconcile,verify-reconciliation,inspect-reconciliation,diagnose-reconciliation,create-dataset-manifest,validate-dataset-manifest,explain-dataset-manifest,verify-dataset-manifest,publish-dataset-evidence,capture-reproducibility,diff-reproducibility,verify-postgres-export,verify-postgres-pair,representation,verify-postgres-collection,schema,export-editor-schemas,validate-suite,list-suite,run-suite,assemble-suite,report-ci,validate-inputs,draft-recipe,verify,inspect,compare-suites,workbench,analyze,analyze-suites,verify-analysis,drilldown,verify-drilldown,statement,verify-statement,report-cutover,catalog,export-evidence,compare}
     dossier             create or verify a portable decision dossier
     postgres            acquire one or two PostgreSQL tables
     partitions          discover or investigate exact partitions
@@ -59,6 +59,7 @@ positional arguments:
                         verify a local PostgreSQL source export
     verify-postgres-pair
                         verify a coordinated two-table PostgreSQL export
+    representation      assess native PostgreSQL representation evidence
     verify-postgres-collection
                         verify a local snapshot collection
     schema              print an installed JSON Schema
@@ -399,6 +400,13 @@ options:
 positional arguments:
   bundle
 
+options:
+  -h, --help  show this help message and exit
+```
+
+## `parison representation`
+
+```text
 options:
   -h, --help  show this help message and exit
 ```
