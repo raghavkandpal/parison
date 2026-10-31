@@ -1,4 +1,4 @@
-"""Pinned hash-v2 integrity reading; production and exact replay stay disabled."""
+"""Pinned hash-v2 integrity reading and version-specific execution admission."""
 
 import copy
 import hashlib
@@ -88,20 +88,22 @@ class HashIntegrityReader(unittest.TestCase):
                 with self.assertRaises(ParisonError):
                     discovery.verify(self.root)
 
-    def test_unfamiliar_context_integrity_reading_never_enables_replay_or_creation(self):
+    def test_unfamiliar_context_integrity_reading_does_not_admit_execution(self):
         receipt = self.read("receipt.json")
         receipt["normalization_runtime"]["python_version"] = "3.15.0"
         self.write("receipt.json", receipt)
         self.write("summary.json", discovery._summary(receipt))
         self.rehash()
         self.assertEqual(discovery.verify(self.root)["normalization_runtime"]["python_version"], "3.15.0")
-        with patch.object(discovery, "_run") as run, patch.object(discovery, "_source") as source:
+        with patch.object(discovery, "_pinned_hash_input", side_effect=AssertionError("source opened")) as source:
             with self.assertRaises(ParisonError):
                 discovery.verify(self.root, "private-recipe", "private-left", "private-right")
             output = self.root.parent / "output"
-            with self.assertRaises(ParisonError):
+            with (
+                patch.object(discovery.platform, "python_version", return_value="3.15.0"),
+                self.assertRaises(ParisonError),
+            ):
                 discovery.discover(self.root / "plan.json", "private-recipe", "private-left", "private-right", output)
-            run.assert_not_called()
             source.assert_not_called()
             self.assertFalse(output.exists())
         out, err = io.StringIO(), io.StringIO()

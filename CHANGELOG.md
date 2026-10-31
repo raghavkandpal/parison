@@ -4,7 +4,9 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
-- Add bounded integrity-only reading for hash discovery v2 evidence; producer and exact replay stay disabled pending their separate qualification.
+- Enable bounded composite/text-key hash discovery and runtime-bound exact source replay through existing partition commands; preserve exact comparison authority and range-v1 contracts.
+
+- Add bounded integrity-only reading for hash discovery v2 evidence.
 
 - Add hash-bucket discovery structural schemas and canonical/key-vector/negative fixtures ahead of feature 3 runtime.
 

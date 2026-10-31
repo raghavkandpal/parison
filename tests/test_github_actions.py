@@ -70,7 +70,12 @@ class GitHubActionsReference(unittest.TestCase):
         self.assertIn("parison verify", platform)
         self.assertNotIn("python -m build", platform)
         self.assertNotIn("python benchmarks/", platform)
-        self.assertNotIn("python -m unittest", platform)
+        self.assertNotIn("python -m unittest discover", platform)
+        self.assertIn(
+            "python -m unittest tests.test_partition_hash_execution tests.test_partition_hash_reader "
+            "tests.test_partition_hash_wire -v",
+            platform,
+        )
         self.assertNotIn("pip install '.[parquet,test]'", platform)
 
     def test_repository_ci_avoids_duplicate_branch_and_pull_request_runs(self):

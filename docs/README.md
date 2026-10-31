@@ -26,6 +26,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Feature 3 exact hash-bucket discovery contract](2.4/291-composite-key-discovery-contract.md)
 - [Feature 3 schemas, key vectors and wire checkpoint](2.4/292-key-discovery-wire-checkpoint.md)
 - [Feature 3 bounded hash evidence integrity reader](2.4/293-hash-integrity-reader-checkpoint.md)
+- [Feature 3 exact hash discovery execution](2.4/294-hash-discovery-execution-checkpoint.md)
 
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 

@@ -5,24 +5,28 @@ from __future__ import annotations
 import argparse
 import bisect
 import csv
+import ctypes
 import hashlib
 import io
 import json
 import os
+import platform
 import re
 import shutil
 import stat
 import sys
 import tempfile
-from contextlib import ExitStack
+import unicodedata
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from typing import Any
 
 from ._safe_fs import check_output_parent, rename_no_replace
 from .analysis import _canonical, _strict_object
-from .comparison import compare
+from .comparison import _multiset_encoding, compare
 from .core import ParisonError, _checked_policy_sha256, _parse_row, load_recipe
 from .inputs import _iter_input_rows
+from .policies import load_recipe_text
 from .source_collection import _directory, _members, _stamp, _stat_stamp
 from .source_receipt import _read_json as _canonical_json
 
@@ -60,9 +64,12 @@ def _bounded_bytes(path: Path, limit: int) -> bytes:
     try:
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
         with os.fdopen(descriptor, "rb") as handle:
+            before = _stamp(handle)
             if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
                 raise ParisonError("partition evidence file is not regular")
             data = handle.read(limit + 1)
+            if _stamp(handle) != before:
+                raise ParisonError("partition evidence file changed during reading")
         if len(data) > limit:
             raise ParisonError("partition evidence file is missing, unsafe or too large")
         return data
@@ -105,6 +112,51 @@ def _hash_context(value):
     ):
         if not isinstance(value[name], str) or re.fullmatch(pattern, value[name]) is None:
             raise ParisonError(_HASH_ERROR)
+
+
+def _execution_context():
+    context = {
+        "implementation": platform.python_implementation(),
+        "python_version": platform.python_version(),
+        "unicode_version": unicodedata.unidata_version,
+    }
+    _hash_context(context)
+    if tuple(map(int, context["python_version"].split(".")[:2])) not in {(3, 11), (3, 12), (3, 13), (3, 14)}:
+        raise ParisonError(_HASH_ERROR)
+    return context
+
+
+def _hash_key(parsed, recipe, limit):
+    """Bound the entire typed frame before constructing the composite buffer."""
+    names = recipe["keys"]
+    size = len(b"parison-key-v1\0") + 2 + 9 * len(names)
+    if size > limit:
+        raise ParisonError(_HASH_ERROR)
+    for name in names:
+        value = parsed[name]
+        if value is None:
+            continue
+        kind = recipe["columns"][name]["type"]
+        if (kind == "integer" and type(value) is not int) or (kind == "string" and type(value) is not str):
+            raise ParisonError(_HASH_ERROR)
+        if kind not in {"integer", "string"}:
+            raise ParisonError(_HASH_ERROR)
+        text = str(value) if kind == "integer" else value
+        if len(text) > limit - size:
+            raise ParisonError(_HASH_ERROR)
+        size += len(text.encode("utf-8", errors="strict"))
+        if size > limit:
+            raise ParisonError(_HASH_ERROR)
+    return (
+        b"parison-key-v1\0"
+        + len(names).to_bytes(2, "big")
+        + _multiset_encoding(tuple(parsed[name] for name in names), names, recipe)
+    )
+
+
+def _hash_bucket(encoded, buckets):
+    """Routing-only seam: collisions must still use the exact comparator."""
+    return int.from_bytes(hashlib.sha256(encoded).digest(), "big") % buckets
 
 
 def _hash_plan(value):
@@ -274,7 +326,11 @@ def _compare_ranges(
 ) -> tuple[dict[str, int], dict[str, dict[str, int]], int, str, bool]:
     derived = {**recipe, "scope": {**recipe["scope"], "expected_empty": True}}
     derived_path = workspace / "derived-recipe.json"
-    derived_path.write_bytes(_canonical(derived))
+    if plan["partition_plan_version"] == 2:
+        if _bounded_bytes(derived_path, 262144) != _canonical(derived):
+            raise ParisonError(_HASH_ERROR)
+    else:
+        derived_path.write_bytes(_canonical(derived))
     totals = {name: 0 for name in _COUNT_NAMES}
     field_counts = {
         name: {classification: 0 for classification in _CLASS_NAMES}
@@ -322,6 +378,247 @@ def _compare_ranges(
         + sum(field_counts[name]["different"] + field_counts[name]["within_tolerance"] for name in field_counts)
     )
     return totals, field_counts, differences, outcome, complete
+
+
+def _named_file_stamp(path):
+    """Compare handle metadata with handle metadata, including Windows change time."""
+    if path.is_symlink():
+        raise ParisonError(_HASH_ERROR)
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+    with os.fdopen(descriptor, "rb") as handle:
+        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            raise ParisonError(_HASH_ERROR)
+        return _stamp(handle)
+
+
+def _pinned_hash_input(stack, path, limit):
+    path = Path(path)
+    check_output_parent(path.parent)
+    if path.is_symlink():
+        raise ParisonError(_HASH_ERROR)
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+    handle = stack.enter_context(os.fdopen(descriptor, "rb"))
+    info = os.fstat(handle.fileno())
+    before = _stat_stamp(info)
+    if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+        raise ParisonError(_HASH_ERROR)
+
+    def unchanged():
+        check_output_parent(path.parent)
+        if _named_file_stamp(path) != before or _stamp(handle) != before:
+            raise ParisonError(_HASH_ERROR)
+
+    unchanged()
+    return handle, unchanged
+
+
+def _stage_guard(workspace, expected, stamps):
+    """Bind private file bytes, names and directory identity across semantic reads."""
+    check_output_parent(workspace)
+    directory = _stat_stamp(workspace.stat())
+    parent = _stat_stamp(workspace.parent.stat())
+
+    def unchanged():
+        check_output_parent(workspace)
+        if (
+            _stat_stamp(workspace.stat()) != directory
+            or _stat_stamp(workspace.parent.stat()) != parent
+            or {p.name for p in workspace.iterdir()} != set(expected)
+        ):
+            raise ParisonError(_HASH_ERROR)
+        for name, digest in expected.items():
+            path = workspace / name
+            if path.is_symlink() or _stat_stamp(path.stat()) != stamps[name] or _digest(path) != digest:
+                raise ParisonError(_HASH_ERROR)
+
+    unchanged()
+    return unchanged
+
+
+def _hash_directory(stack, path):
+    """Use an available descriptor even when a caller uses path-mode reading."""
+    before = path.lstat()
+    if not stat.S_ISDIR(before.st_mode) or getattr(before, "st_file_attributes", 0) & 0x400:
+        raise ParisonError(_HASH_ERROR)
+    fd = _directory(stack, path)
+    if fd is None and os.name == "posix":
+        fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        stack.callback(os.close, fd)
+    if _stat_stamp(path.lstat()) != _stat_stamp(before) or (
+        fd is not None and _stat_stamp(os.fstat(fd)) != _stat_stamp(before)
+    ):
+        raise ParisonError(_HASH_ERROR)
+    return fd
+
+
+def _run_hash(plan, recipe_path, baseline, candidate, workspace, stack, *, parent_identity):
+    context = _execution_context()
+    if _stat_stamp(workspace.parent.lstat())[:2] != parent_identity:
+        raise ParisonError(_HASH_ERROR)
+    workspace_fd = _hash_directory(stack, workspace)
+    workspace_identity = workspace.stat().st_dev, workspace.stat().st_ino
+    parent_stamp = _stat_stamp(workspace.parent.stat())
+    workspace_ownership = ExitStack()
+    stack.callback(workspace_ownership.close)
+    if os.name == "nt":
+        _windows_directory_pin(workspace_ownership, workspace)
+
+    def workspace_check():
+        check_output_parent(workspace)
+        if (
+            (workspace.stat().st_dev, workspace.stat().st_ino) != workspace_identity
+            or _stat_stamp(workspace.parent.stat()) != parent_stamp
+            or _stat_stamp(workspace.parent.lstat())[:2] != parent_identity
+        ):
+            raise ParisonError(_HASH_ERROR)
+
+    workspace_check()
+    recipe_handle, recipe_check = _pinned_hash_input(stack, recipe_path, 262144)
+    recipe_bytes = recipe_handle.read(262145)
+    recipe_check()
+    if len(recipe_bytes) > 262144:
+        raise ParisonError(_HASH_ERROR)
+    _parse_json(recipe_bytes)
+    recipe = load_recipe_text(recipe_bytes.decode("utf-8"))
+    if (
+        recipe["comparison_mode"] != "keyed"
+        or not 1 <= len(recipe["keys"]) <= 16
+        or len(recipe["columns"]) > 100
+        or any(recipe["columns"][name]["type"] not in {"integer", "string"} for name in recipe["keys"])
+        or recipe["output"]["sensitivity"] != "summary"
+        or any(
+            recipe.get(name) for name in ("column_mappings", "field_projection", "input_projection", "excluded_columns")
+        )
+    ):
+        raise ParisonError(_HASH_ERROR)
+    derived = _canonical({**recipe, "scope": {**recipe["scope"], "expected_empty": True}})
+    if len(derived) > 262144:
+        raise ParisonError(_HASH_ERROR)
+    limits, expected, checks, identities, sources = plan["limits"], {}, [recipe_check], {}, {}
+    file_stamps = {}
+    staged = 0
+
+    def write(handle, data):
+        nonlocal staged
+        if len(data) > limits["max_staged_bytes"] - staged:
+            raise ParisonError(_HASH_ERROR)
+        handle.write(data)
+        staged += len(data)
+
+    def create(name):
+        workspace_check()
+        descriptor = os.open(
+            name if workspace_fd is not None else workspace / name,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+            dir_fd=workspace_fd,
+        )
+        return os.fdopen(descriptor, "wb")
+
+    with create("derived-recipe.json") as handle:
+        write(handle, derived)
+    expected["derived-recipe.json"] = hashlib.sha256(derived).hexdigest()
+    file_stamps["derived-recipe.json"] = _stat_stamp((workspace / "derived-recipe.json").stat())
+    for side, original in (("baseline", baseline), ("candidate", candidate)):
+        if Path(original).suffix.lower() != ".csv":
+            raise ParisonError(_HASH_ERROR)
+        source, check = _pinned_hash_input(stack, original, limits["max_input_bytes"])
+        checks.append(check)
+        name, size, digest = f"snapshot-{side}.csv", 0, hashlib.sha256()
+        with create(name) as handle:
+            while block := source.read(1024 * 1024):
+                size += len(block)
+                if size > limits["max_input_bytes"]:
+                    raise ParisonError(_HASH_ERROR)
+                write(handle, block)
+                digest.update(block)
+        check()
+        identities[side] = {"sha256": digest.hexdigest(), "bytes": size}
+        expected[name], sources[side] = digest.hexdigest(), workspace / name
+        file_stamps[name] = _stat_stamp(sources[side].stat())
+
+    def snapshots_check():
+        workspace_check()
+        for side, path in sources.items():
+            if (
+                path.is_symlink()
+                or _stat_stamp(path.stat()) != file_stamps[path.name]
+                or _digest(path) != identities[side]["sha256"]
+            ):
+                raise ParisonError(_HASH_ERROR)
+
+    count = plan["routing"]["buckets"]
+    columns = sorted(recipe["columns"])
+    records = [{"bucket": index, "baseline": {}, "candidate": {}} for index in range(count)]
+    rows = {"baseline": 0, "candidate": 0}
+    for side in ("baseline", "candidate"):
+        snapshots_check()
+        with ExitStack() as writers:
+            handles, digests = [], []
+            header = _csv_bytes(columns, recipe["delimiters"][side])
+            for index in range(count):
+                if len(header) > limits["max_partition_bytes"]:
+                    raise ParisonError(_HASH_ERROR)
+                handles.append(writers.enter_context(create(f"{side}-{index}.csv")))
+                write(handles[-1], header)
+                digests.append(hashlib.sha256(header))
+                records[index][side] = {"rows": 0, "bytes": len(header)}
+            # Directory entries remain fixed while this side is parsed and written.
+            directory = _stat_stamp(workspace.stat())
+            for raw in _iter_input_rows(sources[side], recipe, limits["max_rows_per_input"], side):
+                rows[side] += 1
+                parsed = _parse_row(raw, recipe, side)
+                index = _hash_bucket(_hash_key(parsed, recipe, limits["max_key_bytes"]), count)
+                record = records[index][side]
+                null_token = recipe["null_tokens"][side][0] if recipe["null_tokens"][side] else None
+                line = _csv_bytes(
+                    [null_token if raw.get(name) is None else raw[name] for name in columns], recipe["delimiters"][side]
+                )
+                if (
+                    record["rows"] >= limits["max_rows_per_partition_side"]
+                    or len(line) > limits["max_partition_bytes"] - record["bytes"]
+                ):
+                    raise ParisonError(_HASH_ERROR)
+                write(handles[index], line)
+                digests[index].update(line)
+                record["rows"] += 1
+                record["bytes"] += len(line)
+            if _stat_stamp(workspace.stat()) != directory:
+                raise ParisonError(_HASH_ERROR)
+        for index in range(count):
+            digest = digests[index].hexdigest()
+            records[index][side]["sha256"] = digest
+            expected[f"{side}-{index}.csv"] = digest
+            file_stamps[f"{side}-{index}.csv"] = _stat_stamp((workspace / f"{side}-{index}.csv").stat())
+        snapshots_check()
+    staged_check = _stage_guard(workspace, expected, file_stamps)
+    counts, fields, differences, outcome, complete = _compare_ranges(plan, recipe, records, rows, workspace)
+    staged_check()
+    workspace_check()
+
+    def source_check():
+        for check in checks:
+            check()
+
+    source_check()
+    workspace_ownership.close()
+    return {
+        "partition_receipt_version": 2,
+        "policy_sha256": _checked_policy_sha256(recipe, None),
+        "plan_sha256": hashlib.sha256(_canonical(plan)).hexdigest(),
+        "routing": plan["routing"],
+        "normalization_runtime": context,
+        "derived_recipe_bytes": len(derived),
+        "inputs": identities,
+        "route_rows": rows,
+        "staged_bytes": staged,
+        "partitions": records,
+        "counts": counts,
+        "field_counts": fields,
+        "discrepancy_count": differences,
+        "outcome": outcome,
+        "complete": complete,
+    }, source_check
 
 
 def _run(
@@ -604,7 +901,7 @@ def discover(
 ) -> dict[str, Any]:
     plan = validate_plan(_read_json(Path(plan_path)))
     if plan["partition_plan_version"] == 2:
-        raise ParisonError(_HASH_ERROR)  # Producer follows the independently qualified reader.
+        return _discover_hash(plan, recipe_path, baseline, candidate, output)
     target = Path(output)
     check_output_parent(target.parent)
     if target.exists() or target.is_symlink():
@@ -630,8 +927,215 @@ def discover(
         raise
 
 
+def _windows_directory_pin(stack, path):
+    """Deny directory rename/delete while path-mode cleanup removes its children."""
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    create = kernel.CreateFileW
+    create.argtypes = [
+        ctypes.c_wchar_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+    ]
+    create.restype = ctypes.c_void_p
+    close = kernel.CloseHandle
+    close.argtypes, close.restype = [ctypes.c_void_p], ctypes.c_int
+    # LIST_DIRECTORY|READ_ATTRIBUTES, SHARE_READ|SHARE_WRITE (no DELETE), OPEN_EXISTING,
+    # BACKUP_SEMANTICS|OPEN_REPARSE_POINT: pin the directory itself, never its target.
+    handle = create(str(path.absolute()), 0x81, 0x3, None, 3, 0x02200000, None)
+    if handle == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    stack.callback(close, handle)
+    info = path.lstat()
+    if not stat.S_ISDIR(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+        raise ParisonError(_HASH_ERROR)
+
+
+def _cleanup_hash_stage(stage, identity, fd):
+    """Remove owned contents through their pinned directory, never a replacement."""
+    if fd is not None:
+        for entry in os.scandir(fd):
+            if entry.is_dir(follow_symlinks=False):
+                shutil.rmtree(entry.name, dir_fd=fd)
+            else:
+                os.unlink(entry.name, dir_fd=fd)
+        if not stage.is_symlink() and (stage.stat().st_dev, stage.stat().st_ino) == identity:
+            stage.rmdir()
+        return
+    # Reacquire a deletion capability for the owned identity, not a checked name.
+    for _ in range(2):
+        for path in stage.parent.iterdir():
+            try:
+                info = path.lstat()
+            except FileNotFoundError:
+                continue
+            if (
+                not stat.S_ISDIR(info.st_mode)
+                or path.is_symlink()
+                or getattr(info, "st_file_attributes", 0) & 0x400
+                or (info.st_dev, info.st_ino) != identity
+            ):
+                continue
+            with ExitStack() as pin:
+                if os.name == "posix":
+                    owned_fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                    pin.callback(os.close, owned_fd)
+                    if _stat_stamp(os.fstat(owned_fd))[:2] != identity:
+                        continue
+                    _cleanup_hash_stage(path, identity, owned_fd)
+                    return
+                _windows_directory_pin(pin, path)
+                info = path.lstat()
+                if getattr(info, "st_file_attributes", 0) & 0x400 or (info.st_dev, info.st_ino) != identity:
+                    continue
+                for child in path.iterdir():
+                    child_info = child.lstat()
+                    if stat.S_ISDIR(child_info.st_mode):
+                        if getattr(child_info, "st_file_attributes", 0) & 0x400:
+                            child.rmdir()  # Remove a junction itself without traversing it.
+                        else:
+                            _cleanup_hash_stage(child, (child_info.st_dev, child_info.st_ino), None)
+                    else:
+                        child.unlink()
+            path.rmdir()  # The name may change after unlock; never recursively delete it.
+            return
+
+
+def _discover_hash(plan, recipe, baseline, candidate, output):
+    stage = None
+    stage_stack = ExitStack()
+    stage_ownership = ExitStack()
+    stage_fd = None
+    identity = None
+    try:
+        _execution_context()
+        target = Path(output)
+        check_output_parent(target.parent)
+        if target.exists() or target.is_symlink():
+            raise ParisonError(_HASH_ERROR)
+        stage = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent))
+        identity = stage.stat().st_dev, stage.stat().st_ino
+        stage_fd = _hash_directory(stage_stack, stage)
+
+        def stage_check():
+            check_output_parent(stage)
+            info = stage.lstat()
+            if (
+                not stat.S_ISDIR(info.st_mode)
+                or getattr(info, "st_file_attributes", 0) & 0x400
+                or (info.st_dev, info.st_ino) != identity
+            ):
+                raise ParisonError(_HASH_ERROR)
+
+        def metadata(name, data):
+            stage_check()
+            descriptor = os.open(
+                name if stage_fd is not None else stage / name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+                0o600,
+                dir_fd=stage_fd,
+            )
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(data)
+                handle.flush()
+                file_identity = _stamp(handle)[:2]
+            stage_check()
+            info = os.stat(name if stage_fd is not None else stage / name, dir_fd=stage_fd, follow_symlinks=False)
+            if not stat.S_ISREG(info.st_mode) or _stat_stamp(info)[:2] != file_identity:
+                raise ParisonError(_HASH_ERROR)
+            return _stat_stamp(info)
+
+        workspace = stage / "temporary"
+        if os.name == "nt":
+            _windows_directory_pin(stage_ownership, stage)
+        stage_check()
+        if stage_fd is not None:
+            os.mkdir("temporary", mode=0o700, dir_fd=stage_fd)
+        else:
+            workspace.mkdir(mode=0o700)
+        stage_check()
+        with ExitStack() as stack:
+            receipt, source_check = _run_hash(
+                plan, recipe, baseline, candidate, workspace, stack, parent_identity=identity
+            )
+            stage_check()
+            if stage_fd is not None:
+                shutil.rmtree("temporary", dir_fd=stage_fd)
+            else:
+                shutil.rmtree(workspace)
+            stage_check()
+            values = {"plan.json": plan, "receipt.json": receipt, "summary.json": _summary(receipt)}
+            digests, stamps = {}, {}
+            for name, value in values.items():
+                data = _canonical(value) + b"\n"
+                if len(data) > (8 * 1024 * 1024 if name == "receipt.json" else 262144):
+                    raise ParisonError(_HASH_ERROR)
+                stamps[name] = metadata(name, data)
+                digests[name] = hashlib.sha256(data).hexdigest()
+            manifest = _canonical({"partition_manifest_version": 2, "files": digests}) + b"\n"
+            stamps["manifest.json"] = metadata("manifest.json", manifest)
+            metadata_check = _stage_guard(
+                stage, {**digests, "manifest.json": hashlib.sha256(manifest).hexdigest()}, stamps
+            )
+            _verified_hash_evidence(stage, None, None, None)
+            source_check()
+            metadata_check()
+            stage_ownership.close()
+            stage_check()
+            rename_no_replace(stage, target)
+            stage = None
+        return values["summary.json"]
+    except KeyboardInterrupt:
+        raise _HashInterrupted from None
+    except (ParisonError, OSError, UnicodeError, ValueError, TypeError, KeyError, OverflowError, RecursionError):
+        raise ParisonError(_HASH_ERROR) from None
+    finally:
+        try:
+            stage_ownership.close()
+            if stage is not None and identity is not None:
+                _cleanup_hash_stage(stage, identity, stage_fd)
+        except OSError:
+            pass
+        finally:
+            stage_stack.close()
+
+
+@contextmanager
+def _hash_replay_workspace():
+    root = Path(tempfile.mkdtemp(prefix="parison-hash-replay-"))
+    identity = root.stat().st_dev, root.stat().st_ino
+    descriptors, ownership = ExitStack(), ExitStack()
+    fd = None
+    try:
+        fd = _hash_directory(descriptors, root)
+        if os.name == "nt":
+            _windows_directory_pin(ownership, root)
+        info = root.lstat()
+        if (
+            not stat.S_ISDIR(info.st_mode)
+            or getattr(info, "st_file_attributes", 0) & 0x400
+            or (info.st_dev, info.st_ino) != identity
+        ):
+            raise ParisonError(_HASH_ERROR)
+        workspace = root / "temporary"
+        if fd is not None:
+            os.mkdir("temporary", mode=0o700, dir_fd=fd)
+        else:
+            workspace.mkdir(mode=0o700)
+        yield workspace, identity
+    finally:
+        ownership.close()
+        try:
+            _cleanup_hash_stage(root, identity, fd)
+        finally:
+            descriptors.close()
+
+
 def _verified_hash_evidence(root, recipe, baseline, candidate):
-    """Integrity-only v2 reader; source-backed execution is not enabled yet."""
+    """Pinned v2 integrity verification and optional complete exact replay."""
     try:
         check_output_parent(root.parent)
         names = {"plan.json", "receipt.json", "summary.json", "manifest.json"}
@@ -639,7 +1143,7 @@ def _verified_hash_evidence(root, recipe, baseline, candidate):
             fd = _directory(stack, root)
             if _members(root, fd) != names:
                 raise ParisonError(_HASH_ERROR)
-            directory_stamp = _stat_stamp(os.fstat(fd)) if fd is not None else None
+            directory_stamp = _stat_stamp(os.fstat(fd) if fd is not None else root.stat())
             handles = {}
             for name in sorted(names):
                 if fd is not None:
@@ -679,19 +1183,31 @@ def _verified_hash_evidence(root, recipe, baseline, candidate):
             _validate_receipt(plan, receipt)
             if data["summary.json"] != _canonical(_summary(receipt)) + b"\n":
                 raise ParisonError(_HASH_ERROR)
+            if any(value is not None for value in (recipe, baseline, candidate)):
+                if (
+                    any(value is None for value in (recipe, baseline, candidate))
+                    or _execution_context() != receipt["normalization_runtime"]
+                ):
+                    raise ParisonError(_HASH_ERROR)
+                with _hash_replay_workspace() as (workspace, parent_identity):
+                    with ExitStack() as sources:
+                        replay, source_check = _run_hash(
+                            plan, recipe, baseline, candidate, workspace, sources, parent_identity=parent_identity
+                        )
+                        if replay != receipt:
+                            raise ParisonError(_HASH_ERROR)
+                        source_check()
             if (
                 any(_stamp(handle) != stamps[name] for name, handle in handles.items())
                 or _members(root, fd) != names
-                or (fd is None and root.is_symlink())
+                or root.is_symlink()
+                or _stat_stamp(root.stat()) != directory_stamp
                 or (fd is not None and _stat_stamp(os.fstat(fd)) != directory_stamp)
+                or (fd is not None and (root.is_symlink() or _stat_stamp(root.stat()) != directory_stamp))
             ):
                 raise ParisonError(_HASH_ERROR)
-            if fd is None and any(
-                (root / name).is_symlink() or _stat_stamp((root / name).stat()) != stamps[name] for name in names
-            ):
+            if fd is None and any(_named_file_stamp(root / name) != stamps[name] for name in names):
                 raise ParisonError(_HASH_ERROR)
-            if any(value is not None for value in (recipe, baseline, candidate)):
-                raise ParisonError(_HASH_ERROR)  # Exact replay follows the hash producer.
             return plan, receipt, summary, hashlib.sha256(data["manifest.json"]).hexdigest()
     except KeyboardInterrupt:
         raise _HashInterrupted from None

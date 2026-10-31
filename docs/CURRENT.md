@@ -1,8 +1,8 @@
 # Current development state
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
-- Branch: `feature/2.4-hash-evidence-reader`, from develop `d68e1bb`; feature 3 contract and wire gate integrated through PRs #129/#130; features 1 and 2 remain integrated (2/10).
-- Next gate: resume unmerged PR #131 (`feature/2.4-hash-evidence-reader`), re-review correction source `56c33c0` and run fresh exact-head quality/manual full built-wheel CI before any merge. The reader passes 657 local tests and 17 reader/wire tests on Python3.11–3.14; reviewed fixes close mixed-manifest version dispatch and incomplete row-accounting acceptance. Final corrected-head review/CI remain pending. [Handoff 293](2.4/293-hash-integrity-reader-checkpoint.md) records continuation. Contract/wire gates merged via PRs #129/#130; creation/exact replay remain disabled and feature3 is incomplete (2/10 integrated). Stop at usage limit; no reset consumed. Preserve all-ten candidate boundary and released contracts.
+- Branch: `feature/2.4-hash-discovery-execution`, from develop `5b5c413`; corrected reader PR #131 is integrated after independent review and exact-head quality/full built-wheel CI.
+- Next gate: qualify [PR #132](https://github.com/raghavkandpal/parison/pull/132), feature 3's bounded hash producer and exact source-backed replay under [contract291](2.4/291-composite-key-discovery-contract.md). Run local/cross-Python gates, independent Standards/Spec review and exact-head quality/manual full built-wheel CI before merging. [Checkpoint294](2.4/294-hash-discovery-execution-checkpoint.md) records the implementation. Feature3 remains incomplete (2/10 integrated); preserve all-ten candidate boundary and released contracts. Check usage and stop near95%; never reset automatically.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
