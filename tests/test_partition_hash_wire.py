@@ -10,7 +10,7 @@ from jsonschema import Draft202012Validator
 
 from parison.analysis import _canonical
 from parison.comparison import _multiset_encoding, compare
-from parison.core import ParisonError, _checked_policy_sha256, _parse_row, load_recipe, load_schema
+from parison.core import _checked_policy_sha256, _parse_row, load_recipe, load_schema
 from parison.partition_discovery import validate_plan
 
 ROOT = Path(__file__).parent / "fixtures" / "partition_hash"
@@ -132,8 +132,7 @@ class HashDiscoveryWire(unittest.TestCase):
             self.assertEqual(case["execution_minor_admitted"], minor in {(3, 11), (3, 12), (3, 13), (3, 14)})
         # Source-backed replay must additionally match the exact full context.
         # This structural gate is not a producer or evidence verifier.
-        with self.assertRaises(ParisonError):
-            validate_plan(_read(ROOT / "plan.json"))
+        self.assertEqual(validate_plan(_read(ROOT / "plan.json")), _read(ROOT / "plan.json"))
 
 
 if __name__ == "__main__":

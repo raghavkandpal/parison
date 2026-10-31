@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Add bounded integrity-only reading for hash discovery v2 evidence; producer and exact replay stay disabled pending their separate qualification.
+
 - Add hash-bucket discovery structural schemas and canonical/key-vector/negative fixtures ahead of feature 3 runtime.
 
 - Stabilize representation subcommand usage across supported Python versions while preserving frozen help bytes.

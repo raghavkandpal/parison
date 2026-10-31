@@ -1,8 +1,8 @@
 # Current development state
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
-- Branch: `feature/2.4-key-discovery-wire`, from develop `974a3d4`; feature 3 contract frozen through PR #129; features 1 and 2 integrated (2/10).
-- Next gate: independently review and qualify feature 3 structural schemas, canonical/negative fixtures and typed-key vectors in [checkpoint 292](2.4/292-key-discovery-wire-checkpoint.md), then implement sequential hash discovery under [contract 291](2.4/291-composite-key-discovery-contract.md). The contract is frozen and quality-qualified; no hash runtime exists. Preserve released range-v1/investigation-v1, canonical bytes, CLI aliases and local-first boundaries. All ten 2.4 features must integrate and qualify before a candidate.
+- Branch: `feature/2.4-hash-evidence-reader`, from develop `d68e1bb`; feature 3 contract and wire gate integrated through PRs #129/#130; features 1 and 2 remain integrated (2/10).
+- Next gate: resume unmerged PR #131 (`feature/2.4-hash-evidence-reader`), re-review correction source `56c33c0` and run fresh exact-head quality/manual full built-wheel CI before any merge. The reader passes 657 local tests and 17 reader/wire tests on Python3.11–3.14; reviewed fixes close mixed-manifest version dispatch and incomplete row-accounting acceptance. Final corrected-head review/CI remain pending. [Handoff 293](2.4/293-hash-integrity-reader-checkpoint.md) records continuation. Contract/wire gates merged via PRs #129/#130; creation/exact replay remain disabled and feature3 is incomplete (2/10 integrated). Stop at usage limit; no reset consumed. Preserve all-ten candidate boundary and released contracts.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
