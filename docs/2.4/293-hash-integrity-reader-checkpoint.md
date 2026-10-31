@@ -62,3 +62,19 @@ admit a version2 plan/receipt through legacy validation, including noncanonical
 or float-substituted summaries, and it cannot start source replay. Complete v2
 bucket counts must account for every side row exactly; incomplete duplicate/null
 records retain bounded inequality. Rehashed regressions cover both corrections.
+
+## Usage-limit handoff
+
+Stopped with PR #131 unmerged. Corrected source
+`56c33c0bfa16b0261c243aeb2a8eb79bdf748b01` passes657 full local tests and17
+reader/wire tests on all four Python versions. Spec reviewed the dirty fixes
+and their regressions, but exact corrected-head Standards/Spec clearance and
+fresh manual full matrix/quality qualification are still required. Earlier CI
+runs41195744897/41195747186 target20cf1ac and cannot qualify the corrected head.
+
+Resume by reading AGENTS.md/local, CURRENT and this checkpoint; review
+20cf1ac..56c33c0, then run exact-head CI and integrate only if qualified. Update
+changing state on a scoped docs branch from current develop after integration.
+Then implement pinned snapshots, hash producer and exact replay under291;
+source execution is deliberately still disabled. Do not count feature3 as
+integrated or propose a candidate. No reset was consumed.
