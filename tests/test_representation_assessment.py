@@ -323,6 +323,77 @@ class RepresentationAssessment(unittest.TestCase):
         self.assertEqual(summary["compatibility"], "DENY")
         self.assertEqual(summary["reason_counts"]["nullability_unknown"], 1)
 
+    def test_one_sided_optional_fields_preserve_unknown_guarantees(self):
+        original = read(self.candidate / "representation.json")
+        for kind in ("nullability", "collation"):
+            with self.subTest(kind=kind):
+                metadata = copy.deepcopy(original)
+                extra = copy.deepcopy(metadata["tables"]["orders"]["columns"][1])
+                extra.update(name="extra", ordinal=3, selected=False)
+                if kind == "nullability":
+                    extra["nullability"] = {
+                        "declared_not_null": True,
+                        "information_schema_nullable": "NO",
+                        "constraints": [{"name": "extra_nn", "validated": False, "enforced": True}],
+                        "guarantee": "unknown",
+                    }
+                else:
+                    extra["collation"] = {
+                        "state": "unknown",
+                        "origin": "unknown",
+                        **{
+                            key: None
+                            for key in (
+                                "schema",
+                                "name",
+                                "provider",
+                                "encoding",
+                                "deterministic",
+                                "collate",
+                                "ctype",
+                                "locale",
+                                "rules",
+                            )
+                        },
+                        "recorded_version": {"state": "unknown", "value": None},
+                        "actual_version": {"state": "unknown", "value": None},
+                    }
+                metadata["tables"]["orders"]["columns"].append(extra)
+                write(self.candidate / "representation.json", metadata)
+                self.rehash(self.candidate)
+                parents = self.parents()
+                plan = self.plan(parents)
+                plan["tables"]["orders"]["evolution"]["changes"].append(
+                    {
+                        "change": "added",
+                        "baseline": [],
+                        "candidate": [
+                            {
+                                "id": "extra",
+                                "name": "extra",
+                                "presence": "optional",
+                                "nullability": "non-null" if kind == "nullability" else "nullable",
+                            }
+                        ],
+                    }
+                )
+                _, summary = assessment.evaluate(plan, parents)
+                self.assertEqual(summary["compatibility"], "INCONCLUSIVE")
+                self.assertEqual(summary["reason_counts"][f"{kind}_unknown"], 1)
+                # Reversing the declaration preserves unknowns for optional removal.
+                reverse = copy.deepcopy(plan)
+                reverse["baseline_manifest_sha256"], reverse["candidate_manifest_sha256"] = (
+                    reverse["candidate_manifest_sha256"],
+                    reverse["baseline_manifest_sha256"],
+                )
+                declaration = reverse["tables"]["orders"]["evolution"]["changes"][-1]
+                declaration.update(change="removed", baseline=declaration["candidate"], candidate=[])
+                _, summary = assessment.evaluate(
+                    reverse, {"baseline": parents["candidate"], "candidate": parents["baseline"]}
+                )
+                self.assertEqual(summary["compatibility"], "INCONCLUSIVE")
+                self.assertEqual(summary["reason_counts"][f"{kind}_unknown"], 1)
+
     def test_publication_failure_interrupt_no_overwrite_and_input_exclusion(self):
         for method in ("assess", "propose"):
             target = self.output if method == "assess" else self.root / "proposal.json"
@@ -547,6 +618,44 @@ class RepresentationRules(unittest.TestCase):
                 self.assertEqual(actual, case["expected"])
                 if b != c and actual == "ACCEPT":
                     self.assertTrue(findings, "allowed changes must remain findings")
+
+    def test_returned_not_assessed_lists_cannot_mutate_future_results(self):
+        result, summary = assessment.evaluate(self.plan, self.parents)
+        result["not_assessed"].append("unexpected")
+        summary["not_assessed"].clear()
+        result, summary = assessment.evaluate(self.plan, self.parents)
+        expected = read(ROOT / "assessment" / "summary.json")["not_assessed"]
+        self.assertEqual(result["not_assessed"], expected)
+        self.assertEqual(summary["not_assessed"], expected)
+
+    def test_fully_known_provider_drift_is_denied_without_unknown_label(self):
+        b, c = self.column(), self.column()
+        for column, value in ((b, "153"), (c, "154")):
+            column["collation"].update(provider="icu", collate=None, ctype=None, locale="en-US")
+            for key in ("recorded_version", "actual_version"):
+                column["collation"][key] = {"state": "known", "value": value}
+        status, findings = self.compare(b, c, self.plan["rules"])
+        self.assertEqual(status, "DENY")
+        self.assertIn(("collation_changed", "DENY"), findings)
+        self.assertNotIn(("collation_unknown", "INCONCLUSIVE"), findings)
+
+    def test_provider_versions_compare_corresponding_observation_meanings(self):
+        b, c = self.column(), self.column()
+        for column in (b, c):
+            column["collation"].update(provider="icu", collate=None, ctype=None, locale="en-US")
+            column["collation"]["recorded_version"] = {"state": "known", "value": "153"}
+            column["collation"]["actual_version"] = {"state": "known", "value": "154"}
+        status, findings = self.compare(b, c, self.plan["rules"])
+        self.assertEqual(status, "DENY")
+        self.assertIn(("collation_version_mismatch", "DENY"), findings)
+        self.assertNotIn(("collation_changed", "DENY"), findings)
+        self.assertNotIn(("collation_unknown", "INCONCLUSIVE"), findings)
+        b["collation"]["actual_version"] = {"state": "unknown", "value": None}
+        c["collation"]["recorded_version"] = {"state": "unknown", "value": None}
+        status, findings = self.compare(b, c, self.plan["rules"])
+        self.assertEqual(status, "INCONCLUSIVE")
+        self.assertNotIn(("collation_changed", "DENY"), findings)
+        self.assertNotIn(("collation_version_mismatch", "DENY"), findings)
 
     def test_selection_membership_and_collation_names(self):
         b, c = self.column(), self.column()

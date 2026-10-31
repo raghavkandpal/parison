@@ -67,3 +67,11 @@ gates with10 cases across16→18 and17→18; final frozen-source rerun and indep
 reviews remain before qualification. The helper starts only fresh clusters and
 stops all of them before deriving or replaying any evidence. Its source records
 are synthetic; no confidential values or user credentials are published.
+
+Review corrections preserve unknown nullability/collation for optional added or
+removed fields; their allowed membership does not resolve native uncertainty.
+Fully known provider drift emits its DENY reasons without an unknown label.
+Recorded and actual observations retain their distinct meanings: corresponding
+cross-parent changes differ from an identical intrinsic mismatch in both inputs.
+The contract clarifies that distinction, with reason-specific regressions. Returned
+not_assessed lists are independent copies, preserving deterministic later runs.

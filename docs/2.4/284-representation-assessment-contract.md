@@ -228,7 +228,9 @@ binds every raw observation and uses explicit lineage for names. Conditions:
   baseline/candidate recorded/actual values must be known and equal, alongside
   equal resolved definitions, for ACCEPT eligibility. A known cross-parent
   provider-version change is DENY/collation_changed even when each source has
-  matching recorded/current values. These remain observations, not behavioral proof. Matching genuinely
+  matching recorded/current values. Cross-parent drift compares the same field
+  meaning (recorded with recorded, actual with actual); cross-meaning partial
+  differences alone are unknown, not proven drift. These remain observations, not behavioral proof. Matching genuinely
   non-versioned libc C/POSIX facts are eligible; other versionless providers are
   INCONCLUSIVE. Any version-state combination outside the explicit known-equality
   or all-not-versioned C/POSIX exception is INCONCLUSIVE; null is never a wildcard.

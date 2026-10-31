@@ -194,8 +194,27 @@ def _integer_widen(baseline, candidate):
     return b in ranks and c in ranks and ranks[c] >= ranks[b]
 
 
+def _collation_observation(fact, emit):
+    if fact["state"] == "unknown":
+        emit("collation_unknown", "INCONCLUSIVE")
+    elif fact["state"] == "resolved":
+        recorded, actual = fact["recorded_version"], fact["actual_version"]
+        if recorded["state"] == actual["state"] == "known":
+            if recorded["value"] != actual["value"]:
+                emit("collation_version_mismatch", "DENY")
+        elif not (
+            recorded["state"] == actual["state"] == "not-versioned"
+            and fact["provider"] == "libc"
+            and fact["collate"] in {"C", "POSIX"}
+            and fact["ctype"] in {"C", "POSIX"}
+        ):
+            emit("collation_unknown", "INCONCLUSIVE")
+
+
 def _collation_findings(baseline, candidate, emit):
     b, c = baseline["collation"], candidate["collation"]
+    for fact in (b, c):
+        _collation_observation(fact, emit)
     if "unknown" in (b["state"], c["state"]):
         emit("collation_unknown", "INCONCLUSIVE")
         return
@@ -208,17 +227,16 @@ def _collation_findings(baseline, candidate, emit):
     if any(b[k] != c[k] for k in definitions):
         emit("collation_changed", "DENY")
     versions = [fact[key] for fact in (b, c) for key in ("recorded_version", "actual_version")]
-    for fact in (b, c):
-        recorded, actual = fact["recorded_version"], fact["actual_version"]
-        if recorded["state"] == actual["state"] == "known" and recorded["value"] != actual["value"]:
-            emit("collation_version_mismatch", "DENY")
-    if any(x["value"] != y["value"] for x in versions[:2] for y in versions[2:] if x["state"] == y["state"] == "known"):
+    if any(
+        b[key]["state"] == c[key]["state"] == "known" and b[key]["value"] != c[key]["value"]
+        for key in ("recorded_version", "actual_version")
+    ):
         emit("collation_changed", "DENY")
-    known_equal = all(v["state"] == "known" for v in versions) and len({v["value"] for v in versions}) == 1
+    all_known = all(v["state"] == "known" for v in versions)
     c_posix = all(v["state"] == "not-versioned" for v in versions) and all(
         f["provider"] == "libc" and f["collate"] in {"C", "POSIX"} and f["ctype"] in {"C", "POSIX"} for f in (b, c)
     )
-    if not known_equal and not c_posix:
+    if not all_known and not c_posix:
         emit("collation_unknown", "INCONCLUSIVE")
 
 
@@ -275,8 +293,11 @@ def _field_findings(baseline, candidate, rules, emit):
 
 def _declared_field(column, declaration, emit):
     guarantee = column["nullability"]["guarantee"]
-    if guarantee != "unknown" and guarantee != declaration["nullability"]:
+    if guarantee == "unknown":
+        emit("nullability_unknown", "INCONCLUSIVE")
+    elif guarantee != declaration["nullability"]:
         emit("declaration_mismatch", "DENY")
+    _collation_observation(column["collation"], emit)
 
 
 def evaluate(plan, parents):
@@ -351,7 +372,7 @@ def evaluate(plan, parents):
         "complete": complete,
         "compatibility": compatibility,
         "findings": values,
-        "not_assessed": NOT_ASSESSED,
+        "not_assessed": list(NOT_ASSESSED),
     }
     result_data = _canonical(result) + b"\n"
     if len(result_data) > RESULT_LIMIT:
@@ -366,7 +387,7 @@ def evaluate(plan, parents):
         "fields": fields_count,
         "reason_counts": {reason: sum(f["reason"] == reason for f in values) for reason in REASONS},
         "assessment_sha256": _digest(result_data),
-        "not_assessed": NOT_ASSESSED,
+        "not_assessed": list(NOT_ASSESSED),
     }
     return result, summary
 
