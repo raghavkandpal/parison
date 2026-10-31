@@ -32,6 +32,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Research and define private recoverable partition sessions with explicit unsigned-cache assurance, bounded retention, native ownership and unchanged final evidence.
+
 - Research and define bounded composite/text-key exact discovery with typed hash routing, runtime-bound replay and explicit collision/unknown-state gates.
 
 - Freeze feature 2 collection-v2 metadata capture and explicit representation-assessment boundaries, including qualified negative-scale decoding and PostgreSQL18 unvalidated-nullability handling.

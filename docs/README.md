@@ -27,6 +27,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Feature 3 schemas, key vectors and wire checkpoint](2.4/292-key-discovery-wire-checkpoint.md)
 - [Feature 3 bounded hash evidence integrity reader](2.4/293-hash-integrity-reader-checkpoint.md)
 - [Feature 3 exact hash discovery execution](2.4/294-hash-discovery-execution-checkpoint.md)
+- [Feature 4 recoverable partition session research](2.4/295-partition-recovery-research.md)
+- [Feature 4 recoverable partition session contract](2.4/296-partition-recovery-contract.md)
 
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 
