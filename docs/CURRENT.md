@@ -1,8 +1,8 @@
 # Current development state
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
-- Branch: `docs/2.4-key-discovery-contract`, from clean develop `26302f3`; features 1 and 2 integrated (2/10).
-- Next gate: materialize and independently review feature 3 schemas, canonical/negative fixtures and encoding/hash vectors for hash-bucket discovery in [contract 291](2.4/291-composite-key-discovery-contract.md), backed by [primary-source research 290](2.4/290-composite-key-discovery-research.md). Contract review is clear after explicitly pinning execution admission to CPython3.11–3.14; keep runtime-bound replay, snapshot/staging budgets and collision/null/Unicode/duplicate gates. Implement only after the wire gate qualifies. Released range-v1 and single-integer investigation-v1 remain unchanged; hash-v2 raw investigation requires separate versioning. No feature 3 runtime exists. All ten 2.4 features must integrate and qualify before a candidate; preserve released contracts, canonical bytes, CLI aliases and local-first boundaries.
+- Branch: `feature/2.4-key-discovery-wire`, from develop `974a3d4`; feature 3 contract frozen through PR #129; features 1 and 2 integrated (2/10).
+- Next gate: independently review and qualify feature 3 structural schemas, canonical/negative fixtures and typed-key vectors in [checkpoint 292](2.4/292-key-discovery-wire-checkpoint.md), then implement sequential hash discovery under [contract 291](2.4/291-composite-key-discovery-contract.md). The contract is frozen and quality-qualified; no hash runtime exists. Preserve released range-v1/investigation-v1, canonical bytes, CLI aliases and local-first boundaries. All ten 2.4 features must integrate and qualify before a candidate.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff

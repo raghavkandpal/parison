@@ -1,0 +1,440 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/partition-receipt-v2.schema.json",
+  "title": "partition-receipt-v2",
+  "type": "object",
+  "required": [
+    "partition_receipt_version",
+    "policy_sha256",
+    "plan_sha256",
+    "inputs",
+    "route_rows",
+    "staged_bytes",
+    "counts",
+    "discrepancy_count",
+    "outcome",
+    "complete",
+    "partitions",
+    "field_counts",
+    "routing",
+    "normalization_runtime",
+    "derived_recipe_bytes"
+  ],
+  "properties": {
+    "partition_receipt_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "policy_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "object",
+          "required": [
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "minLength": 64,
+              "maxLength": 64
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000000
+            }
+          },
+          "additionalProperties": false
+        },
+        "candidate": {
+          "type": "object",
+          "required": [
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "minLength": 64,
+              "maxLength": 64
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000000
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "route_rows": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5000000
+        },
+        "candidate": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5000000
+        }
+      },
+      "additionalProperties": false
+    },
+    "staged_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2000000000
+    },
+    "counts": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "candidate",
+        "common_keys",
+        "baseline_only",
+        "candidate_only",
+        "matched_exact",
+        "matched_within_tolerance",
+        "matched_with_required_difference"
+      ],
+      "properties": {
+        "baseline": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidate": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "common_keys": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "baseline_only": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidate_only": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "matched_exact": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "matched_within_tolerance": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "matched_with_required_difference": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "discrepancy_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "outcome": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCONCLUSIVE"
+      ]
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "partitions": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": [
+          "baseline",
+          "candidate",
+          "counts",
+          "field_counts",
+          "outcome",
+          "complete",
+          "bucket"
+        ],
+        "properties": {
+          "baseline": {
+            "type": "object",
+            "required": [
+              "rows",
+              "bytes",
+              "sha256"
+            ],
+            "properties": {
+              "rows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000000
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$",
+                "minLength": 64,
+                "maxLength": 64
+              }
+            },
+            "additionalProperties": false
+          },
+          "candidate": {
+            "type": "object",
+            "required": [
+              "rows",
+              "bytes",
+              "sha256"
+            ],
+            "properties": {
+              "rows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000000
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$",
+                "minLength": 64,
+                "maxLength": 64
+              }
+            },
+            "additionalProperties": false
+          },
+          "counts": {
+            "type": "object",
+            "required": [
+              "baseline",
+              "candidate",
+              "common_keys",
+              "baseline_only",
+              "candidate_only",
+              "matched_exact",
+              "matched_within_tolerance",
+              "matched_with_required_difference"
+            ],
+            "properties": {
+              "baseline": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "candidate": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "common_keys": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "baseline_only": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "candidate_only": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "matched_exact": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "matched_within_tolerance": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "matched_with_required_difference": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "field_counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "exact",
+                "within_tolerance",
+                "different"
+              ],
+              "properties": {
+                "exact": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "within_tolerance": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "different": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            },
+            "maxProperties": 100
+          },
+          "outcome": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "INCONCLUSIVE"
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "bucket": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "field_counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "exact",
+          "within_tolerance",
+          "different"
+        ],
+        "properties": {
+          "exact": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "within_tolerance": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "different": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "maxProperties": 100
+    },
+    "routing": {
+      "type": "object",
+      "required": [
+        "kind",
+        "hash",
+        "encoding",
+        "buckets"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "hash-v1"
+        },
+        "hash": {
+          "type": "string",
+          "const": "sha256"
+        },
+        "encoding": {
+          "type": "string",
+          "const": "typed-key-v1"
+        },
+        "buckets": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 128
+        }
+      },
+      "additionalProperties": false
+    },
+    "normalization_runtime": {
+      "type": "object",
+      "required": [
+        "implementation",
+        "python_version",
+        "unicode_version"
+      ],
+      "properties": {
+        "implementation": {
+          "type": "string",
+          "const": "CPython"
+        },
+        "python_version": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 9,
+          "pattern": "^[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,3}$",
+          "not": {
+            "pattern": "[^0-9.]"
+          }
+        },
+        "unicode_version": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 8,
+          "pattern": "^[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,2}$",
+          "not": {
+            "pattern": "[^0-9.]"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "derived_recipe_bytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 262144
+    }
+  },
+  "additionalProperties": false,
+  "description": "Structural hash-v1 envelope. Exact JSON tokens, UTF-8/member caps, bindings, arithmetic and replay require contract291 runtime verification."
+}

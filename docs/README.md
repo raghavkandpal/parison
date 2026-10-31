@@ -24,6 +24,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Feature 2 integration and feature 3 contract handoff](2.4/289-feature2-integration-handoff.md)
 - [Feature 3 composite/text-key discovery research](2.4/290-composite-key-discovery-research.md)
 - [Feature 3 exact hash-bucket discovery contract](2.4/291-composite-key-discovery-contract.md)
+- [Feature 3 schemas, key vectors and wire checkpoint](2.4/292-key-discovery-wire-checkpoint.md)
 
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 

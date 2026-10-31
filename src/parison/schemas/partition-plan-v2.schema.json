@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/partition-plan-v2.schema.json",
+  "title": "partition-plan-v2",
+  "type": "object",
+  "required": [
+    "partition_plan_version",
+    "limits",
+    "routing"
+  ],
+  "properties": {
+    "partition_plan_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "limits": {
+      "type": "object",
+      "required": [
+        "max_input_bytes",
+        "max_rows_per_input",
+        "max_rows_per_partition_side",
+        "max_staged_bytes",
+        "max_partition_bytes",
+        "max_key_bytes"
+      ],
+      "properties": {
+        "max_input_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000000
+        },
+        "max_rows_per_input": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5000000
+        },
+        "max_rows_per_partition_side": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "max_staged_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000000000
+        },
+        "max_partition_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000000
+        },
+        "max_key_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        }
+      },
+      "additionalProperties": false
+    },
+    "routing": {
+      "type": "object",
+      "required": [
+        "kind",
+        "hash",
+        "encoding",
+        "buckets"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "hash-v1"
+        },
+        "hash": {
+          "type": "string",
+          "const": "sha256"
+        },
+        "encoding": {
+          "type": "string",
+          "const": "typed-key-v1"
+        },
+        "buckets": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 128
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "description": "Structural hash-v1 envelope. Exact JSON tokens, UTF-8/member caps, bindings, arithmetic and replay require contract291 runtime verification."
+}

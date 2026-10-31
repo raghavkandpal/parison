@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Add hash-bucket discovery structural schemas and canonical/key-vector/negative fixtures ahead of feature 3 runtime.
+
 - Stabilize representation subcommand usage across supported Python versions while preserving frozen help bytes.
 
 - Add explicit offline native representation assessment, unapproved exact-name proposals and bound-parent replay through `parison representation`, without implying row parity or cutover approval.

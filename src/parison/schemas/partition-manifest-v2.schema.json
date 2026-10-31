@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parison.dev/schemas/partition-manifest-v2.schema.json",
+  "title": "partition-manifest-v2",
+  "type": "object",
+  "required": [
+    "partition_manifest_version",
+    "files"
+  ],
+  "properties": {
+    "partition_manifest_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "files": {
+      "type": "object",
+      "required": [
+        "plan.json",
+        "receipt.json",
+        "summary.json"
+      ],
+      "properties": {
+        "plan.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "receipt.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "summary.json": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "description": "Structural hash-v1 envelope. Exact JSON tokens, UTF-8/member caps, bindings, arithmetic and replay require contract291 runtime verification."
+}
