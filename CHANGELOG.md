@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Validate private session journal, derived-policy and child-result bindings with exact JSON tokens; preview and retained execution remain disabled.
+
 - Add the private read-ownership prerequisite for retained sessions, with nonblocking kernel exclusion and immutable root/lock identity checks; session commands remain disabled.
 
 - Add standalone recovery-session schemas and canonical range/hash fixtures; retained execution remains disabled pending its own gate.
