@@ -82,3 +82,33 @@ Features1–3 remain integrated (3/10). Feature4 still requires separate mutatin
 ownership, safe abandonment, retained discover/resume, exact clean/resumed byte
 equality and the complete interruption/storage/forgery gate. All ten features
 precede any2.4 candidate; worker feature5 follows recovery. No release or reset.
+
+## Qualified integration record
+
+All heads below received independent Standards/Spec clearance, full local checks
+and exact-head quality/manual built-wheel Python3.11–3.14 Linux/macOS/Windows CI.
+
+| Gate | Exact reviewed head | Develop merge | Local tests | Quality | Full native matrix |
+| --- | --- | --- | --- | --- | --- |
+| Recorded metadata, PR139 | `bea3906abb26ceaa2f5297e82e6d22ddf8dc63c5` | `2a7a2ab8740752a0546be89c86c9efac7b9739e4` |713| [41304270162](https://github.com/raghavkandpal/parison/actions/runs/41304270162) | [41304266860](https://github.com/raghavkandpal/parison/actions/runs/41304266860) |
+| Namespace correction, PR141 | `20443fd496878f2d95f78141689e7c4df078100b` | `397dd44e6eeb646067edec88d5cae61c6787bda7` |714| [41305997197](https://github.com/raghavkandpal/parison/actions/runs/41305997197) | [41305996725](https://github.com/raghavkandpal/parison/actions/runs/41305996725) |
+| Rebased preview, PR140 | `a6401cc2c2d4b903cab39a56cf8a22040e4a3fc1` | `ff88539fdd4a791c8330f980acf621856cb02c28` |734| [41306510330](https://github.com/raghavkandpal/parison/actions/runs/41306510330) | [41306505005](https://github.com/raghavkandpal/parison/actions/runs/41306505005) |
+
+The39 focused reader/ownership/metadata tests also pass on all four local
+Python minors. Local full-suite skips are Windows-native tests on macOS;
+native matrix tests exercise actual Windows locks, clocks and junctions.
+The owner's pre-existing spacing-only edit in continuation297 was preserved
+byte-for-byte, excluded from all commits, and restored after rebasing. No reset,
+release or candidate was consumed/proposed.
+
+The owner requested CI architecture and optimization discussion after this gate,
+before more feature work. That is the immediate next task. No workflow policy
+was changed in this session; the source PR only adds reader coverage to the
+existing required native gate. For a measured starting point, passing full run
+41304266860 took241 wall seconds and1,418 summed job seconds (unweighted runner
+time): Linux jobs had128 steps each and native jobs74. Its Python3.14 Linux suite
+step took49 seconds; the Windows3.14 hash qualification step took111 seconds.
+These are one-run measurements, not projected savings or universal timings.
+Separate configuration growth, duplicate event runs and actual test runtime
+before choosing optimizations. Preserve existing exact-head/native/release
+requirements until a separately reviewed policy/workflow change is agreed.
