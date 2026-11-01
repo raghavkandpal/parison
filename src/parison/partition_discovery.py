@@ -380,6 +380,36 @@ def _compare_ranges(
     return totals, field_counts, differences, outcome, complete
 
 
+def _metadata_change_time(handle):
+    if os.name != "nt":
+        return os.fstat(handle.fileno()).st_ctime_ns
+    import msvcrt
+
+    class BasicInfo(ctypes.Structure):
+        _fields_ = [
+            ("creation", ctypes.c_int64),
+            ("access", ctypes.c_int64),
+            ("write", ctypes.c_int64),
+            ("change", ctypes.c_int64),
+            ("attributes", ctypes.c_uint32),
+        ]
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    query = kernel.GetFileInformationByHandleEx
+    query.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+    query.restype = ctypes.c_int
+    info = BasicInfo()
+    if not query(msvcrt.get_osfhandle(handle.fileno()), 0, ctypes.byref(info), ctypes.sizeof(info)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    if info.change <= 0:
+        raise ParisonError(_HASH_ERROR)
+    return info.change  # Native metadata change time, never Python's creation-time alias.
+
+
+def _file_stamp(handle):
+    return (*_stamp(handle)[:-1], _metadata_change_time(handle))
+
+
 def _named_file_stamp(path):
     """Compare handle metadata with handle metadata, including Windows change time."""
     if path.is_symlink():
@@ -388,7 +418,7 @@ def _named_file_stamp(path):
     with os.fdopen(descriptor, "rb") as handle:
         if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
             raise ParisonError(_HASH_ERROR)
-        return _stamp(handle)
+        return _file_stamp(handle)
 
 
 def _pinned_hash_input(stack, path, limit):
@@ -399,13 +429,13 @@ def _pinned_hash_input(stack, path, limit):
     descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
     handle = stack.enter_context(os.fdopen(descriptor, "rb"))
     info = os.fstat(handle.fileno())
-    before = _stat_stamp(info)
+    before = _file_stamp(handle)
     if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
         raise ParisonError(_HASH_ERROR)
 
     def unchanged():
         check_output_parent(path.parent)
-        if _named_file_stamp(path) != before or _stamp(handle) != before:
+        if _named_file_stamp(path) != before or _file_stamp(handle) != before:
             raise ParisonError(_HASH_ERROR)
 
     unchanged()
@@ -428,7 +458,7 @@ def _stage_guard(workspace, expected, stamps):
             raise ParisonError(_HASH_ERROR)
         for name, digest in expected.items():
             path = workspace / name
-            if path.is_symlink() or _stat_stamp(path.stat()) != stamps[name] or _digest(path) != digest:
+            if _named_file_stamp(path) != stamps[name] or _digest(path) != digest:
                 raise ParisonError(_HASH_ERROR)
 
     unchanged()
@@ -518,7 +548,7 @@ def _run_hash(plan, recipe_path, baseline, candidate, workspace, stack, *, paren
     with create("derived-recipe.json") as handle:
         write(handle, derived)
     expected["derived-recipe.json"] = hashlib.sha256(derived).hexdigest()
-    file_stamps["derived-recipe.json"] = _stat_stamp((workspace / "derived-recipe.json").stat())
+    file_stamps["derived-recipe.json"] = _named_file_stamp(workspace / "derived-recipe.json")
     for side, original in (("baseline", baseline), ("candidate", candidate)):
         if Path(original).suffix.lower() != ".csv":
             raise ParisonError(_HASH_ERROR)
@@ -535,14 +565,14 @@ def _run_hash(plan, recipe_path, baseline, candidate, workspace, stack, *, paren
         check()
         identities[side] = {"sha256": digest.hexdigest(), "bytes": size}
         expected[name], sources[side] = digest.hexdigest(), workspace / name
-        file_stamps[name] = _stat_stamp(sources[side].stat())
+        file_stamps[name] = _named_file_stamp(sources[side])
 
     def snapshots_check():
         workspace_check()
         for side, path in sources.items():
             if (
                 path.is_symlink()
-                or _stat_stamp(path.stat()) != file_stamps[path.name]
+                or _named_file_stamp(path) != file_stamps[path.name]
                 or _digest(path) != identities[side]["sha256"]
             ):
                 raise ParisonError(_HASH_ERROR)
@@ -589,7 +619,7 @@ def _run_hash(plan, recipe_path, baseline, candidate, workspace, stack, *, paren
             digest = digests[index].hexdigest()
             records[index][side]["sha256"] = digest
             expected[f"{side}-{index}.csv"] = digest
-            file_stamps[f"{side}-{index}.csv"] = _stat_stamp((workspace / f"{side}-{index}.csv").stat())
+            file_stamps[f"{side}-{index}.csv"] = _named_file_stamp(workspace / f"{side}-{index}.csv")
         snapshots_check()
     staged_check = _stage_guard(workspace, expected, file_stamps)
     counts, fields, differences, outcome, complete = _compare_ranges(plan, recipe, records, rows, workspace)
@@ -1046,7 +1076,7 @@ def _discover_hash(plan, recipe, baseline, candidate, output):
             info = os.stat(name if stage_fd is not None else stage / name, dir_fd=stage_fd, follow_symlinks=False)
             if not stat.S_ISREG(info.st_mode) or _stat_stamp(info)[:2] != file_identity:
                 raise ParisonError(_HASH_ERROR)
-            return _stat_stamp(info)
+            return _named_file_stamp(stage / name)
 
         workspace = stage / "temporary"
         if os.name == "nt":
@@ -1141,6 +1171,8 @@ def _verified_hash_evidence(root, recipe, baseline, candidate):
         names = {"plan.json", "receipt.json", "summary.json", "manifest.json"}
         with ExitStack() as stack:
             fd = _directory(stack, root)
+            if os.name == "nt":
+                _windows_directory_pin(stack, root)
             if _members(root, fd) != names:
                 raise ParisonError(_HASH_ERROR)
             directory_stamp = _stat_stamp(os.fstat(fd) if fd is not None else root.stat())
@@ -1160,7 +1192,7 @@ def _verified_hash_evidence(root, recipe, baseline, candidate):
                 ):
                     raise ParisonError(_HASH_ERROR)
                 handles[name] = handle
-            stamps = {name: _stamp(handle) for name, handle in handles.items()}
+            stamps = {name: _file_stamp(handle) for name, handle in handles.items()}
             values, data = {}, {}
             for name, handle in handles.items():
                 values[name], data[name] = _canonical_json(
@@ -1198,7 +1230,7 @@ def _verified_hash_evidence(root, recipe, baseline, candidate):
                             raise ParisonError(_HASH_ERROR)
                         source_check()
             if (
-                any(_stamp(handle) != stamps[name] for name, handle in handles.items())
+                any(_file_stamp(handle) != stamps[name] for name, handle in handles.items())
                 or _members(root, fd) != names
                 or root.is_symlink()
                 or _stat_stamp(root.stat()) != directory_stamp
