@@ -93,7 +93,9 @@ class SessionWire(unittest.TestCase):
                 self.assertEqual(descriptor, {"sha256": sha(data), "bytes": len(data)})
                 child = json.loads(data)
                 self.assertEqual(child["index"], index)
-                self.assertEqual(child["policy_sha256"], identity["derived_recipe_sha256"])
+                self.assertEqual(
+                    child["policy_sha256"], _checked_policy_sha256(load_recipe(root / "routing/derived-recipe.json"))
+                )
                 self.assertEqual(child["engine_sha256"], sha(_canonical(identity["engine"])))
                 expected = compare(
                     root / "routing/derived-recipe.json",
@@ -101,6 +103,8 @@ class SessionWire(unittest.TestCase):
                     root / "routing" / f"candidate-{index}.csv",
                     sample_limit=0,
                 )
+                self.assertEqual(child["policy_sha256"], expected["policy_sha256"])
+                self.assertNotEqual(child["policy_sha256"], identity["derived_recipe_sha256"])
                 self.assertEqual(child["result"], {key: expected[key] for key in child["result"]})
                 self.assertEqual(
                     child["inputs"], {side: final["partitions"][index][side] for side in ("baseline", "candidate")}
@@ -206,6 +210,7 @@ class SessionWire(unittest.TestCase):
             root / "routing" / f"candidate-{index}.csv",
             sample_limit=0,
         )
+        self.assertEqual(child["policy_sha256"], fresh["policy_sha256"])
         self.assertNotEqual(child["result"], {key: fresh[key] for key in child["result"]})
         self.assertTrue(discovery._consistent_counts(child["result"]["counts"], child["result"]["field_counts"], True))
         self.assertEqual(forged["assurance"], "reused-integrity-checked")

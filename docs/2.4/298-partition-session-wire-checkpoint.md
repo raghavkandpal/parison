@@ -54,3 +54,10 @@ features1–3 are integrated (3/10). All ten precede any2.4 candidate.
 Local gate:692 repository tests pass under `make check`; all nine session-wire
 tests pass on CPython3.11.18,3.12.5,3.13.18 and3.14.7. Independent review and
 exact-head quality/manual full matrix remain required before integration.
+
+Independent Spec review corrected a fixture-binding defect: checkpoint
+policy_sha256 is the effective mechanically derived comparison-policy fingerprint,
+not the derived-recipe file digest. The latter stays in identity.derived_recipe_sha256.
+Child descriptors, journals, negatives and the coherent-forgery record were
+refreshed; direct exact-engine policy assertions lock this distinction.
+Corrected-head review and CI are required; earlier head11efc00 cannot qualify it.
