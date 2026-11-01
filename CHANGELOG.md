@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Consolidate CI suites and gate full compatibility qualification behind Linux/native preflight; preserve manual full-matrix and release requirements.
+
 - Add bounded read-only retained-session preview through both partition CLI spellings, without source access, comparison or reuse authority; retained execution and abandonment remain disabled.
 - Recheck the bounded root namespace during session read ownership, detecting persistent member changes even when directory metadata appears unchanged.
 

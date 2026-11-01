@@ -1,5 +1,8 @@
 import csv
 import json
+import re
+import shutil
+import subprocess
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -53,46 +56,72 @@ class GitHubActionsReference(unittest.TestCase):
         self.assertIn("releases/download/0.15.0/parison-0.15.0-py3-none-any.whl", workflow)
         self.assertNotIn("pull_request_target:", workflow)
 
-    def test_platform_ci_installs_one_shared_wheel_and_runs_quickstart(self):
-        workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
-        build = workflow[workflow.index("build:") : workflow.index("test:")]
-        self.assertIn("python -m build", build)
+    def test_ci_expands_only_after_linux_and_native_preflight(self):
+        workflow = (Path(__file__).parents[1] / ".github/workflows/test.yml").read_text()
+        build = workflow[workflow.index("  build:") : workflow.index("  preflight:")]
+        self.assertEqual(workflow.count("run: python -m build"), 1)
         self.assertIn("name: distributions", build)
-        self.assertIn("actions/upload-artifact@", build)
-        self.assertIn("platform-smoke:", workflow)
-        platform = workflow[workflow.index("platform-smoke:") :]
-        self.assertIn("needs: build", platform)
-        self.assertIn("actions/download-artifact@", platform)
-        self.assertIn("name: distributions", platform)
-        self.assertIn("dist/parison-*.whl", platform)
-        self.assertIn("parison init", platform)
-        self.assertIn("parison compare", platform)
-        self.assertIn("parison verify", platform)
-        self.assertNotIn("python -m build", platform)
-        self.assertNotIn("python benchmarks/", platform)
-        self.assertNotIn("python -m unittest discover", platform)
-        self.assertIn(
-            "python -m unittest tests.test_partition_session_wire tests.test_partition_session_ownership tests.test_partition_session_metadata tests.test_partition_session_reader -v",
-            platform,
-        )
-        self.assertIn(
-            "python -m unittest tests.test_partition_hash_execution tests.test_partition_hash_reader "
-            "tests.test_partition_hash_wire -v",
-            platform,
-        )
-        self.assertNotIn("pip install '.[parquet,test]'", platform)
+        self.assertIn("make lint format-check docs-check", build)
+        for job in ("test", "platform-smoke", "historical"):
+            block = re.split(r"\n  [a-z][a-z-]*:\n", workflow.split(f"  {job}:\n", 1)[1])[0]
+            self.assertIn("needs: [preflight, native-preflight]", block)
+            self.assertIn("inputs.profile != 'preflight'", block)
+            self.assertIn("github.ref == 'refs/heads/main'", block)
+        self.assertIn("default: full", workflow)
+        self.assertIn("python -m unittest tests.ci_platform -v", workflow)
+        self.assertIn("bash tests/ci/linux-smoke.sh", workflow)
+        self.assertNotIn("tests.test_partition_", workflow)
+        self.assertNotIn("      - run: parison ", workflow)
 
-    def test_repository_ci_avoids_duplicate_branch_and_pull_request_runs(self):
+    def test_native_suites_preserve_regressions_and_discover_feature_tests(self):
+        from tests import ci_native_preflight, ci_platform
+
+        loader = unittest.TestLoader()
+
+        def ids(suite):
+            for item in suite:
+                if isinstance(item, unittest.TestSuite):
+                    yield from ids(item)
+                else:
+                    yield item.id()
+
+        preflight = set(ids(ci_native_preflight.load_tests(loader, unittest.TestSuite(), None)))
+        native = set(ids(ci_platform.load_tests(loader, unittest.TestSuite(), None)))
+        self.assertFalse(loader.errors)
+        self.assertTrue(preflight <= native)
+        self.assertTrue(any("namespace_addition_rejects" in name for name in preflight))
+        self.assertTrue(any("native_metadata_time_rejects" in name for name in preflight))
+        self.assertTrue(any("test_partition_hash_wire" in name for name in native))
+        self.assertTrue(any("test_partition_session_metadata" in name for name in native))
+        self.assertTrue(any("test_xlsx" in name for name in native))
+        self.assertTrue(any("ci_smoke.NativeWorkflows" in name for name in native))
+
+    def test_repository_ci_avoids_duplicate_feature_branch_and_full_develop_runs(self):
         root = Path(__file__).parents[1]
         for name in ("quality.yml", "test.yml"):
-            workflow = (root / ".github" / "workflows" / name).read_text(encoding="utf-8")
+            workflow = (root / ".github/workflows" / name).read_text()
             self.assertIn("workflow_dispatch:", workflow)
             self.assertIn("push:\n    branches: [develop, main]", workflow)
             self.assertIn("pull_request:\n    branches: [develop]", workflow)
+        workflow = (root / ".github/workflows/test.yml").read_text()
+        self.assertIn('python-version: ["3.11", "3.12", "3.13"]', workflow)
+        self.assertIn('python-version: ["3.11", "3.12", "3.13", "3.14"]', workflow)
+        self.assertEqual(workflow.count("needs: [preflight, native-preflight]"), 3)
 
-        workflow = (root / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
-        platform = workflow[workflow.index("platform-smoke:") :]
-        self.assertIn("if: github.event_name != 'pull_request'", platform)
+    @unittest.skipUnless(shutil.which("bash"), "historical Linux suite requires bash")
+    def test_historical_shell_restores_fail_fast_after_expected_difference(self):
+        script = (Path(__file__).parents[1] / "tests/ci/linux-smoke.sh").read_text()
+        fragment = script[script.index("set +e") : script.index("parison inspect", script.index("set +e"))]
+        # The comparison's expected FAIL must succeed as a test, then a later
+        # failure must stop the shared shell. Wrong comparison exits must stop too.
+        for comparison_exit in (0, 1):
+            probe = (
+                f"set -eu\nPARISON_CI_TEMP=/unused\nparison() {{ return {comparison_exit}; }}\n"
+                + fragment
+                + "\nfalse\nexit 0\n"
+            )
+            result = subprocess.run(["bash", "-c", probe], capture_output=True, timeout=5)
+            self.assertNotEqual(result.returncode, 0)
 
     def test_signing_reference_pins_tools_and_checks_exact_identity(self):
         workflow = SIGNING_WORKFLOW.read_text(encoding="utf-8")
