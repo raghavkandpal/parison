@@ -1,4 +1,4 @@
-"""Private session ownership and recorded metadata checks; no reuse or mutation."""
+"""Read-only retained session recognition; never execution or reuse authority."""
 
 from __future__ import annotations
 
@@ -101,9 +101,7 @@ def _read_owner(directory):
             lock_stamp = discovery._file_stamp(handle)
 
             def root_stamp():
-                info = os.fstat(fd) if fd is not None else root.lstat()
-                change = discovery._windows_change_time(native) if native is not None else info.st_ctime_ns
-                return (*discovery._stat_stamp(info)[:-1], change)
+                return _directory_stamp(root, fd, native)
 
             # Only post-lock state can be authoritative; another owner may have just exited.
             directory_stamp = root_stamp()
@@ -150,7 +148,6 @@ def _journal(value, plan):
     """Validate recorded metadata only; no file integrity or current reuse admission."""
 
     try:
-        discovery.validate_plan(plan)
         _object(
             value,
             "partition_session_version state identity max_session_bytes routing results published_manifest_sha256",
@@ -166,6 +163,10 @@ def _journal(value, plan):
             "abandoning",
         }:
             raise ParisonError(_METADATA_ERROR)
+        recorded_plan = plan is not None
+        if not recorded_plan:
+            plan = _abandoning_shape_plan(value)
+        discovery.validate_plan(plan)
         _integer(value["max_session_bytes"], 1, 2100000000)
         identity = _object(
             value["identity"],
@@ -173,7 +174,7 @@ def _journal(value, plan):
         )
         for name in ("plan_sha256", "policy_sha256", "derived_recipe_sha256"):
             _sha(identity[name])
-        if identity["plan_sha256"] != hashlib.sha256(_canonical(plan)).hexdigest():
+        if recorded_plan and identity["plan_sha256"] != hashlib.sha256(_canonical(plan)).hexdigest():
             raise ParisonError(_METADATA_ERROR)
         discovery._hash_context(identity["normalization_runtime"])
         engine = _object(identity["engine"], "contract parison_version package_sha256")
@@ -351,8 +352,11 @@ def _checkpoint(value, index, journal, recipe):
         _object(value["inputs"], "baseline candidate")
         for side in _SIDES:
             _descriptor(value["inputs"][side], 1000000000, minimum=1, rows=1000000)
+        if recipe is None and journal["state"] != "abandoning":
+            raise ParisonError(_METADATA_ERROR)
+        _sha(value["policy_sha256"])
         if (
-            value["policy_sha256"] != _checked_policy_sha256(recipe)
+            (recipe is not None and value["policy_sha256"] != _checked_policy_sha256(recipe))
             or value["engine_sha256"] != hashlib.sha256(_canonical(journal["identity"]["engine"])).hexdigest()
             or value["inputs"] != {side: record[side] for side in _SIDES}
         ):
@@ -363,7 +367,8 @@ def _checkpoint(value, index, journal, recipe):
             type(complete) is not bool
             or not discovery._counts(counts)
             or not discovery._field_counts(fields)
-            or set(fields) != set(recipe["columns"]) - set(recipe["keys"])
+            or (recipe is not None and set(fields) != set(recipe["columns"]) - set(recipe["keys"]))
+            or (recipe is None and not set(fields) <= set(journal["identity"]["columns"]))
             or not discovery._consistent_counts(counts, fields, complete)
             or any(counts[side] != record[side]["rows"] for side in _SIDES)
             or (complete and any(counts["common_keys"] + counts[f"{side}_only"] != counts[side] for side in _SIDES))
@@ -401,3 +406,222 @@ def _metadata(data):
         return value
     except (ParisonError, TypeError, ValueError, UnicodeError, RecursionError):
         raise ParisonError(_METADATA_ERROR) from None
+
+
+def _abandoning_shape_plan(journal):
+    """A cleanup-only shape, never a reconstructed or reusable original plan.
+
+    Abandonment may have removed plan.json. Infer only the recorded labels and
+    use protocol ceilings to check surviving metadata; no source admission follows.
+    """
+    if (
+        journal["state"] != "abandoning"
+        or type(journal["results"]) is not list
+        or not 2 <= len(journal["results"]) <= 128
+    ):
+        raise ParisonError(_METADATA_ERROR)
+    count = len(journal["results"])
+    routing = journal["routing"]
+    limits = dict(discovery._LIMIT_CAPS)
+    if routing is not None and type(routing) is dict and type(routing.get("receipt")) is dict:
+        receipt = routing["receipt"]
+        if "derived_recipe_bytes" in receipt:
+            return {
+                "partition_plan_version": 2,
+                "routing": {"kind": "hash-v1", "hash": "sha256", "encoding": "typed-key-v1", "buckets": count},
+                "limits": {**limits, "max_key_bytes": 65536},
+            }
+        records = receipt.get("partitions")
+        if type(records) is not list or any(type(record) is not dict or "upper" not in record for record in records):
+            raise ParisonError(_METADATA_ERROR)
+        ranges = [{"upper": record["upper"]} for record in records]
+    else:
+        ranges = [{"upper": index if index < count - 1 else None} for index in range(count)]
+    return {"partition_plan_version": 1, "ranges": ranges, "limits": limits}
+
+
+def _directory_stamp(path, fd, native):
+    info = os.fstat(fd) if fd is not None else path.lstat()
+    change = discovery._windows_change_time(native) if native is not None else info.st_ctime_ns
+    return (*discovery._stat_stamp(info)[:-1], change)
+
+
+def preview(directory):
+    """Recognize owned retained state, without originals, comparisons or reuse claims."""
+    try:
+        root = Path(directory)
+        with _read_owner(root) as (root_fd, owner_check), ExitStack() as stack:
+            file_stamps = {}
+            directories = {}
+            used = 1  # Existing one-byte ownership lock is retained storage too.
+            budget = None
+
+            def read_file(path, fd, limit, *, capture=False, expected=None):
+                nonlocal used
+                before = path.lstat()
+                if not stat.S_ISREG(before.st_mode) or getattr(before, "st_file_attributes", 0) & 0x400:
+                    raise ParisonError(_METADATA_ERROR)
+                flags = (
+                    os.O_RDONLY
+                    | getattr(os, "O_NOFOLLOW", 0)
+                    | getattr(os, "O_NONBLOCK", 0)
+                    | getattr(os, "O_BINARY", 0)
+                )
+                descriptor = os.open(path.name if fd is not None else path, flags, dir_fd=fd)
+                with os.fdopen(descriptor, "rb") as handle:
+                    info = os.fstat(handle.fileno())
+                    if (
+                        not stat.S_ISREG(info.st_mode)
+                        or info.st_size > limit
+                        or (info.st_dev, info.st_ino) != (before.st_dev, before.st_ino)
+                    ):
+                        raise ParisonError(_METADATA_ERROR)
+                    used += info.st_size
+                    if budget is not None and used > budget:
+                        raise ParisonError(_METADATA_ERROR)
+                    stamp = discovery._file_stamp(handle)
+                    digest = hashlib.sha256()
+                    chunks = []
+                    size = 0
+                    while True:
+                        block = handle.read(min(65536, limit + 1 - size))
+                        if not block:
+                            break
+                        size += len(block)
+                        if size > limit:
+                            raise ParisonError(_METADATA_ERROR)
+                        digest.update(block)
+                        if capture:
+                            chunks.append(block)
+                    if (
+                        size != info.st_size
+                        or discovery._file_stamp(handle) != stamp
+                        or discovery._named_file_stamp(path) != stamp
+                    ):
+                        raise ParisonError(_METADATA_ERROR)
+                if expected is not None and expected != {"bytes": size, "sha256": digest.hexdigest()}:
+                    raise ParisonError(_METADATA_ERROR)
+                file_stamps[path] = stamp
+                return b"".join(chunks) if capture else None
+
+            journal = _metadata(read_file(root / "session.json", root_fd, 1048576, capture=True))
+            budget = _integer(journal.get("max_session_bytes"), 1, 2100000000)
+            if used > budget:
+                raise ParisonError(_METADATA_ERROR)
+            abandoning = journal.get("state") == "abandoning"
+            names = _bounded_members(root, root_fd, 6)
+            required = (
+                {".lock", "session.json"}
+                if abandoning
+                else {".lock", "session.json", "plan.json", "routing", "results"}
+            )
+            if not required <= names or not names <= {
+                ".lock",
+                "session.json",
+                "plan.json",
+                "routing",
+                "results",
+                "session.next",
+            }:
+                raise ParisonError(_METADATA_ERROR)
+            plan = None
+            if "plan.json" in names:
+                plan = _metadata(read_file(root / "plan.json", root_fd, 262144, capture=True))
+            _journal(journal, plan)
+            shape_plan = plan if plan is not None else _abandoning_shape_plan(journal)
+            if "session.next" in names:
+                # Fixed bounded uncommitted bytes never supply authority, even if
+                # their JSON looks later or the primary is malformed/missing.
+                read_file(root / "session.next", root_fd, 1048576)
+            count = len(journal["results"])
+            route_names = {
+                "derived-recipe.json",
+                *(f"snapshot-{side}.csv" for side in _SIDES),
+                *(f"{side}-{i}.csv" for side in _SIDES for i in range(count)),
+            }
+            result_names = {f"{i}.json" for i in range(count)}
+            for name, allowed in (("routing", route_names), ("results", result_names)):
+                if name not in names:
+                    continue
+                path = root / name
+                fd = discovery._hash_directory(stack, path)
+                native = discovery._windows_directory_pin(stack, path) if os.name == "nt" else None
+                stamp = _directory_stamp(path, fd, native)
+                entries = _bounded_members(path, fd, len(allowed))
+                if not entries <= allowed:
+                    raise ParisonError(_METADATA_ERROR)
+                directories[name] = (path, fd, native, stamp, entries)
+            routing = journal["routing"]
+            route_entries = directories["routing"][4] if "routing" in directories else set()
+            committed = routing["files"] if routing is not None else {}
+            if routing is not None and not abandoning and route_entries != route_names:
+                raise ParisonError(_METADATA_ERROR)
+            recipe = None
+            staged = 0
+            for name in sorted(route_entries):
+                path, fd, _, _, _ = directories["routing"]
+                limit = (
+                    262144
+                    if name == "derived-recipe.json"
+                    else shape_plan["limits"]["max_input_bytes"]
+                    if name.startswith("snapshot-")
+                    else shape_plan["limits"]["max_partition_bytes"]
+                )
+                counts_as_staged = shape_plan["partition_plan_version"] == 2 or (
+                    name != "derived-recipe.json" and not name.startswith("snapshot-")
+                )
+                if counts_as_staged:
+                    limit = min(limit, shape_plan["limits"]["max_staged_bytes"] - staged)
+                before_bytes = used
+                data = read_file(
+                    path / name,
+                    fd,
+                    limit,
+                    capture=name == "derived-recipe.json" and routing is not None,
+                    expected=committed.get(name),
+                )
+                if counts_as_staged:
+                    staged += used - before_bytes
+                if name == "derived-recipe.json" and routing is not None:
+                    recipe = _derived(data, journal, shape_plan)
+            entries = directories["results"][4] if "results" in directories else set()
+            if journal["state"] in {"initializing", "routed"} and entries:
+                raise ParisonError(_METADATA_ERROR)
+            for index, expected in enumerate(journal["results"]):
+                name = f"{index}.json"
+                if expected is not None and name not in entries and not abandoning:
+                    raise ParisonError(_METADATA_ERROR)
+                if name not in entries:
+                    continue
+                path, fd, _, _, _ = directories["results"]
+                data = read_file(path / name, fd, 1048576, capture=expected is not None, expected=expected)
+                if expected is not None:
+                    _checkpoint(_metadata(data), index, journal, recipe)
+            owner_check()
+            for path, fd, native, stamp, entries in directories.values():
+                if _directory_stamp(path, fd, native) != stamp or _bounded_members(path, fd, len(entries)) != entries:
+                    raise ParisonError(_METADATA_ERROR)
+                info = path.lstat()
+                if (
+                    not stat.S_ISDIR(info.st_mode)
+                    or getattr(info, "st_file_attributes", 0) & 0x400
+                    or (info.st_dev, info.st_ino) != stamp[:2]
+                ):
+                    raise ParisonError(_METADATA_ERROR)
+            for path, stamp in file_stamps.items():
+                if discovery._named_file_stamp(path) != stamp:
+                    raise ParisonError(_METADATA_ERROR)
+            owner_check()
+            return {
+                "partition_session_result_version": 1,
+                "action": "preview",
+                "state": journal["state"],
+                "execution_assurance": "not-executed",
+                "reused_routing": False,
+                "reused_partitions": 0,
+                "computed_partitions": 0,
+                "sensitive_retained": True,
+                "summary": None,
+            }
+    except (ParisonError, OSError, ValueError, TypeError, UnicodeError, OverflowError, RecursionError, KeyError):
+        raise ParisonError("invalid partition session") from None
