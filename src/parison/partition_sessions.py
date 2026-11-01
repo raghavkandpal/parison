@@ -199,6 +199,8 @@ def _journal(value, plan):
         manifest = value["published_manifest_sha256"]
         if manifest is not None:
             _sha(manifest)
+            if any(item is None for item in results):
+                raise ParisonError(_METADATA_ERROR)
         routing = value["routing"]
         if state == "initializing" and (
             routing is not None or any(item is not None for item in results) or manifest is not None

@@ -156,3 +156,11 @@ class SessionMetadata(unittest.TestCase):
                 target[path[-1]] = token
                 with self.subTest(path=path, token=token), self.assertRaises(ParisonError):
                     sessions._checkpoint(child, 0, journal, recipe)
+
+    def test_abandoning_retains_ready_descriptor_invariants(self):
+        root = ROOT / "hash"
+        journal = read(root / "journals/ready.json")
+        journal["state"] = "abandoning"
+        journal["results"][0] = None
+        with self.assertRaises(ParisonError):
+            sessions._journal(journal, read(root / "plan.json"))

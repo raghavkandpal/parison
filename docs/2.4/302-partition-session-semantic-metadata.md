@@ -17,6 +17,10 @@ expected_empty values; mechanical derivation changes only that value to true.
 Child records bind their index, effective policy, recorded engine and routed
 inputs, with field coverage, count/discrepancy arithmetic and outcomes checked.
 
+Spec review corrected an abandonment-state gap: retaining a ready manifest hash
+also retains every committed result descriptor, even after owned cache files
+disappear during cleanup. The focused regression failed before the correction.
+
 Recorded well-formed foreign package/runtime identities remain readable. These
 checks neither compare them with the running package/runtime nor establish
 current-source reuse eligibility. A coherently rehashed classification forgery
