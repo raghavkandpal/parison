@@ -27,7 +27,7 @@ be described as approval of a user's policy, data, migration or cutover.
 
 1. Confirm the active roadmap identifies at least three completed substantial
    features and that version, changelog, checkpoints and checklist agree.
-2. Run `make check`; require built-wheel CI on every supported Python and operating-system lane.
+2. Run `make check`; require the `test.yml` full profile built-wheel CI on every supported Python and operating-system lane. Preflight-only checks do not qualify a candidate.
 3. Review `origin/main...develop` against its contracts and repository invariants; correct every release blocker.
 4. Export the candidate with `git archive` into a clean directory; build wheel and source archive there.
 5. Inspect contents, hashes and metadata. Install the wheel in a fresh supported-Python environment and exercise the release's primary workflow.

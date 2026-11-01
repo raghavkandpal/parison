@@ -2,6 +2,12 @@ name: test
 
 on:
   workflow_dispatch:
+    inputs:
+      profile:
+        description: Full qualification or preflight only (preflight never qualifies integration)
+        type: choice
+        options: [full, preflight]
+        default: full
   push:
     branches: [develop, main]
     paths-ignore:
@@ -29,7 +35,8 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
-      - run: python -m pip install --upgrade pip build
+      - run: python -m pip install 'ruff==0.17.1' build
+      - run: make lint format-check docs-check
       - run: python -m build
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
@@ -38,13 +45,53 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  test:
+  preflight:
     needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.14"
+          cache: pip
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: distributions
+          path: dist
+      - name: Install shared wheel and test dependencies
+        run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'polars==1.44.2', 'openpyxl==3.1.5', 'jsonschema>=4,<5', 'psycopg[binary]==3.3.6', *glob.glob('dist/parison-*.whl')])"
+      - run: python -m unittest discover -s tests -v
+      - run: python -m unittest tests.ci_smoke.InstalledSmoke -v
+
+  native-preflight:
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.14"
+          cache: pip
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: distributions
+          path: dist
+      - name: Install shared wheel and test dependencies
+        run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'polars==1.44.2', 'openpyxl==3.1.5', 'jsonschema>=4,<5', 'psycopg[binary]==3.3.6', *glob.glob('dist/parison-*.whl')])"
+      - run: python -m unittest tests.ci_native_preflight tests.ci_smoke.InstalledSmoke -v
+
+  test:
+    if: (github.event_name == 'workflow_dispatch' && inputs.profile != 'preflight') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [preflight, native-preflight]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
@@ -55,198 +102,14 @@ jobs:
         with:
           name: distributions
           path: dist
-      - run: python -m pip install 'polars==1.44.2' 'openpyxl==3.1.5' 'jsonschema>=4,<5' dist/parison-*.whl
-      - run: parison --version
-      - run: parison schema recipe
-      - run: parison schema recipe-authoring
-      - run: parison schema result
-      - run: parison schema manifest
-      - run: parison schema preflight
-      - run: parison schema recipe-v2
-      - run: parison schema recipe-v3
-      - run: parison schema recipe-v4
-      - run: parison schema recipe-v5
-      - run: parison schema recipe-v6
-      - run: parison schema preflight-v2
-      - run: parison schema preflight-v3
-      - run: parison schema preflight-v4
-      - run: parison schema preflight-v5
-      - run: parison schema preflight-v6
-      - run: parison schema preflight-v16
-      - run: parison schema preflight-v17
-      - run: parison schema preflight-v18
-      - run: parison schema preflight-v19
-      - run: parison schema preflight-v20
-      - run: parison schema preflight-v21
-      - run: parison schema preflight-v22
-      - run: parison schema preflight-v23
-      - run: parison schema preflight-v24
-      - run: parison schema result-v2
-      - run: parison schema result-v3
-      - run: parison schema partition-plan
-      - run: parison schema partition-receipt
-      - run: parison schema partition-summary
-      - run: parison schema partition-manifest
-      - run: parison schema investigation-plan
-      - run: parison schema investigation-receipt
-      - run: parison schema investigation-cases
-      - run: parison schema investigation-summary
-      - run: parison schema investigation-manifest
-      - run: parison schema suite
-      - run: parison schema suite-authoring
-      - run: parison schema suite-v2
-      - run: parison schema suite-result
-      - run: parison schema suite-result-v2
-      - run: parison schema suite-manifest
-      - run: parison schema suite-manifest-v2
-      - run: parison schema statement
-      - run: parison schema schema-evolution
-      - run: parison schema policy-diff
-      - run: parison schema time-alignment
-      - run: parison schema reconciliation
-      - run: parison schema alignment-preflight
-      - run: parison schema relationship-result
-      - run: parison schema conservation-result
-      - run: parison schema reconciliation-result
-      - run: parison schema dataset-manifest
-      - run: parison schema reproducibility-diagnostic
-      - run: parison verify-dataset-manifest --manifest examples/1.4/payout-dataset-manifest.json --root . --policy-file examples/1.3/reconciliation.json --summary
-      - run: parison reconcile --alignment examples/1.3/alignment.json --reconciliation examples/1.3/reconciliation.json --receipt examples/1.3/extraction-receipt.json --dataset payments examples/1.3/payments.recipe.json examples/1.3/payments-baseline.csv examples/1.3/payments-candidate.jsonl --dataset payouts examples/1.3/payouts.recipe.json examples/1.3/payouts-baseline.csv examples/1.3/payouts-candidate.jsonl --engine sqlite --output ${{ runner.temp }}/parison-1.3-reconciliation --summary
-      - run: parison publish-dataset-evidence --manifest examples/1.4/payout-dataset-manifest.json --root . --policy-file examples/1.3/reconciliation.json --result-bundle ${{ runner.temp }}/parison-1.3-reconciliation --output ${{ runner.temp }}/parison-1.4-dataset-evidence
-      - run: parison verify ${{ runner.temp }}/parison-1.4-dataset-evidence
-      - run: parison inspect ${{ runner.temp }}/parison-1.4-dataset-evidence
-      - run: parison validate-evolution examples/1.2/orders.schema-evolution.json
-      - run: parison compile-evolution examples/1.2/orders.schema-evolution.json
-      - run: parison diff-policy --baseline-recipe examples/1.2/baseline.recipe.json --candidate-recipe examples/1.2/candidate.recipe.json --evolution examples/1.2/orders.schema-evolution.json --summary
-      - name: Exercise coordinated reconciliation
-        run: |
-          parison validate-time-alignment examples/1.3/alignment.json
-          parison validate-reconciliation examples/1.3/reconciliation.json
-          parison verify ${{ runner.temp }}/parison-1.3-reconciliation
-          parison inspect ${{ runner.temp }}/parison-1.3-reconciliation
-      - run: parison export-editor-schemas --output /tmp/parison-editor-schemas
-      - run: parison validate-recipe examples/orders.recipe.json
-      - run: parison validate-inputs --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv
-      - run: parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke
-      - run: parison verify /tmp/parison-smoke
-      - run: parison workbench --help
-      - run: python -c "from parison.workbench_host import create_workbench_server; server, url = create_workbench_server('.'); assert server.server_address[0] == '127.0.0.1' and url.startswith('http://127.0.0.1:'); server.server_close()"
-      - name: Exercise evidence handoff
-        run: |
-          parison statement /tmp/parison-smoke --output /tmp/parison-statement.json
-          parison verify-statement /tmp/parison-smoke /tmp/parison-statement.json
-          parison report-cutover /tmp/parison-smoke --output /tmp/parison-cutover.md
-      - name: Exercise initialized-project quickstart
-        if: matrix.python-version == '3.14'
-        run: |
-          parison init /tmp/parison-quickstart
-          parison validate-recipe /tmp/parison-quickstart/recipe.json
-          parison validate-inputs --recipe /tmp/parison-quickstart/recipe.json --baseline /tmp/parison-quickstart/baseline.csv --candidate /tmp/parison-quickstart/candidate.csv --records
-          parison compare --recipe /tmp/parison-quickstart/recipe.json --baseline /tmp/parison-quickstart/baseline.csv --candidate /tmp/parison-quickstart/candidate.csv --output /tmp/parison-quickstart/run
-          parison verify /tmp/parison-quickstart/run
-      - name: Exercise local run catalog
-        if: matrix.python-version == '3.14'
-        run: |
-          parison compare --recipe examples/orders.recipe.json --baseline examples/baseline.csv --candidate examples/candidate.csv --output /tmp/parison-smoke-2
-          parison catalog add --database /tmp/parison-catalog.sqlite /tmp/parison-smoke
-          parison catalog add --database /tmp/parison-catalog.sqlite /tmp/parison-smoke-2
-          parison catalog list --database /tmp/parison-catalog.sqlite --outcome PASS --kind run
-          policy=$(parison explain examples/orders.recipe.json | python -c 'import json, sys; print(json.load(sys.stdin)["policy_sha256"])')
-          parison catalog history --database /tmp/parison-catalog.sqlite --policy-sha256 "$policy"
-          parison catalog diff --database /tmp/parison-catalog.sqlite /tmp/parison-smoke /tmp/parison-smoke-2
-      - run: parison validate-inputs --recipe examples/0.3/migration.recipe.json --baseline examples/0.3/baseline --candidate examples/0.3/candidate.jsonl
-      - run: parison compare --recipe examples/0.3/migration.recipe.json --baseline examples/0.3/baseline --candidate examples/0.3/candidate.jsonl --output /tmp/parison-0.3-smoke
-      - run: parison validate-inputs --recipe examples/0.5/migration.recipe.json --baseline examples/0.5/baseline.tsv.gz --candidate examples/0.5/candidate.csv
-      - run: parison validate-inputs --records --recipe examples/0.5/migration.recipe.json --baseline examples/0.5/baseline.tsv.gz --candidate examples/0.5/candidate.csv
-      - run: parison compare --recipe examples/0.5/migration.recipe.json --baseline examples/0.5/baseline.tsv.gz --candidate examples/0.5/candidate.csv --output /tmp/parison-0.5-smoke
-      - run: parison validate-inputs --records --recipe examples/0.7/revenue.recipe.json --baseline examples/0.7/baseline.csv --candidate examples/0.7/candidate.jsonl
-      - run: parison compare --recipe examples/0.7/revenue.recipe.json --baseline examples/0.7/baseline.csv --candidate examples/0.7/candidate.jsonl --output /tmp/parison-0.7-smoke
-      - run: parison verify /tmp/parison-0.7-smoke
-      - run: parison validate-inputs --records --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl
-      - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output /tmp/parison-0.8-smoke
-      - run: parison verify /tmp/parison-0.8-smoke
-      - run: parison inspect /tmp/parison-0.8-smoke
-      - run: parison compare --recipe examples/0.8/multiset-raw.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output /tmp/parison-0.8-raw-smoke
-      - run: parison export-evidence /tmp/parison-0.8-raw-smoke --limit 10 --output /tmp/parison-0.8-evidence.jsonl
-      - name: Compare the intentionally different v0.9 fixture
-        run: |
-          set +e
-          parison compare --recipe examples/0.9/multiset-raw.recipe.json --baseline examples/0.9/baseline.csv --candidate examples/0.9/candidate.jsonl --output /tmp/parison-0.9-raw-smoke
-          code=$?
-          test "$code" -eq 1
-      - run: parison inspect /tmp/parison-0.9-raw-smoke
-      - run: parison export-evidence /tmp/parison-0.9-raw-smoke --classification baseline_surplus --limit 10 --output /tmp/parison-0.9-evidence.jsonl
-      - run: parison validate-suite examples/0.10/mixed-suite.json
-      - run: parison run-suite --plan examples/0.10/mixed-suite.json --output /tmp/parison-0.10-suite
-      - run: parison verify /tmp/parison-0.10-suite
-      - run: parison inspect /tmp/parison-0.10-suite
-      - name: Exercise scalable suite v2
-        if: matrix.python-version == '3.14'
-        run: |
-          parison list-suite examples/0.11/scalable-suite.json --tag critical --json
-          parison run-suite --plan examples/0.11/scalable-suite.json --shard-index 0 --shard-count 2 --output /tmp/parison-0.11-shard-0
-          parison run-suite --plan examples/0.11/scalable-suite.json --shard-index 1 --shard-count 2 --output /tmp/parison-0.11-shard-1
-          parison assemble-suite --plan examples/0.11/scalable-suite.json --input /tmp/parison-0.11-shard-0 --input /tmp/parison-0.11-shard-1 --output /tmp/parison-0.11-suite
-          parison verify /tmp/parison-0.11-suite
-          parison report-ci /tmp/parison-0.11-suite --format markdown --output /tmp/parison-0.11-summary.md
-      - name: Exercise SQLite-backed multiset suite
-        if: matrix.python-version == '3.14'
-        run: |
-          parison validate-suite examples/0.14/backfill-suite.json
-          parison run-suite --plan examples/0.14/backfill-suite.json --output /tmp/parison-0.14-suite
-          parison verify /tmp/parison-0.14-suite
-      - name: Exercise payout reconciliation suite
-        if: matrix.python-version == '3.14'
-        run: |
-          parison validate-suite examples/0.15/payout-suite.json
-          parison run-suite --plan examples/0.15/payout-suite.json --output /tmp/parison-0.15-suite
-          parison verify /tmp/parison-0.15-suite
-      - name: Upload smoke evidence
-        if: matrix.python-version == '3.14'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: parison-smoke-${{ github.run_id }}
-          path: /tmp/parison-smoke
-          if-no-files-found: error
-          retention-days: 14
+      - name: Install shared wheel and test dependencies
+        run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'polars==1.44.2', 'openpyxl==3.1.5', 'jsonschema>=4,<5', 'psycopg[binary]==3.3.6', *glob.glob('dist/parison-*.whl')])"
       - run: python -m unittest discover -s tests -v
-      - run: parison verify-postgres-export tests/fixtures/postgres_ingress
-      - run: parison verify-postgres-pair tests/fixtures/postgres_pair
-      - run: python -m pip install 'psycopg[binary]==3.3.6'
-      - run: parison-postgres --help
-      - run: parison-postgres-pair --help
-      - run: parison-partitions --help
-      - run: parison postgres --help
-      - run: parison postgres table --help
-      - run: parison postgres pair --help
-      - run: parison postgres collection --help
-      - run: parison partitions --help
-      - run: parison rehearsal --help
-      - run: parison dossier --help
-      - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv --output ${{ runner.temp }}/parison-partition-smoke
-      - run: parison-partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
-      - run: parison partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
-      - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv --output ${{ runner.temp }}/parison-investigation-discovery
-      - run: parison-partitions investigate --plan tests/fixtures/partition_investigation/plan.json --discovery ${{ runner.temp }}/parison-investigation-discovery --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv --output ${{ runner.temp }}/parison-investigation-smoke
-      - run: parison-partitions verify-investigation ${{ runner.temp }}/parison-investigation-smoke --discovery ${{ runner.temp }}/parison-investigation-discovery --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv
-      - name: Check in-memory benchmark accuracy
-        if: matrix.python-version == '3.14'
-        run: |
-          python benchmarks/generate_cases.py --output /tmp/parison-bench --rows 1000
-          python benchmarks/run_cases.py --repeats 1 --max-memory-per-row 6000 /tmp/parison-bench/rows-1000
-          python benchmarks/generate_aggregate_cases.py --output /tmp/parison-aggregate-bench --rows 1000
-          python benchmarks/run_cases.py --repeats 1 --max-memory-per-row 6000 /tmp/parison-aggregate-bench/aggregate-global-1000 /tmp/parison-aggregate-bench/aggregate-low-1000 /tmp/parison-aggregate-bench/aggregate-high-1000
-      - name: Check SQLite multiset benchmark accuracy
-        if: matrix.python-version == '3.14'
-        run: |
-          python benchmarks/generate_spill_cases.py --output /tmp/parison-spill-bench --rows 1000
-          python benchmarks/run_spill_cases.py --repeats 1 /tmp/parison-spill-bench/multiset-1000
-          python benchmarks/generate_spill_cases.py --output /tmp/parison-spill-bench --mode keyed --rows 1000
-          python benchmarks/run_spill_cases.py --repeats 1 /tmp/parison-spill-bench/keyed-1000
+      - run: python -m unittest tests.ci_smoke.InstalledSmoke -v
 
   platform-smoke:
-    if: github.event_name != 'pull_request'
-    needs: build
+    if: (github.event_name == 'workflow_dispatch' && inputs.profile != 'preflight') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [preflight, native-preflight]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -263,77 +126,32 @@ jobs:
         with:
           name: distributions
           path: dist
-      - run: python -m pip install 'polars==1.44.2' 'openpyxl==3.1.5' 'jsonschema>=4,<5'
-      - name: Install built wheel
-        run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', *glob.glob('dist/parison-*.whl')])"
-      - name: Qualify hash discovery execution and platform ownership guards
-        run: python -m unittest tests.test_partition_hash_execution tests.test_partition_hash_reader tests.test_partition_hash_wire -v
-      - name: Qualify session structures and read ownership from the built wheel
-        run: python -m unittest tests.test_partition_session_wire tests.test_partition_session_ownership tests.test_partition_session_metadata tests.test_partition_session_reader -v
-      - run: parison verify-postgres-export tests/fixtures/postgres_ingress
-      - run: parison verify-postgres-pair tests/fixtures/postgres_pair
-      - run: python -m pip install 'psycopg[binary]==3.3.6'
-      - run: parison-postgres --help
-      - run: parison-postgres-pair --help
-      - run: parison-partitions --help
-      - run: parison postgres --help
-      - run: parison postgres table --help
-      - run: parison postgres pair --help
-      - run: parison postgres collection --help
-      - run: parison partitions --help
-      - run: parison rehearsal --help
-      - run: parison dossier --help
-      - run: parison schema partition-plan
-      - run: parison schema partition-receipt
-      - run: parison schema partition-summary
-      - run: parison schema partition-manifest
-      - run: parison schema investigation-plan
-      - run: parison schema investigation-receipt
-      - run: parison schema investigation-cases
-      - run: parison schema investigation-summary
-      - run: parison schema investigation-manifest
-      - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv --output ${{ runner.temp }}/parison-partition-smoke
-      - run: parison-partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
-      - run: parison partitions verify ${{ runner.temp }}/parison-partition-smoke --recipe tests/fixtures/partition_discovery/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_discovery/candidate.csv
-      - run: parison-partitions discover --plan tests/fixtures/partition_discovery/plan.json --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv --output ${{ runner.temp }}/parison-investigation-discovery
-      - run: parison-partitions investigate --plan tests/fixtures/partition_investigation/plan.json --discovery ${{ runner.temp }}/parison-investigation-discovery --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv --output ${{ runner.temp }}/parison-investigation-smoke
-      - run: parison-partitions verify-investigation ${{ runner.temp }}/parison-investigation-smoke --discovery ${{ runner.temp }}/parison-investigation-discovery --recipe tests/fixtures/partition_investigation/recipe.json --baseline tests/fixtures/partition_discovery/baseline.csv --candidate tests/fixtures/partition_investigation/candidate.csv
-      - run: parison --version
-      - run: python tests/test_xlsx.py -v
-      - run: parison schema recipe-v3
-      - run: parison schema recipe-v4
-      - run: parison schema recipe-v5
-      - run: parison schema recipe-v6
-      - run: parison schema statement
-      - run: parison schema reconciliation-result
-      - run: parison schema dataset-manifest
-      - run: parison schema reproducibility-diagnostic
-      - run: parison verify-dataset-manifest --manifest examples/1.4/payout-dataset-manifest.json --root . --policy-file examples/1.3/reconciliation.json --summary
-      - run: parison reconcile --alignment examples/1.3/alignment.json --reconciliation examples/1.3/reconciliation.json --receipt examples/1.3/extraction-receipt.json --dataset payments examples/1.3/payments.recipe.json examples/1.3/payments-baseline.csv examples/1.3/payments-candidate.jsonl --dataset payouts examples/1.3/payouts.recipe.json examples/1.3/payouts-baseline.csv examples/1.3/payouts-candidate.jsonl --engine sqlite --output ${{ runner.temp }}/parison-1.3-reconciliation --summary
-      - run: parison verify ${{ runner.temp }}/parison-1.3-reconciliation
-      - run: parison inspect ${{ runner.temp }}/parison-1.3-reconciliation
-      - run: parison schema result-v3
-      - run: parison schema preflight-v3
-      - run: parison schema preflight-v16
-      - run: parison schema preflight-v17
-      - run: parison schema preflight-v18
-      - run: parison schema preflight-v19
-      - run: parison schema preflight-v20
-      - run: parison schema preflight-v21
-      - run: parison schema preflight-v22
-      - run: parison schema preflight-v23
-      - run: parison schema preflight-v24
-      - run: parison compare --recipe examples/0.8/multiset.recipe.json --baseline examples/0.8/baseline.csv --candidate examples/0.8/candidate.jsonl --output ${{ runner.temp }}/parison-multiset-smoke
-      - run: parison inspect ${{ runner.temp }}/parison-multiset-smoke
-      - run: parison workbench --help
-      - run: python -c "from parison.workbench_host import create_workbench_server; server, url = create_workbench_server('.'); assert server.server_address[0] == '127.0.0.1' and url.startswith('http://127.0.0.1:'); server.server_close()"
-      - name: Exercise evidence handoff
-        run: |
-          parison statement ${{ runner.temp }}/parison-multiset-smoke --output ${{ runner.temp }}/parison-statement.json
-          parison verify-statement ${{ runner.temp }}/parison-multiset-smoke ${{ runner.temp }}/parison-statement.json
-          parison report-cutover ${{ runner.temp }}/parison-multiset-smoke --output ${{ runner.temp }}/parison-cutover.md
-      - run: parison run-suite --plan examples/0.10/mixed-suite.json --output ${{ runner.temp }}/parison-suite-smoke
-      - run: parison verify ${{ runner.temp }}/parison-suite-smoke
-      - run: parison init ${{ runner.temp }}/parison-quickstart
-      - run: parison compare --recipe ${{ runner.temp }}/parison-quickstart/recipe.json --baseline ${{ runner.temp }}/parison-quickstart/baseline.csv --candidate ${{ runner.temp }}/parison-quickstart/candidate.csv --output ${{ runner.temp }}/parison-quickstart/run
-      - run: parison verify ${{ runner.temp }}/parison-quickstart/run
+      - name: Install shared wheel and test dependencies
+        run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'polars==1.44.2', 'openpyxl==3.1.5', 'jsonschema>=4,<5', 'psycopg[binary]==3.3.6', *glob.glob('dist/parison-*.whl')])"
+      - run: python -m unittest tests.ci_platform -v
+
+  historical:
+    if: (github.event_name == 'workflow_dispatch' && inputs.profile != 'preflight') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [preflight, native-preflight]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.14"
+          cache: pip
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: distributions
+          path: dist
+      - name: Install shared wheel and test dependencies
+        run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'polars==1.44.2', 'openpyxl==3.1.5', 'jsonschema>=4,<5', 'psycopg[binary]==3.3.6', *glob.glob('dist/parison-*.whl')])"
+      - run: bash tests/ci/linux-smoke.sh
+        env:
+          PARISON_CI_TEMP: ${{ runner.temp }}/historical
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: parison-smoke-${{ github.run_id }}
+          path: ${{ runner.temp }}/historical/parison-smoke
+          if-no-files-found: error
+          retention-days: 14

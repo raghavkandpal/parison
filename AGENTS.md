@@ -23,7 +23,7 @@ Start with `make context`. Read [product direction](docs/0.15/104-product-direct
 7. Document user-visible behavior in the active version folder; update `docs/README.md` and `CHANGELOG.md`.
 8. Keep each branch scoped to one coherent change, then push it and open or update its pull request to `develop`. Verify the exact head commit in CI before integration.
 
-Packaging, schema, CLI, or platform changes require a manual full-matrix dispatch on the exact pull-request head before integration: built-wheel CI on Python 3.11–3.14, macOS, and Windows. Optional-Polars skips are valid only when Polars is absent.
+Packaging, schema, CLI, or platform changes require a manual full-matrix dispatch on the exact pull-request head before integration: built-wheel CI on Python 3.11–3.14, macOS, and Windows. Optional-Polars skips are valid only when Polars is absent. Run local preflight before dispatch; the manual default `full` profile remains required for these changes. A `preflight` profile success alone never qualifies integration. See [CI gates](docs/2.4/305-tiered-ci-qualification.md).
 
 Targeted tests: core semantics `test_parison`/`test_semantics`; formats `test_jsonl`/`test_parquet`/`test_sqlite`; suites `test_suite`; catalog `test_catalog`; schemas `test_json_schemas`; integrations `test_github_actions`/`test_integrations`; evidence handoff `test_statement`.
 
