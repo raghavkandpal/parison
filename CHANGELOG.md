@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Detect transient hash-input and staged-file name replacement using native Windows metadata change time, preserving canonical evidence.
+
 - Enable bounded composite/text-key hash discovery and runtime-bound exact source replay through existing partition commands; preserve exact comparison authority and range-v1 contracts.
 
 - Add bounded integrity-only reading for hash discovery v2 evidence.

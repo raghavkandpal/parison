@@ -207,7 +207,11 @@ class HashExecution(unittest.TestCase):
                 saved.rename(changed)
                 yield from original_rows(path, *args, **kwargs)
 
-            with patch.object(discovery, "_iter_input_rows", side_effect=replace), self.assertRaises(ParisonError):
+            with (
+                self.subTest(kind=kind),
+                patch.object(discovery, "_iter_input_rows", side_effect=replace),
+                self.assertRaises(ParisonError),
+            ):
                 self.run_discovery()
             self.assert_clean()
 
@@ -627,3 +631,69 @@ class HashExecution(unittest.TestCase):
         with patch.object(discovery.os, "stat", side_effect=path_stat):
             self.assertEqual(self.run_discovery()["outcome"], "FAIL")
             self.assertEqual(self.replay()["verification"], "exact-source-backed")
+
+    def test_source_name_aba_rejects_when_python_ctime_reports_creation_time(self):
+        source = self.root / "baseline.csv"
+        info = source.stat()
+        identity = info.st_dev, info.st_ino
+        reported_creation = info.st_ctime_ns
+        original_stamp = discovery._stat_stamp
+        original_rows = discovery._iter_input_rows
+
+        def creation_stamp(info):
+            value = original_stamp(info)
+            return (*value[:-1], reported_creation) if value[:2] == identity else value
+
+        def replace(path, *args, **kwargs):
+            saved = source.with_name("baseline.saved")
+            source.rename(saved)
+            source.write_bytes(saved.read_bytes())
+            source.unlink()
+            saved.rename(source)
+            yield from original_rows(path, *args, **kwargs)
+
+        with (
+            patch.object(discovery, "_stat_stamp", side_effect=creation_stamp),
+            patch.object(
+                discovery, "_stamp", side_effect=lambda handle: creation_stamp(discovery.os.fstat(handle.fileno()))
+            ),
+            patch.object(discovery, "_iter_input_rows", side_effect=replace),
+            self.assertRaises(ParisonError),
+        ):
+            self.run_discovery()
+
+    def test_native_metadata_stamp_uses_change_time_not_creation_time(self):
+        import sys
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+
+        kernel = Mock()
+
+        def basic_info(handle, kind, buffer, size):
+            self.assertEqual((handle, kind, size), (777, 0, 40))
+            times = discovery.ctypes.cast(buffer, discovery.ctypes.POINTER(discovery.ctypes.c_int64))
+            times[0], times[3] = 456, 123
+            return 1
+
+        kernel.GetFileInformationByHandleEx.side_effect = basic_info
+        with (self.root / "baseline.csv").open("rb") as handle:
+            with (
+                patch.dict(sys.modules, {"msvcrt": SimpleNamespace(get_osfhandle=lambda fd: 777)}),
+                patch.object(discovery.ctypes, "WinDLL", return_value=kernel, create=True),
+                patch.object(discovery.os, "name", "nt"),
+            ):
+                self.assertEqual(discovery._metadata_change_time(handle), 123)
+
+    @unittest.skipUnless(discovery.os.name == "nt", "native Windows metadata change clock")
+    def test_native_metadata_time_rejects_source_and_snapshot_name_aba(self):
+        for name in ("baseline.csv", "candidate.csv"):
+            path = self.root / name
+            with path.open("rb") as handle:
+                before = discovery._metadata_change_time(handle)
+                saved = path.with_suffix(".saved")
+                try:
+                    path.rename(saved)
+                except PermissionError:
+                    continue  # A non-delete-sharing handle already prevents substitution.
+                saved.rename(path)
+                self.assertNotEqual(discovery._metadata_change_time(handle), before)

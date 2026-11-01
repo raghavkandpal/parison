@@ -1,9 +1,9 @@
 # Current development state
 
 - Version: **2.3.0 released** at exact tested merge `a2884534d3ffa7364e3344dc3d514aa775ac79a9`.
-- Branch: resume from clean `develop` after this handoff integrates; no feature4 implementation branch has started. Contract baseline is `1dcda1e5181d691e360e6cc39a9823231a5fdc33`.
+- Branch: `fix/2.4-hash-namespace-guard`, from develop `c9c3d44`; pending wire PR #135 is isolated on `feature/2.4-session-wire`.
 - Integrated: features1–3 of10. Feature3 PR #132 merged at `95d434d` from exact head `88997d50ae268a2d872d5f7653a2daae77449f58` after683 local tests, independent reviews, [quality](https://github.com/raghavkandpal/parison/actions/runs/41219792891) and [full built-wheel CI](https://github.com/raghavkandpal/parison/actions/runs/41219790371), including all native Windows ownership tests. Feature4 research/contract PR #133 merged at `1dcda1e` from independently cleared docs head `6382b74` with [quality](https://github.com/raghavkandpal/parison/actions/runs/41220917133); execution remains unimplemented.
-- Next gate: the feature4 structural session schemas/canonical fixtures under frozen [contract296](2.4/296-partition-recovery-contract.md). [Continuation297](2.4/297-partition-recovery-continuation.md) records the bounded seam probe, exact next steps and retained-session assurance boundaries. Start from clean current develop; do not enable recovery execution during the structural gate. Preserve released range-v1/hash-v2 bytes, aliases, local-first boundaries and all-ten candidate boundary. Check usage and stop near95%; never reset automatically.
+- Next gate: qualify the native metadata-change guard [correction299](2.4/299-native-hash-change-time-guard.md), then rebase and qualify wire PR #135. Its corrected head89322ec passed local692 tests and reviews but manual CI caught an existing Windows3.14 hash namespace-ABA failure. Do not merge it until the prerequisite and fresh exact-head matrix pass. Feature4 execution remains disabled;3/10 integrated. Preserve released contracts, local-first boundaries and all-ten candidate boundary. Check usage and stop near95%; never reset automatically.
 - Theme: local-first verification — six versioned 2.2 capabilities now cover
   dataset evidence, suite authoring/recovery/series, policy review and
   reconciliation workflow with typed unsigned handoff
