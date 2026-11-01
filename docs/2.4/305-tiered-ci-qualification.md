@@ -84,3 +84,35 @@ The workflow uses those built-in mechanisms rather than adding an orchestrator.
 After qualification, resume feature4's separate mutating ownership/abandonment
 and retained execution gates. All ten 2.4 features must integrate and qualify
 before any candidate. No release or usage reset is part of this change.
+
+## Qualified checkpoint
+
+PR143 integrated at `b82f50a4caea5b0c6fb1d36c109edb87651d14b3` from exact
+head `19d725b2424719a67a93e487cba22436fd6a8e3d`, independently cleared by
+Standards and Spec reviews. Full local checks passed736 tests (five native
+Windows skips on macOS); a fresh-wheel full native suite passed138 tests.
+All preserved historical scenarios and small benchmark checks passed locally,
+then in the actual Linux full-profile job. Review found and corrected a shared
+shell errexit leak; its regression failed before the fix and now verifies both
+wrong expected exits and unexpected later failures terminate the script.
+
+Exact-head [quality](https://github.com/raghavkandpal/parison/actions/runs/41308725570),
+[ordinary PR preflight](https://github.com/raghavkandpal/parison/actions/runs/41308725566)
+and [manual full qualification](https://github.com/raghavkandpal/parison/actions/runs/41308724072)
+all passed. PR jobs skipped full expansion; manual full completed every required
+OS/Python pair and historical scenarios. Job timestamps prove expansion began
+only after every early gate completed.
+
+One-run measurements: PR preflight80 wall seconds/117 summed job seconds;
+full267 wall seconds/1,240 summed job seconds. The earlier full baseline was
+241/1,418. Full wall time increased with the serial preflight gate, while summed
+runner time fell and native discovery gained cases. These runs differ in test
+counts and runner conditions; this is evidence of observed behavior, not an
+isolated benchmark or promised speedup. Routine develop pushes now take the
+preflight path instead of repeating full qualification. No native/version
+qualification was silently removed.
+
+Next resume feature4's mutating ownership/abandonment gate under contract296,
+then retained execution and its full adversarial gate. Features1–3 remain
+integrated (3/10); all ten precede a2.4 candidate. The owner's existing doc297
+spacing edit remains uncommitted and unchanged. No reset/release/candidate.
