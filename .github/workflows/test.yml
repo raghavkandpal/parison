@@ -269,7 +269,7 @@ jobs:
       - name: Qualify hash discovery execution and platform ownership guards
         run: python -m unittest tests.test_partition_hash_execution tests.test_partition_hash_reader tests.test_partition_hash_wire -v
       - name: Qualify session structures and read ownership from the built wheel
-        run: python -m unittest tests.test_partition_session_wire tests.test_partition_session_ownership -v
+        run: python -m unittest tests.test_partition_session_wire tests.test_partition_session_ownership tests.test_partition_session_metadata -v
       - run: parison verify-postgres-export tests/fixtures/postgres_ingress
       - run: parison verify-postgres-pair tests/fixtures/postgres_pair
       - run: python -m pip install 'psycopg[binary]==3.3.6'

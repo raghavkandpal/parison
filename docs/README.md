@@ -35,6 +35,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Feature 4 read-ownership prerequisite](2.4/300-partition-session-read-ownership.md)
 - [Feature 4 session reader continuation](2.4/301-partition-session-reader-continuation.md)
 
+- [Private recorded session metadata validation](2.4/302-partition-session-semantic-metadata.md)
+
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 
 - [2.3.0 release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.3.0)
