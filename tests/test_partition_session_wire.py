@@ -235,7 +235,7 @@ class SessionWire(unittest.TestCase):
                 "--workspace",
                 str(Path(temporary) / "retained"),
             ]
-            for command in (["session", "preview", "private"], args):
+            for command in (args,):
                 with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
                     discovery.main(command)
                 self.assertEqual(caught.exception.code, 2)

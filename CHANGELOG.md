@@ -4,11 +4,12 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Add bounded read-only retained-session preview through both partition CLI spellings, without source access, comparison or reuse authority; retained execution and abandonment remain disabled.
 - Recheck the bounded root namespace during session read ownership, detecting persistent member changes even when directory metadata appears unchanged.
 
-- Validate private session journal, derived-policy and child-result bindings with exact JSON tokens; preview and retained execution remain disabled.
+- Validate private session journal, derived-policy and child-result bindings with exact JSON tokens; retained execution remains disabled.
 
-- Add the private read-ownership prerequisite for retained sessions, with nonblocking kernel exclusion and immutable root/lock identity checks; session commands remain disabled.
+- Add the private read-ownership prerequisite for retained sessions, with nonblocking kernel exclusion and immutable root/lock identity checks and no reuse authority.
 
 - Add standalone recovery-session schemas and canonical range/hash fixtures; retained execution remains disabled pending its own gate.
 - Detect transient hash-input and staged-file name replacement using native Windows metadata change time, preserving canonical evidence.

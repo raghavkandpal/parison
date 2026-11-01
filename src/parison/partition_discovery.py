@@ -1344,6 +1344,10 @@ def parser(
     create = sub.add_parser("discover")
     for name in ("plan", "recipe", "baseline", "candidate", "output"):
         create.add_argument(f"--{name}", required=True)
+    session = sub.add_parser("session")
+    queries = session.add_subparsers(dest="session_command", required=True, parser_class=parser_class)
+    preview = queries.add_parser("preview")
+    preview.add_argument("directory")
     check = sub.add_parser("verify")
     check.add_argument("directory")
     for name in ("recipe", "baseline", "candidate"):
@@ -1369,6 +1373,14 @@ def main(
     try:
         if args.command == "discover":
             result = discover(args.plan, args.recipe, args.baseline, args.candidate, args.output)
+        elif args.command == "session":
+            from .partition_sessions import preview
+
+            try:
+                result = preview(args.directory)
+            except KeyboardInterrupt:
+                print("parison-partitions: session preview interrupted; retained state unchanged", file=sys.stderr)
+                return 130
         elif args.command == "verify":
             result = verify(args.directory, args.recipe, args.baseline, args.candidate)
         else:

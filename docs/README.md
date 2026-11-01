@@ -36,6 +36,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Feature 4 session reader continuation](2.4/301-partition-session-reader-continuation.md)
 
 - [Private recorded session metadata validation](2.4/302-partition-session-semantic-metadata.md)
+- [Bounded retained-session preview](2.4/303-partition-session-preview.md)
 - [Read-ownership namespace guard correction](2.4/304-session-namespace-guard.md)
 
 ## 2.3 — six-feature PostgreSQL rehearsal train — released

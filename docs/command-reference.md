@@ -907,7 +907,7 @@ options:
 
 ```text
 positional arguments:
-  {discover,verify,investigate,verify-investigation}
+  {discover,session,verify,investigate,verify-investigation}
 
 options:
   -h, --help            show this help message and exit
@@ -923,6 +923,26 @@ options:
   --baseline BASELINE
   --candidate CANDIDATE
   --output OUTPUT
+```
+
+## `parison partitions session`
+
+```text
+positional arguments:
+  {preview}
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `parison partitions session preview`
+
+```text
+positional arguments:
+  directory
+
+options:
+  -h, --help  show this help message and exit
 ```
 
 ## `parison partitions verify`
