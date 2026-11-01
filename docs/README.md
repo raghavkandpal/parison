@@ -33,6 +33,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Feature 4 session structures and reference corpus](2.4/298-partition-session-wire-checkpoint.md)
 - [Native hash metadata-change guard correction](2.4/299-native-hash-change-time-guard.md)
 - [Feature 4 read-ownership prerequisite](2.4/300-partition-session-read-ownership.md)
+- [Feature 4 session reader continuation](2.4/301-partition-session-reader-continuation.md)
 
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 
