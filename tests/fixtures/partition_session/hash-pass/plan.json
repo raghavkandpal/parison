@@ -1,0 +1,1 @@
+{"limits":{"max_input_bytes":1000,"max_key_bytes":1024,"max_partition_bytes":2000,"max_rows_per_input":20,"max_rows_per_partition_side":20,"max_staged_bytes":6000},"partition_plan_version":2,"routing":{"buckets":3,"encoding":"typed-key-v1","hash":"sha256","kind":"hash-v1"}}

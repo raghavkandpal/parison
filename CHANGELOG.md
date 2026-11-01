@@ -4,6 +4,7 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Add standalone recovery-session schemas and canonical range/hash fixtures; retained execution remains disabled pending its own gate.
 - Detect transient hash-input and staged-file name replacement using native Windows metadata change time, preserving canonical evidence.
 
 - Enable bounded composite/text-key hash discovery and runtime-bound exact source replay through existing partition commands; preserve exact comparison authority and range-v1 contracts.
