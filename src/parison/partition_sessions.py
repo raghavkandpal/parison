@@ -18,6 +18,16 @@ from .source_receipt import _integer, _object
 _ERROR = "invalid or busy partition session ownership"
 
 
+def _bounded_members(path, fd, limit):
+    names = set()
+    with os.scandir(fd if fd is not None else path) as entries:
+        for entry in entries:
+            names.add(entry.name)
+            if len(names) > limit:
+                raise ParisonError(_ERROR)
+    return names
+
+
 def _acquire(handle):
     if os.name == "nt":
         import msvcrt
@@ -97,11 +107,13 @@ def _read_owner(directory):
 
             # Only post-lock state can be authoritative; another owner may have just exited.
             directory_stamp = root_stamp()
+            namespace = _bounded_members(root, fd, 6)
 
             def unchanged():
                 root_identity()
                 if (
                     root_stamp() != directory_stamp
+                    or _bounded_members(root, fd, 6) != namespace
                     or discovery._file_stamp(handle) != lock_stamp
                     or discovery._named_file_stamp(path) != lock_stamp
                 ):

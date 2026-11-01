@@ -1,12 +1,14 @@
 """Kernel exclusion and namespace ownership before any session metadata admission."""
 
 import os
+import stat
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from parison.core import ParisonError
 from parison.partition_sessions import _read_owner
@@ -100,6 +102,21 @@ class SessionReadOwnership(unittest.TestCase):
                     detected = True
                 self.assertTrue(denied or detected)
                 self.assertEqual((self.root / ".lock").read_bytes(), b"\0")
+
+    @unittest.skipUnless(os.name == "posix", "POSIX injected directory-clock qualification")
+    def test_namespace_addition_rejects_even_with_unchanged_directory_metadata(self):
+        original = self.root.stat()
+        actual = os.fstat
+
+        def delayed(descriptor):
+            info = actual(descriptor)
+            return original if stat.S_ISDIR(info.st_mode) else info
+
+        with patch("parison.partition_sessions.os.fstat", side_effect=delayed):
+            with self.assertRaises(ParisonError):
+                with _read_owner(self.root):
+                    (self.root / "session.next").write_bytes(b"partial")
+        self.assertEqual((self.root / "session.next").read_bytes(), b"partial")
 
     def test_namespace_changes_require_a_separate_mutating_context(self):
         with self.assertRaises(ParisonError):
