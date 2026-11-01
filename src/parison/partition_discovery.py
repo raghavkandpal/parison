@@ -385,6 +385,10 @@ def _metadata_change_time(handle):
         return os.fstat(handle.fileno()).st_ctime_ns
     import msvcrt
 
+    return _windows_change_time(msvcrt.get_osfhandle(handle.fileno()))
+
+
+def _windows_change_time(native_handle):
     class BasicInfo(ctypes.Structure):
         _fields_ = [
             ("creation", ctypes.c_int64),
@@ -399,7 +403,7 @@ def _metadata_change_time(handle):
     query.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
     query.restype = ctypes.c_int
     info = BasicInfo()
-    if not query(msvcrt.get_osfhandle(handle.fileno()), 0, ctypes.byref(info), ctypes.sizeof(info)):
+    if not query(native_handle, 0, ctypes.byref(info), ctypes.sizeof(info)):
         raise ctypes.WinError(ctypes.get_last_error())
     if info.change <= 0:
         raise ParisonError(_HASH_ERROR)
@@ -982,6 +986,7 @@ def _windows_directory_pin(stack, path):
     info = path.lstat()
     if not stat.S_ISDIR(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
         raise ParisonError(_HASH_ERROR)
+    return handle
 
 
 def _cleanup_hash_stage(stage, identity, fd):

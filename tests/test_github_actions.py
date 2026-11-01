@@ -71,7 +71,9 @@ class GitHubActionsReference(unittest.TestCase):
         self.assertNotIn("python -m build", platform)
         self.assertNotIn("python benchmarks/", platform)
         self.assertNotIn("python -m unittest discover", platform)
-        self.assertIn("python -m unittest tests.test_partition_session_wire -v", platform)
+        self.assertIn(
+            "python -m unittest tests.test_partition_session_wire tests.test_partition_session_ownership -v", platform
+        )
         self.assertIn(
             "python -m unittest tests.test_partition_hash_execution tests.test_partition_hash_reader "
             "tests.test_partition_hash_wire -v",
