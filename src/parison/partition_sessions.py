@@ -1,4 +1,4 @@
-"""Read-only retained session recognition; never execution or reuse authority."""
+"""Retained session ownership and read-only recognition; no execution authority."""
 
 from __future__ import annotations
 
@@ -50,17 +50,23 @@ def _acquire(handle):
 
 
 @contextmanager
-def _read_owner(directory):
-    """Yield a directory capability and recheck callback under exclusive read ownership.
+def _write_owner(directory):
+    """Hold existing root/lock identities for a cooperating mutating invocation.
 
-    Callers must validate pinned journal/cache bytes AFTER acquiring this context.
-    It recognizes only the root and fixed lock; it grants no cache reuse authority.
-    Namespace changes are rejected, so this is not a mutating-session context.
+    Yield borrowed directory/native capabilities and an ownership recheck. This
+    context recognizes no journal and performs no writes or deletion. Callers
+    must recognize pinned session metadata AFTER lock acquisition and bind every
+    mutation to validated file identities. Root/lock replacement always rejects;
+    legitimate owned namespace changes do not invalidate this ownership context.
     """
     try:
         root = Path(directory)
         with ExitStack() as stack:
             check_output_parent(root)
+            root = Path(os.path.abspath(root))
+            parent = root.parent
+            parent_fd = discovery._hash_directory(stack, parent)
+            parent_native = discovery._windows_directory_pin(stack, parent) if os.name == "nt" else None
             original = root.lstat()
             fd = discovery._hash_directory(stack, root)
             native = discovery._windows_directory_pin(stack, root) if os.name == "nt" else None
@@ -100,28 +106,52 @@ def _read_owner(directory):
                 raise ParisonError(_ERROR)
             lock_stamp = discovery._file_stamp(handle)
 
-            def root_stamp():
-                return _directory_stamp(root, fd, native)
+            parent_stamp = _directory_stamp(parent, parent_fd, parent_native)
 
-            # Only post-lock state can be authoritative; another owner may have just exited.
-            directory_stamp = root_stamp()
-            namespace = _bounded_members(root, fd, 6)
-
-            def unchanged():
+            def owned():
                 root_identity()
+                parent_info = parent.lstat()
                 if (
-                    root_stamp() != directory_stamp
-                    or _bounded_members(root, fd, 6) != namespace
-                    or discovery._file_stamp(handle) != lock_stamp
-                    or discovery._named_file_stamp(path) != lock_stamp
+                    not stat.S_ISDIR(parent_info.st_mode)
+                    or getattr(parent_info, "st_file_attributes", 0) & 0x400
+                    or (parent_info.st_dev, parent_info.st_ino) != parent_stamp[:2]
+                    or _directory_stamp(parent, parent_fd, parent_native) != parent_stamp
                 ):
                     raise ParisonError(_ERROR)
+                if discovery._file_stamp(handle) != lock_stamp or discovery._named_file_stamp(path) != lock_stamp:
+                    raise ParisonError(_ERROR)
 
-            unchanged()
-            yield fd, unchanged
-            unchanged()
+            owned()
+            yield fd, native, owned
+            owned()
     except (ParisonError, OSError, UnicodeError, ValueError, TypeError, OverflowError):
         raise ParisonError(_ERROR) from None
+
+
+@contextmanager
+def _read_owner(directory):
+    """Add immutable namespace guards to shared root/lock kernel ownership.
+
+    The separate mutating context never disables these read-only checks.
+    Ownership alone does not recognize journals or authorize cache reuse.
+    """
+    try:
+        root = Path(directory)
+    except (TypeError, ValueError, UnicodeError, OverflowError):
+        raise ParisonError(_ERROR) from None
+    with _write_owner(root) as (fd, native, owned):
+        # Only post-lock state can be authoritative.
+        stamp = _directory_stamp(root, fd, native)
+        namespace = _bounded_members(root, fd, 6)
+
+        def unchanged():
+            owned()
+            if _directory_stamp(root, fd, native) != stamp or _bounded_members(root, fd, 6) != namespace:
+                raise ParisonError(_ERROR)
+
+        unchanged()
+        yield fd, unchanged
+        unchanged()
 
 
 _METADATA_ERROR = "invalid partition session metadata"
