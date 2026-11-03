@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Add private mutating session ownership while preserving immutable read/preview guards; abandonment and retained execution remain disabled.
+
 - Consolidate CI suites and gate full compatibility qualification behind Linux/native preflight; preserve manual full-matrix and release requirements.
 
 - Add bounded read-only retained-session preview through both partition CLI spellings, without source access, comparison or reuse authority; retained execution and abandonment remain disabled.

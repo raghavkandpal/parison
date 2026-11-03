@@ -39,6 +39,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Bounded retained-session preview](2.4/303-partition-session-preview.md)
 - [Read-ownership namespace guard correction](2.4/304-session-namespace-guard.md)
 - [Tiered CI gates before continuing 2.4](2.4/305-tiered-ci-qualification.md)
+- [Private mutating session ownership](2.4/306-session-mutation-ownership.md)
 
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 

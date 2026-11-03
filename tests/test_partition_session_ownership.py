@@ -1,7 +1,6 @@
 """Kernel exclusion and namespace ownership before any session metadata admission."""
 
 import os
-import stat
 import subprocess
 import sys
 import tempfile
@@ -11,7 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from parison.core import ParisonError
-from parison.partition_sessions import _read_owner
+from parison.partition_sessions import _read_owner, _write_owner
 
 
 class SessionReadOwnership(unittest.TestCase):
@@ -110,7 +109,7 @@ class SessionReadOwnership(unittest.TestCase):
 
         def delayed(descriptor):
             info = actual(descriptor)
-            return original if stat.S_ISDIR(info.st_mode) else info
+            return original if (info.st_dev, info.st_ino) == (original.st_dev, original.st_ino) else info
 
         with patch("parison.partition_sessions.os.fstat", side_effect=delayed):
             with self.assertRaises(ParisonError):
@@ -141,33 +140,125 @@ class SessionReadOwnership(unittest.TestCase):
                 self.fail("symlink lock admitted")
 
     def test_real_process_exclusion_and_kernel_release_after_kill(self):
-        marker = self.parent / "ready"
-        script = (
-            "import sys,time;from pathlib import Path;"
-            "from parison.partition_sessions import _read_owner;"
-            "root=Path(sys.argv[1]);marker=Path(sys.argv[2]);"
-            "context=_read_owner(root);context.__enter__();"
-            "marker.write_text('ready');time.sleep(60)"
-        )
-        child = subprocess.Popen(
-            [sys.executable, "-c", script, str(self.root), str(marker)], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-        try:
-            deadline = time.monotonic() + 15
-            while not marker.exists() and child.poll() is None and time.monotonic() < deadline:
-                time.sleep(0.01)
-            self.assertTrue(marker.exists(), "child ownership startup failed")
-            started = time.monotonic()
-            with self.assertRaises(ParisonError):
-                with _read_owner(self.root):
-                    self.fail("competing process admitted")
-            self.assertLess(time.monotonic() - started, 2)
-            child.kill()
-            child.communicate(timeout=15)
-            with _read_owner(self.root) as (_, check):
-                check()
-            self.assertEqual((self.root / ".lock").read_bytes(), b"\0")
-        finally:
-            if child.poll() is None:
+        for name in ("_read_owner", "_write_owner"):
+            marker = self.parent / name
+            script = (
+                "import sys,time;from pathlib import Path;"
+                "from parison import partition_sessions as sessions;"
+                "context=getattr(sessions,sys.argv[3])(sys.argv[1]);context.__enter__();"
+                "Path(sys.argv[2]).write_text('ready');time.sleep(60)"
+            )
+            child = subprocess.Popen(
+                [sys.executable, "-c", script, str(self.root), str(marker), name],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            try:
+                deadline = time.monotonic() + 15
+                while not marker.exists() and child.poll() is None and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertTrue(marker.exists(), "child ownership startup failed")
+                for owner in (_read_owner, _write_owner):
+                    started = time.monotonic()
+                    with self.assertRaises(ParisonError):
+                        with owner(self.root):
+                            self.fail("competing process admitted")
+                    self.assertLess(time.monotonic() - started, 2)
                 child.kill()
-            child.communicate(timeout=15)
+                child.communicate(timeout=15)
+                with _write_owner(self.root) as (_, _, check):
+                    check()
+                self.assertEqual((self.root / ".lock").read_bytes(), b"\0")
+            finally:
+                if child.poll() is None:
+                    child.kill()
+                child.communicate(timeout=15)
+
+
+class SessionWriteOwnership(unittest.TestCase):
+    setUp = SessionReadOwnership.setUp
+
+    def test_namespace_changes_require_a_separate_mutating_context(self):
+        with _write_owner(self.root) as (descriptor, native, check):
+            self.assertEqual(descriptor is None, os.name == "nt")
+            self.assertEqual(native is not None, os.name == "nt")
+            (self.root / "session.next").write_bytes(b"partial")
+            check()
+        self.assertEqual((self.root / "session.next").read_bytes(), b"partial")
+
+    def test_write_and_read_owners_exclude_each_other(self):
+        for first, second in ((_read_owner, _write_owner), (_write_owner, _read_owner), (_write_owner, _write_owner)):
+            with first(self.root):
+                with self.assertRaises(ParisonError):
+                    with second(self.root):
+                        self.fail("competing owner admitted")
+
+    def test_mutating_exceptions_release_without_creating_or_removing_files(self):
+        for error in (RuntimeError, KeyboardInterrupt):
+            with self.assertRaises(error):
+                with _write_owner(self.root):
+                    raise error
+            with _write_owner(self.root) as (_, _, check):
+                check()
+        self.assertEqual({p.name for p in self.root.iterdir()}, {".lock", "session.json"})
+
+    def test_writer_root_and_lock_substitution_reject_or_native_pin_denies(self):
+        for kind in ("root", "lock"):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary) / "session"
+                root.mkdir()
+                (root / ".lock").write_bytes(b"\0")
+                path = root if kind == "root" else root / ".lock"
+                saved = Path(temporary) / "saved" if kind == "root" else root / "saved"
+                denied = detected = False
+                try:
+                    with _write_owner(root) as (_, _, check):
+                        (root / "session.next").write_bytes(b"partial")
+                        check()
+                        try:
+                            path.rename(saved)
+                        except PermissionError:
+                            denied = True
+                        else:
+                            if kind == "root":
+                                root.mkdir()
+                                (root / "unrelated").write_bytes(b"keep")
+                            else:
+                                path.write_bytes(b"\0")
+                            check()
+                except ParisonError:
+                    detected = True
+                self.assertTrue(denied or detected)
+                if kind == "root" and not denied:
+                    self.assertEqual((root / "unrelated").read_bytes(), b"keep")
+
+    def test_transient_writer_root_substitution_rejects_or_native_pin_denies(self):
+        moved = self.parent / "saved-root"
+        denied = detected = False
+        try:
+            with _write_owner(self.root) as (_, _, check):
+                (self.root / "session.next").write_bytes(b"partial")
+                check()
+                try:
+                    self.root.rename(moved)
+                except PermissionError:
+                    denied = True
+                else:
+                    self.root.mkdir()
+                    self.root.rmdir()
+                    moved.rename(self.root)
+                    check()
+        except ParisonError:
+            detected = True
+        self.assertTrue(denied or detected)
+        self.assertEqual((self.root / "session.next").read_bytes(), b"partial")
+
+    def test_writer_current_directory_uses_actual_parent_guard(self):
+        original = Path.cwd()
+        try:
+            os.chdir(self.root)
+            with _write_owner(".") as (_, _, check):
+                Path("session.next").write_bytes(b"partial")
+                check()
+        finally:
+            os.chdir(original)
