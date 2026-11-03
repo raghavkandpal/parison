@@ -61,6 +61,39 @@ class SessionReader(unittest.TestCase):
         with self.assertRaisesRegex(ParisonError, "^invalid partition session$"):
             sessions.preview(self.root)
 
+    def test_recognition_borrows_writer_lock_and_closes_before_mutation(self):
+        for profile in PROFILES:
+            with self.subTest(profile=profile):
+                expected = self.materialize(profile)
+                with sessions._write_owner(self.root) as (fd, native, owned):
+                    with patch.object(sessions, "_acquire", side_effect=AssertionError("recursive ownership")):
+                        journal, plan = sessions._recognize_owned(self.root, fd, native, owned)
+                    self.assertEqual(journal, expected)
+                    self.assertEqual(plan, read(self.root / "plan.json"))
+                    # Recognition's child pins must close, including on Windows.
+                    child = self.root / "routing" / "derived-recipe.json"
+                    child.unlink()
+                    child.write_bytes(b"replacement after recognition")
+                    owned()
+
+    def test_recognition_rejects_changed_root_under_writer_ownership(self):
+        self.materialize()
+        original = sessions._metadata
+        changed = False
+
+        def mutate(data):
+            nonlocal changed
+            if not changed:
+                changed = True
+                (self.root / "session.next").write_bytes(b"uncommitted")
+            return original(data)
+
+        with sessions._write_owner(self.root) as (fd, native, owned):
+            with patch.object(sessions, "_metadata", side_effect=mutate):
+                with self.assertRaises(ParisonError):
+                    sessions._recognize_owned(self.root, fd, native, owned)
+            owned()
+
     def test_all_profiles_states_are_safe_read_only_queries(self):
         for profile in PROFILES:
             for state in ("initializing", "routed", "comparing", "ready", "published", "abandoning"):

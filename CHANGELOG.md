@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Extract bounded private session recognition under existing ownership without recursive locking, mutation or reuse authority.
+
 - Add private mutating session ownership while preserving immutable read/preview guards; abandonment and retained execution remain disabled.
 
 - Consolidate CI suites and gate full compatibility qualification behind Linux/native preflight; preserve manual full-matrix and release requirements.
