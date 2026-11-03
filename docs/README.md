@@ -41,6 +41,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Tiered CI gates before continuing 2.4](2.4/305-tiered-ci-qualification.md)
 - [Private mutating session ownership](2.4/306-session-mutation-ownership.md)
 - [Recognition under existing session ownership](2.4/308-locked-session-recognition.md)
+- [Bounded abandonment journal staging](2.4/309-abandonment-journal-staging.md)
 
 - [Product clarity feasibility and cause-and-effect audit (analysis only)](2.4/307-product-clarity-cause-and-effect-audit.md)
 
