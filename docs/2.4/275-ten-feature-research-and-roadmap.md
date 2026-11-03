@@ -333,3 +333,12 @@ Materialize feature 1's strict schemas and canonical/negative fixtures from
 [contract 277](277-postgresql-collection-contract.md) and the explicit
 [matrix 278](278-postgresql-capability-matrix.md), then implement and qualify.
 No 2.4 runtime change is included in this documentation checkpoint.
+
+## Additional pre-release clarity gate
+
+Before releasing 2.4, complete the bounded onboarding and Workbench clarity
+work and verification defined in [audit307](307-product-clarity-cause-and-effect-audit.md).
+Continue the current feature 4 checkpoint first. This owner-requested gate
+does not count as an eleventh feature or replace any all-ten, trust-boundary
+or exact-head qualification requirement. Navigation redesign and unrelated
+architecture rewrites remain outside the gate.

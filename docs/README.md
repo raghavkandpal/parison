@@ -40,6 +40,8 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Read-ownership namespace guard correction](2.4/304-session-namespace-guard.md)
 - [Tiered CI gates before continuing 2.4](2.4/305-tiered-ci-qualification.md)
 
+- [Product clarity feasibility and cause-and-effect audit (analysis only)](2.4/307-product-clarity-cause-and-effect-audit.md)
+
 ## 2.3 — six-feature PostgreSQL rehearsal train — released
 
 - [2.3.0 release assets and checksums](https://github.com/raghavkandpal/parison/releases/tag/2.3.0)
