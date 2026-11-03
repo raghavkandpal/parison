@@ -42,6 +42,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Private mutating session ownership](2.4/306-session-mutation-ownership.md)
 - [Recognition under existing session ownership](2.4/308-locked-session-recognition.md)
 - [Bounded abandonment journal staging](2.4/309-abandonment-journal-staging.md)
+- [Next-slot discard identity race and native research gate](2.4/310-session-discard-identity-research.md)
 
 - [Product clarity feasibility and cause-and-effect audit (analysis only)](2.4/307-product-clarity-cause-and-effect-audit.md)
 
