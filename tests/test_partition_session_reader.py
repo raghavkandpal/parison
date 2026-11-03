@@ -67,8 +67,9 @@ class SessionReader(unittest.TestCase):
                 expected = self.materialize(profile)
                 with sessions._write_owner(self.root) as (fd, native, owned):
                     with patch.object(sessions, "_acquire", side_effect=AssertionError("recursive ownership")):
-                        journal, plan = sessions._recognize_owned(self.root, fd, native, owned)
+                        journal, plan, used = sessions._recognize_owned(self.root, fd, native, owned)
                     self.assertEqual(journal, expected)
+                    self.assertEqual(used, sum(p.stat().st_size for p in self.root.rglob("*") if p.is_file()))
                     self.assertEqual(plan, read(self.root / "plan.json"))
                     # Recognition's child pins must close, including on Windows.
                     child = self.root / "routing" / "derived-recipe.json"
@@ -93,6 +94,134 @@ class SessionReader(unittest.TestCase):
                 with self.assertRaises(ParisonError):
                     sessions._recognize_owned(self.root, fd, native, owned)
             owned()
+
+    def stage_abandoning(self, check=None):
+        with sessions._write_owner(self.root) as (fd, native, owned):
+            return sessions._stage_abandoning(self.root, fd, native, check or owned)
+
+    def test_abandonment_staging_preserves_primary_and_all_profiles_states(self):
+        for profile in PROFILES:
+            for state in ("initializing", "routed", "comparing", "ready", "published", "abandoning"):
+                with self.subTest(profile=profile, state=state):
+                    journal = self.materialize(profile, state)
+                    before = {
+                        str(p.relative_to(self.root)): p.read_bytes() for p in self.root.rglob("*") if p.is_file()
+                    }
+                    stamp = self.stage_abandoning()
+                    self.assertEqual(stamp, discovery._named_file_stamp(self.root / "session.next"))
+                    self.assertEqual(
+                        (self.root / "session.next").read_bytes(), _canonical(journal | {"state": "abandoning"}) + b"\n"
+                    )
+                    for name, data in before.items():
+                        self.assertEqual((self.root / name).read_bytes(), data)
+                    self.assertEqual(sessions.preview(self.root)["state"], state)
+                    if state == "ready":
+                        self.assertEqual(
+                            (self.root / "session.next").read_bytes(),
+                            (ROOT / profile / "journals/abandoning.json").read_bytes(),
+                        )
+
+    def test_abandonment_staging_storage_reservation_before_slot_creation(self):
+        for extra in (-1, 0):
+            with self.subTest(extra=extra):
+                journal = self.materialize()
+                for _ in range(4):
+                    write(self.root / "session.json", journal)
+                    total = sum(p.stat().st_size for p in self.root.rglob("*") if p.is_file())
+                    proposed = _canonical(journal | {"state": "abandoning"}) + b"\n"
+                    journal["max_session_bytes"] = total + len(proposed) + extra
+                write(self.root / "session.json", journal)
+                if extra == -1:
+                    with self.assertRaises(ParisonError):
+                        self.stage_abandoning()
+                    self.assertFalse((self.root / "session.next").exists())
+                else:
+                    self.stage_abandoning()
+                    self.assertEqual(
+                        sum(p.stat().st_size for p in self.root.rglob("*") if p.is_file()), journal["max_session_bytes"]
+                    )
+
+    def test_abandonment_staging_never_overwrites_existing_slot(self):
+        for data in (b"", b'{"partial":', (ROOT / "hash/journals/published.json").read_bytes()):
+            self.materialize()
+            slot = self.root / "session.next"
+            slot.write_bytes(data)
+            with self.assertRaises(ParisonError):
+                self.stage_abandoning()
+            self.assertEqual(slot.read_bytes(), data)
+            self.assertEqual(sessions.preview(self.root)["state"], "ready")
+
+    def test_abandonment_staging_interruption_and_storage_failure_leave_primary(self):
+        for failure in (KeyboardInterrupt(), OSError("disk full")):
+            self.materialize()
+            primary = (self.root / "session.json").read_bytes()
+            with patch.object(sessions.os, "fsync", side_effect=failure):
+                with self.assertRaises(type(failure) if isinstance(failure, KeyboardInterrupt) else ParisonError):
+                    self.stage_abandoning()
+            self.assertEqual((self.root / "session.json").read_bytes(), primary)
+            self.assertEqual(sessions.preview(self.root)["state"], "ready")
+
+    def test_abandonment_staging_interruption_before_write_leaves_bounded_empty_slot(self):
+        self.materialize()
+        with sessions._write_owner(self.root) as (fd, native, owned):
+
+            def interrupt():
+                owned()
+                if (self.root / "session.next").exists():
+                    raise KeyboardInterrupt
+
+            with self.assertRaises(KeyboardInterrupt):
+                sessions._stage_abandoning(self.root, fd, native, interrupt)
+        self.assertEqual((self.root / "session.next").read_bytes(), b"")
+        self.assertEqual(sessions.preview(self.root)["state"], "ready")
+
+    def test_abandonment_staging_rejects_primary_changes_during_write(self):
+        self.materialize()
+        primary = self.root / "session.json"
+        original = primary.read_bytes()
+        sync = sessions.os.fsync
+
+        def change(descriptor):
+            sync(descriptor)
+            primary.write_bytes(original)
+
+        with patch.object(sessions.os, "fsync", side_effect=change):
+            with self.assertRaises(ParisonError):
+                self.stage_abandoning()
+        self.assertEqual(primary.read_bytes(), original)
+        self.assertEqual(sessions.preview(self.root)["state"], "ready")
+
+    def test_abandonment_staging_detects_corruption_before_returning_identity(self):
+        self.materialize()
+        sync = sessions.os.fsync
+
+        def corrupt(descriptor):
+            sync(descriptor)
+            slot = self.root / "session.next"
+            data = slot.read_bytes()
+            slot.write_bytes(data.replace(b"abandoning", b"corrupted"))
+
+        with patch.object(sessions.os, "fsync", side_effect=corrupt):
+            with self.assertRaises(ParisonError):
+                self.stage_abandoning()
+        self.assertEqual(sessions.preview(self.root)["state"], "ready")
+
+    def test_abandonment_staging_rejects_malformed_primary_and_symlink_slot(self):
+        self.materialize()
+        (self.root / "session.json").write_bytes(b"invalid")
+        with self.assertRaises(ParisonError):
+            self.stage_abandoning()
+        self.assertFalse((self.root / "session.next").exists())
+        self.materialize()
+        outside = self.parent / "outside"
+        outside.write_bytes(b"preserve")
+        try:
+            (self.root / "session.next").symlink_to(outside)
+        except (OSError, NotImplementedError):
+            self.skipTest("symlinks unavailable")
+        with self.assertRaises(ParisonError):
+            self.stage_abandoning()
+        self.assertEqual(outside.read_bytes(), b"preserve")
 
     def test_all_profiles_states_are_safe_read_only_queries(self):
         for profile in PROFILES:

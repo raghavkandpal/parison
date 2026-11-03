@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 ## Unreleased
 
+- Add private bounded abandonment-journal staging without replacing the primary, overwriting a next slot or enabling abandonment.
+
 - Extract bounded private session recognition under existing ownership without recursive locking, mutation or reuse authority.
 
 - Add private mutating session ownership while preserving immutable read/preview guards; abandonment and retained execution remain disabled.

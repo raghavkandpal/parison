@@ -649,7 +649,63 @@ def _recognize_owned(root, root_fd, root_native, owner_check):
         ):
             raise ParisonError(_METADATA_ERROR)
         owner_check()
-        return journal, plan
+        return journal, plan, used
+
+
+def _stage_abandoning(root, root_fd, root_native, owner_check):
+    """Stage an uncommitted abandonment journal under borrowed write ownership.
+
+    No primary replacement or deletion occurs. Failure may retain a bounded
+    partial fixed-slot next file, which never supplies committed authority.
+    An existing next slot must be handled separately; it is never overwritten.
+    """
+    try:
+        primary = root / "session.json"
+        primary_stamp = discovery._named_file_stamp(primary)
+        journal, plan, used = _recognize_owned(root, root_fd, root_native, owner_check)
+        proposed = {**journal, "state": "abandoning"}
+        _journal(proposed, plan)
+        data = _canonical(proposed) + b"\n"
+        if len(data) > 1048576 or used + len(data) > journal["max_session_bytes"]:
+            raise ParisonError(_METADATA_ERROR)
+
+        def unchanged():
+            owner_check()
+            if discovery._named_file_stamp(primary) != primary_stamp:
+                raise ParisonError(_METADATA_ERROR)
+
+        unchanged()
+        path = root / "session.next"
+        descriptor = os.open(
+            "session.next" if root_fd is not None else path,
+            os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0),
+            0o600,
+            dir_fd=root_fd,
+        )
+        with os.fdopen(descriptor, "r+b") as handle:
+            unchanged()
+            if handle.write(data) != len(data):
+                raise ParisonError(_METADATA_ERROR)
+            handle.flush()
+            os.fsync(handle.fileno())
+            stamp = discovery._file_stamp(handle)
+            handle.seek(0)
+            if (
+                handle.read(len(data) + 1) != data
+                or discovery._file_stamp(handle) != stamp
+                or discovery._named_file_stamp(path) != stamp
+            ):
+                raise ParisonError(_METADATA_ERROR)
+            unchanged()
+        # Revalidate every retained member and total bytes after staging. The
+        # partial/complete next slot still has no authority in this recognition.
+        _recognize_owned(root, root_fd, root_native, owner_check)
+        if discovery._named_file_stamp(path) != stamp:
+            raise ParisonError(_METADATA_ERROR)
+        unchanged()
+        return stamp
+    except (ParisonError, OSError, ValueError, TypeError, UnicodeError, OverflowError, RecursionError, KeyError):
+        raise ParisonError("invalid partition session journal staging") from None
 
 
 def preview(directory):
@@ -658,7 +714,7 @@ def preview(directory):
         root = Path(directory)
         with _read_owner(root) as (root_fd, owner_check):
             # Read ownership already pins native metadata and immutable namespace.
-            journal, _ = _recognize_owned(root, root_fd, None, owner_check)
+            journal, _, _ = _recognize_owned(root, root_fd, None, owner_check)
             return {
                 "partition_session_result_version": 1,
                 "action": "preview",
