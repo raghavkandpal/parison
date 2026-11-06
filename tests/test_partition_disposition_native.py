@@ -6,6 +6,7 @@ No repository/runtime imports. Creates and removes only a temporary workspace.
 
 import ctypes
 import errno
+import itertools
 import json
 import os
 import subprocess
@@ -321,6 +322,244 @@ def check():
     print("OUTSTANDING: writable mappings, close failure, filesystem/platform matrix")
 
 
+DATA = b"synthetic slot bytes\n"
+PRIMARY = b"synthetic primary authority\n"
+
+
+def mapping_api():
+    from ctypes import wintypes as w
+
+    opened, _, dispose, close = native()
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateFileMappingW.argtypes = [w.HANDLE, w.LPVOID, w.DWORD, w.DWORD, w.DWORD, w.LPCWSTR]
+    kernel.CreateFileMappingW.restype = w.HANDLE
+    kernel.MapViewOfFile.argtypes = [w.HANDLE, w.DWORD, w.DWORD, w.DWORD, ctypes.c_size_t]
+    kernel.MapViewOfFile.restype = w.LPVOID
+    kernel.UnmapViewOfFile.argtypes = [w.LPCVOID]
+    kernel.UnmapViewOfFile.restype = w.BOOL
+    kernel.FlushViewOfFile.argtypes = [w.LPCVOID, ctypes.c_size_t]
+    kernel.FlushViewOfFile.restype = w.BOOL
+    kernel.SetHandleInformation.argtypes = [w.HANDLE, w.DWORD, w.DWORD]
+    kernel.SetHandleInformation.restype = w.BOOL
+
+    def checked(result):
+        if not result:
+            raise ctypes.WinError(ctypes.get_last_error())
+        return result
+
+    def protection(handle, enabled):
+        checked(kernel.SetHandleInformation(handle, 2, 2 if enabled else 0))
+
+    return kernel, opened, dispose, close, checked, protection
+
+
+def mapping_case(writable, lifetime, sharing):
+    kernel, opened, dispose, close, checked, _ = mapping_api()
+    with tempfile.TemporaryDirectory(prefix="parison-map-probe-") as directory:
+        root = Path(directory)
+        path, primary = root / "session.next", root / "session.json"
+        path.write_bytes(DATA)
+        primary.write_bytes(PRIMARY)
+        original = section = view = deletion = None
+        admitted = marked = False
+        stage, error = "admission", None
+        try:
+            original = opened(path, 0xC0000000 if writable else 0x80000000, 7)
+            section = checked(kernel.CreateFileMappingW(original, None, 4 if writable else 2, 0, 0, None))
+            view = checked(kernel.MapViewOfFile(section, 2 if writable else 4, 0, 0, len(DATA)))
+            assert ctypes.string_at(view, len(DATA)) == DATA
+            if lifetime != "file-open":
+                close(original)
+                original = None
+            if lifetime == "view-only":
+                close(section)
+                section = None
+            if writable:
+                # Demonstrate a live same-size backing-file write, then restore.
+                ctypes.memmove(view, b"X", 1)
+                checked(kernel.FlushViewOfFile(view, len(DATA)))
+                assert path.read_bytes() == b"X" + DATA[1:]
+                ctypes.memmove(view, DATA, len(DATA))
+                checked(kernel.FlushViewOfFile(view, len(DATA)))
+                assert path.read_bytes() == DATA
+            try:
+                deletion = opened(path, 0x80010080, sharing)
+                admitted = True
+                stage = "disposition"
+                # Writable mappings must be rejected at admission, not mutated
+                # and subsequently described as a successful safe refusal.
+                assert not writable, "writable mapping admitted; exclusion hypothesis failed"
+                dispose(deletion)
+                marked = True
+            except OSError as exc:
+                error = exc.winerror
+                assert error in {5, 32, 1224}, (stage, error)
+                if writable or (lifetime == "file-open" and sharing == 0):
+                    assert stage == "admission" and error == 32, (stage, error)
+            finally:
+                if deletion is not None:
+                    close(deletion)
+                    deletion = None
+            if writable or (lifetime == "file-open" and sharing == 0):
+                assert not admitted and not marked, "required admission refusal absent"
+            visible = "session.next" in os.listdir(root)
+            assert ctypes.string_at(view, len(DATA)) == DATA
+            if not marked:
+                assert visible and path.read_bytes() == DATA, "refusal changed original bytes/name"
+            assert primary.read_bytes() == PRIMARY
+        finally:
+            if deletion is not None:
+                close(deletion)
+            if view is not None:
+                checked(kernel.UnmapViewOfFile(view))
+            if section is not None:
+                close(section)
+            if original is not None:
+                close(original)
+        if marked:
+            assert not path.exists(), "deletion not completed after all mapping cleanup"
+        else:
+            assert path.read_bytes() == DATA
+            retry = opened(path, 0x80010080, 0)
+            try:
+                dispose(retry)
+            finally:
+                close(retry)
+            assert not path.exists(), "unmapped retry failed"
+        assert primary.read_bytes() == PRIMARY
+        print(
+            json.dumps(
+                {
+                    "writable": writable,
+                    "lifetime": lifetime,
+                    "sharing": sharing,
+                    "admitted": admitted,
+                    "marked": marked,
+                    "error_stage": stage,
+                    "winerror": error,
+                    "visible_before_unmap": visible,
+                }
+            )
+        )
+
+
+def protected_case(root, marked, kill):
+    _, opened, dispose, close, _, protection = mapping_api()
+    path, primary = root / "session.next", root / "session.json"
+    handle = opened(path, 0x80010080, 0)
+    protected = False
+    try:
+        if marked:
+            dispose(handle)
+        protection(handle, True)
+        protected = True
+        try:
+            close(handle)
+        except OSError as exc:
+            assert exc.winerror is not None, "missing native close error"
+            close_error = exc.winerror
+        else:
+            raise AssertionError("protected CloseHandle unexpectedly succeeded")
+        assert "session.next" in os.listdir(root), "failed close reported premature removal"
+        assert primary.read_bytes() == PRIMARY
+        # Confirm handle still pins its object after the failed close.
+        try:
+            extra = opened(path, 0x80010080, 0)
+        except OSError as exc:
+            assert exc.winerror in {5, 32}, exc.winerror
+        else:
+            close(extra)
+            raise AssertionError("protected handle no longer excludes other opener")
+        if kill:
+            print("READY", flush=True)
+            sys.stdin.readline()
+            raise AssertionError("kill-case worker was not terminated")
+        protection(handle, False)
+        protected = False
+        close(handle)
+        handle = None
+        assert path.exists() != marked
+        if not marked:
+            assert path.read_bytes() == DATA
+            retry = opened(path, 0x80010080, 0)
+            try:
+                dispose(retry)
+            finally:
+                close(retry)
+        assert not path.exists()
+        assert primary.read_bytes() == PRIMARY
+        print(json.dumps({"protected_close": "refused", "marked": marked, "winerror": close_error}))
+    finally:
+        if handle is not None:
+            if protected:
+                protection(handle, False)
+            close(handle)
+
+
+def check_mapping_close():
+    script = str(Path(__file__).resolve())
+    for writable, lifetime, sharing in itertools.product(
+        (False, True), ("file-open", "section-open", "view-only"), (0, 1)
+    ):
+        result = subprocess.run(
+            [sys.executable, script, "mapping", str(int(writable)), lifetime, str(sharing)],
+            capture_output=True,
+            text=True,
+            timeout=25,
+        )
+        assert result.returncode == 0, result.stderr[-1500:]
+        print(result.stdout.strip())
+    for marked, kill in itertools.product((False, True), repeat=2):
+        with tempfile.TemporaryDirectory(prefix="parison-protected-close-") as directory:
+            root = Path(directory)
+            path, primary = root / "session.next", root / "session.json"
+            path.write_bytes(DATA)
+            primary.write_bytes(PRIMARY)
+            process = subprocess.Popen(
+                [sys.executable, script, "protected", str(root), str(int(marked)), str(int(kill))],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            try:
+                if kill:
+                    ready = []
+                    reader = threading.Thread(
+                        target=lambda process=process, ready=ready: ready.append(process.stdout.readline()), daemon=True
+                    )
+                    reader.start()
+                    reader.join(20)
+                    if not reader.is_alive() and ready != ["READY\n"]:
+                        _, error = process.communicate(timeout=20)
+                        raise AssertionError("protected worker failed before readiness: " + error[-1500:])
+                    assert not reader.is_alive() and ready == ["READY\n"], "protected worker not ready"
+                    process.kill()
+                    process.communicate(timeout=20)
+                    assert path.exists() != marked, "unexpected protected process-death cleanup"
+                    if not marked:
+                        assert path.read_bytes() == DATA
+                        _, opened, dispose, close, _, _ = mapping_api()
+                        retry = opened(path, 0x80010080, 0)
+                        try:
+                            dispose(retry)
+                        finally:
+                            close(retry)
+                    assert not path.exists()
+                    print(json.dumps({"protected_process_kill": True, "marked": marked}))
+                else:
+                    output, error = process.communicate(timeout=25)
+                    assert process.returncode == 0, error[-1500:]
+                    print(output.strip())
+                assert primary.read_bytes() == PRIMARY
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.communicate(timeout=20)
+    print("PASS: 12 mapping and 4 protected-close synthetic cases; not product qualification")
+    print("OUTSTANDING: storage/filter close faults, unsupported filesystems, POSIX deletion")
+
+
 class InterferenceErrorMapping(unittest.TestCase):
     def test_crt_access_denial_is_accepted_only_for_write_and_truncate(self):
         def denied(winerror, code=errno.EACCES):
@@ -347,6 +586,9 @@ class NativeDispositionExperiment(unittest.TestCase):
     def test_synthetic_handle_disposition_lifecycle(self):
         check()
 
+    def test_mapping_and_protected_close_lifecycle(self):
+        check_mapping_close()
+
 
 if __name__ == "__main__":
     if len(sys.argv) == 4 and sys.argv[1] == "worker":
@@ -355,5 +597,9 @@ if __name__ == "__main__":
         interfere(Path(sys.argv[2]))
     elif len(sys.argv) == 3 and sys.argv[1] == "control":
         interfere(Path(sys.argv[2]), control=True)
+    elif len(sys.argv) == 5 and sys.argv[1] == "mapping":
+        mapping_case(bool(int(sys.argv[2])), sys.argv[3], int(sys.argv[4]))
+    elif len(sys.argv) == 5 and sys.argv[1] == "protected":
+        protected_case(Path(sys.argv[2]), bool(int(sys.argv[3])), bool(int(sys.argv[4])))
     else:
         unittest.main()
