@@ -149,7 +149,7 @@ def check():
         control = subprocess.run(
             [sys.executable, script, "control", str(root)], capture_output=True, text=True, timeout=20
         )
-        assert control.returncode == 0, "unpinned interference controls failed"
+        assert control.returncode == 0, "unpinned interference controls failed: " + control.stderr[-1200:]
         (root / "moved").unlink()
         next_slot.unlink()
         passed += 1
@@ -182,7 +182,9 @@ def check():
                 result = subprocess.run(
                     [sys.executable, script, "interfere", str(root)], capture_output=True, text=True, timeout=20
                 )
-                assert result.returncode == 0, "interference probe failed"
+                assert result.returncode == 0, (
+                    f"interference probe failed ({phase}/{command}): " + result.stderr[-1200:]
+                )
                 assert replacement.read_bytes() == b"unrelated replacement\n"
                 assert not (root / "moved").exists()
                 if command == "kill":

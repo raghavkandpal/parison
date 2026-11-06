@@ -62,3 +62,13 @@ CPython3.14.7 and declared dependencies including Polars. Focused native preflig
 passes51 tests with four native skips. Both independent WIP reviews are clear.
 These results establish local compatibility only; exact-head reviews and actual
 Windows/full matrix results remain required before integration.
+
+## First native observation
+
+Exact experiment head `815ac87` failed Windows native preflight in
+[full run42216632463](https://github.com/raghavkandpal/parison/actions/runs/42216632463).
+Build, Linux and macOS preflight passed; all matrix expansion jobs were skipped.
+The failure occurred in the independent interference subprocess, but the parent
+assertion omitted its captured stderr. Add bounded synthetic child diagnostics
+before changing candidate semantics or accepted failure codes. No qualification
+or merge follows from this run.
