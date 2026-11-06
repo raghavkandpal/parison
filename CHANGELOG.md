@@ -50,6 +50,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Audit every retained-session destructive mutation and record an unapproved explicit profile alternative; preserve the frozen contract and disabled runtime.
+
 - Extend isolated native disposition experiments to mapped-file lifetimes and real protected-handle close refusal; no product deletion is enabled.
 
 - Add an isolated native Windows disposition experiment before selecting any destructive session helper; product runtime remains unchanged.
