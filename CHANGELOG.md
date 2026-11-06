@@ -50,6 +50,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Assess native identity-bound removal and reject namespace workarounds; retain destructive session gates while preparing an isolated Windows prototype.
+
 - Record a rejected next-slot deletion candidate and a native identity-preservation research gate before enabling destructive session operations.
 
 - Audit product clarity, task structure and implementation tradeoffs; document cause and effect without implementing UI; record bounded clarity work as a required 2.4 pre-release gate.
