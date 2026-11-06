@@ -91,10 +91,11 @@ No complete contract296 protocol was established by the examined APIs and
 independent full-contract audits. This is a qualification gap, not a universal
 impossibility claim or permission to exclude Linux/macOS.
 
-Require either a concrete primitive/protocol filling every unresolved table row,
-or an explicit versioned contract decision naming which guarantee changes.
-[Draft315](315-session-interference-profile-decision-draft.md) makes one such
-alternative reviewable; it is unapproved and changes no active guarantee.
+The owner explicitly selected keeping the v1 preservation guarantee on6 November2026.
+Require a concrete primitive/protocol filling every unresolved table row under296.
+[Draft315](315-session-interference-profile-decision-draft.md) was not selected;
+no cooperating-owner profile, weaker preservation or silent platform exclusion
+is authorized. Continue compatible research without reopening that same decision.
 Source-handle deletion success alone is not grounds to ship an unused helper as
 if the full protocol were solved. Feature4 stays incomplete (3/10); integrate
 remaining numbered features in the roadmap order and retain audit307's separate

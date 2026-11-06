@@ -1,8 +1,9 @@
 # Draft decision: explicit cooperating-owner recovery profile
 
 Date: 6 November 2026
-Status: UNAPPROVED proposal; contract296 remains binding; implementation prohibited
-until the owner selects this semantic change and its contract is reviewed
+Status: NOT SELECTED. On6 November2026 the owner explicitly chose to keep the
+v1 preservation guarantee. Contract296 remains binding; this alternative grants
+no implementation authority and remains only a historical unapproved proposal.
 
 ## Why a decision is needed
 
