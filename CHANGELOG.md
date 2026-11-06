@@ -50,6 +50,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Add an isolated native Windows disposition experiment before selecting any destructive session helper; product runtime remains unchanged.
+
 - Assess native identity-bound removal and reject namespace workarounds; retain destructive session gates while preparing an isolated Windows prototype.
 
 - Record a rejected next-slot deletion candidate and a native identity-preservation research gate before enabling destructive session operations.

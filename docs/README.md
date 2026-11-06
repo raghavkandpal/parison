@@ -44,6 +44,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Bounded abandonment journal staging](2.4/309-abandonment-journal-staging.md)
 - [Next-slot discard identity race and native research gate](2.4/310-session-discard-identity-research.md)
 - [Native identity-removal assessment and Windows prototype gate](2.4/311-native-identity-removal-assessment.md)
+- [Isolated Windows disposition native experiment](2.4/312-windows-disposition-prototype.md)
 
 - [Product clarity feasibility and cause-and-effect audit (analysis only)](2.4/307-product-clarity-cause-and-effect-audit.md)
 
