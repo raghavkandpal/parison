@@ -50,6 +50,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Extend isolated native disposition experiments to mapped-file lifetimes and real protected-handle close refusal; no product deletion is enabled.
+
 - Add an isolated native Windows disposition experiment before selecting any destructive session helper; product runtime remains unchanged.
 
 - Assess native identity-bound removal and reject namespace workarounds; retain destructive session gates while preparing an isolated Windows prototype.
