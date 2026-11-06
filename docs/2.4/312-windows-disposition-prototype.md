@@ -72,3 +72,18 @@ The failure occurred in the independent interference subprocess, but the parent
 assertion omitted its captured stderr. Add bounded synthetic child diagnostics
 before changing candidate semantics or accepted failure codes. No qualification
 or merge follows from this run.
+
+Diagnostic preflight [42217114376](https://github.com/raghavkandpal/parison/actions/runs/42217114376)
+at `eaa67d1` exposed denial codes `[32,32,5,None,None]`. The last two operations
+use Python file open, which raises an errno-based exception through `_wopen`.
+Correct the harness to accept exactly `winerror:null, errno:EACCES` only for
+write/truncate; namespace operations retain Win32 denial checks. A cross-platform
+regression rejects that pair for namespace operations and rejects unrelated
+errno values. This does not weaken candidate sharing or establish native success.
+Primary sources accessed6 November2026:
+[CPython file open](https://github.com/python/cpython/blob/3.14/Modules/_io/fileio.c),
+[Microsoft _wopen](https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/open-wopen?view=msvc-170).
+
+The corrected local `make check` passes754 tests with six native skips; both
+independent WIP re-reviews are clear. This includes the new CRT denial regression.
+Actual corrected-head Windows and full-matrix qualification remain pending.

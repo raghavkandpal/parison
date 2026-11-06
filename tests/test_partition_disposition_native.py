@@ -5,6 +5,7 @@ No repository/runtime imports. Creates and removes only a temporary workspace.
 """
 
 import ctypes
+import errno
 import json
 import os
 import subprocess
@@ -13,6 +14,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 LIMIT = 1_048_576
 
@@ -119,7 +121,7 @@ def operations(root):
 def interfere(root, control=False):
     # This is a separate process, deliberately taking no Parison lock.
     errors = []
-    for operation in operations(root):
+    for index, operation in enumerate(operations(root)):
         if control:
             (root / "session.next").write_bytes(b"uncommitted synthetic journal\n")
             (root / "replacement").write_bytes(b"unrelated replacement\n")
@@ -128,11 +130,12 @@ def interfere(root, control=False):
         except OSError as exc:
             if control:
                 raise AssertionError("unpinned control operation failed") from exc
-            errors.append(exc.winerror)
+            pair = (exc.winerror, exc.errno)
+            assert exc.winerror in {5, 32, 33} or (index >= 3 and pair == (None, errno.EACCES)), (index, pair)
+            errors.append(pair)
         else:
             if not control:
                 raise AssertionError("namespace/content interference unexpectedly succeeded")
-    assert all(code in {5, 32, 33} for code in errors), errors
     print(json.dumps(errors))
 
 
@@ -316,6 +319,27 @@ def check():
             passed += 1
     print(f"PASS: {passed} synthetic native disposition cases; not product qualification")
     print("OUTSTANDING: writable mappings, close failure, filesystem/platform matrix")
+
+
+class InterferenceErrorMapping(unittest.TestCase):
+    def test_crt_access_denial_is_accepted_only_for_write_and_truncate(self):
+        def denied(winerror, code=errno.EACCES):
+            def operation():
+                error = PermissionError(code, "synthetic access denial")
+                error.winerror = winerror
+                raise error
+
+            return operation
+
+        expected = [denied(32), denied(32), denied(5), denied(None), denied(None)]
+        with patch(__name__ + ".operations", return_value=expected):
+            interfere(Path("unused"))
+        for index, operation in ((0, denied(None)), (3, denied(None, errno.ENOENT))):
+            changed = expected.copy()
+            changed[index] = operation
+            with self.subTest(index=index), patch(__name__ + ".operations", return_value=changed):
+                with self.assertRaises(AssertionError):
+                    interfere(Path("unused"))
 
 
 @unittest.skipUnless(os.name == "nt", "Windows native disposition experiment")
