@@ -50,6 +50,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Require the tool audit's non-adoption engineering hardening and compatibility assessments after all ten feature implementations and before the 2.4 candidate; preserve existing release and clarity gates.
+
 - Record the owner decision to retain the v1 session preservation guarantee; the weaker cooperating-owner proposal was not selected.
 
 - Audit every retained-session destructive mutation and record an unapproved explicit profile alternative; preserve the frozen contract and disabled runtime.

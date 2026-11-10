@@ -342,3 +342,14 @@ Continue the current feature 4 checkpoint first. This owner-requested gate
 does not count as an eleventh feature or replace any all-ten, trust-boundary
 or exact-head qualification requirement. Navigation redesign and unrelated
 architecture rewrites remain outside the gate.
+
+## Post-feature engineering release gate
+
+After all ten features are implemented and qualified, complete the non-adoption
+engineering work from audit316 as specified in
+[gate317](317-post-feature-engineering-release-gate.md), before opening a 2.4
+candidate or proposing release. This includes input/acquisition/publication
+hardening, shared staging and spill lifecycles, security maintenance, explicit
+compatibility assessments and the Linux picker fallback. It does not adopt the
+auditor's reduced release boundary, distribution/adoption programme or new
+feature proposals. Keep audit307 and every existing release/compatibility gate.
