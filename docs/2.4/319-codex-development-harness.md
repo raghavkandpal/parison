@@ -122,9 +122,12 @@ installed only into .venv. The initial sandboxed full suite reported 14 loopback
 bind permission errors; rerunning with local server permission produced the
 passing result above. No tests were weakened. No new skill metadata or Codex
 configuration was introduced. Build tooling is accessible; distribution building
-was not run. Independent review and remote CI have not run for this change;
-no push, merge, release or protection change was performed. An ordinary quality
-success is not full-matrix qualification.
+was not run. At the local-setup handoff, independent review and remote CI had
+not run, and no push, merge, release or protection change had been performed.
+The owner subsequently authorized review and merge. Independent Standards and
+Spec review cleared implementation `18a0b4a`; final-head review and CI evidence
+belong in the harness PR to develop. An ordinary quality success is not
+full-matrix qualification. No security-policy change is included.
 
 Rollback the scoped tracked changes with a reviewed reverse patch or revert once
 committed. Preserve unrelated edits, especially continuation297; avoid broad
