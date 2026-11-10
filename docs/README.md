@@ -52,6 +52,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Required post-feature engineering release gate](2.4/317-post-feature-engineering-release-gate.md)
 - [Darwin FSRef mutation-boundary evidence](2.4/318-fsref-mutation-boundary-evidence.md)
 - [Codex development harness and local setup](2.4/319-codex-development-harness.md)
+- [Planner, generator and evaluator sprint workflow](2.4/320-planner-generator-evaluator-workflow.md)
 
 - [Product clarity feasibility and cause-and-effect audit (analysis only)](2.4/307-product-clarity-cause-and-effect-audit.md)
 

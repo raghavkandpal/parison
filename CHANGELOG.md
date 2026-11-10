@@ -50,6 +50,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Add a repository Codex skill for planning, generating one sprint and independent criterion-based evaluation, with explicit UI-tool blockers and bounded defect-fix rounds.
+
 - Document isolated supported-Python development setup and Codex evidence/approval workflows; check the generated command reference on docs-only PRs.
 
 - Record a native FSRef last-boundary substitution counterexample; preserve the v1 guarantee and disabled destructive session behavior.
