@@ -50,6 +50,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Require the tool audit's non-adoption engineering hardening and compatibility assessments after all ten feature implementations and before the 2.4 candidate; preserve existing release and clarity gates.
+
 - Audit every retained-session destructive mutation and record an unapproved explicit profile alternative; preserve the frozen contract and disabled runtime.
 
 - Extend isolated native disposition experiments to mapped-file lifetimes and real protected-handle close refusal; no product deletion is enabled.
