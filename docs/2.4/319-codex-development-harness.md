@@ -40,6 +40,8 @@ full-profile requirements remain as defined in [checkpoint305](305-tiered-ci-qua
 
 ## Capabilities and activation
 
+For the optional planner/generator/evaluator workflow, see [checkpoint320](320-planner-generator-evaluator-workflow.md).
+
 Codex CLI 0.160.0 and this desktop session expose native execution and review
 capabilities. Subagent tools are available in this session; tool exposure alone
 does not establish that a review ran. CLI configuration and desktop tool exposure
