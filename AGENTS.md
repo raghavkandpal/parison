@@ -15,13 +15,16 @@ Start with `make context`. Read [product direction](docs/0.15/104-product-direct
 ## Workflow
 
 1. Preserve unrelated work reported by `make context`.
+   Use a supported project interpreter for Make targets; verify its version before checks. See [development setup](CONTRIBUTING.md#setup-and-checks).
 2. Start each change branch from current `develop`, using a purpose prefix such as `feature/`, `fix/`, `docs/`, or `ci/`; reserve `develop` for reviewed integration and `main` for releases.
 3. Define the smallest coherent slice and a checkable completion gate.
 4. Read/search only files needed for that gate. Keep command output bounded; expand it only to diagnose failure.
 5. Test narrowly with `make test TEST=tests.test_<area>`. Add a regression test for each defect and a byte fixture for canonical serialization.
 6. Before a feature commit, pass `make check`.
 7. Document user-visible behavior in the active version folder; update `docs/README.md` and `CHANGELOG.md`.
-8. Keep each branch scoped to one coherent change, then push it and open or update its pull request to `develop`. Verify the exact head commit in CI before integration.
+8. Keep each branch scoped to one coherent change. With explicit push authorization, push it and open or update its pull request to `develop`. Verify the exact head commit in CI before integration.
+
+Obtain explicit authorization before pushes, merges, publication, deployments, paid usage or security-policy changes. Distinguish locally verified results from documented or remote claims.
 
 Packaging, schema, CLI, or platform changes require a manual full-matrix dispatch on the exact pull-request head before integration: built-wheel CI on Python 3.11–3.14, macOS, and Windows. Optional-Polars skips are valid only when Polars is absent. Run local preflight before dispatch; the manual default `full` profile remains required for these changes. A `preflight` profile success alone never qualifies integration. See [CI gates](docs/2.4/305-tiered-ci-qualification.md).
 

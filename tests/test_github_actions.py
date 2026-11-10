@@ -108,6 +108,11 @@ class GitHubActionsReference(unittest.TestCase):
         self.assertIn('python-version: ["3.11", "3.12", "3.13", "3.14"]', workflow)
         self.assertEqual(workflow.count("needs: [preflight, native-preflight]"), 3)
 
+    def test_docs_only_quality_checks_generated_command_reference(self):
+        workflow = (Path(__file__).parents[1] / ".github/workflows/quality.yml").read_text()
+        self.assertNotIn("paths-ignore:", workflow)
+        self.assertIn("make lint format-check docs-check", workflow)
+
     @unittest.skipUnless(shutil.which("bash"), "historical Linux suite requires bash")
     def test_historical_shell_restores_fail_fast_after_expected_difference(self):
         script = (Path(__file__).parents[1] / "tests/ci/linux-smoke.sh").read_text()

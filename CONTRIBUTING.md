@@ -4,11 +4,18 @@ Parison is a local-first, deterministic verification layer. Contributions must p
 
 ## Setup and checks
 
-Parison supports Python 3.11 through 3.14. Create a virtual environment with a supported interpreter, then install the development and optional format dependencies:
+Parison supports Python 3.11 through 3.14. Select an installed supported interpreter explicitly; an unqualified `python` may resolve to an older system or Conda environment. For example, with Python 3.14 installed:
 
 ```sh
-python -m pip install -e '.[dev,test,parquet]'
+python3.14 -m venv .venv
+.venv/bin/python -m pip install -e '.[dev,test,parquet,postgres]' build
+.venv/bin/python --version
+make check PYTHON=.venv/bin/python
 ```
+
+On Windows, use `.venv\Scripts\python.exe` for both pip and the Make `PYTHON` override. The `test` extra includes the pinned XLSX reader; `parquet` and `postgres` install the optional adapter dependencies used in CI. Installing the PostgreSQL adapter does not configure credentials or start a database. `build` supplies `make build`.
+
+Make defaults to `PYTHON=python`; pass the virtual environment interpreter to each invocation, or activate the environment first. Confirm `python --version` after activation. Keep `.venv` local and ignored. See the [Codex development harness](docs/2.4/319-codex-development-harness.md) for agent workflows, evidence and rollback.
 
 Use the Make targets as the public development interface:
 
@@ -18,7 +25,8 @@ Use the Make targets as the public development interface:
 - `make format-check` verifies formatting without changing files.
 - `make test` runs the complete unit suite.
 - `make test TEST=tests.test_<area>` runs a focused module.
-- `make check` is the required local gate: lint, format verification, tests and whitespace checks.
+- `make docs-check` verifies that the generated command reference matches the parser.
+- `make check` is the required local gate: lint, format verification, generated-reference validation, tests and whitespace checks.
 - `make build` creates wheel and source archives.
 
 Do not use Ruff unsafe fixes. Review warnings whose fixes could change runtime behavior.
