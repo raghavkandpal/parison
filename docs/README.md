@@ -50,6 +50,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Unselected cooperating-owner profile proposal](2.4/315-session-interference-profile-decision-draft.md)
 - [Independent tool audit and recommendations](2.4/316-tool-audit-and-recommendations.md)
 - [Required post-feature engineering release gate](2.4/317-post-feature-engineering-release-gate.md)
+- [Darwin FSRef mutation-boundary evidence](2.4/318-fsref-mutation-boundary-evidence.md)
 
 - [Product clarity feasibility and cause-and-effect audit (analysis only)](2.4/307-product-clarity-cause-and-effect-audit.md)
 

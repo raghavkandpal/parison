@@ -50,6 +50,8 @@ All notable changes will be documented in this file.
 
 ### Documentation
 
+- Record a native FSRef last-boundary substitution counterexample; preserve the v1 guarantee and disabled destructive session behavior.
+
 - Require the tool audit's non-adoption engineering hardening and compatibility assessments after all ten feature implementations and before the 2.4 candidate; preserve existing release and clarity gates.
 
 - Record the owner decision to retain the v1 session preservation guarantee; the weaker cooperating-owner proposal was not selected.
