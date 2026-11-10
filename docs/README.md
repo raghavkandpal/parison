@@ -47,7 +47,7 @@ Start with [the current development state](CURRENT.md) for the active version an
 - [Isolated Windows disposition native experiment](2.4/312-windows-disposition-prototype.md)
 - [Windows mapped-file and close-refusal experiments](2.4/313-windows-mapping-and-close-experiment.md)
 - [Complete session mutation protocol audit](2.4/314-session-mutation-protocol-audit.md)
-- [Unapproved cooperating-owner profile decision draft](2.4/315-session-interference-profile-decision-draft.md)
+- [Unselected cooperating-owner profile proposal](2.4/315-session-interference-profile-decision-draft.md)
 
 - [Product clarity feasibility and cause-and-effect audit (analysis only)](2.4/307-product-clarity-cause-and-effect-audit.md)
 
